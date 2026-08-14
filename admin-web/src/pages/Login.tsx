@@ -14,9 +14,10 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    const API_URL = 'https://anytime-help.onrender.com/api';
     
     try {
-      const res = await axios.post('http://172.20.10.2:5000/api/auth/login', {
+      const res = await axios.post(`${API_URL}/auth/login`, {
         email,
         password
       });

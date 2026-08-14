@@ -3,6 +3,8 @@ import axios from 'axios';
 import { Trash2, Megaphone, Plus, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const API_URL = 'https://anytime-help.onrender.com/api';
+
 export default function Announcements() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [announcements, setAnnouncements] = useState<any[]>([]);
@@ -23,7 +25,7 @@ export default function Announcements() {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get('http://172.20.10.2:5000/api/announcements', {
+      const res = await axios.get(`${API_URL}/announcements`, {
         headers: { 'x-auth-token': token }
       });
       setAnnouncements(res.data);
@@ -42,7 +44,7 @@ export default function Announcements() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.post('http://172.20.10.2:5000/api/announcements', {
+      await axios.post(`${API_URL}/announcements`, {
         title,
         message
       }, {
@@ -81,7 +83,7 @@ export default function Announcements() {
               const loadingToast = toast.loading('Deleting...');
               try {
                 const token = localStorage.getItem('adminToken');
-                await axios.delete(`http://172.20.10.2:5000/api/announcements/${id}`, {
+                await axios.delete(`${API_URL}/announcements/${id}`, {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Announcement deleted', { id: loadingToast });

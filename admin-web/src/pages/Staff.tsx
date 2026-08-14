@@ -3,6 +3,8 @@ import axios from 'axios';
 import { Trash2, UserPlus, Mail, Lock, Wrench, Users, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const API_URL = 'https://anytime-help.onrender.com/api';
+
 export default function Staff() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [staff, setStaff] = useState<any[]>([]);
@@ -26,7 +28,7 @@ export default function Staff() {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get('http://172.20.10.2:5000/api/users/staff', {
+      const res = await axios.get(`${API_URL}/users/staff`, {
         headers: { 'x-auth-token': token }
       });
       setStaff(res.data);
@@ -45,7 +47,7 @@ export default function Staff() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.post('http://172.20.10.2:5000/api/users/staff', {
+      await axios.post(`${API_URL}/users/staff`, {
         name,
         email,
         password,
@@ -88,7 +90,7 @@ export default function Staff() {
               const loadingToast = toast.loading('Deleting staff...');
               try {
                 const token = localStorage.getItem('adminToken');
-                await axios.delete(`http://172.20.10.2:5000/api/users/${id}`, {
+                await axios.delete(`${API_URL}/users/${id}`, {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Staff member deleted', { id: loadingToast });

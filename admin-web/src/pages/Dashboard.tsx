@@ -3,6 +3,8 @@ import axios from 'axios';
 import { Activity, CheckCircle, Clock, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const API_URL = 'https://anytime-help.onrender.com/api';
+
 export default function Dashboard() {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -14,7 +16,7 @@ export default function Dashboard() {
   const fetchComplaints = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get('http://172.20.10.2:5000/api/complaints', {
+      const res = await axios.get(`${API_URL}/complaints`, {
         headers: { 'x-auth-token': token }
       });
       setComplaints(res.data);
@@ -43,7 +45,7 @@ export default function Dashboard() {
               const loadingToast = toast.loading('Deleting complaint...');
               try {
                 const token = localStorage.getItem('adminToken');
-                await axios.delete(`http://172.20.10.2:5000/api/complaints/${id}`, {
+                await axios.delete(`${API_URL}/complaints/${id}`, {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Complaint deleted successfully', { id: loadingToast });
@@ -66,7 +68,7 @@ export default function Dashboard() {
     const loadingToast = toast.loading('Updating status...');
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.patch(`http://172.20.10.2:5000/api/complaints/${id}`, { status: newStatus }, {
+      await axios.patch(`${API_URL}/complaints/${id}`, { status: newStatus }, {
         headers: { 'x-auth-token': token }
       });
       toast.success('Status updated successfully', { id: loadingToast });
