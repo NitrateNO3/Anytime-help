@@ -14,7 +14,7 @@ export default function Dashboard() {
   const fetchComplaints = async () => {
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get('http://localhost:5000/api/complaints', {
+      const res = await axios.get('https://anytime-help.onrender.com/api/complaints', {
         headers: { 'x-auth-token': token }
       });
       setComplaints(res.data);
@@ -43,7 +43,7 @@ export default function Dashboard() {
               const loadingToast = toast.loading('Deleting complaint...');
               try {
                 const token = localStorage.getItem('adminToken');
-                await axios.delete(`http://localhost:5000/api/complaints/${id}`, {
+                await axios.delete(`https://anytime-help.onrender.com/api/complaints/${id}`, {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Complaint deleted successfully', { id: loadingToast });
@@ -66,7 +66,7 @@ export default function Dashboard() {
     const loadingToast = toast.loading('Updating status...');
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.patch(`http://localhost:5000/api/complaints/${id}`, { status: newStatus }, {
+      await axios.patch(`https://anytime-help.onrender.com/api/complaints/${id}`, { status: newStatus }, {
         headers: { 'x-auth-token': token }
       });
       toast.success('Status updated successfully', { id: loadingToast });
