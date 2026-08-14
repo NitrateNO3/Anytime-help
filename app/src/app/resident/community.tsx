@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_URL = 'http://172.20.10.2:5000/api';
+const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function CommunityScreen() {
   const { t } = useTranslation();

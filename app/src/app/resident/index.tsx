@@ -7,7 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
-const API_URL = 'http://172.20.10.2:5000/api';
+const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function ResidentHome() {
   const router = useRouter();

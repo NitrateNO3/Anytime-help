@@ -8,7 +8,7 @@ import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_URL = 'http://172.20.10.2:5000/api';
+const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function LoginScreen() {
   const router = useRouter();
