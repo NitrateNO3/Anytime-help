@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, ShieldAlert, Megaphone } from 'lucide-react';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -38,6 +38,10 @@ export default function AdminLayout() {
           <Link to="/staff" className={`nav-link ${location.pathname === '/staff' ? 'active' : ''}`}>
             <Users size={20} />
             Staff Team
+          </Link>
+          <Link to="/announcements" className={`nav-link ${location.pathname === '/announcements' ? 'active' : ''}`}>
+            <Megaphone size={20} />
+            Announcements
           </Link>
         </nav>
 

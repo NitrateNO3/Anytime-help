@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Staff from './pages/Staff';
+import Announcements from './pages/Announcements';
 import AdminLayout from './layouts/AdminLayout';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="staff" element={<Staff />} />
+            <Route path="announcements" element={<Announcements />} />
           </Route>
         </Routes>
       </BrowserRouter>

@@ -26,7 +26,7 @@ export default function Staff() {
     try {
       setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get('https://anytime-help.onrender.com/api/users/staff', {
+      const res = await axios.get('http://172.20.10.2:5000/api/users/staff', {
         headers: { 'x-auth-token': token }
       });
       setStaff(res.data);
@@ -45,7 +45,7 @@ export default function Staff() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      await axios.post('https://anytime-help.onrender.com/api/users/staff', {
+      await axios.post('http://172.20.10.2:5000/api/users/staff', {
         name,
         email,
         password,
@@ -88,7 +88,7 @@ export default function Staff() {
               const loadingToast = toast.loading('Deleting staff...');
               try {
                 const token = localStorage.getItem('adminToken');
-                await axios.delete(`https://anytime-help.onrender.com/api/users/${id}`, {
+                await axios.delete(`http://172.20.10.2:5000/api/users/${id}`, {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Staff member deleted', { id: loadingToast });
