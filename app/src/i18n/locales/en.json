@@ -1,0 +1,85 @@
+{
+  "login": {
+    "welcomeBack": "Welcome Back",
+    "subtitle": "Login to Anytime Help",
+    "residentLogin": "Resident Login",
+    "staffLogin": "Staff Login",
+    "emailPlaceholder": "Email Address",
+    "passwordPlaceholder": "Password",
+    "loginBtn": "Log In",
+    "loggingInBtn": "Logging in...",
+    "continueGoogle": "Continue with Google",
+    "noAccount": "Don't have an account?",
+    "registerHere": "Register Here"
+  },
+  "settings": {
+    "preferences": "Preferences",
+    "language": "Language",
+    "change": "Change",
+    "darkMode": "Dark Mode",
+    "pushNotifications": "Push Notifications",
+    "account": "Account",
+    "changePassword": "Change Password",
+    "logout": "Logout",
+    "settingsTitle": "Settings"
+  },
+  "staff": {
+    "portal": "Staff Portal",
+    "assignedTasks": "Assigned Tasks",
+    "updateStatus": "Update Status",
+    "pending": "Pending",
+    "inProgress": "In Progress",
+    "resolved": "Resolved (Done)",
+    "cancel": "Cancel",
+    "noTasks": "No pending tasks right now. Great job!"
+  },
+  "resident": {
+    "hello": "Hello,",
+    "exploreSociety": "Explore Society",
+    "myComplaints": "My Complaints",
+    "announcements": "Announcements",
+    "noComplaints": "You haven't raised any complaints yet.",
+    "priority": "Priority",
+    "noAnnouncements": "No Announcements Yet",
+    "noAnnouncementsSub": "When the admin broadcasts notices, they will appear here.",
+    "menuComingSoon": "Sidebar coming soon!",
+    "menu": "Menu"
+  },
+  "raise": {
+    "title": "Raise a Complaint",
+    "category": "Category",
+    "location": "Location",
+    "locationPlaceholder": "E.g., Block A, Flat 201",
+    "description": "Description",
+    "descriptionPlaceholder": "Describe the issue in detail...",
+    "addPhotos": "Add Photos",
+    "allowAI": "Allow duplicate check (AI)",
+    "submitting": "Submitting...",
+    "submit": "Submit Complaint",
+    "errorDesc": "Please describe the issue.",
+    "errorTitle": "Error",
+    "successTitle": "Success",
+    "successDesc": "Complaint raised successfully!",
+    "errorSubmit": "Failed to submit complaint. Try again."
+  },
+  "search": {
+    "title": "Society Directory",
+    "subtitle": "Important Contacts"
+  },
+  "community": {
+    "title": "Notifications",
+    "subtitle": "System alerts & messages",
+    "noNotifications": "No new notifications"
+  },
+  "register": {
+    "title": "Create Account",
+    "subtitle": "Join Anytime Help Community",
+    "fullName": "Full Name",
+    "email": "Email Address",
+    "password": "Password",
+    "creating": "Creating Account...",
+    "signup": "Sign Up",
+    "alreadyHave": "Already have an account? ",
+    "loginHere": "Login Here"
+  }
+}
