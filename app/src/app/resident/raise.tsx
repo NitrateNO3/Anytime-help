@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, FlatList } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -19,6 +19,9 @@ export default function RaiseComplaint() {
   const [image, setImage] = useState<string | null>(null);
   const [allowAI, setAllowAI] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  
+  const categories = ['Plumbing', 'Electrical', 'Cleaning', 'Security', 'Maintenance', 'Pest Control', 'Others'];
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -91,14 +94,7 @@ export default function RaiseComplaint() {
           <Text style={styles.label}>{t('raise.category')}</Text>
           <TouchableOpacity 
             style={styles.dropdown}
-            onPress={() => {
-              Alert.alert('Select Category', 'Choose a category', [
-                { text: 'Plumbing', onPress: () => setCategory('Plumbing') },
-                { text: 'Electrical', onPress: () => setCategory('Electrical') },
-                { text: 'Cleaning', onPress: () => setCategory('Cleaning') },
-                { text: 'Cancel', style: 'cancel' }
-              ]);
-            }}
+            onPress={() => setCategoryModalVisible(true)}
           >
             <Text style={styles.dropdownText}>{category}</Text>
             <Ionicons name="chevron-down" size={20} color="#6B7280" />
@@ -159,6 +155,56 @@ export default function RaiseComplaint() {
           <View style={{ height: 100 }} />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Category Selection Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={categoryModalVisible}
+        onRequestClose={() => setCategoryModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setCategoryModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Category</Text>
+              <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={categories}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={[
+                    styles.categoryOption,
+                    category === item && styles.categoryOptionSelected
+                  ]}
+                  onPress={() => {
+                    setCategory(item);
+                    setCategoryModalVisible(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.categoryOptionText,
+                    category === item && styles.categoryOptionTextSelected
+                  ]}>{item}</Text>
+                  {category === item && (
+                    <Ionicons name="checkmark-circle" size={20} color="#000" />
+                  )}
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -181,5 +227,13 @@ const styles = StyleSheet.create({
   checkboxActive: { backgroundColor: '#E1F21E' },
   checkboxLabel: { fontSize: 15, color: '#4B5563', fontWeight: '500' },
   submitBtn: { backgroundColor: '#E1F21E', borderRadius: 16, height: 56, justifyContent: 'center', alignItems: 'center', shadowColor: '#E1F21E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  submitBtnText: { color: '#000', fontSize: 18, fontWeight: '700' }
+  submitBtnText: { color: '#000', fontSize: 18, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '70%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  categoryOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  categoryOptionSelected: { backgroundColor: 'rgba(225, 242, 30, 0.1)', paddingHorizontal: 12, borderRadius: 12, borderBottomWidth: 0 },
+  categoryOptionText: { fontSize: 16, color: '#4B5563', fontWeight: '500' },
+  categoryOptionTextSelected: { color: '#111827', fontWeight: '700' }
 });
