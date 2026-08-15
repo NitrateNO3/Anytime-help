@@ -71,8 +71,11 @@ export default function LoginScreen() {
           <View style={styles.iconContainer}>
             <Ionicons name="shield-checkmark" size={40} color="#3B82F6" />
           </View>
-          <Text style={styles.title}>{t('login.welcomeBack')}</Text>
-          <Text style={styles.subtitle}>{t('login.subtitle')}</Text>
+          <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginBottom: 12 }}>
+            <Text style={{ color: '#1D4ED8', fontWeight: '700', fontSize: 12, letterSpacing: 1 }}>RWA APPROVED</Text>
+          </View>
+          <Text style={styles.title}>RWA Anytime Help</Text>
+          <Text style={styles.subtitle}>{t('login.welcomeBack')}</Text>
         </View>
 
         <View style={styles.form}>

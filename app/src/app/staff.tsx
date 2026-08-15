@@ -70,8 +70,6 @@ export default function StaffScreen() {
       const res = await axios.get(`${API_URL}/announcements`, {
         headers: { 'x-auth-token': token }
       });
-      // Filter for announcements created by this user
-      // Assuming res.data has createdBy field, or just show all to staff
       setAnnouncements(res.data);
     } catch (err) {
       console.error('Fetch announcements error:', err);
@@ -183,31 +181,32 @@ export default function StaffScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1F2937" />
+      <StatusBar barStyle="dark-content" backgroundColor="#FCFDF6" />
       
-      {/* Dark Theme Header for Staff */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.greeting}>{t('staff.portal')}</Text>
-          <Text style={styles.subGreeting}>
-            {user?.name || 'Staff Member'} • {user?.assigned_category || 'Assigned'}
-          </Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <TouchableOpacity onPress={toggleLanguage} style={{ backgroundColor: '#4B5563', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, marginRight: 12 }}>
-            <Text style={{ color: 'white', fontWeight: '600', fontSize: 12 }}>{i18n.language === 'en' ? 'हिंदी' : 'English'}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={24} color="#F87171" />
-          </TouchableOpacity>
-        </View>
-      </View>
-
       <ScrollView 
         style={styles.container} 
         contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        {/* Header matched with Resident Theme */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
+            <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी में बदलें' : 'English'}</Text>
+          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.iconBtn} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={24} color="#EF4444" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Title Area */}
+        <View style={styles.titleArea}>
+          <Text style={styles.title}>{t('staff.portal')}</Text>
+          <Text style={styles.subtitle}>{user?.name || 'Staff Member'} • {user?.assigned_category || 'Assigned'}</Text>
+        </View>
+
         {/* Filters */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterContainer}>
           <TouchableOpacity 
@@ -227,11 +226,11 @@ export default function StaffScreen() {
         {activeTab === 'Tasks' ? (
           <>
             {loading ? (
-              <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color="#E1F21E" style={{ marginTop: 40 }} />
             ) : complaints.length === 0 ? (
-              <View style={styles.emptyState}>
+              <View style={styles.emptyStateContainer}>
                 <Ionicons name="checkmark-circle-outline" size={64} color="#D1D5DB" />
-                <Text style={styles.emptyText}>{t('staff.noTasks')}</Text>
+                <Text style={styles.emptyTextLarge}>{t('staff.noTasks')}</Text>
               </View>
             ) : (
               complaints.map((item) => (
@@ -259,7 +258,9 @@ export default function StaffScreen() {
                   <Text style={styles.descText}>{item.description}</Text>
 
                   {item.before_image ? (
-                    <Image source={{ uri: item.before_image }} style={styles.cardImage} />
+                    <View style={styles.imageContainer}>
+                      <Image source={{ uri: item.before_image }} style={styles.cardImage} />
+                    </View>
                   ) : null}
 
                   {/* Action Dropdown Button */}
@@ -268,7 +269,7 @@ export default function StaffScreen() {
                     onPress={() => openStatusDropdown(item._id)}
                   >
                     <Text style={styles.dropdownBtnText}>{t('staff.updateStatus')}</Text>
-                    <Ionicons name="chevron-down" size={20} color="#374151" />
+                    <Ionicons name="chevron-down" size={20} color="#111827" />
                   </TouchableOpacity>
                 </View>
               ))
@@ -276,34 +277,43 @@ export default function StaffScreen() {
           </>
         ) : (
           <>
-            {loadingAnnouncements ? (
-              <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 40 }} />
-            ) : announcements.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="megaphone-outline" size={64} color="#D1D5DB" />
-                <Text style={styles.emptyText}>No broadcasts sent yet.</Text>
-              </View>
-            ) : (
-              announcements.filter(item => {
+            {(() => {
+              const filteredAnnouncements = announcements.filter(item => {
                 const uid = user?._id || user?.id;
                 const cid = item?.createdBy;
                 return uid && cid && String(uid) === String(cid);
-              }).map((item) => (
+              });
+
+              if (loadingAnnouncements) {
+                return <ActivityIndicator size="large" color="#E1F21E" style={{ marginTop: 40 }} />;
+              }
+
+              if (filteredAnnouncements.length === 0) {
+                return (
+                  <View style={styles.emptyStateContainer}>
+                    <Ionicons name="megaphone-outline" size={64} color="#D1D5DB" />
+                    <Text style={styles.emptyTextLarge}>No broadcasts sent yet.</Text>
+                    <Text style={styles.emptyTextSub}>You haven't sent any messages to the residents. Tap the button below to send your first message.</Text>
+                  </View>
+                );
+              }
+
+              return filteredAnnouncements.map((item) => (
                 <View key={item._id} style={[styles.card, { padding: 16 }]}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6, flex: 1 }}>{item.title}</Text>
-                    <TouchableOpacity onPress={() => handleDeleteBroadcast(item._id)} style={{ padding: 4 }}>
-                      <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                    <TouchableOpacity onPress={() => handleDeleteBroadcast(item._id)} style={{ padding: 4, backgroundColor: '#FEE2E2', borderRadius: 8 }}>
+                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                   <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>{new Date(item.date).toLocaleDateString()}</Text>
                   <Text style={{ fontSize: 15, color: '#4B5563', lineHeight: 22 }}>{item.message}</Text>
                 </View>
-              ))
-            )}
+              ));
+            })()}
           </>
         )}
-        <View style={{ height: 80 }} />
+        <View style={{ height: 120 }} />
       </ScrollView>
 
       {/* Status Selection Modal */}
@@ -388,10 +398,10 @@ export default function StaffScreen() {
               disabled={sendingBroadcast}
             >
               {sendingBroadcast ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color="#111827" />
               ) : (
                 <>
-                  <Ionicons name="megaphone" size={20} color="#fff" style={{ marginRight: 8 }} />
+                  <Ionicons name="megaphone" size={20} color="#111827" style={{ marginRight: 8 }} />
                   <Text style={styles.broadcastBtnText}>Send Broadcast</Text>
                 </>
               )}
@@ -400,12 +410,12 @@ export default function StaffScreen() {
         </TouchableOpacity>
       </Modal>
 
-      {/* FAB for Broadcast */}
+      {/* FAB for Broadcast matched with new theme */}
       <TouchableOpacity 
         style={styles.fab} 
         onPress={() => setBroadcastModalVisible(true)}
       >
-        <Ionicons name="megaphone" size={24} color="#FFF" />
+        <Ionicons name="megaphone" size={24} color="#111827" />
       </TouchableOpacity>
 
     </SafeAreaView>
@@ -413,45 +423,50 @@ export default function StaffScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F3F4F6' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 24, backgroundColor: '#1F2937' },
-  greeting: { fontSize: 24, fontWeight: '700', color: '#FFFFFF' },
-  subGreeting: { fontSize: 14, color: '#9CA3AF', marginTop: 4, fontWeight: '500' },
-  logoutBtn: { padding: 8, backgroundColor: 'rgba(255,0,0,0.1)', borderRadius: 12 },
+  safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
   container: { flex: 1 },
-  contentContainer: { padding: 20 },
-  filterScroll: { marginBottom: 20, maxHeight: 45 },
+  contentContainer: { paddingHorizontal: 20, paddingTop: 10 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  langToggle: { backgroundColor: '#F3F4F6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  langToggleText: { fontSize: 13, fontWeight: '600', color: '#111827' },
+  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  titleArea: { marginBottom: 24 },
+  title: { fontSize: 24, fontWeight: '600', color: '#111827', marginBottom: 4 },
+  subtitle: { fontSize: 24, fontWeight: '800', color: '#111827' },
+  filterScroll: { marginBottom: 30, maxHeight: 45 },
   filterContainer: { paddingRight: 20, gap: 12 },
   filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
-  filterChipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
+  filterChipActive: { backgroundColor: '#E1F21E', borderColor: '#E1F21E' },
   filterText: { fontSize: 15, fontWeight: '500', color: '#4B5563' },
-  filterTextActive: { color: '#FFFFFF', fontWeight: '600' },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
-  emptyState: { alignItems: 'center', marginTop: 60 },
-  emptyText: { marginTop: 16, fontSize: 16, color: '#6B7280', textAlign: 'center' },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  filterTextActive: { color: '#111827', fontWeight: '600' },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20, elevation: 4 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   badge: { backgroundColor: '#FEE2E2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   badgeText: { fontSize: 12, fontWeight: '700', color: '#B91C1C' },
   statusText: { fontSize: 13, fontWeight: '700' },
   cardTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 8 },
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  cardLocation: { fontSize: 14, color: '#4B5563', marginLeft: 4, fontWeight: '500' },
-  descText: { fontSize: 14, color: '#6B7280', lineHeight: 20, marginBottom: 16 },
-  cardImage: { width: '100%', height: 180, borderRadius: 12, marginBottom: 16 },
-  dropdownBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F3F4F6', padding: 14, borderRadius: 12, marginTop: 8 },
-  dropdownBtnText: { color: '#374151', fontSize: 15, fontWeight: '600' },
+  cardLocation: { fontSize: 14, color: '#6B7280', marginLeft: 4, fontWeight: '500' },
+  descText: { fontSize: 14, color: '#4B5563', lineHeight: 20, marginBottom: 16 },
+  imageContainer: { width: '100%', height: 160, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
+  cardImage: { width: '100%', height: '100%' },
+  dropdownBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F3F4F6', padding: 14, borderRadius: 12, marginTop: 4 },
+  dropdownBtnText: { color: '#111827', fontSize: 15, fontWeight: '600' },
+  emptyStateContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60, paddingHorizontal: 40 },
+  emptyTextLarge: { fontSize: 20, fontWeight: '700', color: '#111827', marginTop: 16, textAlign: 'center' },
+  emptyTextSub: { fontSize: 15, color: '#6B7280', textAlign: 'center', marginTop: 8, lineHeight: 22 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
   modalContent: { width: '80%', backgroundColor: 'white', borderRadius: 20, padding: 20, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16, textAlign: 'center' },
   modalOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   modalOptionText: { fontSize: 16, color: '#111827', fontWeight: '500', marginLeft: 12 },
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#3B82F6', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
-  broadcastModalContent: { width: '90%', backgroundColor: 'white', borderRadius: 20, padding: 20, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  broadcastModalContent: { width: '90%', backgroundColor: 'white', borderRadius: 24, padding: 24, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
   broadcastHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   broadcastHelpText: { fontSize: 14, color: '#6B7280', marginBottom: 20 },
-  input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 14, fontSize: 16, color: '#111827', marginBottom: 16 },
-  textArea: { height: 100, textAlignVertical: 'top' },
-  broadcastBtn: { backgroundColor: '#10B981', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 12, marginTop: 8 },
-  broadcastBtnText: { color: 'white', fontSize: 16, fontWeight: '700' }
+  input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 16, padding: 16, fontSize: 16, color: '#111827', marginBottom: 16 },
+  textArea: { height: 120, textAlignVertical: 'top' },
+  broadcastBtn: { backgroundColor: '#E1F21E', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 8 },
+  broadcastBtnText: { color: '#111827', fontSize: 16, fontWeight: '700' },
+  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#E1F21E', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 15, elevation: 6 }
 });
