@@ -80,14 +80,14 @@ export default function LoginScreen() {
           <View style={styles.roleContainer}>
             <TouchableOpacity 
               style={[styles.roleBtn, role === 'Resident' && styles.roleBtnActive]}
-              onPress={() => { setRole('Resident'); setEmail('test@resident.com'); }}
+              onPress={() => setRole('Resident')}
             >
               <Ionicons name="home" size={20} color={role === 'Resident' ? '#FFF' : '#6B7280'} />
               <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>{t('login.residentLogin')}</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.roleBtn, role === 'Staff' && styles.roleBtnActiveStaff]}
-              onPress={() => { setRole('Staff'); setEmail('test@staff.com'); }}
+              onPress={() => setRole('Staff')}
             >
               <Ionicons name="construct" size={20} color={role === 'Staff' ? '#FFF' : '#6B7280'} />
               <Text style={[styles.roleBtnText, role === 'Staff' && styles.roleBtnTextActive]}>{t('login.staffLogin')}</Text>
