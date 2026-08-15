@@ -14,6 +14,8 @@ export default function StaffScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const [complaints, setComplaints] = useState<any[]>([]);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'Tasks' | 'Broadcasts'>('Tasks');
 
   const toggleLanguage = async () => {
     const newLang = i18n.language === 'en' ? 'hi' : 'en';
@@ -21,6 +23,7 @@ export default function StaffScreen() {
     await AsyncStorage.setItem('user-language', newLang);
   };
   const [loading, setLoading] = useState(true);
+  const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
 
@@ -61,13 +64,31 @@ export default function StaffScreen() {
     }
   };
 
+  const fetchAnnouncements = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      const res = await axios.get(`${API_URL}/announcements`, {
+        headers: { 'x-auth-token': token }
+      });
+      // Filter for announcements created by this user
+      // Assuming res.data has createdBy field, or just show all to staff
+      setAnnouncements(res.data);
+    } catch (err) {
+      console.error('Fetch announcements error:', err);
+    } finally {
+      setLoadingAnnouncements(false);
+    }
+  };
+
   useEffect(() => {
     fetchComplaints();
+    fetchAnnouncements();
   }, []);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchComplaints();
+    fetchAnnouncements();
   };
 
   const handleLogout = async () => {
@@ -124,6 +145,7 @@ export default function StaffScreen() {
       setBroadcastTitle('');
       setBroadcastMessage('');
       Toast.show({ type: 'success', text1: 'Broadcast Sent', text2: 'Your message has been sent to all residents' });
+      fetchAnnouncements(); // Refresh the broadcasts list
     } catch (err) {
       console.error('Broadcast error:', err);
       Toast.show({ type: 'error', text1: 'Broadcast Failed', text2: 'Could not send broadcast' });
@@ -159,55 +181,93 @@ export default function StaffScreen() {
         contentContainerStyle={styles.contentContainer}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <Text style={styles.sectionTitle}>{t('staff.assignedTasks')}</Text>
+        {/* Filters */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterContainer}>
+          <TouchableOpacity 
+            style={[styles.filterChip, activeTab === 'Tasks' && styles.filterChipActive]}
+            onPress={() => setActiveTab('Tasks')}
+          >
+            <Text style={[styles.filterText, activeTab === 'Tasks' && styles.filterTextActive]}>{t('staff.assignedTasks')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.filterChip, activeTab === 'Broadcasts' && styles.filterChipActive]}
+            onPress={() => setActiveTab('Broadcasts')}
+          >
+            <Text style={[styles.filterText, activeTab === 'Broadcasts' && styles.filterTextActive]}>My Broadcasts</Text>
+          </TouchableOpacity>
+        </ScrollView>
 
-        {loading ? (
-          <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 40 }} />
-        ) : complaints.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Ionicons name="checkmark-circle-outline" size={64} color="#D1D5DB" />
-            <Text style={styles.emptyText}>{t('staff.noTasks')}</Text>
-          </View>
-        ) : (
-          complaints.map((item) => (
-            <View key={item._id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{item.priority}</Text>
+        {activeTab === 'Tasks' ? (
+          <>
+            {loading ? (
+              <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 40 }} />
+            ) : complaints.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="checkmark-circle-outline" size={64} color="#D1D5DB" />
+                <Text style={styles.emptyText}>{t('staff.noTasks')}</Text>
+              </View>
+            ) : (
+              complaints.map((item) => (
+                <View key={item._id} style={styles.card}>
+                  <View style={styles.cardHeader}>
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{item.priority}</Text>
+                    </View>
+                    <Text style={[
+                      styles.statusText, 
+                      item.status === 'PENDING' ? { color: '#F59E0B' } : 
+                      item.status === 'IN_PROGRESS' ? { color: '#3B82F6' } : { color: '#10B981' }
+                    ]}>
+                      ● {item.status.replace('_', ' ')}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-outline" size={16} color="#6B7280" />
+                    <Text style={styles.cardLocation}>{item.location}</Text>
+                  </View>
+
+                  <Text style={styles.descText}>{item.description}</Text>
+
+                  {item.before_image ? (
+                    <Image source={{ uri: item.before_image }} style={styles.cardImage} />
+                  ) : null}
+
+                  {/* Action Dropdown Button */}
+                  <TouchableOpacity 
+                    style={styles.dropdownBtn}
+                    onPress={() => openStatusDropdown(item._id)}
+                  >
+                    <Text style={styles.dropdownBtnText}>{t('staff.updateStatus')}</Text>
+                    <Ionicons name="chevron-down" size={20} color="#374151" />
+                  </TouchableOpacity>
                 </View>
-                <Text style={[
-                  styles.statusText, 
-                  item.status === 'PENDING' ? { color: '#F59E0B' } : 
-                  item.status === 'IN_PROGRESS' ? { color: '#3B82F6' } : { color: '#10B981' }
-                ]}>
-                  ● {item.status.replace('_', ' ')}
-                </Text>
+              ))
+            )}
+          </>
+        ) : (
+          <>
+            {loadingAnnouncements ? (
+              <ActivityIndicator size="large" color="#3B82F6" style={{ marginTop: 40 }} />
+            ) : announcements.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="megaphone-outline" size={64} color="#D1D5DB" />
+                <Text style={styles.emptyText}>No broadcasts sent yet.</Text>
               </View>
-
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={16} color="#6B7280" />
-                <Text style={styles.cardLocation}>{item.location}</Text>
-              </View>
-
-              <Text style={styles.descText}>{item.description}</Text>
-
-              {item.before_image ? (
-                <Image source={{ uri: item.before_image }} style={styles.cardImage} />
-              ) : null}
-
-              {/* Action Dropdown Button */}
-              <TouchableOpacity 
-                style={styles.dropdownBtn}
-                onPress={() => openStatusDropdown(item._id)}
-              >
-                <Text style={styles.dropdownBtnText}>{t('staff.updateStatus')}</Text>
-                <Ionicons name="chevron-down" size={20} color="#374151" />
-              </TouchableOpacity>
-            </View>
-          ))
+            ) : (
+              announcements.filter(item => user && item.createdBy === user._id || item.createdBy === user?.id || true).map((item) => (
+                <View key={item._id} style={[styles.card, { padding: 16 }]}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 }}>{item.title}</Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>{new Date(item.date).toLocaleDateString()}</Text>
+                  <Text style={{ fontSize: 15, color: '#4B5563', lineHeight: 22 }}>{item.message}</Text>
+                </View>
+              ))
+            )}
+          </>
         )}
+        <View style={{ height: 80 }} />
       </ScrollView>
 
       {/* Status Selection Modal */}
@@ -324,6 +384,12 @@ const styles = StyleSheet.create({
   logoutBtn: { padding: 8, backgroundColor: 'rgba(255,0,0,0.1)', borderRadius: 12 },
   container: { flex: 1 },
   contentContainer: { padding: 20 },
+  filterScroll: { marginBottom: 20, maxHeight: 45 },
+  filterContainer: { paddingRight: 20, gap: 12 },
+  filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
+  filterChipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
+  filterText: { fontSize: 15, fontWeight: '500', color: '#4B5563' },
+  filterTextActive: { color: '#FFFFFF', fontWeight: '600' },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
   emptyState: { alignItems: 'center', marginTop: 60 },
   emptyText: { marginTop: 16, fontSize: 16, color: '#6B7280', textAlign: 'center' },
