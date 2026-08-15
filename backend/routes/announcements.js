@@ -20,8 +20,8 @@ router.get('/', auth, async (req, res) => {
 // @desc    Create an announcement (Admin only)
 // @access  Private
 router.post('/', auth, async (req, res) => {
-  if (req.user.role !== 'Admin') {
-    return res.status(403).json({ msg: 'Authorization denied, admin only' });
+  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
+    return res.status(403).json({ msg: 'Authorization denied, admin or staff only' });
   }
 
   const { title, message } = req.body;
@@ -45,8 +45,8 @@ router.post('/', auth, async (req, res) => {
 // @desc    Delete (or deactivate) an announcement
 // @access  Private
 router.delete('/:id', auth, async (req, res) => {
-  if (req.user.role !== 'Admin') {
-    return res.status(403).json({ msg: 'Authorization denied, admin only' });
+  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
+    return res.status(403).json({ msg: 'Authorization denied, admin or staff only' });
   }
 
   try {

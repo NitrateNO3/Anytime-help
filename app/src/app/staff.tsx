@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -27,6 +27,12 @@ export default function StaffScreen() {
   // Modal State for Dropdown
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedComplaintId, setSelectedComplaintId] = useState<string | null>(null);
+
+  // Broadcast State
+  const [broadcastModalVisible, setBroadcastModalVisible] = useState(false);
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
   const fetchComplaints = async () => {
     try {
@@ -99,6 +105,31 @@ export default function StaffScreen() {
   const openStatusDropdown = (id: string) => {
     setSelectedComplaintId(id);
     setModalVisible(true);
+  };
+
+  const handleBroadcast = async () => {
+    if (!broadcastTitle || !broadcastMessage) {
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Title and Message are required' });
+      return;
+    }
+
+    try {
+      setSendingBroadcast(true);
+      const token = await SecureStore.getItemAsync('userToken');
+      await axios.post(`${API_URL}/announcements`, 
+        { title: broadcastTitle, message: broadcastMessage },
+        { headers: { 'x-auth-token': token } }
+      );
+      setBroadcastModalVisible(false);
+      setBroadcastTitle('');
+      setBroadcastMessage('');
+      Toast.show({ type: 'success', text1: 'Broadcast Sent', text2: 'Your message has been sent to all residents' });
+    } catch (err) {
+      console.error('Broadcast error:', err);
+      Toast.show({ type: 'error', text1: 'Broadcast Failed', text2: 'Could not send broadcast' });
+    } finally {
+      setSendingBroadcast(false);
+    }
   };
 
   return (
@@ -216,6 +247,71 @@ export default function StaffScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Broadcast Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={broadcastModalVisible}
+        onRequestClose={() => setBroadcastModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setBroadcastModalVisible(false)}
+        >
+          <View style={styles.broadcastModalContent}>
+            <View style={styles.broadcastHeader}>
+              <Text style={styles.modalTitle}>New Broadcast</Text>
+              <TouchableOpacity onPress={() => setBroadcastModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.broadcastHelpText}>This message will be sent to all residents as an announcement.</Text>
+            
+            <TextInput
+              style={styles.input}
+              placeholder="Broadcast Title (e.g., Power Outage)"
+              value={broadcastTitle}
+              onChangeText={setBroadcastTitle}
+              placeholderTextColor="#9CA3AF"
+            />
+            
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Message details..."
+              value={broadcastMessage}
+              onChangeText={setBroadcastMessage}
+              multiline
+              numberOfLines={4}
+              placeholderTextColor="#9CA3AF"
+            />
+            
+            <TouchableOpacity 
+              style={styles.broadcastBtn} 
+              onPress={handleBroadcast}
+              disabled={sendingBroadcast}
+            >
+              {sendingBroadcast ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="megaphone" size={20} color="#fff" style={{ marginRight: 8 }} />
+                  <Text style={styles.broadcastBtnText}>Send Broadcast</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* FAB for Broadcast */}
+      <TouchableOpacity 
+        style={styles.fab} 
+        onPress={() => setBroadcastModalVisible(true)}
+      >
+        <Ionicons name="megaphone" size={24} color="#FFF" />
+      </TouchableOpacity>
+
     </SafeAreaView>
   );
 }
@@ -247,5 +343,13 @@ const styles = StyleSheet.create({
   modalContent: { width: '80%', backgroundColor: 'white', borderRadius: 20, padding: 20, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16, textAlign: 'center' },
   modalOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  modalOptionText: { fontSize: 16, color: '#111827', fontWeight: '500', marginLeft: 12 }
+  modalOptionText: { fontSize: 16, color: '#111827', fontWeight: '500', marginLeft: 12 },
+  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#3B82F6', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  broadcastModalContent: { width: '90%', backgroundColor: 'white', borderRadius: 20, padding: 20, elevation: 5, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8 },
+  broadcastHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  broadcastHelpText: { fontSize: 14, color: '#6B7280', marginBottom: 20 },
+  input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 14, fontSize: 16, color: '#111827', marginBottom: 16 },
+  textArea: { height: 100, textAlignVertical: 'top' },
+  broadcastBtn: { backgroundColor: '#10B981', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 12, marginTop: 8 },
+  broadcastBtnText: { color: 'white', fontSize: 16, fontWeight: '700' }
 });
