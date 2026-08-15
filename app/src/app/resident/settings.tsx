@@ -16,8 +16,6 @@ export default function SettingsScreen() {
     await i18n.changeLanguage(newLang);
     await AsyncStorage.setItem('user-language', newLang);
   };
-  const [darkMode, setDarkMode] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   useEffect(() => {
     loadUser();
@@ -62,34 +60,10 @@ export default function SettingsScreen() {
             <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>{t('settings.change')}</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={styles.settingItem}>
-          <View style={styles.settingItemLeft}>
-            <Ionicons name="moon-outline" size={24} color="#4B5563" style={styles.settingIcon} />
-            <Text style={styles.settingText}>{t('settings.darkMode')}</Text>
-          </View>
-          <Switch value={darkMode} onValueChange={setDarkMode} trackColor={{ true: '#10B981' }} />
-        </View>
-
-        <View style={styles.settingItem}>
-          <View style={styles.settingItemLeft}>
-            <Ionicons name="notifications-outline" size={24} color="#4B5563" style={styles.settingIcon} />
-            <Text style={styles.settingText}>{t('settings.pushNotifications')}</Text>
-          </View>
-          <Switch value={notificationsEnabled} onValueChange={setNotificationsEnabled} trackColor={{ true: '#10B981' }} />
-        </View>
       </View>
 
       <View style={styles.settingsGroup}>
         <Text style={styles.groupTitle}>{t('settings.account')}</Text>
-        
-        <TouchableOpacity style={styles.settingItemAction}>
-          <View style={styles.settingItemLeft}>
-            <Ionicons name="lock-closed-outline" size={24} color="#4B5563" style={styles.settingIcon} />
-            <Text style={styles.settingText}>{t('settings.changePassword')}</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-        </TouchableOpacity>
 
         <TouchableOpacity style={styles.settingItemAction} onPress={handleLogout}>
           <View style={styles.settingItemLeft}>
