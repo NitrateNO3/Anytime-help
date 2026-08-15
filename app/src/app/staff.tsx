@@ -154,6 +154,33 @@ export default function StaffScreen() {
     }
   };
 
+  const handleDeleteBroadcast = (id: string) => {
+    Alert.alert(
+      "Delete Broadcast",
+      "Are you sure you want to delete this broadcast? It will be removed for everyone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              const token = await SecureStore.getItemAsync('userToken');
+              await axios.delete(`${API_URL}/announcements/${id}`, {
+                headers: { 'x-auth-token': token }
+              });
+              Toast.show({ type: 'success', text1: 'Deleted', text2: 'Broadcast removed successfully' });
+              fetchAnnouncements();
+            } catch (err) {
+              console.error('Delete broadcast error:', err);
+              Toast.show({ type: 'error', text1: 'Delete Failed', text2: 'Could not delete broadcast' });
+            }
+          }
+        }
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#1F2937" />
@@ -257,9 +284,18 @@ export default function StaffScreen() {
                 <Text style={styles.emptyText}>No broadcasts sent yet.</Text>
               </View>
             ) : (
-              announcements.filter(item => user && (item.createdBy === user._id || item.createdBy === user.id)).map((item) => (
+              announcements.filter(item => {
+                const uid = user?._id || user?.id;
+                const cid = item?.createdBy;
+                return uid && cid && String(uid) === String(cid);
+              }).map((item) => (
                 <View key={item._id} style={[styles.card, { padding: 16 }]}>
-                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 }}>{item.title}</Text>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6, flex: 1 }}>{item.title}</Text>
+                    <TouchableOpacity onPress={() => handleDeleteBroadcast(item._id)} style={{ padding: 4 }}>
+                      <Ionicons name="trash-outline" size={20} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                   <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>{new Date(item.date).toLocaleDateString()}</Text>
                   <Text style={{ fontSize: 15, color: '#4B5563', lineHeight: 22 }}>{item.message}</Text>
                 </View>
