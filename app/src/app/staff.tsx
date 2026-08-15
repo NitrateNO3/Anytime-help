@@ -257,7 +257,7 @@ export default function StaffScreen() {
                 <Text style={styles.emptyText}>No broadcasts sent yet.</Text>
               </View>
             ) : (
-              announcements.filter(item => user && item.createdBy === user._id || item.createdBy === user?.id || true).map((item) => (
+              announcements.filter(item => user && (item.createdBy === user._id || item.createdBy === user.id)).map((item) => (
                 <View key={item._id} style={[styles.card, { padding: 16 }]}>
                   <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 }}>{item.title}</Text>
                   <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>{new Date(item.date).toLocaleDateString()}</Text>
