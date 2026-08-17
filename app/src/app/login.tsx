@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -14,6 +14,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const [role, setRole] = useState('Resident');
+  const [rememberMe, setRememberMe] = useState(false);
 
   const toggleLanguage = async () => {
     const newLang = i18n.language === 'en' ? 'hi' : 'en';
@@ -60,49 +61,49 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0A0F24" />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.content}
       >
+        <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
+          <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी' : 'EN'}</Text>
+        </TouchableOpacity>
+
         <View style={styles.header}>
-          <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
-            <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी में बदलें' : 'Switch to English'}</Text>
-          </TouchableOpacity>
-          <View style={styles.iconContainer}>
-            <Ionicons name="shield-checkmark" size={40} color="#3B82F6" />
+          <View style={styles.logoContainer}>
+            {/* Heart with plus icon representing care/help */}
+            <Ionicons name="medkit" size={64} color="#3B82F6" />
           </View>
-          <View style={{ backgroundColor: '#DBEAFE', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, marginBottom: 12 }}>
-            <Text style={{ color: '#1D4ED8', fontWeight: '700', fontSize: 12, letterSpacing: 1 }}>RWA APPROVED</Text>
-          </View>
-          <Text style={styles.title}>RWA Anytime Help</Text>
-          <Text style={styles.subtitle}>{t('login.welcomeBack')}</Text>
+          <Text style={styles.title}>Login to Your Account</Text>
         </View>
 
         <View style={styles.form}>
-          {/* Role Selection */}
           <View style={styles.roleContainer}>
             <TouchableOpacity 
               style={[styles.roleBtn, role === 'Resident' && styles.roleBtnActive]}
               onPress={() => setRole('Resident')}
             >
-              <Ionicons name="home" size={20} color={role === 'Resident' ? '#FFF' : '#6B7280'} />
-              <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>{t('login.residentLogin')}</Text>
+              <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>
+                {t('login.residentLogin') || 'Resident'}
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              style={[styles.roleBtn, role === 'Staff' && styles.roleBtnActiveStaff]}
+              style={[styles.roleBtn, role === 'Staff' && styles.roleBtnActive]}
               onPress={() => setRole('Staff')}
             >
-              <Ionicons name="construct" size={20} color={role === 'Staff' ? '#FFF' : '#6B7280'} />
-              <Text style={[styles.roleBtnText, role === 'Staff' && styles.roleBtnTextActive]}>{t('login.staffLogin')}</Text>
+              <Text style={[styles.roleBtnText, role === 'Staff' && styles.roleBtnTextActive]}>
+                {t('login.staffLogin') || 'Staff'}
+              </Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+            <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder={t('login.emailPlaceholder')}
-              placeholderTextColor="#9CA3AF"
+              placeholder="Email"
+              placeholderTextColor="#6B7280"
               keyboardType="email-address"
               autoCapitalize="none"
               value={email}
@@ -111,17 +112,29 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+            <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder={t('login.passwordPlaceholder')}
-              placeholderTextColor="#9CA3AF"
+              placeholder="Password"
+              placeholderTextColor="#6B7280"
               secureTextEntry={!showPassword}
               value={password}
               onChangeText={setPassword}
             />
             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-              <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6B7280" />
+              <Ionicons name={showPassword ? "eye" : "eye-off"} size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.optionsRow}>
+            <TouchableOpacity 
+              style={styles.rememberMe}
+              onPress={() => setRememberMe(!rememberMe)}
+            >
+              <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
+                {rememberMe && <Ionicons name="checkmark" size={14} color="#FFF" />}
+              </View>
+              <Text style={styles.rememberMeText}>Remember me</Text>
             </TouchableOpacity>
           </View>
 
@@ -130,24 +143,35 @@ export default function LoginScreen() {
             onPress={handleLogin}
             disabled={loading}
           >
-            <Text style={styles.loginBtnText}>{loading ? t('login.loggingInBtn') : t('login.loginBtn')}</Text>
+            <Text style={styles.loginBtnText}>{loading ? (t('login.loggingInBtn') || 'Signing in...') : 'Sign in'}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.forgotPassword}>
+            <Text style={styles.forgotPasswordText}>Forgot the password?</Text>
           </TouchableOpacity>
 
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
+            <Text style={styles.dividerText}>or continue with</Text>
             <View style={styles.dividerLine} />
           </View>
 
-          <TouchableOpacity style={styles.googleBtn}>
-            <Ionicons name="logo-google" size={20} color="#DB4437" style={styles.googleIcon} />
-            <Text style={styles.googleBtnText}>{t('login.continueGoogle')}</Text>
-          </TouchableOpacity>
+          <View style={styles.socialContainer}>
+            <TouchableOpacity style={styles.socialBtn}>
+              <Ionicons name="logo-facebook" size={24} color="#3B82F6" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.socialBtn}>
+              <Ionicons name="logo-google" size={24} color="#DB4437" />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.socialBtn}>
+              <Ionicons name="logo-apple" size={24} color="#FFF" />
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>{t('login.noAccount')} </Text>
+            <Text style={styles.footerText}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => router.push('/register' as any)}>
-              <Text style={styles.footerLink}>{t('login.registerHere')}</Text>
+              <Text style={styles.footerLink}>Sign up</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -159,216 +183,197 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#0A0F24', // Deep premium dark blue
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
     padding: 24,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 40,
+    justifyContent: 'center',
   },
   langToggle: {
     position: 'absolute',
-    top: -20,
-    right: 0,
-    backgroundColor: '#E5E7EB',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    top: 50,
+    right: 24,
+    backgroundColor: '#161F3D',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#2A365D',
+    zIndex: 10,
   },
   langToggleText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#374151',
+    fontWeight: '700',
+    color: '#FFF',
   },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#DBEAFE',
-    justifyContent: 'center',
+  header: {
     alignItems: 'center',
+    marginBottom: 32,
+    marginTop: 20,
+  },
+  logoContainer: {
     marginBottom: 16,
-    shadowColor: "#3B82F6",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
   },
   title: {
-    fontSize: 28,
+    fontSize: 26,
     fontWeight: '700',
-    color: '#111827',
+    color: '#FFFFFF',
     marginBottom: 8,
   },
-  subtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-  },
-  errorText: {
-    color: '#B91C1C',
-    marginLeft: 8,
-    fontWeight: '500',
-    flex: 1,
-  },
   form: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 3,
+    width: '100%',
+  },
+  roleContainer: {
+    flexDirection: 'row',
+    marginBottom: 24,
+    backgroundColor: '#161F3D',
+    borderRadius: 16,
+    padding: 6,
+  },
+  roleBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  roleBtnActive: {
+    backgroundColor: '#3B82F6',
+  },
+  roleBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#9CA3AF',
+  },
+  roleBtnTextActive: {
+    color: '#FFF',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
+    backgroundColor: '#161F3D',
+    borderRadius: 16,
     marginBottom: 16,
-    paddingHorizontal: 12,
-    height: 56,
+    paddingHorizontal: 16,
+    height: 60,
+    borderWidth: 1,
+    borderColor: '#2A365D',
   },
   inputIcon: {
     marginRight: 12,
   },
   eyeIcon: {
-    padding: 4,
+    padding: 8,
   },
   input: {
     flex: 1,
     height: '100%',
-    fontSize: 16,
-    color: '#111827',
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+  optionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  rememberMe: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#3B82F6',
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxActive: {
+    backgroundColor: '#3B82F6',
+  },
+  rememberMeText: {
+    color: '#9CA3AF',
+    fontSize: 14,
   },
   loginBtn: {
     backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    height: 56,
+    borderRadius: 16,
+    height: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginBottom: 20,
     shadowColor: "#3B82F6",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowRadius: 8,
+    elevation: 5,
   },
   loginBtnDisabled: {
-    backgroundColor: '#93C5FD',
+    backgroundColor: '#1D4ED8',
+    opacity: 0.7,
   },
   loginBtnText: {
     color: '#FFF',
-    fontSize: 18,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  forgotPassword: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  forgotPasswordText: {
+    color: '#3B82F6',
+    fontSize: 14,
     fontWeight: '600',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 20,
+    marginBottom: 24,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#2A365D',
   },
   dividerText: {
-    paddingHorizontal: 10,
-    color: '#9CA3AF',
+    paddingHorizontal: 16,
+    color: '#6B7280',
+    fontSize: 13,
     fontWeight: '500',
   },
-  googleBtn: {
+  socialContainer: {
     flexDirection: 'row',
-    backgroundColor: '#FFF',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 32,
+  },
+  socialBtn: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#161F3D',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    height: 56,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  googleIcon: {
-    marginRight: 10,
-  },
-  googleBtnText: {
-    color: '#374151',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  roleContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 4,
-  },
-  roleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  roleBtnActive: {
-    backgroundColor: '#3B82F6',
-    shadowColor: "#3B82F6",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  roleBtnActiveStaff: {
-    backgroundColor: '#F59E0B',
-    shadowColor: "#F59E0B",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  roleBtnText: {
-    marginLeft: 8,
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  roleBtnTextActive: {
-    color: '#FFF',
+    borderColor: '#2A365D',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    alignItems: 'center',
   },
   footerText: {
-    color: '#6B7280',
-    fontSize: 15,
+    color: '#9CA3AF',
+    fontSize: 14,
   },
   footerLink: {
     color: '#3B82F6',
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 14,
+    fontWeight: '700',
   }
 });

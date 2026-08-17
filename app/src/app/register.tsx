@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -47,38 +47,39 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0A0F24" />
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.content}>
           <View style={styles.header}>
-            <View style={styles.iconContainer}>
-              <Ionicons name="person-add-outline" size={36} color="#10B981" />
+            <View style={styles.logoContainer}>
+              <Ionicons name="person-add" size={56} color="#3B82F6" />
             </View>
-            <Text style={styles.title}>{t('register.title')}</Text>
-            <Text style={styles.subtitle}>{t('register.subtitle')}</Text>
+            <Text style={styles.title}>{t('register.title') || 'Create Account'}</Text>
+            <Text style={styles.subtitle}>{t('register.subtitle') || 'Sign up to get started'}</Text>
           </View>
 
           <View style={styles.form}>
 
             <View style={styles.inputContainer}>
-              <Ionicons name="person-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <Ionicons name="person" size={20} color="#9CA3AF" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder={t('register.fullName')}
-                placeholderTextColor="#9CA3AF"
+                placeholder={t('register.fullName') || 'Full Name'}
+                placeholderTextColor="#6B7280"
                 value={name}
                 onChangeText={setName}
               />
             </View>
 
             <View style={styles.inputContainer}>
-              <Ionicons name="mail-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder={t('register.email')}
-                placeholderTextColor="#9CA3AF"
+                placeholder={t('register.email') || 'Email Address'}
+                placeholderTextColor="#6B7280"
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
@@ -87,34 +88,50 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed-outline" size={20} color="#6B7280" style={styles.inputIcon} />
+              <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder={t('register.password')}
-                placeholderTextColor="#9CA3AF"
+                placeholder={t('register.password') || 'Password'}
+                placeholderTextColor="#6B7280"
                 secureTextEntry={!showPassword}
                 value={password}
                 onChangeText={setPassword}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={20} color="#6B7280" />
+                <Ionicons name={showPassword ? "eye" : "eye-off"} size={20} color="#9CA3AF" />
               </TouchableOpacity>
             </View>
-
-
 
             <TouchableOpacity 
               style={[styles.registerBtn, loading && styles.registerBtnDisabled]} 
               onPress={handleRegister}
               disabled={loading}
             >
-              <Text style={styles.registerBtnText}>{loading ? t('register.creating') : t('register.signup')}</Text>
+              <Text style={styles.registerBtnText}>{loading ? (t('register.creating') || 'Creating...') : (t('register.signup') || 'Sign Up')}</Text>
             </TouchableOpacity>
 
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or continue with</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.socialContainer}>
+              <TouchableOpacity style={styles.socialBtn}>
+                <Ionicons name="logo-facebook" size={24} color="#3B82F6" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.socialBtn}>
+                <Ionicons name="logo-google" size={24} color="#DB4437" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.socialBtn}>
+                <Ionicons name="logo-apple" size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.footer}>
-              <Text style={styles.footerText}>{t('register.alreadyHave')}</Text>
+              <Text style={styles.footerText}>{t('register.alreadyHave') || 'Already have an account? '}</Text>
               <TouchableOpacity onPress={() => router.push('/login' as any)}>
-                <Text style={styles.footerLink}>{t('register.loginHere')}</Text>
+                <Text style={styles.footerLink}>{t('register.loginHere') || 'Log in'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -127,7 +144,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F3F4F6',
+    backgroundColor: '#0A0F24', // Deep premium dark blue
   },
   content: {
     flexGrow: 1,
@@ -136,189 +153,116 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 40,
+    marginTop: 20,
   },
-  iconContainer: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#D1FAE5',
-    justifyContent: 'center',
-    alignItems: 'center',
+  logoContainer: {
     marginBottom: 16,
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
   },
   title: {
     fontSize: 26,
     fontWeight: '700',
-    color: '#111827',
-    marginBottom: 6,
+    color: '#FFFFFF',
+    marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: '#6B7280',
-  },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEE2E2',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#FCA5A5',
-  },
-  errorText: {
-    color: '#B91C1C',
-    marginLeft: 8,
-    fontWeight: '500',
-    flex: 1,
+    color: '#9CA3AF',
   },
   form: {
-    backgroundColor: '#FFFFFF',
-    padding: 24,
-    borderRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 15,
-    elevation: 3,
-  },
-  roleContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    padding: 4,
-  },
-  roleBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  roleBtnActive: {
-    backgroundColor: '#3B82F6',
-    shadowColor: "#3B82F6",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  roleBtnActiveStaff: {
-    backgroundColor: '#F59E0B',
-    shadowColor: "#F59E0B",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  roleBtnText: {
-    marginLeft: 8,
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  roleBtnTextActive: {
-    color: '#FFF',
+    width: '100%',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
+    backgroundColor: '#161F3D',
+    borderRadius: 16,
     marginBottom: 16,
-    paddingHorizontal: 12,
-    height: 56,
+    paddingHorizontal: 16,
+    height: 60,
+    borderWidth: 1,
+    borderColor: '#2A365D',
   },
   inputIcon: {
     marginRight: 12,
   },
   eyeIcon: {
-    padding: 4,
+    padding: 8,
   },
   input: {
     flex: 1,
     height: '100%',
-    fontSize: 16,
-    color: '#111827',
-  },
-  departmentsContainer: {
-    marginBottom: 20,
-  },
-  deptLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#4B5563',
-    marginBottom: 10,
-  },
-  deptGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  deptBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  deptBtnActive: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#F59E0B',
-  },
-  deptBtnText: {
-    color: '#6B7280',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  deptBtnTextActive: {
-    color: '#D97706',
-    fontWeight: '600',
+    fontSize: 15,
+    color: '#FFFFFF',
   },
   registerBtn: {
-    backgroundColor: '#10B981',
-    borderRadius: 12,
-    height: 56,
+    backgroundColor: '#3B82F6',
+    borderRadius: 16,
+    height: 60,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
-    shadowColor: "#10B981",
+    marginBottom: 24,
+    shadowColor: "#3B82F6",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowRadius: 8,
+    elevation: 5,
   },
   registerBtnDisabled: {
-    backgroundColor: '#6EE7B7',
+    backgroundColor: '#1D4ED8',
+    opacity: 0.7,
   },
   registerBtnText: {
     color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#2A365D',
+  },
+  dividerText: {
+    paddingHorizontal: 16,
+    color: '#6B7280',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  socialContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginBottom: 32,
+  },
+  socialBtn: {
+    width: 60,
+    height: 60,
+    backgroundColor: '#161F3D',
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#2A365D',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    alignItems: 'center',
   },
   footerText: {
-    color: '#6B7280',
-    fontSize: 15,
+    color: '#9CA3AF',
+    fontSize: 14,
   },
   footerLink: {
-    color: '#10B981',
-    fontSize: 15,
-    fontWeight: '600',
+    color: '#3B82F6',
+    fontSize: 14,
+    fontWeight: '700',
   }
 });
