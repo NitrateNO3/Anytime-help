@@ -36,7 +36,7 @@ export default function Announcements() {
 
   const fetchAnnouncements = async () => {
     try {
-      setLoading(true);
+      if (announcements.length === 0) setLoading(true);
       const token = localStorage.getItem('adminToken');
       const res = await axios.get(`${API_URL}/announcements`, {
         headers: { 'x-auth-token': token }
