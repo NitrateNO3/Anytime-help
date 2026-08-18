@@ -23,9 +23,15 @@ export default function Announcements() {
     }
     
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
-    socket.on('announcement_changed', () => {
-      if (activeTab === 'list') {
-        fetchAnnouncements();
+    socket.on('announcement_changed', (payload) => {
+      if (!payload) {
+        if (activeTab === 'list') fetchAnnouncements();
+        return;
+      }
+      if (payload.action === 'delete') {
+        setAnnouncements(prev => prev.filter(a => a._id !== payload.id));
+      } else if (payload.action === 'create') {
+        setAnnouncements(prev => [payload.data, ...prev]);
       }
     });
 
@@ -100,7 +106,8 @@ export default function Announcements() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Announcement deleted', { id: loadingToast });
-                fetchAnnouncements();
+                // We don't fetchAnnouncements() here anymore. We can rely on the socket OR do it instantly:
+                setAnnouncements(prev => prev.filter(a => a._id !== id));
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete', { id: loadingToast });

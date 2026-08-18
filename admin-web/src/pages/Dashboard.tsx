@@ -15,8 +15,18 @@ export default function Dashboard() {
     fetchComplaints();
     
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
-    socket.on('complaint_changed', () => {
-      fetchComplaints();
+    socket.on('complaint_changed', (payload) => {
+      if (!payload) {
+        fetchComplaints();
+        return;
+      }
+      if (payload.action === 'delete') {
+        setComplaints(prev => prev.filter(c => c._id !== payload.id));
+      } else if (payload.action === 'create') {
+        setComplaints(prev => [payload.data, ...prev]);
+      } else if (payload.action === 'update') {
+        setComplaints(prev => prev.map(c => c._id === payload.data._id ? payload.data : c));
+      }
     });
 
     return () => {
@@ -60,7 +70,7 @@ export default function Dashboard() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Complaint deleted successfully', { id: loadingToast });
-                fetchComplaints();
+                setComplaints(prev => prev.filter(c => c._id !== id));
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete complaint.', { id: loadingToast });
@@ -83,7 +93,7 @@ export default function Dashboard() {
         headers: { 'x-auth-token': token }
       });
       toast.success('Status updated successfully', { id: loadingToast });
-      fetchComplaints();
+      setComplaints(prev => prev.map(c => c._id === id ? { ...c, status: newStatus } : c));
     } catch (err) {
       console.error(err);
       toast.error('Failed to update status.', { id: loadingToast });

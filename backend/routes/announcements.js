@@ -37,7 +37,7 @@ router.post('/', auth, async (req, res) => {
     
     const io = req.app.get('io');
     if (io) {
-      io.emit('announcement_changed');
+      io.emit('announcement_changed', { action: 'create', data: announcement });
     }
 
     res.json(announcement);
@@ -67,7 +67,7 @@ router.delete('/:id', auth, async (req, res) => {
       
     const io = req.app.get('io');
     if (io) {
-      io.emit('announcement_changed');
+      io.emit('announcement_changed', { action: 'delete', id: req.params.id });
     }
 
     res.json({ msg: 'Announcement removed' });
