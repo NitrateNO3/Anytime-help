@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, ImageBackground } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -7,8 +7,10 @@ import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const bgImage = require('../../assets/images/electrician-review-response-templates-featured.webp');
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -60,185 +62,220 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0A0F24" />
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.content}
-      >
-        <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
-          <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी' : 'EN'}</Text>
-        </TouchableOpacity>
+    <View style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      <ImageBackground source={bgImage} style={styles.bgImage} resizeMode="cover">
+        <LinearGradient
+          colors={['rgba(10, 15, 36, 0.4)', 'rgba(10, 15, 36, 0.8)', '#0A0F24']}
+          style={styles.gradient}
+        />
+      </ImageBackground>
 
-        <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            {/* Heart with plus icon representing care/help */}
-            <Ionicons name="medkit" size={64} color="#3B82F6" />
+      <SafeAreaView style={styles.safeArea}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.content}
+        >
+          <View style={styles.headerTop}>
+            <View style={styles.badge}>
+              <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+              <Text style={styles.badgeText}>RWA APPROVED</Text>
+            </View>
+            <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
+              <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी' : 'EN'}</Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.title}>Login to Your Account</Text>
-        </View>
 
-        <View style={styles.form}>
-          <View style={styles.roleContainer}>
+          <View style={styles.heroTextContainer}>
+            <Text style={styles.title}>RWA Anytime Help</Text>
+            <Text style={styles.subtitle}>Welcome back to your community</Text>
+          </View>
+
+          <View style={styles.glassCard}>
+            <View style={styles.roleContainer}>
+              <TouchableOpacity 
+                style={[styles.roleBtn, role === 'Resident' && styles.roleBtnActive]}
+                onPress={() => setRole('Resident')}
+              >
+                <Ionicons name="home" size={16} color={role === 'Resident' ? '#10B981' : '#6B7280'} style={{marginRight: 6}} />
+                <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>
+                  {t('login.residentLogin') || 'Resident'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.roleBtn, role === 'Staff' && styles.roleBtnActive]}
+                onPress={() => setRole('Staff')}
+              >
+                <Ionicons name="construct" size={16} color={role === 'Staff' ? '#3B82F6' : '#6B7280'} style={{marginRight: 6}} />
+                <Text style={[styles.roleBtnText, role === 'Staff' && styles.roleBtnTextActive]}>
+                  {t('login.staffLogin') || 'Staff'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Email Address"
+                placeholderTextColor="#6B7280"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor="#6B7280"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                <Ionicons name={showPassword ? "eye" : "eye-off"} size={20} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity 
-              style={[styles.roleBtn, role === 'Resident' && styles.roleBtnActive]}
-              onPress={() => setRole('Resident')}
+              style={[styles.loginBtn, loading && styles.loginBtnDisabled]} 
+              onPress={handleLogin}
+              disabled={loading}
             >
-              <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>
-                {t('login.residentLogin') || 'Resident'}
-              </Text>
+              <Text style={styles.loginBtnText}>{loading ? (t('login.loggingInBtn') || 'Signing in...') : 'Log In'}</Text>
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.roleBtn, role === 'Staff' && styles.roleBtnActive]}
-              onPress={() => setRole('Staff')}
-            >
-              <Text style={[styles.roleBtnText, role === 'Staff' && styles.roleBtnTextActive]}>
-                {t('login.staffLogin') || 'Staff'}
-              </Text>
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor="#6B7280"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              value={email}
-              onChangeText={setEmail}
-            />
-          </View>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>OR</Text>
+              <View style={styles.dividerLine} />
+            </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              placeholderTextColor="#6B7280"
-              secureTextEntry={!showPassword}
-              value={password}
-              onChangeText={setPassword}
-            />
-            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-              <Ionicons name={showPassword ? "eye" : "eye-off"} size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.optionsRow}>
-            <TouchableOpacity 
-              style={styles.rememberMe}
-              onPress={() => setRememberMe(!rememberMe)}
-            >
-              <View style={[styles.checkbox, rememberMe && styles.checkboxActive]}>
-                {rememberMe && <Ionicons name="checkmark" size={14} color="#FFF" />}
-              </View>
-              <Text style={styles.rememberMeText}>Remember me</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity 
-            style={[styles.loginBtn, loading && styles.loginBtnDisabled]} 
-            onPress={handleLogin}
-            disabled={loading}
-          >
-            <Text style={styles.loginBtnText}>{loading ? (t('login.loggingInBtn') || 'Signing in...') : 'Sign in'}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.forgotPassword}>
-            <Text style={styles.forgotPasswordText}>Forgot the password?</Text>
-          </TouchableOpacity>
-
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or continue with</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <View style={styles.socialContainer}>
             <TouchableOpacity style={styles.socialBtn}>
-              <Ionicons name="logo-facebook" size={24} color="#3B82F6" />
+              <Ionicons name="logo-google" size={20} color="#DB4437" />
+              <Text style={styles.socialBtnText}>Continue with Google</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.socialBtn}>
-              <Ionicons name="logo-google" size={24} color="#DB4437" />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.socialBtn}>
-              <Ionicons name="logo-apple" size={24} color="#FFF" />
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <TouchableOpacity onPress={() => router.push('/register' as any)}>
-              <Text style={styles.footerLink}>Sign up</Text>
-            </TouchableOpacity>
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>Don't have an account? </Text>
+              <TouchableOpacity onPress={() => router.push('/register' as any)}>
+                <Text style={styles.footerLink}>Register Here</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0F24', // Deep premium dark blue
+    backgroundColor: '#0A0F24',
+  },
+  bgImage: {
+    ...StyleSheet.absoluteFillObject,
+    height: '60%',
+  },
+  gradient: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
   },
   content: {
     flex: 1,
     padding: 24,
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 60 : 40,
+    left: 24,
+    right: 24,
+    zIndex: 10,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  badgeText: {
+    color: '#10B981',
+    fontSize: 12,
+    fontWeight: '700',
+    marginLeft: 6,
+    letterSpacing: 0.5,
   },
   langToggle: {
-    position: 'absolute',
-    top: 50,
-    right: 24,
-    backgroundColor: '#161F3D',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#2A365D',
-    zIndex: 10,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   langToggleText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#FFF',
   },
-  header: {
-    alignItems: 'center',
+  heroTextContainer: {
     marginBottom: 32,
-    marginTop: 20,
-  },
-  logoContainer: {
-    marginBottom: 16,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
+    fontSize: 32,
+    fontWeight: '800',
     color: '#FFFFFF',
     marginBottom: 8,
+    letterSpacing: 0.5,
   },
-  form: {
-    width: '100%',
+  subtitle: {
+    fontSize: 16,
+    color: '#E5E7EB',
+    fontWeight: '500',
+  },
+  glassCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 32,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   roleContainer: {
     flexDirection: 'row',
     marginBottom: 24,
-    backgroundColor: '#161F3D',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
     borderRadius: 16,
     padding: 6,
   },
   roleBtn: {
     flex: 1,
+    flexDirection: 'row',
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 12,
   },
   roleBtnActive: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.05)',
   },
   roleBtnText: {
     fontSize: 14,
@@ -251,13 +288,13 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#161F3D',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
     borderRadius: 16,
     marginBottom: 16,
     paddingHorizontal: 16,
     height: 60,
     borderWidth: 1,
-    borderColor: '#2A365D',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   inputIcon: {
     marginRight: 12,
@@ -271,48 +308,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#FFFFFF',
   },
-  optionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  rememberMe: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#3B82F6',
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxActive: {
-    backgroundColor: '#3B82F6',
-  },
-  rememberMeText: {
-    color: '#9CA3AF',
-    fontSize: 14,
-  },
   loginBtn: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#10B981',
     borderRadius: 16,
     height: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
-    shadowColor: "#3B82F6",
+    marginTop: 8,
+    marginBottom: 24,
+    shadowColor: "#10B981",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
   },
   loginBtnDisabled: {
-    backgroundColor: '#1D4ED8',
     opacity: 0.7,
   },
   loginBtnText: {
@@ -320,15 +330,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: 0.5,
-  },
-  forgotPassword: {
-    alignItems: 'center',
-    marginBottom: 32,
-  },
-  forgotPasswordText: {
-    color: '#3B82F6',
-    fontSize: 14,
-    fontWeight: '600',
   },
   divider: {
     flexDirection: 'row',
@@ -338,29 +339,30 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#2A365D',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   dividerText: {
     paddingHorizontal: 16,
-    color: '#6B7280',
+    color: '#9CA3AF',
     fontSize: 13,
-    fontWeight: '500',
-  },
-  socialContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 16,
-    marginBottom: 32,
+    fontWeight: '600',
   },
   socialBtn: {
-    width: 60,
-    height: 60,
-    backgroundColor: '#161F3D',
+    flexDirection: 'row',
+    height: 56,
+    backgroundColor: 'transparent',
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#2A365D',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginBottom: 24,
+  },
+  socialBtnText: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 12,
   },
   footer: {
     flexDirection: 'row',
@@ -372,7 +374,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   footerLink: {
-    color: '#3B82F6',
+    color: '#10B981',
     fontSize: 14,
     fontWeight: '700',
   }
