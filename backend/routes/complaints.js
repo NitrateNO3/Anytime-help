@@ -18,6 +18,13 @@ router.post('/', auth, async (req, res) => {
       before_image: before_image || '',
     });
     const createdComplaint = await complaint.save();
+    
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('complaint_changed', { action: 'create', data: createdComplaint });
+    }
+
     res.status(201).json(createdComplaint);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -62,6 +69,13 @@ router.patch('/:id', auth, async (req, res) => {
     if (after_image) complaint.after_image = after_image;
 
     const updatedComplaint = await complaint.save();
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('complaint_changed', { action: 'update', data: updatedComplaint });
+    }
+
     res.json(updatedComplaint);
   } catch (error) {
     res.status(400).json({ message: error.message });
@@ -82,6 +96,13 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     await complaint.deleteOne();
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('complaint_changed', { action: 'delete', id: req.params.id });
+    }
+
     res.json({ message: 'Complaint deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });

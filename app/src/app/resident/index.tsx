@@ -6,8 +6,10 @@ import * as SecureStore from 'expo-secure-store';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function ResidentHome() {
   const router = useRouter();
@@ -63,6 +65,17 @@ export default function ResidentHome() {
   };
 
   const { tab } = useLocalSearchParams();
+
+  React.useEffect(() => {
+    const socket = io(SOCKET_URL);
+    socket.on('complaint_changed', () => {
+      // Re-fetch when any change happens globally
+      fetchComplaints();
+    });
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {

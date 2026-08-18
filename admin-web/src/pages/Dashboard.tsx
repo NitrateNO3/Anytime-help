@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Activity, CheckCircle, Clock, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function Dashboard() {
   const [complaints, setComplaints] = useState<any[]>([]);
@@ -11,6 +13,15 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchComplaints();
+    
+    const socket = io(SOCKET_URL);
+    socket.on('complaint_changed', () => {
+      fetchComplaints();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const fetchComplaints = async () => {

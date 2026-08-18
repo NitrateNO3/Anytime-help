@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function StaffScreen() {
   const router = useRouter();
@@ -79,9 +81,21 @@ export default function StaffScreen() {
   };
 
   useEffect(() => {
-    fetchComplaints();
-    fetchAnnouncements();
+    const socket = io(SOCKET_URL);
+    socket.on('complaint_changed', () => {
+      fetchComplaints();
+    });
+    return () => {
+      socket.disconnect();
+    };
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchComplaints();
+      fetchAnnouncements();
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
