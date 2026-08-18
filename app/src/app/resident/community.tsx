@@ -4,8 +4,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function CommunityScreen() {
   const { t } = useTranslation();
@@ -14,6 +16,15 @@ export default function CommunityScreen() {
 
   useEffect(() => {
     fetchAnnouncements();
+    
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socket.on('announcement_changed', () => {
+      fetchAnnouncements();
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const fetchAnnouncements = async () => {

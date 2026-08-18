@@ -34,6 +34,12 @@ router.post('/', auth, async (req, res) => {
     });
 
     const announcement = await newAnnouncement.save();
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('announcement_changed');
+    }
+
     res.json(announcement);
   } catch (err) {
     console.error(err.message);
@@ -58,6 +64,11 @@ router.delete('/:id', auth, async (req, res) => {
 
     // In a real app we might just set active to false
     await announcement.deleteOne();
+      
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('announcement_changed');
+    }
 
     res.json({ msg: 'Announcement removed' });
   } catch (err) {

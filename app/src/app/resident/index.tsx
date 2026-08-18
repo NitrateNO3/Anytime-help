@@ -67,10 +67,12 @@ export default function ResidentHome() {
   const { tab } = useLocalSearchParams();
 
   React.useEffect(() => {
-    const socket = io(SOCKET_URL);
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', () => {
-      // Re-fetch when any change happens globally
       fetchComplaints();
+    });
+    socket.on('announcement_changed', () => {
+      fetchAnnouncements();
     });
     return () => {
       socket.disconnect();

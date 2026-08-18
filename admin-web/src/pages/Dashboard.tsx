@@ -14,7 +14,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchComplaints();
     
-    const socket = io(SOCKET_URL);
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', () => {
       fetchComplaints();
     });

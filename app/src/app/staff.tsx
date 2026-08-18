@@ -81,9 +81,12 @@ export default function StaffScreen() {
   };
 
   useEffect(() => {
-    const socket = io(SOCKET_URL);
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', () => {
       fetchComplaints();
+    });
+    socket.on('announcement_changed', () => {
+      fetchAnnouncements();
     });
     return () => {
       socket.disconnect();

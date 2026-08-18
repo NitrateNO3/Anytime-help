@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Trash2, Megaphone, Plus, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function Announcements() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
@@ -19,6 +21,17 @@ export default function Announcements() {
     if (activeTab === 'list') {
       fetchAnnouncements();
     }
+    
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socket.on('announcement_changed', () => {
+      if (activeTab === 'list') {
+        fetchAnnouncements();
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [activeTab]);
 
   const fetchAnnouncements = async () => {
