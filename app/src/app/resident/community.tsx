@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, ScrollView, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, ScrollView, Platform, ActivityIndicator, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
@@ -38,7 +38,7 @@ export default function CommunityScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.contentContainer}>
         {loading ? (
-          <ActivityIndicator size="large" color="#E1F21E" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
         ) : notifications.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="notifications-off-outline" size={64} color="#D1D5DB" />
@@ -47,8 +47,8 @@ export default function CommunityScreen() {
         ) : (
           notifications.map(notif => (
             <View key={notif._id} style={styles.card}>
-              <View style={[styles.iconBox, { backgroundColor: `#10B98115` }]}>
-                <Ionicons name="megaphone-outline" size={24} color="#10B981" />
+              <View style={[styles.iconBox, { backgroundColor: `#1D4ED815` }]}>
+                <Ionicons name="megaphone-outline" size={24} color="#1D4ED8" />
               </View>
               <View style={styles.info}>
                 <Text style={styles.title}>{notif.title}</Text>
@@ -66,7 +66,7 @@ export default function CommunityScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
-  header: { padding: 24, paddingTop: Platform.OS === 'android' ? 40 : 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  header: { padding: 24, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   headerTitle: { fontSize: 28, fontWeight: '800', color: '#111827' },
   headerSubtitle: { fontSize: 16, color: '#6B7280', marginTop: 4 },
   contentContainer: { padding: 20 },

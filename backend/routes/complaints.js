@@ -71,13 +71,17 @@ router.patch('/:id', auth, async (req, res) => {
 // DELETE /api/complaints/:id
 router.delete('/:id', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-    const complaint = await Complaint.findByIdAndDelete(req.params.id);
+    const complaint = await Complaint.findById(req.params.id);
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
     }
+    
+    // Check authorization: Admin can delete any, Resident can delete their own
+    if (req.user.role !== 'Admin' && complaint.user.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Unauthorized: You can only delete your own complaints' });
+    }
+
+    await complaint.deleteOne();
     res.json({ message: 'Complaint deleted' });
   } catch (error) {
     res.status(500).json({ message: error.message });

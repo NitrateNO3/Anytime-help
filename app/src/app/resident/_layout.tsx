@@ -1,7 +1,7 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 
 export default function ResidentLayout() {
   return (
@@ -22,9 +22,9 @@ export default function ResidentLayout() {
           paddingTop: 10,
           borderRadius: 40,
           position: 'absolute',
-          bottom: 20,
-          left: 20,
-          right: 20,
+          bottom: Platform.OS === 'ios' ? 34 : 24,
+          marginHorizontal: 24,
+          paddingHorizontal: 10,
         },
       }}
     >
@@ -49,7 +49,7 @@ export default function ResidentLayout() {
         options={{
           tabBarIcon: ({ focused }) => (
             <View style={[styles.fabContainer, focused && styles.activeFab]}>
-              <Ionicons name="add" size={32} color="#000" />
+              <Ionicons name="add" size={32} color="#FFF" />
             </View>
           ),
         }}
@@ -86,11 +86,11 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#E1F21E', // The signature Lime Yellow from reference
+    backgroundColor: '#1D4ED8', // Primary Blue
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20, // Elevates the button slightly
-    shadowColor: '#E1F21E',
+    shadowColor: '#1D4ED8',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.4,
     shadowRadius: 8,

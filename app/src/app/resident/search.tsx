@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Linking, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Linking, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 
@@ -35,7 +35,7 @@ export default function DirectoryScreen() {
               <Text style={styles.role}>{contact.role}</Text>
             </View>
             <TouchableOpacity style={styles.callBtn} onPress={() => handleCall(contact.phone)}>
-              <Ionicons name="call" size={20} color="#10B981" />
+              <Ionicons name="call" size={20} color="#1D4ED8" />
             </TouchableOpacity>
           </View>
         ))}
@@ -47,7 +47,7 @@ export default function DirectoryScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
-  header: { padding: 24, paddingTop: Platform.OS === 'android' ? 40 : 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  header: { padding: 24, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   headerTitle: { fontSize: 28, fontWeight: '800', color: '#111827' },
   headerSubtitle: { fontSize: 16, color: '#6B7280', marginTop: 4 },
   contentContainer: { padding: 20 },
@@ -56,5 +56,5 @@ const styles = StyleSheet.create({
   info: { flex: 1 },
   name: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 4 },
   role: { fontSize: 14, color: '#6B7280' },
-  callBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center' },
+  callBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center' },
 });

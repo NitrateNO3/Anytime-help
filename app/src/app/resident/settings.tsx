@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Switch, Platform } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Switch, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
@@ -40,7 +40,7 @@ export default function SettingsScreen() {
 
       <View style={styles.profileSection}>
         <View style={styles.avatarBox}>
-          <Ionicons name="person" size={40} color="#10B981" />
+          <Ionicons name="person" size={40} color="#1D4ED8" />
         </View>
         <View style={styles.profileInfo}>
           <Text style={styles.profileName}>{user?.name || 'Resident'}</Text>
@@ -56,7 +56,7 @@ export default function SettingsScreen() {
             <Ionicons name="language-outline" size={24} color="#4B5563" style={styles.settingIcon} />
             <Text style={styles.settingText}>{t('settings.language')}: {i18n.language === 'en' ? 'English' : 'हिंदी'}</Text>
           </View>
-          <TouchableOpacity onPress={toggleLanguage} style={{ backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
+          <TouchableOpacity onPress={toggleLanguage} style={{ backgroundColor: '#1D4ED8', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 }}>
             <Text style={{ color: 'white', fontWeight: '600', fontSize: 14 }}>{t('settings.change')}</Text>
           </TouchableOpacity>
         </View>
@@ -78,10 +78,10 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
-  header: { padding: 24, paddingTop: Platform.OS === 'android' ? 40 : 20, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  header: { padding: 24, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60, backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   headerTitle: { fontSize: 28, fontWeight: '800', color: '#111827' },
   profileSection: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: '#FFFFFF', marginTop: 20 },
-  avatarBox: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  avatarBox: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   profileInfo: { flex: 1 },
   profileName: { fontSize: 20, fontWeight: '700', color: '#111827', marginBottom: 4 },
   profileEmail: { fontSize: 14, color: '#6B7280' },

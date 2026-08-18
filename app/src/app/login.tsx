@@ -69,7 +69,7 @@ export default function LoginScreen() {
       <View style={styles.imageContainer}>
         <ImageBackground source={bgImage} style={styles.bgImage} resizeMode="cover">
           <LinearGradient
-            colors={['transparent', 'transparent', 'rgba(41, 138, 82, 0.8)', '#298A52']}
+            colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
             style={styles.gradient}
           />
         </ImageBackground>
@@ -80,21 +80,25 @@ export default function LoginScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            
-            <View style={styles.langToggleContainer}>
-              <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
-                <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी' : 'EN'}</Text>
-              </TouchableOpacity>
-            </View>
+          <View style={styles.langToggleContainer}>
+            <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
+              <Ionicons name="language-outline" size={16} color="#FFF" style={{marginRight: 6}} />
+              <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी' : 'EN'}</Text>
+            </TouchableOpacity>
+          </View>
 
+          <View style={styles.mainContent}>
             {/* Header / Hero */}
             <View style={styles.heroSection}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="log-in-outline" size={40} color="#0F6D36" />
+              <View style={styles.badgeContainer}>
+                <Ionicons name="shield-checkmark" size={14} color="#F59E0B" />
+                <Text style={styles.badgeText}>RWA APPROVED</Text>
               </View>
-              <Text style={styles.title}>Welcome Back</Text>
-              <Text style={styles.subtitle}>Login to Anytime Help</Text>
+              <View style={styles.iconCircle}>
+                <Ionicons name="business" size={40} color="#1D4ED8" />
+              </View>
+              <Text style={styles.title}>{t('login.welcomeBack') || 'Welcome Back'}</Text>
+              <Text style={styles.subtitle}>{t('login.subtitle') || 'Login to Anytime Help'}</Text>
             </View>
 
             {/* Form Card */}
@@ -105,7 +109,7 @@ export default function LoginScreen() {
                   onPress={() => setRole('Resident')}
                 >
                   <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>
-                    Resident
+                    {t('login.residentLogin') || 'Resident'}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -113,7 +117,7 @@ export default function LoginScreen() {
                   onPress={() => setRole('Staff')}
                 >
                   <Text style={[styles.roleBtnText, role === 'Staff' && styles.roleBtnTextActive]}>
-                    Staff
+                    {t('login.staffLogin') || 'Staff'}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -122,7 +126,7 @@ export default function LoginScreen() {
                 <Ionicons name="mail-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Email Address"
+                  placeholder={t('login.emailPlaceholder') || 'Email Address'}
                   placeholderTextColor="#777"
                   keyboardType="email-address"
                   autoCapitalize="none"
@@ -135,7 +139,7 @@ export default function LoginScreen() {
                 <Ionicons name="lock-closed-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Password"
+                  placeholder={t('login.passwordPlaceholder') || 'Password'}
                   placeholderTextColor="#777"
                   secureTextEntry={!showPassword}
                   value={password}
@@ -151,17 +155,17 @@ export default function LoginScreen() {
                 onPress={handleLogin}
                 disabled={loading}
               >
-                <Text style={styles.loginBtnText}>{loading ? 'Logging In...' : 'Log In'}</Text>
+                <Text style={styles.loginBtnText}>{loading ? (t('login.loggingInBtn') || 'Logging In...') : (t('login.loginBtn') || 'Log In')}</Text>
               </TouchableOpacity>
 
               <View style={styles.footer}>
-                <Text style={styles.footerText}>Don't have an account? </Text>
+                <Text style={styles.footerText}>{t('login.noAccount') || "Don't have an account? "}</Text>
                 <TouchableOpacity onPress={() => router.push('/register' as any)}>
-                  <Text style={styles.footerLink}>Sign Up</Text>
+                  <Text style={styles.footerLink}>{t('login.registerHere') || 'Sign Up'}</Text>
                 </TouchableOpacity>
               </View>
             </View>
-          </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -171,7 +175,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#298A52', // Match the bottom fade color
+    backgroundColor: '#1E40AF', // Blue theme
   },
   imageContainer: {
     position: 'absolute',
@@ -193,23 +197,36 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
-    paddingTop: '25%', // Push content down over the image
+  mainContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingTop: 140, // Minimum space from top
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
   langToggleContainer: {
-    alignItems: 'flex-end',
-    paddingHorizontal: 24,
-    marginBottom: 20,
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 65 : (StatusBar.currentHeight ? StatusBar.currentHeight + 15 : 45),
+    right: 20,
+    zIndex: 10,
   },
   langToggle: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E40AF', // Solid blue
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
   },
   langToggleText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#FFF',
   },
@@ -217,10 +234,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 30,
   },
+  badgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7', // Soft gold background
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  badgeText: {
+    color: '#D97706', // Darker gold text
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    marginLeft: 6,
+  },
   iconCircle: {
     width: 80,
     height: 80,
-    backgroundColor: '#E8F5E9',
+    backgroundColor: '#EFF6FF',
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
@@ -239,22 +274,22 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: '#E8F5E9',
+    color: '#EFF6FF',
     fontWeight: '500',
   },
   formCard: {
-    backgroundColor: '#D1E6D3', // Light greenish card
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    backgroundColor: '#DBEAFE', // Light blue card
+    borderRadius: 30, // Rounded all corners
     padding: 24,
     paddingTop: 32,
     flex: 1,
     minHeight: 400,
+    marginBottom: 20,
   },
   roleContainer: {
     flexDirection: 'row',
-    backgroundColor: '#BFE0C6',
-    borderRadius: 12,
+    backgroundColor: '#BFDBFE',
+    borderRadius: 30, // Changed from 12
     padding: 4,
     marginBottom: 20,
   },
@@ -262,15 +297,15 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 26, // Slightly smaller than container to fit inside
   },
   roleBtnActive: {
-    backgroundColor: '#0F6D36',
+    backgroundColor: '#1D4ED8',
   },
   roleBtnText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#0F6D36',
+    color: '#1D4ED8',
   },
   roleBtnTextActive: {
     color: '#FFF',
@@ -279,9 +314,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FBF9', // Almost white
-    borderRadius: 12,
+    borderRadius: 30, // Changed from 12 to 30 for pill shape
     marginBottom: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20, // Increased padding slightly for pill shape
     height: 60,
   },
   inputIcon: {
@@ -297,8 +332,8 @@ const styles = StyleSheet.create({
     color: '#333',
   },
   loginBtn: {
-    backgroundColor: '#0F6D36', // Dark green button
-    borderRadius: 12,
+    backgroundColor: '#1D4ED8', // Dark blue button
+    borderRadius: 30, // Changed from 12 to 30 for pill shape
     height: 60,
     justifyContent: 'center',
     alignItems: 'center',
@@ -325,7 +360,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   footerLink: {
-    color: '#0F6D36',
+    color: '#1D4ED8',
     fontSize: 15,
     fontWeight: '700',
   }

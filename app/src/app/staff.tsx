@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -226,7 +226,7 @@ export default function StaffScreen() {
         {activeTab === 'Tasks' ? (
           <>
             {loading ? (
-              <ActivityIndicator size="large" color="#E1F21E" style={{ marginTop: 40 }} />
+              <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
             ) : complaints.length === 0 ? (
               <View style={styles.emptyStateContainer}>
                 <Ionicons name="checkmark-circle-outline" size={64} color="#D1D5DB" />
@@ -285,7 +285,7 @@ export default function StaffScreen() {
               });
 
               if (loadingAnnouncements) {
-                return <ActivityIndicator size="large" color="#E1F21E" style={{ marginTop: 40 }} />;
+                return <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />;
               }
 
               if (filteredAnnouncements.length === 0) {
@@ -341,7 +341,7 @@ export default function StaffScreen() {
               <Text style={styles.modalOptionText}>{t('staff.inProgress')}</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('DONE')}>
+            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('RESOLVED')}>
               <Ionicons name="checkmark-circle-outline" size={24} color="#10B981" />
               <Text style={styles.modalOptionText}>{t('staff.resolved')}</Text>
             </TouchableOpacity>
@@ -401,7 +401,7 @@ export default function StaffScreen() {
                 <ActivityIndicator color="#111827" />
               ) : (
                 <>
-                  <Ionicons name="megaphone" size={20} color="#111827" style={{ marginRight: 8 }} />
+                  <Ionicons name="megaphone" size={20} color="#FFF" style={{ marginRight: 8 }} />
                   <Text style={styles.broadcastBtnText}>Send Broadcast</Text>
                 </>
               )}
@@ -415,7 +415,7 @@ export default function StaffScreen() {
         style={styles.fab} 
         onPress={() => setBroadcastModalVisible(true)}
       >
-        <Ionicons name="megaphone" size={24} color="#111827" />
+        <Ionicons name="megaphone" size={24} color="#FFF" />
       </TouchableOpacity>
 
     </SafeAreaView>
@@ -425,7 +425,7 @@ export default function StaffScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
   container: { flex: 1 },
-  contentContainer: { paddingHorizontal: 20, paddingTop: 10 },
+  contentContainer: { paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   headerRight: { flexDirection: 'row', alignItems: 'center' },
   langToggle: { backgroundColor: '#F3F4F6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
@@ -437,9 +437,9 @@ const styles = StyleSheet.create({
   filterScroll: { marginBottom: 30, maxHeight: 45 },
   filterContainer: { paddingRight: 20, gap: 12 },
   filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
-  filterChipActive: { backgroundColor: '#E1F21E', borderColor: '#E1F21E' },
+  filterChipActive: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
   filterText: { fontSize: 15, fontWeight: '500', color: '#4B5563' },
-  filterTextActive: { color: '#111827', fontWeight: '600' },
+  filterTextActive: { color: '#FFFFFF', fontWeight: '600' },
   card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20, elevation: 4 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   badge: { backgroundColor: '#FEE2E2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   broadcastHelpText: { fontSize: 14, color: '#6B7280', marginBottom: 20 },
   input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 16, padding: 16, fontSize: 16, color: '#111827', marginBottom: 16 },
   textArea: { height: 120, textAlignVertical: 'top' },
-  broadcastBtn: { backgroundColor: '#E1F21E', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 8 },
-  broadcastBtnText: { color: '#111827', fontSize: 16, fontWeight: '700' },
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#E1F21E', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 15, elevation: 6 }
+  broadcastBtn: { backgroundColor: '#1D4ED8', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 8 },
+  broadcastBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#1D4ED8', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 15, elevation: 6 }
 });

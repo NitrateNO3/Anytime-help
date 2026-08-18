@@ -6,6 +6,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -13,12 +14,18 @@ const bgImage = require('../../assets/images/electrician-review-response-templat
 
 export default function RegisterScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const toggleLanguage = async () => {
+    const newLang = i18n.language === 'en' ? 'hi' : 'en';
+    await i18n.changeLanguage(newLang);
+    await AsyncStorage.setItem('user-language', newLang);
+  };
 
   const handleRegister = async () => {
     if (!name || !email || !password) {
@@ -51,50 +58,59 @@ export default function RegisterScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      <ImageBackground source={bgImage} style={styles.bgImage} resizeMode="cover">
-        <LinearGradient
-          colors={['rgba(10, 15, 36, 0.4)', 'rgba(10, 15, 36, 0.8)', '#0A0F24']}
-          style={styles.gradient}
-        />
-      </ImageBackground>
+      <View style={styles.imageContainer}>
+        <ImageBackground source={bgImage} style={styles.bgImage} resizeMode="cover">
+          <LinearGradient
+            colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
+            style={styles.gradient}
+          />
+        </ImageBackground>
+      </View>
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.content}
+          style={styles.keyboardView}
         >
-          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-            <View style={styles.headerTop}>
-              <View style={styles.badge}>
-                <Ionicons name="shield-checkmark" size={14} color="#10B981" />
+          <View style={styles.langToggleContainer}>
+            <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
+              <Ionicons name="language-outline" size={16} color="#FFF" style={{marginRight: 6}} />
+              <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी' : 'EN'}</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.mainContent}>
+            {/* Header / Hero */}
+            <View style={styles.heroSection}>
+              <View style={styles.badgeContainer}>
+                <Ionicons name="shield-checkmark" size={14} color="#F59E0B" />
                 <Text style={styles.badgeText}>RWA APPROVED</Text>
               </View>
-            </View>
-
-            <View style={styles.heroTextContainer}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="business" size={40} color="#1D4ED8" />
+              </View>
               <Text style={styles.title}>{t('register.title') || 'Create Account'}</Text>
-              <Text style={styles.subtitle}>{t('register.subtitle') || 'Sign up to get started'}</Text>
+              <Text style={styles.subtitle}>{t('register.subtitle') || 'Join Anytime Help Community'}</Text>
             </View>
 
-            <View style={styles.glassCard}>
-
+            <View style={styles.formCard}>
               <View style={styles.inputContainer}>
-                <Ionicons name="person" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <Ionicons name="person-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder={t('register.fullName') || 'Full Name'}
-                  placeholderTextColor="#6B7280"
+                  placeholderTextColor="#777"
                   value={name}
                   onChangeText={setName}
                 />
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <Ionicons name="mail-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder={t('register.email') || 'Email Address'}
-                  placeholderTextColor="#6B7280"
+                  placeholderTextColor="#777"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   value={email}
@@ -103,17 +119,17 @@ export default function RegisterScreen() {
               </View>
 
               <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon} />
+                <Ionicons name="lock-closed-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder={t('register.password') || 'Password'}
-                  placeholderTextColor="#6B7280"
+                  placeholderTextColor="#777"
                   secureTextEntry={!showPassword}
                   value={password}
                   onChangeText={setPassword}
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                  <Ionicons name={showPassword ? "eye" : "eye-off"} size={20} color="#9CA3AF" />
+                  <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#555" />
                 </TouchableOpacity>
               </View>
 
@@ -125,17 +141,6 @@ export default function RegisterScreen() {
                 <Text style={styles.registerBtnText}>{loading ? (t('register.creating') || 'Creating...') : (t('register.signup') || 'Sign Up')}</Text>
               </TouchableOpacity>
 
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>OR</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <TouchableOpacity style={styles.socialBtn}>
-                <Ionicons name="logo-google" size={20} color="#DB4437" />
-                <Text style={styles.socialBtnText}>Continue with Google</Text>
-              </TouchableOpacity>
-
               <View style={styles.footer}>
                 <Text style={styles.footerText}>{t('register.alreadyHave') || 'Already have an account? '}</Text>
                 <TouchableOpacity onPress={() => router.push('/login' as any)}>
@@ -143,7 +148,7 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </ScrollView>
+          </View>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -153,11 +158,18 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0F24',
+    backgroundColor: '#1E40AF', // Blue theme
+  },
+  imageContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '55%',
   },
   bgImage: {
-    ...StyleSheet.absoluteFillObject,
-    height: '60%',
+    width: '100%',
+    height: '100%',
   },
   gradient: {
     flex: 1,
@@ -165,70 +177,106 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  content: {
+  keyboardView: {
     flex: 1,
   },
-  scrollContent: {
-    flexGrow: 1,
-    padding: 24,
-    justifyContent: 'center',
+  mainContent: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    paddingTop: 140, // Minimum space from top
+    paddingHorizontal: 16,
     paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
-  headerTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 40,
-    marginTop: Platform.OS === 'ios' ? 20 : 0,
+  langToggleContainer: {
+    position: 'absolute',
+    top: Platform.OS === 'ios' ? 65 : (StatusBar.currentHeight ? StatusBar.currentHeight + 15 : 45),
+    right: 20,
+    zIndex: 10,
   },
-  badge: {
+  langToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    backgroundColor: '#1E40AF', // Solid blue
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5,
+  },
+  langToggleText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFF',
+  },
+  heroSection: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  badgeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7', // Soft gold background
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderColor: '#FDE68A',
   },
   badgeText: {
-    color: '#10B981',
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 6,
+    color: '#D97706', // Darker gold text
+    fontSize: 11,
+    fontWeight: '800',
     letterSpacing: 0.5,
+    marginLeft: 6,
   },
-  heroTextContainer: {
-    marginBottom: 32,
+  iconCircle: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 8,
-    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#E5E7EB',
+    color: '#EFF6FF',
     fontWeight: '500',
   },
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 32,
+  formCard: {
+    backgroundColor: '#DBEAFE', // Light blue card
+    borderRadius: 30, // Rounded all corners
     padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingTop: 32,
+    flex: 1,
+    minHeight: 400,
+    marginBottom: 20,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    borderRadius: 16,
+    backgroundColor: '#F9FBF9', // Almost white
+    borderRadius: 30, // Changed from 12 to 30 for pill shape
     marginBottom: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20, // Increased padding slightly
     height: 60,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   inputIcon: {
     marginRight: 12,
@@ -239,77 +287,40 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: '100%',
-    fontSize: 15,
-    color: '#FFFFFF',
+    fontSize: 16,
+    color: '#333',
   },
   registerBtn: {
-    backgroundColor: '#10B981',
-    borderRadius: 16,
+    backgroundColor: '#1D4ED8', // Dark blue button
+    borderRadius: 30, // Changed from 12 to 30 for pill shape
     height: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
     marginBottom: 24,
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
   },
   registerBtnDisabled: {
     opacity: 0.7,
   },
   registerBtnText: {
     color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  dividerText: {
-    paddingHorizontal: 16,
-    color: '#9CA3AF',
-    fontSize: 13,
+    fontSize: 18,
     fontWeight: '600',
-  },
-  socialBtn: {
-    flexDirection: 'row',
-    height: 56,
-    backgroundColor: 'transparent',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginBottom: 24,
-  },
-  socialBtnText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '600',
-    marginLeft: 12,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 'auto',
+    paddingBottom: 20,
   },
   footerText: {
-    color: '#9CA3AF',
-    fontSize: 14,
+    color: '#555',
+    fontSize: 15,
   },
   footerLink: {
-    color: '#10B981',
-    fontSize: 14,
+    color: '#1D4ED8',
+    fontSize: 15,
     fontWeight: '700',
   }
 });
