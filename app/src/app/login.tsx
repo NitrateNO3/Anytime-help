@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, ImageBackground } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, ImageBackground, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -65,109 +65,103 @@ export default function LoginScreen() {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
-      <ImageBackground source={bgImage} style={styles.bgImage} resizeMode="cover">
-        <LinearGradient
-          colors={['rgba(10, 15, 36, 0.4)', 'rgba(10, 15, 36, 0.8)', '#0A0F24']}
-          style={styles.gradient}
-        />
-      </ImageBackground>
+      {/* Top Image with Seamless Fade */}
+      <View style={styles.imageContainer}>
+        <ImageBackground source={bgImage} style={styles.bgImage} resizeMode="cover">
+          <LinearGradient
+            colors={['transparent', 'transparent', 'rgba(41, 138, 82, 0.8)', '#298A52']}
+            style={styles.gradient}
+          />
+        </ImageBackground>
+      </View>
 
       <SafeAreaView style={styles.safeArea}>
         <KeyboardAvoidingView 
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.content}
+          style={styles.keyboardView}
         >
-          <View style={styles.headerTop}>
-            <View style={styles.badge}>
-              <Ionicons name="shield-checkmark" size={14} color="#10B981" />
-              <Text style={styles.badgeText}>RWA APPROVED</Text>
+          <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            
+            <View style={styles.langToggleContainer}>
+              <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
+                <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी' : 'EN'}</Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
-              <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी' : 'EN'}</Text>
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.heroTextContainer}>
-            <Text style={styles.title}>RWA Anytime Help</Text>
-            <Text style={styles.subtitle}>Welcome back to your community</Text>
-          </View>
+            {/* Header / Hero */}
+            <View style={styles.heroSection}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="log-in-outline" size={40} color="#0F6D36" />
+              </View>
+              <Text style={styles.title}>Welcome Back</Text>
+              <Text style={styles.subtitle}>Login to Anytime Help</Text>
+            </View>
 
-          <View style={styles.glassCard}>
-            <View style={styles.roleContainer}>
+            {/* Form Card */}
+            <View style={styles.formCard}>
+              <View style={styles.roleContainer}>
+                <TouchableOpacity 
+                  style={[styles.roleBtn, role === 'Resident' && styles.roleBtnActive]}
+                  onPress={() => setRole('Resident')}
+                >
+                  <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>
+                    Resident
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.roleBtn, role === 'Staff' && styles.roleBtnActive]}
+                  onPress={() => setRole('Staff')}
+                >
+                  <Text style={[styles.roleBtnText, role === 'Staff' && styles.roleBtnTextActive]}>
+                    Staff
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="mail-outline" size={20} color="#555" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Email Address"
+                  placeholderTextColor="#777"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  value={email}
+                  onChangeText={setEmail}
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="lock-closed-outline" size={20} color="#555" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Password"
+                  placeholderTextColor="#777"
+                  secureTextEntry={!showPassword}
+                  value={password}
+                  onChangeText={setPassword}
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
+                  <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#555" />
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity 
-                style={[styles.roleBtn, role === 'Resident' && styles.roleBtnActive]}
-                onPress={() => setRole('Resident')}
+                style={[styles.loginBtn, loading && styles.loginBtnDisabled]} 
+                onPress={handleLogin}
+                disabled={loading}
               >
-                <Ionicons name="home" size={16} color={role === 'Resident' ? '#10B981' : '#6B7280'} style={{marginRight: 6}} />
-                <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>
-                  {t('login.residentLogin') || 'Resident'}
-                </Text>
+                <Text style={styles.loginBtnText}>{loading ? 'Logging In...' : 'Log In'}</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.roleBtn, role === 'Staff' && styles.roleBtnActive]}
-                onPress={() => setRole('Staff')}
-              >
-                <Ionicons name="construct" size={16} color={role === 'Staff' ? '#3B82F6' : '#6B7280'} style={{marginRight: 6}} />
-                <Text style={[styles.roleBtnText, role === 'Staff' && styles.roleBtnTextActive]}>
-                  {t('login.staffLogin') || 'Staff'}
-                </Text>
-              </TouchableOpacity>
+
+              <View style={styles.footer}>
+                <Text style={styles.footerText}>Don't have an account? </Text>
+                <TouchableOpacity onPress={() => router.push('/register' as any)}>
+                  <Text style={styles.footerLink}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-
-            <View style={styles.inputContainer}>
-              <Ionicons name="mail" size={20} color="#9CA3AF" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Email Address"
-                placeholderTextColor="#6B7280"
-                keyboardType="email-address"
-                autoCapitalize="none"
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed" size={20} color="#9CA3AF" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Password"
-                placeholderTextColor="#6B7280"
-                secureTextEntry={!showPassword}
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                <Ionicons name={showPassword ? "eye" : "eye-off"} size={20} color="#9CA3AF" />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity 
-              style={[styles.loginBtn, loading && styles.loginBtnDisabled]} 
-              onPress={handleLogin}
-              disabled={loading}
-            >
-              <Text style={styles.loginBtnText}>{loading ? (t('login.loggingInBtn') || 'Signing in...') : 'Log In'}</Text>
-            </TouchableOpacity>
-
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>OR</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity style={styles.socialBtn}>
-              <Ionicons name="logo-google" size={20} color="#DB4437" />
-              <Text style={styles.socialBtnText}>Continue with Google</Text>
-            </TouchableOpacity>
-
-            <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
-              <TouchableOpacity onPress={() => router.push('/register' as any)}>
-                <Text style={styles.footerLink}>Register Here</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
+          </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
@@ -177,11 +171,18 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A0F24',
+    backgroundColor: '#298A52', // Match the bottom fade color
+  },
+  imageContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '55%',
   },
   bgImage: {
-    ...StyleSheet.absoluteFillObject,
-    height: '60%',
+    width: '100%',
+    height: '100%',
   },
   gradient: {
     flex: 1,
@@ -189,98 +190,87 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  content: {
+  keyboardView: {
     flex: 1,
-    padding: 24,
-    justifyContent: 'flex-end',
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
   },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 40,
-    left: 24,
-    right: 24,
-    zIndex: 10,
+  scrollContent: {
+    flexGrow: 1,
+    paddingTop: '25%', // Push content down over the image
   },
-  badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(16, 185, 129, 0.3)',
-  },
-  badgeText: {
-    color: '#10B981',
-    fontSize: 12,
-    fontWeight: '700',
-    marginLeft: 6,
-    letterSpacing: 0.5,
+  langToggleContainer: {
+    alignItems: 'flex-end',
+    paddingHorizontal: 24,
+    marginBottom: 20,
   },
   langToggle: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   langToggleText: {
     fontSize: 12,
     fontWeight: '700',
     color: '#FFF',
   },
-  heroTextContainer: {
-    marginBottom: 32,
+  heroSection: {
+    alignItems: 'center',
+    marginBottom: 30,
+  },
+  iconCircle: {
+    width: 80,
+    height: 80,
+    backgroundColor: '#E8F5E9',
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
   },
   title: {
-    fontSize: 32,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '700',
     color: '#FFFFFF',
     marginBottom: 8,
-    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#E5E7EB',
+    color: '#E8F5E9',
     fontWeight: '500',
   },
-  glassCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 32,
+  formCard: {
+    backgroundColor: '#D1E6D3', // Light greenish card
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.15)',
+    paddingTop: 32,
+    flex: 1,
+    minHeight: 400,
   },
   roleContainer: {
     flexDirection: 'row',
-    marginBottom: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-    borderRadius: 16,
-    padding: 6,
+    backgroundColor: '#BFE0C6',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 20,
   },
   roleBtn: {
     flex: 1,
-    flexDirection: 'row',
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
+    borderRadius: 10,
   },
   roleBtnActive: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.05)',
+    backgroundColor: '#0F6D36',
   },
   roleBtnText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#9CA3AF',
+    color: '#0F6D36',
   },
   roleBtnTextActive: {
     color: '#FFF',
@@ -288,13 +278,11 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.25)',
-    borderRadius: 16,
+    backgroundColor: '#F9FBF9', // Almost white
+    borderRadius: 12,
     marginBottom: 16,
     paddingHorizontal: 16,
     height: 60,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   inputIcon: {
     marginRight: 12,
@@ -305,77 +293,40 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: '100%',
-    fontSize: 15,
-    color: '#FFFFFF',
+    fontSize: 16,
+    color: '#333',
   },
   loginBtn: {
-    backgroundColor: '#10B981',
-    borderRadius: 16,
+    backgroundColor: '#0F6D36', // Dark green button
+    borderRadius: 12,
     height: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 12,
     marginBottom: 24,
-    shadowColor: "#10B981",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5,
   },
   loginBtnDisabled: {
     opacity: 0.7,
   },
   loginBtnText: {
     color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  dividerText: {
-    paddingHorizontal: 16,
-    color: '#9CA3AF',
-    fontSize: 13,
+    fontSize: 18,
     fontWeight: '600',
-  },
-  socialBtn: {
-    flexDirection: 'row',
-    height: 56,
-    backgroundColor: 'transparent',
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginBottom: 24,
-  },
-  socialBtnText: {
-    color: '#FFF',
-    fontSize: 15,
-    fontWeight: '600',
-    marginLeft: 12,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 'auto',
+    paddingBottom: 20,
   },
   footerText: {
-    color: '#9CA3AF',
-    fontSize: 14,
+    color: '#555',
+    fontSize: 15,
   },
   footerLink: {
-    color: '#10B981',
-    fontSize: 14,
+    color: '#0F6D36',
+    fontSize: 15,
     fontWeight: '700',
   }
 });
