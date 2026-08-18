@@ -244,7 +244,7 @@ export default function StaffScreen() {
                       item.status === 'PENDING' ? { color: '#F59E0B' } : 
                       item.status === 'IN_PROGRESS' ? { color: '#3B82F6' } : { color: '#10B981' }
                     ]}>
-                      ● {item.status.replace('_', ' ')}
+                      ● {item.status === 'DONE' ? 'RESOLVED' : item.status.replace('_', ' ')}
                     </Text>
                   </View>
 
@@ -341,7 +341,7 @@ export default function StaffScreen() {
               <Text style={styles.modalOptionText}>{t('staff.inProgress')}</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('RESOLVED')}>
+            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('DONE')}>
               <Ionicons name="checkmark-circle-outline" size={24} color="#10B981" />
               <Text style={styles.modalOptionText}>{t('staff.resolved')}</Text>
             </TouchableOpacity>
