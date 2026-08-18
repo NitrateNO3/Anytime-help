@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -21,6 +21,9 @@ export default function ResidentHome() {
   const [activeTab, setActiveTab] = useState<'Complaints' | 'Announcements'>('Complaints');
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [complaintToDelete, setComplaintToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const fetchComplaints = async () => {
     try {
@@ -59,10 +62,17 @@ export default function ResidentHome() {
     }
   };
 
-  useEffect(() => {
-    fetchComplaints();
-    fetchAnnouncements();
-  }, []);
+  const { tab } = useLocalSearchParams();
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchComplaints();
+      fetchAnnouncements();
+      if (tab === 'Complaints') {
+        setActiveTab('Complaints');
+      }
+    }, [tab])
+  );
 
   const confirmDelete = (id: string) => {
     setComplaintToDelete(id);
@@ -71,18 +81,22 @@ export default function ResidentHome() {
 
   const handleDelete = async () => {
     if (!complaintToDelete) return;
+    setIsDeleting(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
       await axios.delete(`${API_URL}/complaints/${complaintToDelete}`, {
         headers: { 'x-auth-token': token }
       });
       setComplaints(prev => prev.filter(c => c._id !== complaintToDelete));
-    } catch (error) {
-      console.error('Delete error', error);
-      Alert.alert('Error', 'Could not delete complaint. Please try again.');
-    } finally {
       setDeleteModalVisible(false);
       setComplaintToDelete(null);
+    } catch (error) {
+      console.error('Delete error', error);
+      setDeleteModalVisible(false);
+      setErrorMessage('Could not delete complaint. Please try again.');
+      setErrorModalVisible(true);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -252,16 +266,49 @@ export default function ResidentHome() {
               Are you sure you want to delete this complaint? This action cannot be undone.
             </Text>
             <View style={styles.deleteModalActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setDeleteModalVisible(false)}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setDeleteModalVisible(false)} disabled={isDeleting}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-                <Text style={styles.deleteBtnText}>Delete</Text>
+              <TouchableOpacity 
+                style={[styles.deleteBtn, isDeleting && { opacity: 0.6 }]} 
+                onPress={handleDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.deleteBtnText}>Delete</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
+
+      {/* Error Confirmation Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={errorModalVisible}
+        onRequestClose={() => setErrorModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContainer}>
+            <View style={styles.deleteIconCircle}>
+              <Ionicons name="close" size={40} color="#EF4444" />
+            </View>
+            <Text style={styles.deleteModalTitle}>Oops!</Text>
+            <Text style={styles.deleteModalText}>{errorMessage}</Text>
+            <TouchableOpacity 
+              style={styles.deleteBtn} 
+              onPress={() => setErrorModalVisible(false)}
+            >
+              <Text style={styles.deleteBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }

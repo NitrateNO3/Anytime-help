@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, FlatList, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, FlatList, StatusBar, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -20,6 +20,9 @@ export default function RaiseComplaint() {
   const [allowAI, setAllowAI] = useState(true);
   const [loading, setLoading] = useState(false);
   const [categoryModalVisible, setCategoryModalVisible] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [errorModalVisible, setErrorModalVisible] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   
   const categories = ['Plumbing', 'Electrical', 'Cleaning', 'Security', 'Maintenance', 'Pest Control', 'Others'];
 
@@ -39,7 +42,8 @@ export default function RaiseComplaint() {
 
   const handleSubmit = async () => {
     if (!description) {
-      Alert.alert(t('raise.errorTitle'), t('raise.errorDesc'));
+      setErrorMessage(t('raise.errorDesc') || 'Please provide a description.');
+      setErrorModalVisible(true);
       return;
     }
 
@@ -63,12 +67,11 @@ export default function RaiseComplaint() {
         { headers: { 'x-auth-token': token } }
       );
       
-      Alert.alert(t('raise.successTitle'), t('raise.successDesc'), [
-        { text: 'OK', onPress: () => router.push('/resident' as any) }
-      ]);
+      setSuccessModalVisible(true);
     } catch (err: any) {
       console.error(err);
-      Alert.alert(t('raise.errorTitle'), t('raise.errorSubmit'));
+      setErrorMessage(t('raise.errorSubmit') || 'Could not submit complaint. Please try again.');
+      setErrorModalVisible(true);
     } finally {
       setLoading(false);
     }
@@ -144,11 +147,18 @@ export default function RaiseComplaint() {
           </View>
 
           <TouchableOpacity 
-            style={[styles.submitBtn, loading && { opacity: 0.7 }]}
+            style={[styles.submitBtn, loading && { opacity: 0.6 }]}
             onPress={handleSubmit}
             disabled={loading}
           >
-            <Text style={styles.submitBtnText}>{loading ? t('raise.submitting') : t('raise.submit')}</Text>
+            {loading ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <ActivityIndicator size="small" color="#FFFFFF" />
+                <Text style={styles.submitBtnText}>Submitting...</Text>
+              </View>
+            ) : (
+              <Text style={styles.submitBtnText}>Submit Complaint</Text>
+            )}
           </TouchableOpacity>
 
           {/* Padding for bottom tabs if visible */}
@@ -205,6 +215,56 @@ export default function RaiseComplaint() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Success Confirmation Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={successModalVisible}
+      >
+        <View style={styles.successModalOverlay}>
+          <View style={styles.successModalContainer}>
+            <View style={styles.successIconCircle}>
+              <Ionicons name="checkmark" size={40} color="#10B981" />
+            </View>
+            <Text style={styles.successModalTitle}>Success!</Text>
+            <Text style={styles.successModalText}>Your complaint has been submitted successfully. We will look into it shortly.</Text>
+            <TouchableOpacity 
+              style={styles.doneBtn} 
+              onPress={() => {
+                setSuccessModalVisible(false);
+                router.push({ pathname: '/resident', params: { tab: 'Complaints' } } as any);
+              }}
+            >
+              <Text style={styles.doneBtnText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Error Confirmation Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={errorModalVisible}
+        onRequestClose={() => setErrorModalVisible(false)}
+      >
+        <View style={styles.successModalOverlay}>
+          <View style={styles.successModalContainer}>
+            <View style={[styles.successIconCircle, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="close" size={40} color="#EF4444" />
+            </View>
+            <Text style={styles.successModalTitle}>Oops!</Text>
+            <Text style={styles.successModalText}>{errorMessage}</Text>
+            <TouchableOpacity 
+              style={[styles.doneBtn, { backgroundColor: '#EF4444' }]} 
+              onPress={() => setErrorModalVisible(false)}
+            >
+              <Text style={styles.doneBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -227,7 +287,17 @@ const styles = StyleSheet.create({
   checkboxActive: { backgroundColor: '#1D4ED8' },
   checkboxLabel: { fontSize: 15, color: '#4B5563', fontWeight: '500' },
   submitBtn: { backgroundColor: '#1D4ED8', borderRadius: 16, height: 56, justifyContent: 'center', alignItems: 'center', shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
-  submitBtnText: { color: '#FFF', fontSize: 18, fontWeight: '700' },
+  submitBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  
+  // Custom Success Modal Styles
+  successModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  successModalContainer: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  successIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#D1FAE5', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  successModalTitle: { fontSize: 24, fontWeight: '800', color: '#111827', marginBottom: 8 },
+  successModalText: { fontSize: 15, color: '#6B7280', textAlign: 'center', marginBottom: 28, lineHeight: 22 },
+  doneBtn: { width: '100%', paddingVertical: 16, borderRadius: 16, backgroundColor: '#1D4ED8', alignItems: 'center' },
+  doneBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '70%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
