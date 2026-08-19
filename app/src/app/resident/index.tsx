@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform, Modal, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform, Modal, Animated, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
@@ -7,6 +7,7 @@ import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { io } from 'socket.io-client';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -76,6 +77,23 @@ export default function ResidentHome() {
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [lastViewedDate, setLastViewedDate] = useState<Date>(new Date(0));
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [isOffline, setIsOffline] = useState(false);
+  
+  const mounted = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    const delayDebounceFn = setTimeout(() => {
+      fetchComplaints(1, false, searchQuery, selectedCategory);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
 
   React.useEffect(() => {
     SecureStore.getItemAsync('lastViewedAnnouncement').then(dateStr => {
@@ -93,7 +111,7 @@ export default function ResidentHome() {
 
   const unreadCount = activeTab === 'Announcements' ? 0 : announcements.filter(a => new Date(a.date) > lastViewedDate).length;
 
-  const fetchComplaints = async (pageNum = 1, append = false) => {
+  const fetchComplaints = async (pageNum = 1, append = false, currentSearch = searchQuery, currentCategory = selectedCategory) => {
     try {
       if (!append) setLoading(true);
       else setLoadingMore(true);
@@ -102,7 +120,7 @@ export default function ResidentHome() {
       const userData = await SecureStore.getItemAsync('userData');
       if (userData) setUser(JSON.parse(userData));
 
-      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=5`, {
+      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=5${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}`, {
         headers: { 'x-auth-token': token }
       });
       
@@ -117,13 +135,23 @@ export default function ResidentHome() {
         });
       } else {
         setComplaints(newComplaints);
+        AsyncStorage.setItem('cached_resident_complaints', JSON.stringify(newComplaints));
       }
       
       setHasMore(hasMoreData);
       setPage(pageNum);
+      setIsOffline(false);
     } catch (err) {
       console.error('Fetch complaints error:', err);
-      if (!append) setComplaints([]);
+      if (!append) {
+        const cachedStr = await AsyncStorage.getItem('cached_resident_complaints');
+        if (cachedStr) {
+          setComplaints(JSON.parse(cachedStr));
+          setIsOffline(true);
+        } else {
+          setComplaints([]);
+        }
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -138,8 +166,15 @@ export default function ResidentHome() {
         headers: { 'x-auth-token': token }
       });
       setAnnouncements(res.data);
+      AsyncStorage.setItem('cached_announcements', JSON.stringify(res.data));
+      setIsOffline(false);
     } catch (err) {
-      console.error(err);
+      console.error('Fetch announcements error:', err);
+      const cachedStr = await AsyncStorage.getItem('cached_announcements');
+      if (cachedStr) {
+        setAnnouncements(JSON.parse(cachedStr));
+        setIsOffline(true);
+      }
     } finally {
       setLoadingAnnouncements(false);
     }
@@ -219,6 +254,13 @@ export default function ResidentHome() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FCFDF6" />
       
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.offlineText}>No Internet Connection - Showing offline data</Text>
+        </View>
+      )}
+
       {/* Soft Blue Gradient Banner behind top content */}
       <LinearGradient
         colors={['#DBEAFE', '#FCFDF6']}
@@ -272,6 +314,42 @@ export default function ResidentHome() {
 
         {activeTab === 'Complaints' ? (
           <>
+            <View style={{ marginBottom: 16 }}>
+              <View style={styles.searchBar}>
+                <Ionicons name="search-outline" size={20} color="#9CA3AF" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={{ flex: 1, height: 40, color: '#111827' }}
+                  placeholder="Search complaints..."
+                  placeholderTextColor="#9CA3AF"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => { setSearchQuery(''); fetchComplaints(1, false, '', selectedCategory); }}>
+                    <Ionicons name="close-circle" size={20} color="#D1D5DB" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 10 }}>
+                {['All', 'Plumbing', 'Electrical', 'Cleaning', 'Security', 'Other'].map(cat => {
+                  const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
+                  return (
+                    <TouchableOpacity 
+                      key={cat} 
+                      style={[styles.catChip, isActive && styles.catChipActive]}
+                      onPress={() => {
+                        const newCat = cat === 'All' ? '' : cat;
+                        setSelectedCategory(newCat);
+                        fetchComplaints(1, false, searchQuery, newCat);
+                      }}
+                    >
+                      <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>{cat}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
             <Text style={styles.sectionTitle}>{t('resident.myComplaints')}</Text>
             
             {loading ? (
@@ -279,17 +357,20 @@ export default function ResidentHome() {
                 {[1, 2, 3].map(key => <SkeletonCard key={key} />)}
               </View>
             ) : complaints.length === 0 ? (
-              <Text style={styles.emptyText}>{t('resident.noComplaints')}</Text>
+              <View style={styles.emptyStateContainer}>
+                <Ionicons name="document-text-outline" size={64} color="#D1D5DB" />
+                <Text style={styles.emptyTextLarge}>{t('resident.noComplaints')}</Text>
+              </View>
             ) : (
               complaints.map((item) => (
                 <TouchableOpacity key={item._id} style={styles.card} activeOpacity={0.9}>
                   {item.before_image ? (
-                    <View style={styles.imageContainer}>
+                    <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.before_image)} style={styles.imageContainer}>
                       <Image source={{ uri: item.before_image }} style={styles.cardImage} />
                       <View style={styles.tag}>
                         <Text style={styles.tagText}>{item.priority} {t('resident.priority')}</Text>
                       </View>
-                    </View>
+                    </TouchableOpacity>
                   ) : null}
                   
                   <View style={styles.cardContent}>
@@ -406,6 +487,16 @@ export default function ResidentHome() {
         )}
       </ScrollView>
 
+      {/* Full Screen Image Modal */}
+      <Modal visible={!!fullScreenImage} transparent={true} animationType="fade" onRequestClose={() => setFullScreenImage(null)}>
+        <View style={styles.fullScreenImageContainer}>
+          <TouchableOpacity style={styles.closeImageBtn} onPress={() => setFullScreenImage(null)}>
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+          {fullScreenImage && <Image source={{ uri: fullScreenImage }} style={styles.fullScreenImage} resizeMode="contain" />}
+        </View>
+      </Modal>
+
       {/* Delete Confirmation Modal */}
       <Modal
         animationType="fade"
@@ -472,6 +563,8 @@ export default function ResidentHome() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
+  offlineBanner: { backgroundColor: '#EF4444', paddingVertical: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  offlineText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   container: { flex: 1 },
   contentContainer: { paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60, paddingBottom: 120 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
@@ -490,6 +583,11 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
   filterText: { fontSize: 15, fontWeight: '600', color: '#4B5563' },
   filterTextActive: { color: '#FFFFFF' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E5E7EB', height: 44 },
+  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  catChipActive: { backgroundColor: '#1E3A8A', borderColor: '#1E3A8A' },
+  catChipText: { fontSize: 13, fontWeight: '600', color: '#4B5563' },
+  catChipTextActive: { color: '#FFFFFF' },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
   card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 12, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20, elevation: 4 },
   imageContainer: { width: '100%', height: 160, borderRadius: 16, overflow: 'hidden', marginBottom: 12, position: 'relative' },
@@ -535,4 +633,9 @@ const styles = StyleSheet.create({
   cancelBtnText: { fontSize: 16, fontWeight: '700', color: '#4B5563' },
   deleteBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#EF4444', alignItems: 'center' },
   deleteBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  
+  // Full screen image styles
+  fullScreenImageContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+  fullScreenImage: { width: '100%', height: '100%' },
+  closeImageBtn: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 60, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },
 });

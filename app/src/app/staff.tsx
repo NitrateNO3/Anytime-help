@@ -44,7 +44,27 @@ export default function StaffScreen() {
   const [broadcastToDelete, setBroadcastToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchComplaints = async () => {
+  // Full Screen Image State
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+  const [isOffline, setIsOffline] = useState(false);
+  
+  const mounted = React.useRef(false);
+
+  React.useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    const delayDebounceFn = setTimeout(() => {
+      fetchComplaints(searchQuery, selectedStatus);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchQuery]);
+
+  const fetchComplaints = async (currentSearch = searchQuery, currentStatus = selectedStatus) => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const userDataStr = await SecureStore.getItemAsync('userData');
@@ -54,17 +74,25 @@ export default function StaffScreen() {
         setUser(userData);
       }
 
-      const res = await axios.get(`${API_URL}/complaints`, {
+      const res = await axios.get(`${API_URL}/complaints?${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentStatus ? `&status=${encodeURIComponent(currentStatus)}` : ''}`, {
         headers: { 'x-auth-token': token }
       });
       if (Array.isArray(res.data)) {
         setComplaints(res.data);
+        AsyncStorage.setItem('cached_staff_complaints', JSON.stringify(res.data));
       } else {
         setComplaints([]);
       }
+      setIsOffline(false);
     } catch (err) {
       console.error('Fetch complaints error:', err);
-      setComplaints([]);
+      const cachedStr = await AsyncStorage.getItem('cached_staff_complaints');
+      if (cachedStr) {
+        setComplaints(JSON.parse(cachedStr));
+        setIsOffline(true);
+      } else {
+        setComplaints([]);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -78,8 +106,15 @@ export default function StaffScreen() {
         headers: { 'x-auth-token': token }
       });
       setAnnouncements(res.data);
+      AsyncStorage.setItem('cached_announcements', JSON.stringify(res.data));
+      setIsOffline(false);
     } catch (err) {
       console.error('Fetch announcements error:', err);
+      const cachedStr = await AsyncStorage.getItem('cached_announcements');
+      if (cachedStr) {
+        setAnnouncements(JSON.parse(cachedStr));
+        setIsOffline(true);
+      }
     } finally {
       setLoadingAnnouncements(false);
     }
@@ -118,9 +153,12 @@ export default function StaffScreen() {
     router.replace('/login' as any);
   };
 
+  const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
+
   const updateStatus = async (newStatus: string) => {
-    if (!selectedComplaintId) return;
+    if (!selectedComplaintId || updatingStatus) return;
     
+    setUpdatingStatus(newStatus);
     try {
       const token = await SecureStore.getItemAsync('userToken');
       await axios.patch(`${API_URL}/complaints/${selectedComplaintId}`, { status: newStatus }, {
@@ -140,6 +178,8 @@ export default function StaffScreen() {
         text1: 'Update Failed',
         text2: 'Could not update status'
       });
+    } finally {
+      setUpdatingStatus(null);
     }
   };
 
@@ -205,6 +245,13 @@ export default function StaffScreen() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor="#FCFDF6" />
       
+      {isOffline && (
+        <View style={styles.offlineBanner}>
+          <Ionicons name="cloud-offline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
+          <Text style={styles.offlineText}>No Internet Connection - Showing offline data</Text>
+        </View>
+      )}
+
       <ScrollView 
         style={styles.container} 
         contentContainerStyle={styles.contentContainer}
@@ -247,6 +294,43 @@ export default function StaffScreen() {
 
         {activeTab === 'Tasks' ? (
           <>
+            <View style={{ marginBottom: 16 }}>
+              <View style={styles.searchBar}>
+                <Ionicons name="search-outline" size={20} color="#9CA3AF" style={{ marginRight: 8 }} />
+                <TextInput
+                  style={{ flex: 1, height: 40, color: '#111827' }}
+                  placeholder="Search tasks..."
+                  placeholderTextColor="#9CA3AF"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity onPress={() => { setSearchQuery(''); fetchComplaints('', selectedStatus); }}>
+                    <Ionicons name="close-circle" size={20} color="#D1D5DB" />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 10 }}>
+                {['All', 'PENDING', 'IN_PROGRESS', 'DONE'].map(status => {
+                  const isActive = (status === 'All' && selectedStatus === '') || status === selectedStatus;
+                  const displayStatus = status === 'All' ? 'All' : status === 'DONE' ? 'Resolved' : status.replace('_', ' ');
+                  return (
+                    <TouchableOpacity 
+                      key={status} 
+                      style={[styles.catChip, isActive && styles.catChipActive]}
+                      onPress={() => {
+                        const newStatus = status === 'All' ? '' : status;
+                        setSelectedStatus(newStatus);
+                        fetchComplaints(searchQuery, newStatus);
+                      }}
+                    >
+                      <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>{displayStatus}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+
             {loading ? (
               <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
             ) : complaints.length === 0 ? (
@@ -280,9 +364,9 @@ export default function StaffScreen() {
                   <Text style={styles.descText}>{item.description}</Text>
 
                   {item.before_image ? (
-                    <View style={styles.imageContainer}>
+                    <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.before_image)} style={styles.imageContainer}>
                       <Image source={{ uri: item.before_image }} style={styles.cardImage} />
-                    </View>
+                    </TouchableOpacity>
                   ) : null}
 
                   {/* Action Dropdown Button */}
@@ -353,18 +437,18 @@ export default function StaffScreen() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{t('staff.updateStatus')}</Text>
             
-            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('PENDING')}>
-              <Ionicons name="time-outline" size={24} color="#F59E0B" />
+            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('PENDING')} disabled={!!updatingStatus}>
+              {updatingStatus === 'PENDING' ? <ActivityIndicator size="small" color="#F59E0B" /> : <Ionicons name="time-outline" size={24} color="#F59E0B" />}
               <Text style={styles.modalOptionText}>{t('staff.pending')}</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('IN_PROGRESS')}>
-              <Ionicons name="construct-outline" size={24} color="#3B82F6" />
+            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('IN_PROGRESS')} disabled={!!updatingStatus}>
+              {updatingStatus === 'IN_PROGRESS' ? <ActivityIndicator size="small" color="#3B82F6" /> : <Ionicons name="construct-outline" size={24} color="#3B82F6" />}
               <Text style={styles.modalOptionText}>{t('staff.inProgress')}</Text>
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('DONE')}>
-              <Ionicons name="checkmark-circle-outline" size={24} color="#10B981" />
+            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('DONE')} disabled={!!updatingStatus}>
+              {updatingStatus === 'DONE' ? <ActivityIndicator size="small" color="#10B981" /> : <Ionicons name="checkmark-circle-outline" size={24} color="#10B981" />}
               <Text style={styles.modalOptionText}>{t('staff.resolved')}</Text>
             </TouchableOpacity>
             
@@ -432,6 +516,16 @@ export default function StaffScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Full Screen Image Modal */}
+      <Modal visible={!!fullScreenImage} transparent={true} animationType="fade" onRequestClose={() => setFullScreenImage(null)}>
+        <View style={styles.fullScreenImageContainer}>
+          <TouchableOpacity style={styles.closeImageBtn} onPress={() => setFullScreenImage(null)}>
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+          {fullScreenImage && <Image source={{ uri: fullScreenImage }} style={styles.fullScreenImage} resizeMode="contain" />}
+        </View>
+      </Modal>
+
       {/* Custom Delete Modal */}
       <Modal
         animationType="fade"
@@ -482,6 +576,8 @@ export default function StaffScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
+  offlineBanner: { backgroundColor: '#EF4444', paddingVertical: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  offlineText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   container: { flex: 1 },
   contentContainer: { paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
@@ -496,8 +592,13 @@ const styles = StyleSheet.create({
   filterContainer: { paddingRight: 20, gap: 12 },
   filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
   filterChipActive: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
-  filterText: { fontSize: 15, fontWeight: '500', color: '#4B5563' },
-  filterTextActive: { color: '#FFFFFF', fontWeight: '600' },
+  filterText: { fontSize: 15, fontWeight: '600', color: '#4B5563' },
+  filterTextActive: { color: '#FFFFFF' },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E5E7EB', height: 44 },
+  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
+  catChipActive: { backgroundColor: '#1E3A8A', borderColor: '#1E3A8A' },
+  catChipText: { fontSize: 13, fontWeight: '600', color: '#4B5563', textTransform: 'capitalize' },
+  catChipTextActive: { color: '#FFFFFF' },
   card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20, elevation: 4 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   badge: { backgroundColor: '#FEE2E2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
@@ -536,4 +637,9 @@ const styles = StyleSheet.create({
   cancelBtnText: { fontSize: 16, fontWeight: '700', color: '#4B5563' },
   deleteBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#EF4444', alignItems: 'center' },
   deleteBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+
+  // Full screen image styles
+  fullScreenImageContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+  fullScreenImage: { width: '100%', height: '100%' },
+  closeImageBtn: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 60, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },
 });
