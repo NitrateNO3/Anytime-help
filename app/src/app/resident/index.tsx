@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform, Modal, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
@@ -11,6 +11,52 @@ import { io } from 'socket.io-client';
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
 
+const SkeletonCard = () => {
+  const animatedValue = React.useRef(new Animated.Value(0.3)).current;
+
+  React.useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(animatedValue, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(animatedValue, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, [animatedValue]);
+
+  return (
+    <Animated.View style={[{ 
+      backgroundColor: '#FFFFFF', 
+      borderRadius: 24, 
+      padding: 16, 
+      marginBottom: 20, 
+      shadowColor: '#000', 
+      shadowOffset: { width: 0, height: 8 }, 
+      shadowOpacity: 0.06, 
+      shadowRadius: 20, 
+      elevation: 4 
+    }, { opacity: animatedValue }]}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+        <View style={{ width: 60, height: 20, backgroundColor: '#E5E7EB', borderRadius: 12 }} />
+        <View style={{ width: 80, height: 20, backgroundColor: '#E5E7EB', borderRadius: 12 }} />
+      </View>
+      <View style={{ width: '70%', height: 24, backgroundColor: '#E5E7EB', borderRadius: 8, marginBottom: 8 }} />
+      <View style={{ width: '40%', height: 16, backgroundColor: '#E5E7EB', borderRadius: 6, marginBottom: 16 }} />
+      <View style={{ width: '100%', height: 14, backgroundColor: '#E5E7EB', borderRadius: 4, marginBottom: 6 }} />
+      <View style={{ width: '80%', height: 14, backgroundColor: '#E5E7EB', borderRadius: 4, marginBottom: 16 }} />
+      <View style={{ width: '100%', height: 160, backgroundColor: '#E5E7EB', borderRadius: 16, marginBottom: 12 }} />
+      <View style={{ width: '100%', height: 8, backgroundColor: '#E5E7EB', borderRadius: 4 }} />
+    </Animated.View>
+  );
+};
+
 export default function ResidentHome() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -21,31 +67,49 @@ export default function ResidentHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'Complaints' | 'Announcements'>('Complaints');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [complaintToDelete, setComplaintToDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = async (pageNum = 1, append = false) => {
     try {
+      if (!append) setLoading(true);
+      else setLoadingMore(true);
+
       const token = await SecureStore.getItemAsync('userToken');
       const userData = await SecureStore.getItemAsync('userData');
       if (userData) setUser(JSON.parse(userData));
 
-      const res = await axios.get(`${API_URL}/complaints`, {
+      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=5`, {
         headers: { 'x-auth-token': token }
       });
-      if (Array.isArray(res.data)) {
-        setComplaints(res.data);
+      
+      const newComplaints = res.data.complaints || res.data;
+      const hasMoreData = res.data.hasMore !== undefined ? res.data.hasMore : false;
+
+      if (append) {
+        setComplaints(prev => {
+          const existingIds = new Set(prev.map(c => c._id));
+          const filteredNew = newComplaints.filter((c: any) => !existingIds.has(c._id));
+          return [...prev, ...filteredNew];
+        });
       } else {
-        setComplaints([]);
+        setComplaints(newComplaints);
       }
+      
+      setHasMore(hasMoreData);
+      setPage(pageNum);
     } catch (err) {
       console.error('Fetch complaints error:', err);
-      setComplaints([]);
+      if (!append) setComplaints([]);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
   };
@@ -81,13 +145,26 @@ export default function ResidentHome() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchComplaints();
+      fetchComplaints(1, false);
       fetchAnnouncements();
       if (tab === 'Complaints') {
         setActiveTab('Complaints');
       }
     }, [tab])
   );
+
+  const isCloseToBottom = ({layoutMeasurement, contentOffset, contentSize}: any) => {
+    const paddingToBottom = 50;
+    return layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+  };
+
+  const handleScroll = (event: any) => {
+    if (activeTab === 'Complaints') {
+      if (isCloseToBottom(event.nativeEvent) && hasMore && !loadingMore && !loading) {
+        fetchComplaints(page + 1, true);
+      }
+    }
+  };
 
   const confirmDelete = (id: string) => {
     setComplaintToDelete(id);
@@ -135,6 +212,8 @@ export default function ResidentHome() {
         style={[styles.container, { zIndex: 1 }]} 
         contentContainerStyle={styles.contentContainer} 
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={400}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
         
@@ -174,7 +253,9 @@ export default function ResidentHome() {
             <Text style={styles.sectionTitle}>{t('resident.myComplaints')}</Text>
             
             {loading ? (
-              <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
+              <View style={{ marginTop: 20 }}>
+                {[1, 2, 3].map(key => <SkeletonCard key={key} />)}
+              </View>
             ) : complaints.length === 0 ? (
               <Text style={styles.emptyText}>{t('resident.noComplaints')}</Text>
             ) : (
@@ -209,9 +290,24 @@ export default function ResidentHome() {
                       <Text style={[styles.descText, { marginBottom: 16 }]} numberOfLines={1}>{item.description}</Text>
                       
                       <View style={styles.trackerWrapper}>
-                        {/* Background & Fill Line */}
+                        {/* Background Line */}
                         <View style={styles.trackerBackgroundLine}>
-                          <View style={[styles.trackerFillLine, { width: (item.status === 'RESOLVED' || item.status === 'DONE') ? '100%' : (item.status === 'IN_PROGRESS' ? '50%' : '0%') }]} />
+                          {/* Inner Shadow for 3D effect */}
+                          <View style={{position: 'absolute', top: 0, left: 0, right: 0, height: 2, backgroundColor: 'rgba(0,0,0,0.1)'}} />
+                          
+                          {/* Fill Line */}
+                          {(() => {
+                            const step = (item.status === 'RESOLVED' || item.status === 'DONE') ? 2 : (item.status === 'IN_PROGRESS' ? 1 : 0);
+                            const fillColors = (step === 0 ? ['#FDE68A', '#F59E0B', '#B45309'] : (step === 1 ? ['#93C5FD', '#2563EB', '#1E3A8A'] : ['#6EE7B7', '#10B981', '#047857'])) as readonly [string, string, ...string[]];
+                            return (
+                              <LinearGradient
+                                colors={fillColors}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 0, y: 1 }}
+                                style={[styles.trackerFillLine, { width: step === 2 ? '100%' : (step === 1 ? '50%' : '0%') }]}
+                              />
+                            );
+                          })()}
                         </View>
                         
                         {/* Dots & Labels */}
@@ -220,14 +316,28 @@ export default function ResidentHome() {
                             const step = (item.status === 'RESOLVED' || item.status === 'DONE') ? 2 : (item.status === 'IN_PROGRESS' ? 1 : 0);
                             const isActive = step >= idx;
                             const isCurrent = step === idx;
-                            let color = '#E5E7EB';
+                            
+                            let gradientColors: readonly [string, string, ...string[]] = ['#F3F4F6', '#D1D5DB']; // default inactive
                             if (isActive) {
-                              color = idx === 0 ? '#F59E0B' : (idx === 1 ? '#1D4ED8' : '#10B981');
+                              gradientColors = (idx === 0 ? ['#FDE68A', '#F59E0B'] : (idx === 1 ? ['#93C5FD', '#2563EB'] : ['#A7F3D0', '#10B981'])) as readonly [string, string, ...string[]];
                             }
+                            
+                            let textColor = '#9CA3AF';
+                            if (isCurrent) {
+                              textColor = idx === 0 ? '#D97706' : (idx === 1 ? '#1D4ED8' : '#059669');
+                            }
+
                             return (
                               <View key={s} style={{ alignItems: 'center' }}>
-                                <View style={[styles.trackerDot, { backgroundColor: isActive ? color : '#FFF', borderColor: isActive ? color : '#E5E7EB', transform: isCurrent ? [{scale: 1.3}] : [{scale: 1}] }]} />
-                                <Text style={[styles.trackerLabel, { color: isCurrent ? color : '#9CA3AF' }]}>
+                                <LinearGradient
+                                  colors={gradientColors}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 1 }}
+                                  style={[styles.trackerDot, { transform: isCurrent ? [{scale: 1.25}] : [{scale: 1}] }]}
+                                >
+                                  {isActive && <View style={styles.trackerDotInner} />}
+                                </LinearGradient>
+                                <Text style={[styles.trackerLabel, { color: textColor }]}>
                                   {s === 'IN_PROGRESS' ? 'In Progress' : s.charAt(0) + s.slice(1).toLowerCase()}
                                 </Text>
                               </View>
@@ -240,11 +350,19 @@ export default function ResidentHome() {
                 </TouchableOpacity>
               ))
             )}
+            
+            {loadingMore && (
+              <View style={{ marginTop: 10 }}>
+                {[1, 2].map(key => <SkeletonCard key={key} />)}
+              </View>
+            )}
           </>
         ) : (
           <>
             {loadingAnnouncements ? (
-              <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
+              <View style={{ marginTop: 20 }}>
+                {[1, 2, 3].map(key => <SkeletonCard key={key} />)}
+              </View>
             ) : announcements.length === 0 ? (
               <View style={styles.emptyStateContainer}>
                 <Ionicons name="megaphone-outline" size={64} color="#D1D5DB" />
@@ -358,12 +476,25 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 6 },
   cardLocation: { fontSize: 14, color: '#6B7280', marginBottom: 12, fontWeight: '500' },
   descText: { fontSize: 14, color: '#4B5563' },
-  trackerWrapper: { position: 'relative' },
-  trackerBackgroundLine: { position: 'absolute', top: 6, left: 20, right: 20, height: 4, backgroundColor: '#F3F4F6', borderRadius: 2 },
-  trackerFillLine: { height: 4, backgroundColor: '#1D4ED8', borderRadius: 2 },
+  trackerWrapper: { position: 'relative', marginVertical: 8, paddingHorizontal: 4 },
+  trackerBackgroundLine: { 
+    position: 'absolute', top: 8, left: 24, right: 24, height: 8, 
+    backgroundColor: '#E5E7EB', borderRadius: 4, overflow: 'hidden',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2,
+    borderWidth: 1, borderColor: '#D1D5DB'
+  },
+  trackerFillLine: { height: '100%', borderRadius: 4 },
   trackerNodes: { flexDirection: 'row', justifyContent: 'space-between' },
-  trackerDot: { width: 14, height: 14, borderRadius: 7, borderWidth: 3 },
-  trackerLabel: { fontSize: 10, fontWeight: '700', marginTop: 10 },
+  trackerDot: { 
+    width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 5,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)'
+  },
+  trackerDotInner: {
+    width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.4, shadowRadius: 1, elevation: 2
+  },
+  trackerLabel: { fontSize: 11, fontWeight: '800', marginTop: 10, letterSpacing: 0.2 },
   emptyText: { textAlign: 'center', color: '#6B7280', fontSize: 16, marginTop: 20 },
   emptyStateContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60, paddingHorizontal: 40 },
   emptyTextLarge: { fontSize: 20, fontWeight: '700', color: '#111827', marginTop: 16, textAlign: 'center' },

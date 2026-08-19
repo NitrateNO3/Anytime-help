@@ -40,6 +40,13 @@ export default function LoginScreen() {
       const res = await axios.post(`${API_URL}/auth/login`, { email, password });
       const { token, user } = res.data;
       
+      // Ensure the user's actual role matches the tab they selected
+      if (user.role !== role) {
+        Toast.show({ type: 'error', text1: 'Access Denied', text2: `You are not registered as a ${role}.` });
+        setLoading(false);
+        return;
+      }
+
       // Save token securely
       await SecureStore.setItemAsync('userToken', token);
       await SecureStore.setItemAsync('userData', JSON.stringify(user));

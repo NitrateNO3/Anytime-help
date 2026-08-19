@@ -34,7 +34,7 @@ router.post('/', auth, async (req, res) => {
 // GET /api/complaints
 router.get('/', auth, async (req, res) => {
   try {
-    const { departmentId } = req.query;
+    const { departmentId, page, limit } = req.query;
     let query = {};
     if (departmentId) {
       query.department = departmentId;
@@ -48,7 +48,23 @@ router.get('/', auth, async (req, res) => {
         query.category = req.user.assigned_category;
       }
     }
-    const complaints = await Complaint.find(query).populate('user', 'name').sort({ created_at: -1 });
+    
+    let complaintsQuery = Complaint.find(query).populate('user', 'name').sort({ created_at: -1 });
+    
+    if (page && limit) {
+      const pageNum = parseInt(page, 10);
+      const limitNum = parseInt(limit, 10);
+      const startIndex = (pageNum - 1) * limitNum;
+      
+      complaintsQuery = complaintsQuery.skip(startIndex).limit(limitNum);
+      const complaints = await complaintsQuery;
+      const total = await Complaint.countDocuments(query);
+      const hasMore = startIndex + complaints.length < total;
+      
+      return res.json({ complaints, total, hasMore });
+    }
+    
+    const complaints = await complaintsQuery;
     res.json(complaints);
   } catch (error) {
     res.status(500).json({ message: error.message });

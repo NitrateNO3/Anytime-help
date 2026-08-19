@@ -39,6 +39,11 @@ export default function StaffScreen() {
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
+  // Delete Modal State
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [broadcastToDelete, setBroadcastToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const fetchComplaints = async () => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
@@ -169,31 +174,31 @@ export default function StaffScreen() {
     }
   };
 
-  const handleDeleteBroadcast = (id: string) => {
-    Alert.alert(
-      "Delete Broadcast",
-      "Are you sure you want to delete this broadcast? It will be removed for everyone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const token = await SecureStore.getItemAsync('userToken');
-              await axios.delete(`${API_URL}/announcements/${id}`, {
-                headers: { 'x-auth-token': token }
-              });
-              Toast.show({ type: 'success', text1: 'Deleted', text2: 'Broadcast removed successfully' });
-              fetchAnnouncements();
-            } catch (err) {
-              console.error('Delete broadcast error:', err);
-              Toast.show({ type: 'error', text1: 'Delete Failed', text2: 'Could not delete broadcast' });
-            }
-          }
-        }
-      ]
-    );
+  const confirmDeleteBroadcast = (id: string) => {
+    setBroadcastToDelete(id);
+    setDeleteModalVisible(true);
+  };
+
+  const executeDeleteBroadcast = async () => {
+    if (!broadcastToDelete) return;
+    setIsDeleting(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      await axios.delete(`${API_URL}/announcements/${broadcastToDelete}`, {
+        headers: { 'x-auth-token': token }
+      });
+      Toast.show({ type: 'success', text1: 'Deleted', text2: 'Broadcast removed successfully' });
+      // Delete locally instantly
+      setAnnouncements(prev => prev.filter(a => a._id !== broadcastToDelete));
+      setDeleteModalVisible(false);
+      setBroadcastToDelete(null);
+    } catch (err) {
+      console.error('Delete broadcast error:', err);
+      Toast.show({ type: 'error', text1: 'Delete Failed', text2: 'Could not delete broadcast' });
+      setDeleteModalVisible(false);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -319,7 +324,7 @@ export default function StaffScreen() {
                 <View key={item._id} style={[styles.card, { padding: 16 }]}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6, flex: 1 }}>{item.title}</Text>
-                    <TouchableOpacity onPress={() => handleDeleteBroadcast(item._id)} style={{ padding: 4, backgroundColor: '#FEE2E2', borderRadius: 8 }}>
+                    <TouchableOpacity onPress={() => confirmDeleteBroadcast(item._id)} style={{ padding: 4, backgroundColor: '#FEE2E2', borderRadius: 8 }}>
                       <Ionicons name="trash-outline" size={18} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
@@ -427,6 +432,42 @@ export default function StaffScreen() {
         </TouchableOpacity>
       </Modal>
 
+      {/* Custom Delete Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={deleteModalVisible}
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContainer}>
+            <View style={styles.deleteIconCircle}>
+              <Ionicons name="trash" size={32} color="#EF4444" />
+            </View>
+            <Text style={styles.deleteModalTitle}>Delete Broadcast</Text>
+            <Text style={styles.deleteModalText}>
+              Are you sure you want to delete this broadcast? It will be removed for everyone.
+            </Text>
+            <View style={styles.deleteModalActions}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setDeleteModalVisible(false)} disabled={isDeleting}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.deleteBtn, isDeleting && { opacity: 0.6 }]} 
+                onPress={executeDeleteBroadcast}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.deleteBtnText}>Delete</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* FAB for Broadcast matched with new theme */}
       <TouchableOpacity 
         style={styles.fab} 
@@ -485,5 +526,14 @@ const styles = StyleSheet.create({
   textArea: { height: 120, textAlignVertical: 'top' },
   broadcastBtn: { backgroundColor: '#1D4ED8', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 8 },
   broadcastBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#1D4ED8', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 15, elevation: 6 }
+  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#1D4ED8', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 15, elevation: 6 },
+  deleteModalContainer: { width: '90%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  deleteIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  deleteModalTitle: { fontSize: 22, fontWeight: '800', color: '#111827', marginBottom: 8 },
+  deleteModalText: { fontSize: 15, color: '#6B7280', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
+  deleteModalActions: { flexDirection: 'row', width: '100%', gap: 12 },
+  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F3F4F6', alignItems: 'center' },
+  cancelBtnText: { fontSize: 16, fontWeight: '700', color: '#4B5563' },
+  deleteBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#EF4444', alignItems: 'center' },
+  deleteBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 });
