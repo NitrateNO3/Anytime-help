@@ -34,11 +34,28 @@ router.post('/', auth, async (req, res) => {
 // GET /api/complaints
 router.get('/', auth, async (req, res) => {
   try {
-    const { departmentId, page, limit } = req.query;
+    const { departmentId, page, limit, search, category, status } = req.query;
     let query = {};
     if (departmentId) {
       query.department = departmentId;
     }
+
+    if (category) {
+      query.category = category;
+    }
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (search) {
+      query.$or = [
+        { title: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+        { location: { $regex: search, $options: 'i' } }
+      ];
+    }
+
     // If Resident, only show their own complaints (or all if we want community +1)
     if (req.user.role === 'Resident') {
       query.user = req.user.id; 
