@@ -150,20 +150,26 @@ export default function Staff() {
       {activeTab === 'list' ? (
         <div className="glass table-container">
           <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Active Staff Members</h2>
-          {loading ? (
-            <p style={{ color: 'var(--text-muted)' }}>Loading staff...</p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Category</th>
-                  <th style={{ width: 80 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staff.length === 0 ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Category</th>
+                <th style={{ width: 80 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`}>
+                    <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: '90%' }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 80, borderRadius: 20 }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>
+                  </tr>
+                ))
+              ) : staff.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       <Users size={40} color="var(--border-color)" style={{ margin: '0 auto 16px' }} />
@@ -200,9 +206,8 @@ export default function Staff() {
                     </tr>
                   ))
                 )}
-              </tbody>
-            </table>
-          )}
+            </tbody>
+          </table>
         </div>
       ) : (
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>

@@ -149,22 +149,33 @@ export default function Dashboard() {
       {/* Data Table */}
       <div className="glass table-container">
         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Recent Complaints</h2>
-        {loading ? (
-          <p style={{ color: 'var(--text-muted)' }}>Loading records...</p>
-        ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Title & Desc</th>
-                <th>Category</th>
-                <th>Location</th>
-                <th>Resident</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {complaints.length === 0 ? (
+        <table>
+          <thead>
+            <tr>
+              <th>Title & Desc</th>
+              <th>Category</th>
+              <th>Location</th>
+              <th>Resident</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`}>
+                    <td>
+                      <div className="skeleton skeleton-row" style={{ height: 16, width: '80%', marginBottom: 8 }}></div>
+                      <div className="skeleton skeleton-row" style={{ height: 12, width: '60%' }}></div>
+                    </td>
+                    <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: '70%' }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: '90%' }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 80, borderRadius: 20 }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 100 }}></div></td>
+                  </tr>
+                ))
+              ) : complaints.length === 0 ? (
                 <tr>
                   <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No complaints found.</td>
                 </tr>
@@ -224,7 +235,6 @@ export default function Dashboard() {
               )}
             </tbody>
           </table>
-        )}
       </div>
     </div>
   );

@@ -163,20 +163,29 @@ export default function Announcements() {
       {activeTab === 'list' ? (
         <div className="glass table-container">
           <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Past Announcements</h2>
-          {loading ? (
-            <p style={{ color: 'var(--text-muted)' }}>Loading announcements...</p>
-          ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Title</th>
-                  <th>Message</th>
-                  <th style={{ width: 80 }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {announcements.length === 0 ? (
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Title</th>
+                <th>Message</th>
+                <th style={{ width: 80 }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`}>
+                    <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: '90%' }}></div></td>
+                    <td>
+                      <div className="skeleton skeleton-row" style={{ height: 16, width: '100%', marginBottom: 8 }}></div>
+                      <div className="skeleton skeleton-row" style={{ height: 12, width: '60%' }}></div>
+                    </td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>
+                  </tr>
+                ))
+              ) : announcements.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       <Megaphone size={40} color="var(--border-color)" style={{ margin: '0 auto 16px' }} />
@@ -205,8 +214,7 @@ export default function Announcements() {
                   ))
                 )}
               </tbody>
-            </table>
-          )}
+          </table>
         </div>
       ) : (
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
