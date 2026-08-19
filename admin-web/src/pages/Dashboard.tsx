@@ -18,7 +18,7 @@ export default function Dashboard() {
     fetchComplaints(page, true);
     
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
-    socket.on('complaint_changed', (payload) => {
+    socket.on('complaint_changed', () => {
       fetchComplaints(page, false);
     });
 
