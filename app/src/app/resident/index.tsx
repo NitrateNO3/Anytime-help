@@ -75,6 +75,23 @@ export default function ResidentHome() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [lastViewedDate, setLastViewedDate] = useState<Date>(new Date(0));
+
+  React.useEffect(() => {
+    SecureStore.getItemAsync('lastViewedAnnouncement').then(dateStr => {
+      if (dateStr) setLastViewedDate(new Date(dateStr));
+    });
+  }, []);
+
+  React.useEffect(() => {
+    if (activeTab === 'Announcements') {
+      const now = new Date();
+      setLastViewedDate(now);
+      SecureStore.setItemAsync('lastViewedAnnouncement', now.toISOString());
+    }
+  }, [activeTab, announcements]);
+
+  const unreadCount = activeTab === 'Announcements' ? 0 : announcements.filter(a => new Date(a.date) > lastViewedDate).length;
 
   const fetchComplaints = async (pageNum = 1, append = false) => {
     try {
@@ -233,7 +250,7 @@ export default function ResidentHome() {
         </View>
 
         {/* Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.filterScroll, { overflow: 'visible' }]} contentContainerStyle={styles.filterContainer}>
           <TouchableOpacity 
             style={[styles.filterChip, activeTab === 'Complaints' && styles.filterChipActive]}
             onPress={() => setActiveTab('Complaints')}
@@ -241,10 +258,15 @@ export default function ResidentHome() {
             <Text style={[styles.filterText, activeTab === 'Complaints' && styles.filterTextActive]}>{t('resident.myComplaints')}</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.filterChip, activeTab === 'Announcements' && styles.filterChipActive]}
+            style={[styles.filterChip, activeTab === 'Announcements' && styles.filterChipActive, { position: 'relative', marginRight: 15, overflow: 'visible' }]}
             onPress={() => setActiveTab('Announcements')}
           >
             <Text style={[styles.filterText, activeTab === 'Announcements' && styles.filterTextActive]}>{t('resident.announcements')}</Text>
+            {unreadCount > 0 && (
+              <View style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#EF4444', borderRadius: 12, minWidth: 24, height: 24, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6, borderWidth: 2, borderColor: '#FCFDF6', zIndex: 10 }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         </ScrollView>
 
@@ -335,7 +357,9 @@ export default function ResidentHome() {
                                   end={{ x: 1, y: 1 }}
                                   style={[styles.trackerDot, { transform: isCurrent ? [{scale: 1.25}] : [{scale: 1}] }]}
                                 >
-                                  {isActive && <View style={styles.trackerDotInner} />}
+                                  {idx === 0 && <Ionicons name="time" size={14} color={isActive ? '#FFFFFF' : '#9CA3AF'} />}
+                                  {idx === 1 && <Ionicons name="settings" size={14} color={isActive ? '#FFFFFF' : '#9CA3AF'} />}
+                                  {idx === 2 && <Ionicons name="checkmark-circle" size={16} color={isActive ? '#FFFFFF' : '#9CA3AF'} />}
                                 </LinearGradient>
                                 <Text style={[styles.trackerLabel, { color: textColor }]}>
                                   {s === 'IN_PROGRESS' ? 'In Progress' : s.charAt(0) + s.slice(1).toLowerCase()}
@@ -460,9 +484,9 @@ const styles = StyleSheet.create({
   avatarContainer: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginLeft: 16, borderWidth: 1, borderColor: '#DBEAFE' },
   greetingText: { fontSize: 16, color: '#6B7280', marginBottom: 6, fontWeight: '600' },
   exploreText: { fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-  filterScroll: { marginBottom: 30 },
-  filterContainer: { paddingRight: 20, gap: 12 },
-  filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
+  filterScroll: { marginBottom: 30, overflow: 'visible' },
+  filterContainer: { paddingRight: 40, gap: 12 },
+  filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', overflow: 'visible' },
   filterChipActive: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
   filterText: { fontSize: 15, fontWeight: '600', color: '#4B5563' },
   filterTextActive: { color: '#FFFFFF' },
@@ -478,7 +502,7 @@ const styles = StyleSheet.create({
   descText: { fontSize: 14, color: '#4B5563' },
   trackerWrapper: { position: 'relative', marginVertical: 8, paddingHorizontal: 4 },
   trackerBackgroundLine: { 
-    position: 'absolute', top: 8, left: 24, right: 24, height: 8, 
+    position: 'absolute', top: 10, left: 24, right: 24, height: 8, 
     backgroundColor: '#E5E7EB', borderRadius: 4, overflow: 'hidden',
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2,
     borderWidth: 1, borderColor: '#D1D5DB'
@@ -486,7 +510,7 @@ const styles = StyleSheet.create({
   trackerFillLine: { height: '100%', borderRadius: 4 },
   trackerNodes: { flexDirection: 'row', justifyContent: 'space-between' },
   trackerDot: { 
-    width: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center',
+    width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center',
     shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 5,
     borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)'
   },
