@@ -23,36 +23,32 @@ router.get('/staff', auth, async (req, res) => {
 // @desc    Create a new staff member
 // @access  Admin Private
 router.post('/staff', auth, async (req, res) => {
-  const { name, email, password, assigned_category } = req.body;
+  const { name, phone_number, assigned_category } = req.body;
 
   try {
     if (req.user.role !== 'Admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ phone_number });
     if (user) {
       return res.status(400).json({ msg: 'User already exists' });
     }
 
     user = new User({
       name,
-      email,
-      password,
+      phone_number,
       role: 'Staff',
       assigned_category
     });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
-
     await user.save();
     
-    // Return the created user without password
+    // Return the created user
     const userToReturn = {
       id: user.id,
       name: user.name,
-      email: user.email,
+      phone_number: user.phone_number,
       role: user.role,
       assigned_category: user.assigned_category
     };

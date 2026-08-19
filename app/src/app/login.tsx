@@ -8,6 +8,9 @@ import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
+import app, { auth, firebaseConfig } from '../firebaseConfig';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const bgImage = require('../../assets/images/electrician-review-response-templates-featured.webp');
@@ -23,46 +26,72 @@ export default function LoginScreen() {
     await i18n.changeLanguage(newLang);
     await AsyncStorage.setItem('user-language', newLang);
   };
-  const [email, setEmail] = useState('test@resident.com');
-  const [password, setPassword] = useState('password123');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [verificationId, setVerificationId] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const recaptchaVerifier = React.useRef(null);
+  const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please fill in all fields' });
+  const sendOTP = async () => {
+    if (!phoneNumber || phoneNumber.length < 10) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a valid phone number' });
       return;
     }
 
     setLoading(true);
-
     try {
-      const res = await axios.post(`${API_URL}/auth/login`, { email, password });
-      const { token, user } = res.data;
+      const phoneProvider = new PhoneAuthProvider(auth);
+      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+      const id = await phoneProvider.verifyPhoneNumber(formattedPhone, recaptchaVerifier.current!);
+      setVerificationId(id);
+      setStep('OTP');
+      Toast.show({ type: 'success', text1: 'OTP Sent', text2: 'Please check your messages' });
+    } catch (err: any) {
+      Toast.show({ type: 'error', text1: 'Failed to send OTP', text2: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVerifyLogin = async () => {
+    if (!verificationCode) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter OTP' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
+      const userCredential = await signInWithCredential(auth, credential);
+      const firebaseUser = userCredential.user;
+
+      const res = await axios.post(`${API_URL}/auth/firebase-login`, {
+        phone_number: firebaseUser.phoneNumber,
+        firebase_uid: firebaseUser.uid
+      });
       
-      // Ensure the user's actual role matches the tab they selected
-      if (user.role !== role) {
+      const { token, user } = res.data;
+
+      // Ensure the user's actual role matches the tab they selected, EXCEPT if they are auto-registering as Resident
+      if (user.role !== role && user.role !== 'Resident') {
         Toast.show({ type: 'error', text1: 'Access Denied', text2: `You are not registered as a ${role}.` });
         setLoading(false);
         return;
       }
 
-      // Save token securely
       await SecureStore.setItemAsync('userToken', token);
       await SecureStore.setItemAsync('userData', JSON.stringify(user));
 
-      // Route based on role
       if (user.role === 'Resident') {
         Toast.show({ type: 'success', text1: 'Welcome', text2: 'Logged in successfully' });
         router.replace('/resident');
       } else if (user.role === 'Staff') {
         Toast.show({ type: 'success', text1: 'Welcome', text2: 'Logged in successfully' });
         router.replace('/staff');
-      } else {
-        Toast.show({ type: 'error', text1: 'Access Denied', text2: 'Admin access restricted to Web App only.' });
       }
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Login Failed', text2: err.response?.data?.msg || 'Please check your credentials.' });
+      Toast.show({ type: 'error', text1: 'Login Failed', text2: err.response?.data?.msg || err.message || 'Invalid OTP' });
     } finally {
       setLoading(false);
     }
@@ -129,41 +158,64 @@ export default function LoginScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.inputContainer}>
-                <Ionicons name="mail-outline" size={20} color="#555" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('login.emailPlaceholder') || 'Email Address'}
-                  placeholderTextColor="#777"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-              </View>
+              <FirebaseRecaptchaVerifierModal
+                ref={recaptchaVerifier}
+                firebaseConfig={firebaseConfig}
+                attemptInvisibleVerification={false}
+              />
 
-              <View style={styles.inputContainer}>
-                <Ionicons name="lock-closed-outline" size={20} color="#555" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('login.passwordPlaceholder') || 'Password'}
-                  placeholderTextColor="#777"
-                  secureTextEntry={!showPassword}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                  <Ionicons name={showPassword ? "eye-outline" : "eye-off-outline"} size={20} color="#555" />
-                </TouchableOpacity>
-              </View>
+              {step === 'PHONE' ? (
+                <>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="call-outline" size={20} color="#555" style={styles.inputIcon} />
+                    <Text style={{fontSize: 16, color: '#333', marginRight: 8}}>+91</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder={t('login.phonePlaceholder') || 'Phone Number'}
+                      placeholderTextColor="#777"
+                      keyboardType="phone-pad"
+                      maxLength={10}
+                      value={phoneNumber}
+                      onChangeText={setPhoneNumber}
+                    />
+                  </View>
 
-              <TouchableOpacity 
-                style={[styles.loginBtn, loading && styles.loginBtnDisabled]} 
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                <Text style={styles.loginBtnText}>{loading ? (t('login.loggingInBtn') || 'Logging In...') : (t('login.loginBtn') || 'Log In')}</Text>
-              </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.loginBtn, loading && styles.loginBtnDisabled]} 
+                    onPress={sendOTP}
+                    disabled={loading}
+                  >
+                    <Text style={styles.loginBtnText}>{loading ? 'Sending OTP...' : 'Get OTP'}</Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="keypad-outline" size={20} color="#555" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.input}
+                      placeholder="Enter 6-digit OTP"
+                      placeholderTextColor="#777"
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      value={verificationCode}
+                      onChangeText={setVerificationCode}
+                    />
+                  </View>
+
+                  <TouchableOpacity 
+                    style={[styles.loginBtn, loading && styles.loginBtnDisabled]} 
+                    onPress={handleVerifyLogin}
+                    disabled={loading}
+                  >
+                    <Text style={styles.loginBtnText}>{loading ? 'Verifying...' : 'Verify & Login'}</Text>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity onPress={() => setStep('PHONE')} style={{alignItems: 'center', marginBottom: 20}}>
+                    <Text style={{color: '#1D4ED8', fontWeight: '600'}}>Change Phone Number</Text>
+                  </TouchableOpacity>
+                </>
+              )}
 
               <View style={styles.footer}>
                 <Text style={styles.footerText}>{t('login.noAccount') || "Don't have an account? "}</Text>

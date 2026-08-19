@@ -8,17 +8,13 @@ const User = require('../models/User');
 // @desc    Register user (Resident or Staff)
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, email, password, role, department } = req.body;
+  const { name, phone_number, firebase_uid, role, department } = req.body;
 
   try {
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ phone_number });
     if (user) return res.status(400).json({ msg: 'User already exists' });
 
-    user = new User({ name, email, password, role, department });
-
-    // Hash Password
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
+    user = new User({ name, phone_number, firebase_uid, role, department });
 
     await user.save();
 
@@ -27,7 +23,7 @@ router.post('/register', async (req, res) => {
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, assigned_category: user.assigned_category } });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category } });
     });
   } catch (err) {
     console.error(err.message);
@@ -53,6 +49,46 @@ router.post('/login', async (req, res) => {
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
       res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, assigned_category: user.assigned_category } });
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route   POST api/auth/firebase-login
+// @desc    Authenticate or Register user via Firebase Phone Auth
+// @access  Public
+router.post('/firebase-login', async (req, res) => {
+  const { phone_number, firebase_uid } = req.body;
+
+  try {
+    if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
+
+    let user = await User.findOne({ phone_number });
+    
+    // If user does not exist, auto-register as Resident
+    if (!user) {
+      user = new User({ 
+        phone_number, 
+        firebase_uid, 
+        role: 'Resident',
+        name: 'User ' + phone_number.slice(-4)
+      });
+      await user.save();
+    } else {
+      // Update firebase_uid if not set
+      if (!user.firebase_uid && firebase_uid) {
+        user.firebase_uid = firebase_uid;
+        await user.save();
+      }
+    }
+
+    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category } };
+    
+    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
+      if (err) throw err;
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category } });
     });
   } catch (err) {
     console.error(err.message);

@@ -12,9 +12,7 @@ export default function Staff() {
 
   // Form State
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [category, setCategory] = useState('Plumbing');
   const [isCreating, setIsCreating] = useState(false);
 
@@ -49,8 +47,7 @@ export default function Staff() {
       const token = localStorage.getItem('adminToken');
       await axios.post(`${API_URL}/users/staff`, {
         name,
-        email,
-        password,
+        phone_number: phoneNumber,
         assigned_category: category
       }, {
         headers: { 'x-auth-token': token }
@@ -60,8 +57,7 @@ export default function Staff() {
       
       // Reset form
       setName('');
-      setEmail('');
-      setPassword('');
+      setPhoneNumber('');
       setCategory('Plumbing');
       
       // Auto switch back to list
@@ -154,7 +150,7 @@ export default function Staff() {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Email</th>
+                <th>Phone Number</th>
                 <th>Category</th>
                 <th style={{ width: 80 }}>Actions</th>
               </tr>
@@ -180,7 +176,7 @@ export default function Staff() {
                   staff.map(member => (
                     <tr key={member._id}>
                       <td style={{ fontWeight: 600 }}>{member.name}</td>
-                      <td style={{ color: 'var(--text-muted)' }}>{member.email}</td>
+                      <td style={{ color: 'var(--text-muted)' }}>{member.phone_number}</td>
                       <td>
                         <span style={{ 
                           background: 'rgba(255, 99, 71, 0.1)', 
@@ -232,49 +228,18 @@ export default function Staff() {
             </div>
             
             <div className="input-group">
-              <label>Email Address</label>
+              <label>Phone Number</label>
               <div style={{ position: 'relative' }}>
-                <Mail size={18} style={{ position: 'absolute', left: '16px', top: '15px', color: 'var(--text-muted)' }} />
+                <span style={{ position: 'absolute', left: '16px', top: '15px', color: 'var(--text-muted)', fontWeight: 600 }}>+91</span>
                 <input 
-                  type="email" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
+                  type="tel" 
+                  value={phoneNumber} 
+                  onChange={(e) => setPhoneNumber(e.target.value)} 
                   required
-                  placeholder="ramu@staff.com"
-                  style={{ paddingLeft: '44px' }}
+                  placeholder="9876543210"
+                  maxLength={10}
+                  style={{ paddingLeft: '50px' }}
                 />
-              </div>
-            </div>
-            
-            <div className="input-group">
-              <label>Password</label>
-              <div style={{ position: 'relative' }}>
-                <Lock size={18} style={{ position: 'absolute', left: '16px', top: '15px', color: 'var(--text-muted)' }} />
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  required
-                  placeholder="Create a password"
-                  style={{ paddingLeft: '44px', paddingRight: '48px' }}
-                />
-                <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{ 
-                    position: 'absolute', 
-                    right: '16px', 
-                    top: '15px', 
-                    background: 'none', 
-                    border: 'none', 
-                    cursor: 'pointer',
-                    color: 'var(--text-muted)',
-                    padding: 0,
-                    display: 'flex'
-                  }}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
               </div>
             </div>
             
