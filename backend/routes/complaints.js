@@ -59,9 +59,12 @@ router.get('/', auth, async (req, res) => {
       complaintsQuery = complaintsQuery.skip(startIndex).limit(limitNum);
       const complaints = await complaintsQuery;
       const total = await Complaint.countDocuments(query);
+      const pending = await Complaint.countDocuments({ ...query, status: 'PENDING' });
+      const inProgress = await Complaint.countDocuments({ ...query, status: 'IN_PROGRESS' });
+      const resolved = await Complaint.countDocuments({ ...query, status: { $in: ['RESOLVED', 'DONE'] } });
       const hasMore = startIndex + complaints.length < total;
       
-      return res.json({ complaints, total, hasMore });
+      return res.json({ complaints, total, hasMore, stats: { pending, inProgress, resolved } });
     }
     
     const complaints = await complaintsQuery;

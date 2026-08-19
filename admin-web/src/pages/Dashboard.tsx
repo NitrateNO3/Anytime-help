@@ -9,43 +9,41 @@ const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function Dashboard() {
   const [complaints, setComplaints] = useState<any[]>([]);
+  const [stats, setStats] = useState({ pending: 0, inProgress: 0, resolved: 0 });
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    fetchComplaints();
+    fetchComplaints(page, true);
     
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', (payload) => {
-      if (!payload) {
-        fetchComplaints();
-        return;
-      }
-      if (payload.action === 'delete') {
-        setComplaints(prev => prev.filter(c => c._id !== payload.id));
-      } else if (payload.action === 'create') {
-        setComplaints(prev => [payload.data, ...prev]);
-      } else if (payload.action === 'update') {
-        setComplaints(prev => prev.map(c => c._id === payload.data._id ? payload.data : c));
-      }
+      fetchComplaints(page, false);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [page]);
 
-  const fetchComplaints = async () => {
+  const fetchComplaints = async (currentPage: number, showLoading: boolean = true) => {
+    if (showLoading) setLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`${API_URL}/complaints`, {
+      const res = await axios.get(`${API_URL}/complaints?page=${currentPage}&limit=10`, {
         headers: { 'x-auth-token': token }
       });
-      setComplaints(res.data);
+      setComplaints(res.data.complaints || []);
+      if (res.data.stats) {
+        setStats(res.data.stats);
+      }
+      setTotalPages(Math.ceil((res.data.total || 0) / 10) || 1);
     } catch (err) {
       console.error(err);
       toast.error('Failed to fetch complaints');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -100,9 +98,9 @@ export default function Dashboard() {
     }
   };
 
-  const pending = complaints.filter(c => c.status === 'PENDING').length;
-  const inProgress = complaints.filter(c => c.status === 'IN_PROGRESS').length;
-  const resolved = complaints.filter(c => c.status === 'DONE').length;
+  const pending = stats.pending;
+  const inProgress = stats.inProgress;
+  const resolved = stats.resolved;
 
   return (
     <div>
@@ -235,6 +233,31 @@ export default function Dashboard() {
               )}
             </tbody>
           </table>
+          
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, padding: '0 10px' }}>
+              <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+                Page {page} of {totalPages}
+              </span>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button 
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === 1 ? '#f3f4f6' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  Previous
+                </button>
+                <button 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === totalPages ? '#f3f4f6' : 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
       </div>
     </div>
   );
