@@ -8,9 +8,8 @@ import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
-import { PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
-import app, { auth, firebaseConfig } from '../firebaseConfig';
+// @ts-ignore
+import auth from '@react-native-firebase/auth';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const bgImage = require('../../assets/images/electrician-review-response-templates-featured.webp');
@@ -19,7 +18,6 @@ export default function LoginScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const [role, setRole] = useState('Resident');
-  const [rememberMe, setRememberMe] = useState(false);
 
   const toggleLanguage = async () => {
     const newLang = i18n.language === 'en' ? 'hi' : 'en';
@@ -27,9 +25,8 @@ export default function LoginScreen() {
     await AsyncStorage.setItem('user-language', newLang);
   };
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [verificationId, setVerificationId] = useState('');
+  const [confirm, setConfirm] = useState<any>(null);
   const [verificationCode, setVerificationCode] = useState('');
-  const recaptchaVerifier = React.useRef(null);
   const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
   const [loading, setLoading] = useState(false);
 
@@ -41,10 +38,9 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const phoneProvider = new PhoneAuthProvider(auth);
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-      const id = await phoneProvider.verifyPhoneNumber(formattedPhone, recaptchaVerifier.current!);
-      setVerificationId(id);
+      const confirmation = await auth().signInWithPhoneNumber(formattedPhone);
+      setConfirm(confirmation);
       setStep('OTP');
       Toast.show({ type: 'success', text1: 'OTP Sent', text2: 'Please check your messages' });
     } catch (err: any) {
@@ -62,8 +58,7 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
-      const userCredential = await signInWithCredential(auth, credential);
+      const userCredential = await confirm.confirm(verificationCode);
       const firebaseUser = userCredential.user;
 
       const res = await axios.post(`${API_URL}/auth/firebase-login`, {
@@ -157,12 +152,6 @@ export default function LoginScreen() {
                   </Text>
                 </TouchableOpacity>
               </View>
-
-              <FirebaseRecaptchaVerifierModal
-                ref={recaptchaVerifier}
-                firebaseConfig={firebaseConfig}
-                attemptInvisibleVerification={false}
-              />
 
               {step === 'PHONE' ? (
                 <>

@@ -8,9 +8,6 @@ import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
-import { PhoneAuthProvider, signInWithCredential } from 'firebase/auth';
-import app, { auth, firebaseConfig } from '../firebaseConfig';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const bgImage = require('../../assets/images/electrician-review-response-templates-featured.webp');
@@ -20,10 +17,6 @@ export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [verificationId, setVerificationId] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const recaptchaVerifier = React.useRef(null);
-  const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
   const [loading, setLoading] = useState(false);
 
   const toggleLanguage = async () => {
@@ -32,44 +25,19 @@ export default function RegisterScreen() {
     await AsyncStorage.setItem('user-language', newLang);
   };
 
-  const sendOTP = async () => {
+  const handleRegister = async () => {
     if (!name || !phoneNumber || phoneNumber.length < 10) {
       Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter Name and a valid Phone Number' });
       return;
     }
 
     setLoading(true);
+
     try {
-      const phoneProvider = new PhoneAuthProvider(auth);
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-      const id = await phoneProvider.verifyPhoneNumber(formattedPhone, recaptchaVerifier.current!);
-      setVerificationId(id);
-      setStep('OTP');
-      Toast.show({ type: 'success', text1: 'OTP Sent', text2: 'Please check your messages' });
-    } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Failed to send OTP', text2: err.message });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleVerifyRegister = async () => {
-    if (!verificationCode) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter OTP' });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const credential = PhoneAuthProvider.credential(verificationId, verificationCode);
-      const userCredential = await signInWithCredential(auth, credential);
-      const firebaseUser = userCredential.user;
-
       const payload: any = { 
         name, 
-        phone_number: firebaseUser.phoneNumber, 
-        firebase_uid: firebaseUser.uid,
+        phone_number: formattedPhone, 
         role: 'Resident' 
       };
 
@@ -129,75 +97,38 @@ export default function RegisterScreen() {
             </View>
 
             <View style={styles.formCard}>
-              <FirebaseRecaptchaVerifierModal
-                ref={recaptchaVerifier}
-                firebaseConfig={firebaseConfig}
-                attemptInvisibleVerification={false}
-              />
+              <View style={styles.inputContainer}>
+                <Ionicons name="person-outline" size={20} color="#555" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('register.fullName') || 'Full Name'}
+                  placeholderTextColor="#777"
+                  value={name}
+                  onChangeText={setName}
+                />
+              </View>
 
-              {step === 'PHONE' ? (
-                <>
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="person-outline" size={20} color="#555" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder={t('register.fullName') || 'Full Name'}
-                      placeholderTextColor="#777"
-                      value={name}
-                      onChangeText={setName}
-                    />
-                  </View>
+              <View style={styles.inputContainer}>
+                <Ionicons name="call-outline" size={20} color="#555" style={styles.inputIcon} />
+                <Text style={{fontSize: 16, color: '#333', marginRight: 8}}>+91</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('register.phonePlaceholder') || 'Phone Number'}
+                  placeholderTextColor="#777"
+                  keyboardType="phone-pad"
+                  maxLength={10}
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                />
+              </View>
 
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="call-outline" size={20} color="#555" style={styles.inputIcon} />
-                    <Text style={{fontSize: 16, color: '#333', marginRight: 8}}>+91</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder={t('register.phonePlaceholder') || 'Phone Number'}
-                      placeholderTextColor="#777"
-                      keyboardType="phone-pad"
-                      maxLength={10}
-                      value={phoneNumber}
-                      onChangeText={setPhoneNumber}
-                    />
-                  </View>
-
-                  <TouchableOpacity 
-                    style={[styles.registerBtn, loading && styles.registerBtnDisabled]} 
-                    onPress={sendOTP}
-                    disabled={loading}
-                  >
-                    <Text style={styles.registerBtnText}>{loading ? 'Sending OTP...' : 'Get OTP'}</Text>
-                  </TouchableOpacity>
-                </>
-              ) : (
-                <>
-                  <View style={styles.inputContainer}>
-                    <Ionicons name="keypad-outline" size={20} color="#555" style={styles.inputIcon} />
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Enter 6-digit OTP"
-                      placeholderTextColor="#777"
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      value={verificationCode}
-                      onChangeText={setVerificationCode}
-                    />
-                  </View>
-
-                  <TouchableOpacity 
-                    style={[styles.registerBtn, loading && styles.registerBtnDisabled]} 
-                    onPress={handleVerifyRegister}
-                    disabled={loading}
-                  >
-                    <Text style={styles.registerBtnText}>{loading ? (t('register.creating') || 'Creating...') : (t('register.signup') || 'Verify & Sign Up')}</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity onPress={() => setStep('PHONE')} style={{alignItems: 'center', marginBottom: 20}}>
-                    <Text style={{color: '#1D4ED8', fontWeight: '600'}}>Change Details</Text>
-                  </TouchableOpacity>
-                </>
-              )}
+              <TouchableOpacity 
+                style={[styles.registerBtn, loading && styles.registerBtnDisabled]} 
+                onPress={handleRegister}
+                disabled={loading}
+              >
+                <Text style={styles.registerBtnText}>{loading ? (t('register.creating') || 'Creating...') : (t('register.signup') || 'Sign Up')}</Text>
+              </TouchableOpacity>
 
               <View style={styles.footer}>
                 <Text style={styles.footerText}>{t('register.alreadyHave') || 'Already have an account? '}</Text>
