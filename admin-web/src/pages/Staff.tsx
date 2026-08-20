@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, UserPlus, Mail, Lock, Wrench, Users, Eye, EyeOff } from 'lucide-react';
+import { Trash2, UserPlus, Wrench, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
