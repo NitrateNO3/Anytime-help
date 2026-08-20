@@ -105,7 +105,7 @@ router.post('/firebase-login', async (req, res) => {
 // @desc    Generate and send OTP via Fast2SMS
 // @access  Public
 router.post('/send-otp', async (req, res) => {
-  let { phone_number } = req.body;
+  let { phone_number, role } = req.body;
   
   try {
     if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
@@ -123,6 +123,10 @@ router.post('/send-otp', async (req, res) => {
     
     if (!userExists) {
       return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
+    }
+
+    if (role && userExists.role !== role) {
+      return res.status(403).json({ msg: `Access Denied. You are registered as ${userExists.role}, not ${role}.` });
     }
 
     // Generate 6 digit OTP
@@ -176,7 +180,7 @@ router.post('/send-otp', async (req, res) => {
 // @desc    Verify OTP and Authenticate user
 // @access  Public
 router.post('/verify-otp', async (req, res) => {
-  let { phone_number, otp } = req.body;
+  let { phone_number, otp, role } = req.body;
 
   try {
     if (!phone_number || !otp) return res.status(400).json({ msg: 'Phone number and OTP are required' });
@@ -207,6 +211,10 @@ router.post('/verify-otp', async (req, res) => {
     
     if (!user) {
       return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
+    }
+
+    if (role && user.role !== role) {
+      return res.status(403).json({ msg: `Access Denied. You are registered as ${user.role}, not ${role}.` });
     }
 
     const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category } };

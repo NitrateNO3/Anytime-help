@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, ImageBackground, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, ImageBackground, ScrollView, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -72,7 +72,8 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/auth/send-otp`, {
-        phone_number: phoneNumber
+        phone_number: phoneNumber,
+        role: role
       });
 
       setStep('OTP');
@@ -95,17 +96,11 @@ export default function LoginScreen() {
     try {
       const res = await axios.post(`${API_URL}/auth/verify-otp`, {
         phone_number: phoneNumber.trim(),
-        otp: verificationCode.trim()
+        otp: verificationCode.trim(),
+        role: role
       });
       
       const { token, user } = res.data;
-
-      // Ensure the user's actual role matches the tab they selected, EXCEPT if they are auto-registering as Resident
-      if (user.role !== role && user.role !== 'Resident') {
-        Toast.show({ type: 'error', text1: 'Access Denied', text2: `You are not registered as a ${role}.` });
-        setLoading(false);
-        return;
-      }
 
       await SecureStore.setItemAsync('userToken', token);
       await SecureStore.setItemAsync('userData', JSON.stringify(user));
@@ -139,11 +134,13 @@ export default function LoginScreen() {
       </View>
 
       <SafeAreaView style={styles.safeArea}>
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.keyboardView}
-        >
-          <View style={styles.langToggleContainer}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.keyboardView}
+          >
+            <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <View style={styles.langToggleContainer}>
             <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
               <Ionicons name="language-outline" size={16} color="#FFF" style={{marginRight: 6}} />
               <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी' : 'EN'}</Text>
@@ -256,7 +253,9 @@ export default function LoginScreen() {
               </View>
             </View>
           </View>
-        </KeyboardAvoidingView>
+          </ScrollView>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </SafeAreaView>
     </View>
   );
