@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, ImageBackground, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -8,8 +8,6 @@ import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
-// @ts-ignore
-import auth from '@react-native-firebase/auth';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const bgImage = require('../../assets/images/electrician-review-response-templates-featured.webp');
@@ -24,46 +22,80 @@ export default function LoginScreen() {
     await i18n.changeLanguage(newLang);
     await AsyncStorage.setItem('user-language', newLang);
   };
+  
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [confirm, setConfirm] = useState<any>(null);
   const [verificationCode, setVerificationCode] = useState('');
   const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
   const [loading, setLoading] = useState(false);
+  const [timer, setTimer] = useState(0);
+
+  // Auto-login check
+  useEffect(() => {
+    const checkLogin = async () => {
+      try {
+        const token = await SecureStore.getItemAsync('userToken');
+        const userDataStr = await SecureStore.getItemAsync('userData');
+        if (token && userDataStr) {
+          const user = JSON.parse(userDataStr);
+          if (user.role === 'Resident') {
+            router.replace('/resident');
+          } else if (user.role === 'Staff') {
+            router.replace('/staff');
+          }
+        }
+      } catch (e) {
+        console.log("No saved session");
+      }
+    };
+    checkLogin();
+  }, []);
+
+  // OTP Countdown Timer
+  useEffect(() => {
+    let interval: any = null;
+    if (step === 'OTP' && timer > 0) {
+      interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
+    } else if (interval) {
+      clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [step, timer]);
 
   const sendOTP = async () => {
-    if (!phoneNumber || phoneNumber.length < 10) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a valid phone number' });
+    if (!phoneNumber || phoneNumber.length !== 10) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a valid 10-digit phone number' });
       return;
     }
 
     setLoading(true);
     try {
-      const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-      const confirmation = await auth().signInWithPhoneNumber(formattedPhone);
-      setConfirm(confirmation);
+      const res = await axios.post(`${API_URL}/auth/send-otp`, {
+        phone_number: phoneNumber
+      });
+
       setStep('OTP');
-      Toast.show({ type: 'success', text1: 'OTP Sent', text2: 'Please check your messages' });
+      setTimer(60); // Start 60-second countdown
+      Toast.show({ type: 'success', text1: 'OTP Sent', text2: res.data.msg || 'Please check your messages' });
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Failed to send OTP', text2: err.message });
+      Toast.show({ type: 'error', text1: 'Failed to send OTP', text2: err.response?.data?.msg || err.message });
     } finally {
       setLoading(false);
     }
   };
 
   const handleVerifyLogin = async () => {
-    if (!verificationCode) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter OTP' });
+    if (!verificationCode || verificationCode.length !== 6) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a valid 6-digit OTP' });
       return;
     }
 
     setLoading(true);
     try {
-      const userCredential = await confirm.confirm(verificationCode);
-      const firebaseUser = userCredential.user;
-
-      const res = await axios.post(`${API_URL}/auth/firebase-login`, {
-        phone_number: firebaseUser.phoneNumber,
-        firebase_uid: firebaseUser.uid
+      const res = await axios.post(`${API_URL}/auth/verify-otp`, {
+        phone_number: phoneNumber,
+        otp: verificationCode
       });
       
       const { token, user } = res.data;
@@ -199,6 +231,16 @@ export default function LoginScreen() {
                   >
                     <Text style={styles.loginBtnText}>{loading ? 'Verifying...' : 'Verify & Login'}</Text>
                   </TouchableOpacity>
+                  
+                  <View style={{flexDirection: 'row', justifyContent: 'center', marginBottom: 20}}>
+                    {timer > 0 ? (
+                      <Text style={{color: '#555', fontWeight: '500'}}>Resend OTP in {timer}s</Text>
+                    ) : (
+                      <TouchableOpacity onPress={sendOTP} disabled={loading}>
+                        <Text style={{color: '#1D4ED8', fontWeight: '700'}}>Resend OTP</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                   
                   <TouchableOpacity onPress={() => setStep('PHONE')} style={{alignItems: 'center', marginBottom: 20}}>
                     <Text style={{color: '#1D4ED8', fontWeight: '600'}}>Change Phone Number</Text>

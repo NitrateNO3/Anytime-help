@@ -2,7 +2,12 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 const User = require('../models/User');
+
+// In-memory store for OTPs (Key: phone_number, Value: { otp, expiresAt })
+// Note: In production, consider using Redis or a Database for scalability.
+const otpStore = new Map();
 
 // @route   POST api/auth/register
 // @desc    Register user (Resident or Staff)
@@ -82,6 +87,118 @@ router.post('/firebase-login', async (req, res) => {
         user.firebase_uid = firebase_uid;
         await user.save();
       }
+    }
+
+    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category } };
+    
+    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
+      if (err) throw err;
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category } });
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route   POST api/auth/send-otp
+// @desc    Generate and send OTP via Fast2SMS
+// @access  Public
+router.post('/send-otp', async (req, res) => {
+  let { phone_number } = req.body;
+  
+  try {
+    if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
+    
+    // Clean up phone number (remove +91 if provided for Fast2SMS)
+    phone_number = phone_number.replace(/^\+91/, '').trim();
+    
+    if (phone_number.length !== 10) {
+      return res.status(400).json({ msg: 'Invalid phone number format' });
+    }
+
+    // Generate 6 digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store OTP with 5 minute expiration
+    otpStore.set(phone_number, {
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    });
+
+    // Call Fast2SMS API
+    const fast2smsKey = process.env.FAST2SMS_API_KEY;
+    if (!fast2smsKey) {
+      console.warn("Fast2SMS API Key is not set in environment variables! OTP logged for testing: ", otp);
+      return res.json({ msg: 'OTP generated (Dev mode: API key missing)', dev_otp: otp });
+    }
+
+    const response = await axios.post(
+      'https://www.fast2sms.com/dev/bulkV2',
+      {
+        variables_values: otp,
+        route: 'otp',
+        numbers: phone_number,
+      },
+      {
+        headers: {
+          authorization: fast2smsKey,
+        },
+      }
+    );
+
+    if (response.data.return === false) {
+       return res.status(500).json({ msg: 'Failed to send OTP via SMS Provider', error: response.data.message });
+    }
+
+    res.json({ msg: 'OTP sent successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
+// @route   POST api/auth/verify-otp
+// @desc    Verify OTP and Authenticate user
+// @access  Public
+router.post('/verify-otp', async (req, res) => {
+  let { phone_number, otp } = req.body;
+
+  try {
+    if (!phone_number || !otp) return res.status(400).json({ msg: 'Phone number and OTP are required' });
+    
+    phone_number = phone_number.replace(/^\+91/, '').trim();
+    
+    const storedData = otpStore.get(phone_number);
+    
+    if (!storedData) {
+      return res.status(400).json({ msg: 'OTP not found or expired. Please request a new one.' });
+    }
+    
+    if (Date.now() > storedData.expiresAt) {
+      otpStore.delete(phone_number);
+      return res.status(400).json({ msg: 'OTP expired. Please request a new one.' });
+    }
+    
+    if (storedData.otp !== otp) {
+      return res.status(400).json({ msg: 'Invalid OTP' });
+    }
+    
+    // OTP verified successfully, remove from store
+    otpStore.delete(phone_number);
+
+    // Find or create user
+    // Adding +91 back for consistent database storage
+    const dbPhoneNumber = `+91${phone_number}`;
+    let user = await User.findOne({ phone_number: dbPhoneNumber });
+    
+    if (!user) {
+      user = new User({ 
+        phone_number: dbPhoneNumber, 
+        role: 'Resident',
+        name: 'User ' + phone_number.slice(-4)
+      });
+      await user.save();
     }
 
     const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category } };
