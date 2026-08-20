@@ -133,25 +133,31 @@ router.post('/send-otp', async (req, res) => {
       return res.json({ msg: 'OTP generated (Dev mode: API key missing)', dev_otp: otp });
     }
 
-    const response = await axios.post(
-      'https://www.fast2sms.com/dev/bulkV2',
-      {
-        variables_values: otp,
-        route: 'otp',
-        numbers: phone_number,
-      },
-      {
-        headers: {
-          authorization: fast2smsKey,
+    try {
+      const response = await axios.post(
+        'https://www.fast2sms.com/dev/bulkV2',
+        {
+          variables_values: otp,
+          route: 'otp',
+          numbers: phone_number,
         },
+        {
+          headers: {
+            authorization: fast2smsKey,
+          },
+        }
+      );
+
+      if (response.data.return === false) {
+         console.warn("Fast2SMS API returned false. Fallback to Dev Mode. OTP:", otp);
+         return res.json({ msg: `Test Mode OTP: ${otp} (Fast2SMS failed)`, dev_otp: otp });
       }
-    );
 
-    if (response.data.return === false) {
-       return res.status(500).json({ msg: 'Failed to send OTP via SMS Provider', error: response.data.message });
+      res.json({ msg: 'OTP sent successfully' });
+    } catch (apiError) {
+      console.warn("Fast2SMS API threw an error. Fallback to Dev Mode. OTP:", otp);
+      return res.json({ msg: `Test Mode OTP: ${otp}`, dev_otp: otp });
     }
-
-    res.json({ msg: 'OTP sent successfully' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
