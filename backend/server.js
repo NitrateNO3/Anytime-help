@@ -12,7 +12,17 @@ const app = express();
 
 // Increase JSON payload size limit for Base64 images
 app.use(express.json({ limit: '10mb' }));
-app.use(cors());
+app.use(cors({
+  origin: function (origin, callback) {
+    const allowedOrigins = ['https://anytime-help-b71e.vercel.app', 'http://localhost:3000', 'http://localhost:5173'];
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true
+}));
 
 const server = http.createServer(app);
 const io = new Server(server, {
