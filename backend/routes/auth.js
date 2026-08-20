@@ -117,6 +117,14 @@ router.post('/send-otp', async (req, res) => {
       return res.status(400).json({ msg: 'Invalid phone number format' });
     }
 
+    // Check if user is registered before sending OTP
+    const dbPhoneNumber = `+91${phone_number}`;
+    const userExists = await User.findOne({ phone_number: dbPhoneNumber });
+    
+    if (!userExists) {
+      return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
+    }
+
     // Generate 6 digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     
@@ -193,18 +201,12 @@ router.post('/verify-otp', async (req, res) => {
     // OTP verified successfully, remove from store
     otpStore.delete(phone_number);
 
-    // Find or create user
-    // Adding +91 back for consistent database storage
+    // Find user
     const dbPhoneNumber = `+91${phone_number}`;
     let user = await User.findOne({ phone_number: dbPhoneNumber });
     
     if (!user) {
-      user = new User({ 
-        phone_number: dbPhoneNumber, 
-        role: 'Resident',
-        name: 'User ' + phone_number.slice(-4)
-      });
-      await user.save();
+      return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
     }
 
     const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category } };

@@ -94,8 +94,8 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const res = await axios.post(`${API_URL}/auth/verify-otp`, {
-        phone_number: phoneNumber,
-        otp: verificationCode
+        phone_number: phoneNumber.trim(),
+        otp: verificationCode.trim()
       });
       
       const { token, user } = res.data;
