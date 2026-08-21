@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -76,7 +76,7 @@ export default function RegisterScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardView}
           >
-            <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <View style={{ flex: 1 }}>
               <View style={styles.langToggleContainer}>
             <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
               <Ionicons name="language-outline" size={16} color="#FFF" style={{marginRight: 6}} />
@@ -92,7 +92,11 @@ export default function RegisterScreen() {
                 <Text style={styles.badgeText}>RWA APPROVED</Text>
               </View>
               <View style={styles.iconCircle}>
-                <Ionicons name="business" size={40} color="#1D4ED8" />
+                <Image 
+                  source={require('../../assets/images/logo.png')} 
+                  style={{width: 130, height: 130, marginTop: 26}} 
+                  resizeMode="contain" 
+                />
               </View>
               <Text style={styles.title}>{t('register.title') || 'Create Account'}</Text>
               <Text style={styles.subtitle}>{t('register.subtitle') || 'Join Anytime Help Community'}</Text>
@@ -140,7 +144,7 @@ export default function RegisterScreen() {
               </View>
             </View>
               </View>
-            </ScrollView>
+            </View>
           </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </SafeAreaView>
@@ -209,6 +213,7 @@ const styles = StyleSheet.create({
   heroSection: {
     alignItems: 'center',
     marginBottom: 30,
+    marginTop: 20, // Push the whole section (badge + logo) down together
   },
   badgeContainer: {
     flexDirection: 'row',
@@ -217,7 +222,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    marginBottom: 16,
+    marginBottom: 8, // Reduced gap between badge and logo
     borderWidth: 1,
     borderColor: '#FDE68A',
   },
@@ -229,18 +234,20 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   iconCircle: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 40,
+    width: 120,
+    height: 120,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
-    elevation: 5,
+    marginTop: 8, // Logo is now very close to the badge
+    marginBottom: 35,
+    elevation: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    overflow: 'hidden',
   },
   title: {
     fontSize: 28,

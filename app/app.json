@@ -4,7 +4,7 @@
     "slug": "app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/logo.png",
     "scheme": "app",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -31,7 +31,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFFFF",
-          "image": "./assets/images/icon.png",
+          "image": "./assets/images/logo.png",
           "imageWidth": 200
         }
       ],
@@ -44,14 +44,11 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "67b8e68d-1e87-4727-8890-867574568d97"
+        "projectId": "cdda9663-88e7-4742-ab2f-678c2c9e31f9"
       }
     },
     "runtimeVersion": {
       "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/67b8e68d-1e87-4727-8890-867574568d97"
     }
   }
 }
