@@ -8,7 +8,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://anytime-help.onrender.c
 export default function Residents() {
   const [residents, setResidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleteModal, setDeleteModal] = useState({ isOpen: false, id: '', name: '' });
 
   useEffect(() => {
     fetchResidents();
@@ -29,40 +28,65 @@ export default function Residents() {
   };
 
   const requestDelete = (id: string, name: string) => {
-    setDeleteModal({ isOpen: true, id, name });
-  };
-
-  const confirmDelete = async () => {
-    const { id } = deleteModal;
-    setDeleteModal({ isOpen: false, id: '', name: '' });
-    
-    try {
-      const token = localStorage.getItem('adminToken');
-      await axios.delete(`${API_URL}/users/${id}`, {
-        headers: { 'x-auth-token': token }
-      });
-      toast.success('Resident removed successfully');
-      setResidents(residents.filter(r => r._id !== id));
-    } catch (error: any) {
-      console.error('Error deleting resident:', error);
-      toast.error(error.response?.data?.message || 'Could not delete resident');
-    }
+    toast((t) => (
+      <div style={{ padding: '8px' }}>
+        <p style={{ fontWeight: 600, marginBottom: 16, fontSize: '15px', color: 'var(--text-main)' }}>
+          Are you sure you want to delete this resident?
+        </p>
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            style={{ 
+              padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-color)', 
+              background: 'white', cursor: 'pointer', fontWeight: 500, color: 'var(--text-main)' 
+            }}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const loadingToast = toast.loading('Deleting resident...');
+              try {
+                const token = localStorage.getItem('adminToken');
+                await axios.delete(`${API_URL}/users/${id}`, {
+                  headers: { 'x-auth-token': token }
+                });
+                toast.success('Resident deleted successfully', { id: loadingToast });
+                setResidents(residents.filter(r => r._id !== id));
+              } catch (error: any) {
+                console.error('Error deleting resident:', error);
+                toast.error(error.response?.data?.message || 'Could not delete resident', { id: loadingToast });
+              }
+            }} 
+            style={{ 
+              padding: '8px 16px', borderRadius: 8, border: 'none', 
+              background: 'var(--danger)', color: 'white', cursor: 'pointer', fontWeight: 600 
+            }}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, style: { minWidth: '320px', borderRadius: '12px' } });
   };
 
   return (
     <div className="page-container fade-in">
-      <div className="page-header">
+      <div className="page-header" style={{ marginBottom: '32px' }}>
         <div>
-          <h1 className="page-title">
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
             <Home size={28} color="var(--primary)" style={{ marginRight: '10px' }} />
             Residents Directory
           </h1>
-          <p className="page-subtitle">View all registered residents and their details.</p>
+          <p className="page-subtitle" style={{ marginTop: '8px', color: 'var(--text-muted)' }}>
+            View all registered residents and their details.
+          </p>
         </div>
       </div>
 
       <div className="card" style={{ marginTop: '20px' }}>
-        <h2 style={{ marginBottom: '20px', fontSize: '18px', fontWeight: '600' }}>Total Registered: {residents.length}</h2>
+        <h2 style={{ marginBottom: '24px', fontSize: '18px', fontWeight: '600' }}>Total Registered: {residents.length}</h2>
         {loading ? (
           <div className="loading-spinner" />
         ) : residents.length === 0 ? (
@@ -111,69 +135,6 @@ export default function Residents() {
           </div>
         )}
       </div>
-
-      {/* Custom Delete Confirmation Modal */}
-      {deleteModal.isOpen && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          backdropFilter: 'blur(4px)'
-        }}>
-          <div style={{
-            background: 'white', borderRadius: '12px', padding: '24px',
-            width: '90%', maxWidth: '400px',
-            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-            position: 'relative'
-          }}>
-            <button 
-              onClick={() => setDeleteModal({ isOpen: false, id: '', name: '' })}
-              style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
-            >
-              <X size={20} />
-            </button>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-              <div style={{ 
-                background: '#FEE2E2', color: '#DC2626', 
-                width: '48px', height: '48px', borderRadius: '50%', 
-                display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px' 
-              }}>
-                <AlertTriangle size={24} />
-              </div>
-              <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: '600', color: 'var(--text-primary)' }}>
-                Remove Resident
-              </h3>
-              <p style={{ margin: '0 0 24px 0', color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.5' }}>
-                Are you sure you want to remove <strong>{deleteModal.name || 'this resident'}</strong>? This action cannot be undone and they will lose access to the app.
-              </p>
-              
-              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-                <button 
-                  onClick={() => setDeleteModal({ isOpen: false, id: '', name: '' })}
-                  style={{ 
-                    flex: 1, padding: '10px', borderRadius: '8px', 
-                    background: '#F3F4F6', color: '#374151', border: 'none', 
-                    fontWeight: '500', cursor: 'pointer' 
-                  }}
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={confirmDelete}
-                  style={{ 
-                    flex: 1, padding: '10px', borderRadius: '8px', 
-                    background: '#DC2626', color: 'white', border: 'none', 
-                    fontWeight: '500', cursor: 'pointer' 
-                  }}
-                >
-                  Yes, Remove
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
