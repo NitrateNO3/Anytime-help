@@ -27,9 +27,18 @@ router.post('/', auth, async (req, res) => {
         if (io) {
           io.emit('complaint_changed', { action: 'update', data: existingComplaint });
         }
+        
+        return res.status(409).json({ 
+          error_code: 'DUPLICATE_GROUPED',
+          msg: 'A similar complaint already exists. We have added your vote to it to prioritize it!'
+        });
       }
-      // Return the existing complaint so the frontend sees it as 1 complaint
-      return res.status(200).json(existingComplaint);
+      
+      // They are the creator or already upvoted
+      return res.status(409).json({
+        error_code: 'DUPLICATE_EXISTS',
+        msg: 'You have already submitted or upvoted this exact same complaint.'
+      });
     }
 
     // Otherwise, create a new complaint

@@ -70,7 +70,14 @@ export default function RaiseComplaint() {
       setSuccessModalVisible(true);
     } catch (err: any) {
       console.error(err);
-      setErrorMessage(t('raise.errorSubmit') || 'Could not submit complaint. Please try again.');
+      const errorCode = err.response?.data?.error_code;
+      const msg = err.response?.data?.msg;
+      
+      if (errorCode === 'DUPLICATE_GROUPED' || errorCode === 'DUPLICATE_EXISTS') {
+        setErrorMessage(msg);
+      } else {
+        setErrorMessage(t('raise.errorSubmit') || 'Could not submit complaint. Please try again.');
+      }
       setErrorModalVisible(true);
     } finally {
       setLoading(false);
