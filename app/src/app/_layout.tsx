@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
-import { useEffect } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Stack, useRouter, Redirect } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import * as SecureStore from 'expo-secure-store';
 import { io } from 'socket.io-client';
@@ -48,7 +48,11 @@ export default function RootLayout() {
               text1: 'Session Expired',
               text2: 'Your account has been removed by the admin.'
             });
-            router.replace('/login');
+            
+            // Force navigation in the next tick to avoid event loop conflicts
+            setTimeout(() => {
+              router.replace('/login');
+            }, 100);
           }
         }
       } catch (err) {
