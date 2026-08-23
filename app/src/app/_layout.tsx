@@ -18,14 +18,28 @@ export default function RootLayout() {
   const router = useRouter();
 
   useEffect(() => {
-    const socket = io(API_URL);
+    console.log('Connecting to socket at:', API_URL);
+    const socket = io(API_URL, {
+      transports: ['websocket'],
+      forceNew: true
+    });
+
+    socket.on('connect', () => {
+      console.log('Socket connected successfully:', socket.id);
+    });
+    
+    socket.on('connect_error', (error) => {
+      console.log('Socket connection error:', error);
+    });
 
     socket.on('user_deleted', async (data: { id: string }) => {
+      console.log('Received user_deleted event for ID:', data.id);
       try {
         const userDataStr = await SecureStore.getItemAsync('userData');
         if (userDataStr) {
           const user = JSON.parse(userDataStr);
-          if (user.id === data.id) {
+          console.log('Current logged in user ID:', user.id);
+          if (user.id === data.id || user._id === data.id) {
             // This user has been deleted by the admin, force logout
             await SecureStore.deleteItemAsync('userToken');
             await SecureStore.deleteItemAsync('userData');
