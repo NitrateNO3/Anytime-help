@@ -72,29 +72,29 @@ export default function Residents() {
             <table className="data-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-secondary)' }}>
-                  <th style={{ padding: '12px' }}>Name</th>
-                  <th style={{ padding: '12px' }}>Phone Number</th>
-                  <th style={{ padding: '12px' }}>Address</th>
-                  <th style={{ padding: '12px' }}>Relation</th>
-                  <th style={{ padding: '12px' }}>Joined Date</th>
-                  <th style={{ padding: '12px', textAlign: 'center' }}>Actions</th>
+                  <th style={{ padding: '16px' }}>Name</th>
+                  <th style={{ padding: '16px' }}>Phone Number</th>
+                  <th style={{ padding: '16px' }}>Address</th>
+                  <th style={{ padding: '16px' }}>Relation</th>
+                  <th style={{ padding: '16px' }}>Joined Date</th>
+                  <th style={{ padding: '16px', textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {residents.map((r) => (
-                  <tr key={r._id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '12px', fontWeight: '500' }}>{r.name || 'N/A'}</td>
-                    <td style={{ padding: '12px' }}>{r.phone_number}</td>
-                    <td style={{ padding: '12px' }}>
-                      <span className="badge" style={{ backgroundColor: '#DBEAFE', color: '#1D4ED8' }}>
+                  <tr key={r._id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
+                    <td style={{ padding: '16px', fontWeight: '500' }}>{r.name || 'N/A'}</td>
+                    <td style={{ padding: '16px' }}>{r.phone_number}</td>
+                    <td style={{ padding: '16px' }}>
+                      <span className="badge" style={{ backgroundColor: '#DBEAFE', color: '#1D4ED8', padding: '6px 12px' }}>
                         {r.address || 'N/A'}
                       </span>
                     </td>
-                    <td style={{ padding: '12px' }}>{r.relation || 'Owner'}</td>
-                    <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>
+                    <td style={{ padding: '16px' }}>{r.relation || 'Owner'}</td>
+                    <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>
                       {new Date(r.createdAt || r.updatedAt || Date.now()).toLocaleDateString()}
                     </td>
-                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                    <td style={{ padding: '16px', textAlign: 'center' }}>
                       <button 
                         onClick={() => requestDelete(r._id, r.name)}
                         className="btn-icon" 
