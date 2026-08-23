@@ -33,6 +33,7 @@ export default function LoginScreen() {
   const [banners, setBanners] = useState<any[]>([]);
   const flatListRef = React.useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [loadingBanners, setLoadingBanners] = useState(true);
 
   // Fetch Banners
   useEffect(() => {
@@ -42,6 +43,8 @@ export default function LoginScreen() {
         setBanners(res.data);
       } catch (err) {
         console.error('Error fetching banners', err);
+      } finally {
+        setLoadingBanners(false);
       }
     };
     fetchBanners();
@@ -157,7 +160,14 @@ export default function LoginScreen() {
       
       {/* Top Image with Seamless Fade */}
       <View style={styles.imageContainer}>
-        {banners.length > 0 ? (
+        {loadingBanners ? (
+          <View style={[styles.bgImage, { backgroundColor: '#1E40AF' }]}>
+            <LinearGradient
+              colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
+              style={styles.gradient}
+            />
+          </View>
+        ) : banners.length > 0 ? (
           <FlatList
             ref={flatListRef}
             data={banners}
@@ -166,12 +176,13 @@ export default function LoginScreen() {
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item._id}
             renderItem={({ item }) => (
-              <ImageBackground source={{ uri: item.url }} style={[styles.bgImage, { width }]} resizeMode="cover">
+              <View style={{ width, height: '100%' }}>
+                <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
                 <LinearGradient
                   colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
-                  style={styles.gradient}
+                  style={[StyleSheet.absoluteFillObject]}
                 />
-              </ImageBackground>
+              </View>
             )}
           />
         ) : (

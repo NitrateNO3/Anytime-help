@@ -13,13 +13,28 @@ const otpStore = new Map();
 // @desc    Register user (Resident or Staff)
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, phone_number, firebase_uid, role, department } = req.body;
+  const { name, phone_number, firebase_uid, role, department, address, relation } = req.body;
 
   try {
     let user = await User.findOne({ phone_number });
     if (user) return res.status(400).json({ msg: 'User already exists' });
 
-    user = new User({ name, phone_number, firebase_uid, role, department });
+    // Handle address logic for Residents
+    if (role === 'Resident' && address) {
+      // Normalize address for basic duplicate checking (case insensitive, trimmed)
+      const existingAddressUser = await User.findOne({ 
+        address: { $regex: new RegExp('^' + address.trim() + '$', 'i') } 
+      });
+
+      if (existingAddressUser && !relation) {
+        return res.status(400).json({ 
+          error_code: 'DUPLICATE_ADDRESS', 
+          msg: 'This address is already registered. Please specify your relation.' 
+        });
+      }
+    }
+
+    user = new User({ name, phone_number, firebase_uid, role, department, address, relation });
 
     await user.save();
 

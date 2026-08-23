@@ -18,11 +18,15 @@ export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [address, setAddress] = useState('');
+  const [relation, setRelation] = useState('');
+  const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [banners, setBanners] = React.useState<any[]>([]);
   const flatListRef = React.useRef<FlatList>(null);
   const [currentIndex, setCurrentIndex] = React.useState(0);
+  const [loadingBanners, setLoadingBanners] = React.useState(true);
 
   // Fetch Banners
   React.useEffect(() => {
@@ -32,6 +36,8 @@ export default function RegisterScreen() {
         setBanners(res.data);
       } catch (err) {
         console.error('Error fetching banners', err);
+      } finally {
+        setLoadingBanners(false);
       }
     };
     fetchBanners();
@@ -58,8 +64,13 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    if (!name || !phoneNumber || phoneNumber.length < 10) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter Name and a valid Phone Number' });
+    if (!name || !phoneNumber || phoneNumber.length < 10 || !address) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter Name, Phone Number, and Address' });
+      return;
+    }
+
+    if (isDuplicateAddress && !relation) {
+      Toast.show({ type: 'error', text1: 'Relation Required', text2: 'Please specify your relation to this address' });
       return;
     }
 
@@ -70,7 +81,9 @@ export default function RegisterScreen() {
       const payload: any = { 
         name, 
         phone_number: formattedPhone, 
-        role: 'Resident' 
+        role: 'Resident',
+        address,
+        relation: isDuplicateAddress ? relation : undefined
       };
 
       const res = await axios.post(`${API_URL}/auth/register`, payload);
@@ -83,7 +96,13 @@ export default function RegisterScreen() {
       Toast.show({ type: 'success', text1: 'Welcome', text2: 'Account created successfully!' });
       router.replace('/resident');
     } catch (err: any) {
-      Toast.show({ type: 'error', text1: 'Registration Failed', text2: err.response?.data?.msg || err.message || 'Please try again.' });
+      const errorCode = err.response?.data?.error_code;
+      if (errorCode === 'DUPLICATE_ADDRESS') {
+        setIsDuplicateAddress(true);
+        Toast.show({ type: 'info', text1: 'Address Already Registered', text2: 'Please specify your relation to this address.' });
+      } else {
+        Toast.show({ type: 'error', text1: 'Registration Failed', text2: err.response?.data?.msg || err.message || 'Please try again.' });
+      }
     } finally {
       setLoading(false);
     }
@@ -94,7 +113,14 @@ export default function RegisterScreen() {
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
       
       <View style={styles.imageContainer}>
-        {banners.length > 0 ? (
+        {loadingBanners ? (
+          <View style={[styles.bgImage, { backgroundColor: '#1E40AF' }]}>
+            <LinearGradient
+              colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
+              style={styles.gradient}
+            />
+          </View>
+        ) : banners.length > 0 ? (
           <FlatList
             ref={flatListRef}
             data={banners}
@@ -103,12 +129,13 @@ export default function RegisterScreen() {
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item._id}
             renderItem={({ item }) => (
-              <ImageBackground source={{ uri: item.url }} style={[styles.bgImage, { width }]} resizeMode="cover">
+              <View style={{ width, height: '100%' }}>
+                <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
                 <LinearGradient
                   colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
-                  style={styles.gradient}
+                  style={[StyleSheet.absoluteFillObject]}
                 />
-              </ImageBackground>
+              </View>
             )}
           />
         ) : (
@@ -176,8 +203,37 @@ export default function RegisterScreen() {
                   maxLength={10}
                   value={phoneNumber}
                   onChangeText={setPhoneNumber}
+                  editable={!isDuplicateAddress}
                 />
               </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="home-outline" size={20} color="#555" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Complete Address (e.g., Flat 101, Block A)"
+                  placeholderTextColor="#777"
+                  value={address}
+                  onChangeText={(text) => {
+                    setAddress(text);
+                    if (isDuplicateAddress) setIsDuplicateAddress(false);
+                  }}
+                  editable={!isDuplicateAddress}
+                />
+              </View>
+
+              {isDuplicateAddress && (
+                <View style={styles.inputContainer}>
+                  <Ionicons name="people-outline" size={20} color="#555" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Your Relation (e.g., Tenant, Family)"
+                    placeholderTextColor="#777"
+                    value={relation}
+                    onChangeText={setRelation}
+                  />
+                </View>
+              )}
 
               <TouchableOpacity 
                 style={[styles.registerBtn, loading && styles.registerBtnDisabled]} 

@@ -7,6 +7,32 @@ const auth = require('../middleware/auth');
 router.post('/', auth, async (req, res) => {
   try {
     const { title, description, location, category, department, priority, before_image } = req.body;
+    
+    // Check for existing identical or similar complaint
+    // We consider it a duplicate if it has the same department, category, location, and is not resolved
+    const existingComplaint = await Complaint.findOne({
+      department,
+      category,
+      location: { $regex: new RegExp('^' + location.trim() + '$', 'i') },
+      status: { $in: ['PENDING', 'IN_PROGRESS'] }
+    });
+
+    if (existingComplaint) {
+      // If it exists, and the user hasn't already upvoted/submitted it, add them
+      if (!existingComplaint.upvotes.includes(req.user.id) && existingComplaint.user.toString() !== req.user.id) {
+        existingComplaint.upvotes.push(req.user.id);
+        await existingComplaint.save();
+        
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('complaint_changed', { action: 'update', data: existingComplaint });
+        }
+      }
+      // Return the existing complaint so the frontend sees it as 1 complaint
+      return res.status(200).json(existingComplaint);
+    }
+
+    // Otherwise, create a new complaint
     const complaint = new Complaint({
       title,
       description,
