@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, FlatList, StatusBar, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, FlatList, StatusBar, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -99,7 +99,7 @@ export default function RaiseComplaint() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           
           <Text style={styles.label}>{t('raise.category')}</Text>
           <TouchableOpacity 
@@ -133,24 +133,19 @@ export default function RaiseComplaint() {
 
           <Text style={styles.label}>{t('raise.addPhotos')}</Text>
           <View style={styles.photosContainer}>
-            <TouchableOpacity style={styles.photoAddBtn} onPress={pickImage}>
-              {image ? (
-                <Ionicons name="checkmark-circle" size={32} color="#10B981" />
-              ) : (
+            {image ? (
+              <View style={styles.imagePreviewContainer}>
+                <Image source={{ uri: image }} style={styles.previewImage} />
+                <TouchableOpacity style={styles.removeImageBtn} onPress={() => setImage(null)}>
+                  <Ionicons name="close" size={16} color="#FFF" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.photoAddBtn} onPress={pickImage}>
                 <Ionicons name="camera-outline" size={32} color="#9CA3AF" />
-              )}
-            </TouchableOpacity>
-            <View style={styles.photoPlaceholder} />
-          </View>
-
-          <View style={styles.checkboxContainer}>
-            <TouchableOpacity 
-              style={[styles.checkbox, allowAI && styles.checkboxActive]}
-              onPress={() => setAllowAI(!allowAI)}
-            >
-              {allowAI && <Ionicons name="checkmark" size={16} color="#000" />}
-            </TouchableOpacity>
-            <Text style={styles.checkboxLabel}>{t('raise.allowAI')}</Text>
+              </TouchableOpacity>
+            )}
+            {!image && <View style={styles.photoPlaceholder} />}
           </View>
 
           <TouchableOpacity 
@@ -168,8 +163,7 @@ export default function RaiseComplaint() {
             )}
           </TouchableOpacity>
 
-          {/* Padding for bottom tabs if visible */}
-          <View style={{ height: 100 }} />
+
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -286,18 +280,17 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   iconBtn: { padding: 4 },
-  container: { padding: 20 },
+  scrollContent: { padding: 20, paddingBottom: 150 },
   label: { fontSize: 14, fontWeight: '600', color: '#4B5563', marginBottom: 8, marginTop: 16 },
   dropdown: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 16, height: 52 },
   dropdownText: { fontSize: 16, color: '#111827' },
   textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 16, fontSize: 16, color: '#111827', minHeight: 120 },
-  photosContainer: { flexDirection: 'row', gap: 12 },
+  photosContainer: { flexDirection: 'row', gap: 12, marginTop: 8, marginBottom: 24 },
   photoAddBtn: { width: 80, height: 80, borderRadius: 12, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
   photoPlaceholder: { width: 80, height: 80, borderRadius: 12, backgroundColor: '#F3F4F6' },
-  checkboxContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 24, marginBottom: 32 },
-  checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: '#1D4ED8', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  checkboxActive: { backgroundColor: '#1D4ED8' },
-  checkboxLabel: { fontSize: 15, color: '#4B5563', fontWeight: '500' },
+  imagePreviewContainer: { position: 'relative', width: 80, height: 80 },
+  previewImage: { width: 80, height: 80, borderRadius: 12 },
+  removeImageBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: '#EF4444', borderRadius: 12, width: 24, height: 24, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
   submitBtn: { backgroundColor: '#1D4ED8', borderRadius: 16, height: 56, justifyContent: 'center', alignItems: 'center', shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   submitBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   
