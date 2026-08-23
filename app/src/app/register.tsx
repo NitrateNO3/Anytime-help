@@ -154,7 +154,7 @@ export default function RegisterScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardView}
           >
-            <View style={{ flex: 1 }}>
+            <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
               <View style={styles.langToggleContainer}>
             <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
               <Ionicons name="language-outline" size={16} color="#FFF" style={{marginRight: 6}} />
@@ -251,7 +251,7 @@ export default function RegisterScreen() {
               </View>
             </View>
               </View>
-            </View>
+            </ScrollView>
           </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </SafeAreaView>
