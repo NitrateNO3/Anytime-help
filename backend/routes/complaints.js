@@ -155,6 +155,18 @@ router.delete('/:id', auth, async (req, res) => {
     
     // Check authorization: Admin can delete any, Resident can delete their own
     if (req.user.role !== 'Admin' && complaint.user.toString() !== req.user.id) {
+      // If they are not the creator but they are in upvotes, just remove them from upvotes
+      if (complaint.upvotes.includes(req.user.id)) {
+        complaint.upvotes = complaint.upvotes.filter(id => id.toString() !== req.user.id);
+        await complaint.save();
+        
+        const io = req.app.get('io');
+        if (io) {
+          io.emit('complaint_changed', { action: 'update', data: complaint });
+        }
+        return res.json({ message: 'Removed your vote from the complaint' });
+      }
+
       return res.status(403).json({ message: 'Unauthorized: You can only delete your own complaints' });
     }
 
