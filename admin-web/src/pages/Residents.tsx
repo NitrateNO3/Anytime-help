@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Home } from 'lucide-react';
+import { Home, Trash2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://anytime-help.onrender.com/api';
 
@@ -23,6 +24,25 @@ export default function Residents() {
       console.error('Error fetching residents:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to remove ${name || 'this resident'}?`)) {
+      return;
+    }
+    
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.delete(`${API_URL}/users/${id}`, {
+        headers: { 'x-auth-token': token }
+      });
+      toast.success('Resident removed successfully');
+      // Update state without refetching
+      setResidents(residents.filter(r => r._id !== id));
+    } catch (error: any) {
+      console.error('Error deleting resident:', error);
+      toast.error(error.response?.data?.message || 'Could not delete resident');
     }
   };
 
@@ -54,6 +74,7 @@ export default function Residents() {
                   <th style={{ padding: '12px' }}>Address</th>
                   <th style={{ padding: '12px' }}>Relation</th>
                   <th style={{ padding: '12px' }}>Joined Date</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -69,6 +90,16 @@ export default function Residents() {
                     <td style={{ padding: '12px' }}>{r.relation || 'Owner'}</td>
                     <td style={{ padding: '12px', color: 'var(--text-secondary)' }}>
                       {new Date(r.createdAt || r.updatedAt || Date.now()).toLocaleDateString()}
+                    </td>
+                    <td style={{ padding: '12px', textAlign: 'center' }}>
+                      <button 
+                        onClick={() => handleDelete(r._id, r.name)}
+                        className="btn-icon" 
+                        style={{ color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                        title="Remove Resident"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </td>
                   </tr>
                 ))}
