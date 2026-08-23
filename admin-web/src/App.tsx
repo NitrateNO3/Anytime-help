@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import Staff from './pages/Staff';
 import Announcements from './pages/Announcements';
 import AdminLayout from './layouts/AdminLayout';
+import Banners from './pages/Banners';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="staff" element={<Staff />} />
             <Route path="announcements" element={<Announcements />} />
+            <Route path="banners" element={<Banners />} />
           </Route>
         </Routes>
       </BrowserRouter>
