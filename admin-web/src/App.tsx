@@ -6,6 +6,7 @@ import Staff from './pages/Staff';
 import Announcements from './pages/Announcements';
 import AdminLayout from './layouts/AdminLayout';
 import Banners from './pages/Banners';
+import Residents from './pages/Residents';
 
 function App() {
   return (
@@ -19,6 +20,7 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="staff" element={<Staff />} />
+            <Route path="residents" element={<Residents />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="banners" element={<Banners />} />
           </Route>

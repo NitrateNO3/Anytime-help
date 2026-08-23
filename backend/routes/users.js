@@ -19,6 +19,21 @@ router.get('/staff', auth, async (req, res) => {
   }
 });
 
+// @route   GET api/users/residents
+// @desc    Get all resident members
+// @access  Admin Private
+router.get('/residents', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    const residents = await User.find({ role: 'Resident' }).select('-password').sort({ createdAt: -1 });
+    res.json(residents);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   POST api/users/staff
 // @desc    Create a new staff member
 // @access  Admin Private

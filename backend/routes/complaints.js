@@ -30,14 +30,14 @@ router.post('/', auth, async (req, res) => {
         
         return res.status(409).json({ 
           error_code: 'DUPLICATE_GROUPED',
-          msg: 'A similar complaint already exists. We have added your vote to it to prioritize it!'
+          msg: 'This issue is already reported by someone else. Our team is working on it.'
         });
       }
       
       // They are the creator or already upvoted
       return res.status(409).json({
         error_code: 'DUPLICATE_EXISTS',
-        msg: 'You have already submitted or upvoted this exact same complaint.'
+        msg: 'You have already reported this issue.'
       });
     }
 
@@ -91,10 +91,9 @@ router.get('/', auth, async (req, res) => {
       ];
     }
 
-    // If Resident, only show their own complaints or ones they upvoted (duplicates)
+    // If Resident, only show their own complaints (duplicates won't show in their list)
     if (req.user.role === 'Resident') {
-      if (!query.$and) query.$and = [];
-      query.$and.push({ $or: [{ user: req.user.id }, { upvotes: req.user.id }] });
+      query.user = req.user.id; 
     } else if (req.user.role === 'Staff') {
       // Staff only sees complaints for their assigned category
       if (req.user.assigned_category) {

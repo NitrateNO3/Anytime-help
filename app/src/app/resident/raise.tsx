@@ -69,7 +69,7 @@ export default function RaiseComplaint() {
       
       setSuccessModalVisible(true);
     } catch (err: any) {
-      console.error(err);
+      console.log('Submission info:', err.message);
       const errorCode = err.response?.data?.error_code;
       const msg = err.response?.data?.msg;
       
