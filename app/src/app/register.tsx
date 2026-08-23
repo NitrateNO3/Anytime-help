@@ -154,7 +154,7 @@ export default function RegisterScreen() {
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             style={styles.keyboardView}
           >
-            <ScrollView contentContainerStyle={{ flexGrow: 1 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <View style={{ flex: 1 }}>
               <View style={styles.langToggleContainer}>
             <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
               <Ionicons name="language-outline" size={16} color="#FFF" style={{marginRight: 6}} />
@@ -162,26 +162,26 @@ export default function RegisterScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={styles.mainContent}>
+          <View style={[styles.mainContent, isDuplicateAddress && { paddingTop: 100 }]}>
             {/* Header / Hero */}
-            <View style={styles.heroSection}>
+            <View style={[styles.heroSection, isDuplicateAddress && { marginBottom: 15, marginTop: 10 }]}>
               <View style={styles.badgeContainer}>
                 <Ionicons name="shield-checkmark" size={14} color="#F59E0B" />
                 <Text style={styles.badgeText}>RWA APPROVED</Text>
               </View>
-              <View style={styles.iconCircle}>
+              <View style={[styles.iconCircle, isDuplicateAddress && { width: 90, height: 90, marginBottom: 20 }]}>
                 <Image 
                   source={require('../../assets/images/logo.png')} 
-                  style={{width: 130, height: 130, marginTop: 26}} 
+                  style={{width: isDuplicateAddress ? 100 : 130, height: isDuplicateAddress ? 100 : 130, marginTop: isDuplicateAddress ? 18 : 26}} 
                   resizeMode="contain" 
                 />
               </View>
-              <Text style={styles.title}>{t('register.title') || 'Create Account'}</Text>
-              <Text style={styles.subtitle}>{t('register.subtitle') || 'Join Anytime Help Community'}</Text>
+              <Text style={[styles.title, isDuplicateAddress && { fontSize: 24, marginBottom: 4 }]}>{t('register.title') || 'Create Account'}</Text>
+              <Text style={[styles.subtitle, isDuplicateAddress && { fontSize: 14 }]}>{t('register.subtitle') || 'Join Anytime Help Community'}</Text>
             </View>
 
-            <View style={styles.formCard}>
-              <View style={styles.inputContainer}>
+            <View style={[styles.formCard, isDuplicateAddress && { paddingTop: 20, paddingHorizontal: 20 }]}>
+              <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
                 <Ionicons name="person-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -192,7 +192,7 @@ export default function RegisterScreen() {
                 />
               </View>
 
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
                 <Ionicons name="call-outline" size={20} color="#555" style={styles.inputIcon} />
                 <Text style={{fontSize: 16, color: '#333', marginRight: 8}}>+91</Text>
                 <TextInput
@@ -207,7 +207,7 @@ export default function RegisterScreen() {
                 />
               </View>
 
-              <View style={styles.inputContainer}>
+              <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
                 <Ionicons name="home-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
@@ -223,7 +223,7 @@ export default function RegisterScreen() {
               </View>
 
               {isDuplicateAddress && (
-                <View style={styles.inputContainer}>
+                <View style={[styles.inputContainer, { height: 50, marginBottom: 12 }]}>
                   <Ionicons name="people-outline" size={20} color="#555" style={styles.inputIcon} />
                   <TextInput
                     style={styles.input}
@@ -236,7 +236,7 @@ export default function RegisterScreen() {
               )}
 
               <TouchableOpacity 
-                style={[styles.registerBtn, loading && styles.registerBtnDisabled]} 
+                style={[styles.registerBtn, isDuplicateAddress && { height: 50, marginTop: 8, marginBottom: 16 }, loading && styles.registerBtnDisabled]} 
                 onPress={handleRegister}
                 disabled={loading}
               >
@@ -251,7 +251,7 @@ export default function RegisterScreen() {
               </View>
             </View>
               </View>
-            </ScrollView>
+            </View>
           </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </SafeAreaView>
