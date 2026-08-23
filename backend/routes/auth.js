@@ -38,9 +38,10 @@ router.post('/register', async (req, res) => {
         // If relation IS provided, prevent multiple "Owner" accounts
         const isNewRelationOwner = relation.trim().toLowerCase() === 'owner';
         if (isNewRelationOwner) {
-          const hasExistingOwner = existingAddressUsers.some(u => 
-            u.relation && u.relation.trim().toLowerCase() === 'owner'
-          );
+          const hasExistingOwner = existingAddressUsers.some(u => {
+            if (!u.relation) return true; // Default relation is considered 'Owner'
+            return u.relation.trim().toLowerCase() === 'owner';
+          });
           
           if (hasExistingOwner) {
             return res.status(400).json({ 
