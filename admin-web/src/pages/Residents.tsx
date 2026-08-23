@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Home, Trash2, AlertTriangle, X } from 'lucide-react';
+import { Home, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://anytime-help.onrender.com/api';
@@ -27,7 +27,7 @@ export default function Residents() {
     }
   };
 
-  const requestDelete = (id: string, name: string) => {
+  const requestDelete = (id: string) => {
     toast((t) => (
       <div style={{ padding: '8px' }}>
         <p style={{ fontWeight: 600, marginBottom: 16, fontSize: '15px', color: 'var(--text-main)' }}>
@@ -120,7 +120,7 @@ export default function Residents() {
                     </td>
                     <td style={{ padding: '16px', textAlign: 'center' }}>
                       <button 
-                        onClick={() => requestDelete(r._id, r.name)}
+                        onClick={() => requestDelete(r._id)}
                         className="btn-icon" 
                         style={{ color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer' }}
                         title="Remove Resident"
