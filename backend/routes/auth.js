@@ -21,16 +21,33 @@ router.post('/register', async (req, res) => {
 
     // Handle address logic for Residents
     if (role === 'Resident' && address) {
-      // Normalize address for basic duplicate checking (case insensitive, trimmed)
-      const existingAddressUser = await User.findOne({ 
+      // Check if address already exists
+      const existingAddressUsers = await User.find({ 
         address: { $regex: new RegExp('^' + address.trim() + '$', 'i') } 
       });
 
-      if (existingAddressUser && !relation) {
-        return res.status(400).json({ 
-          error_code: 'DUPLICATE_ADDRESS', 
-          msg: 'This address is already registered. Please specify your relation.' 
-        });
+      if (existingAddressUsers.length > 0) {
+        // If relation is not provided, prompt the user
+        if (!relation) {
+          return res.status(400).json({ 
+            error_code: 'DUPLICATE_ADDRESS', 
+            msg: 'This address is already registered. Please specify your relation (e.g., Tenant, Family).' 
+          });
+        }
+
+        // If relation IS provided, prevent multiple "Owner" accounts
+        const isNewRelationOwner = relation.trim().toLowerCase() === 'owner';
+        if (isNewRelationOwner) {
+          const hasExistingOwner = existingAddressUsers.some(u => 
+            u.relation && u.relation.trim().toLowerCase() === 'owner'
+          );
+          
+          if (hasExistingOwner) {
+            return res.status(400).json({ 
+              msg: 'An Owner is already registered for this address. Please register as Tenant or Family member, or contact admin.' 
+            });
+          }
+        }
       }
     }
 
