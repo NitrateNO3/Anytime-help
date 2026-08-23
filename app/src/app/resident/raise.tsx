@@ -239,6 +239,11 @@ export default function RaiseComplaint() {
               style={styles.doneBtn} 
               onPress={() => {
                 setSuccessModalVisible(false);
+                setCategory('Plumbing');
+                setLocation('');
+                setDescription('');
+                setImage(null);
+                setAllowAI(true);
                 router.push({ pathname: '/resident', params: { tab: 'Complaints' } } as any);
               }}
             >
