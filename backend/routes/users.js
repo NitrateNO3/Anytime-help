@@ -93,6 +93,12 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
+    // Emit live event for remote logout
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_deleted', { id: req.params.id });
+    }
+    
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });

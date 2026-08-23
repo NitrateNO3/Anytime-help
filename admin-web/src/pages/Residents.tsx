@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Home, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://anytime-help.onrender.com/api';
 
@@ -11,6 +12,28 @@ export default function Residents() {
 
   useEffect(() => {
     fetchResidents();
+
+    // Socket.io for live updates
+    const socketURL = API_URL.replace('/api', '');
+    const socket = io(socketURL);
+
+    socket.on('user_created', (newUser: any) => {
+      if (newUser.role === 'Resident') {
+        setResidents(prev => {
+          // Prevent duplicates
+          if (prev.find(r => r._id === newUser._id || r._id === newUser.id)) return prev;
+          return [newUser, ...prev];
+        });
+      }
+    });
+
+    socket.on('user_deleted', (data: { id: string }) => {
+      setResidents(prev => prev.filter(r => r._id !== data.id));
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const fetchResidents = async () => {

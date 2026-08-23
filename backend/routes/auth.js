@@ -38,6 +38,12 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
+    // Emit live event to admin dashboard
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_created', user);
+    }
+
     // Create JWT Payload
     const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category } };
     
@@ -96,6 +102,12 @@ router.post('/firebase-login', async (req, res) => {
         name: 'User ' + phone_number.slice(-4)
       });
       await user.save();
+      
+      // Emit live event to admin dashboard
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('user_created', user);
+      }
     } else {
       // Update firebase_uid if not set
       if (!user.firebase_uid && firebase_uid) {
