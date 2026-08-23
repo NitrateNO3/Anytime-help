@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, ImageBackground, ScrollView, TouchableWithoutFeedback, Keyboard, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard, Image, FlatList, Dimensions, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const bgImage = require('../../assets/images/electrician-review-response-templates-featured.webp');
+const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -28,6 +29,37 @@ export default function LoginScreen() {
   const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
+
+  const [banners, setBanners] = useState<any[]>([]);
+  const flatListRef = React.useRef<FlatList>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Fetch Banners
+  useEffect(() => {
+    const fetchBanners = async () => {
+      try {
+        const res = await axios.get(`${API_URL}/banners`);
+        setBanners(res.data);
+      } catch (err) {
+        console.error('Error fetching banners', err);
+      }
+    };
+    fetchBanners();
+  }, []);
+
+  // Auto-scroll Banners
+  useEffect(() => {
+    if (banners.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentIndex((prevIndex) => {
+          const nextIndex = prevIndex === banners.length - 1 ? 0 : prevIndex + 1;
+          flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+          return nextIndex;
+        });
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [banners]);
 
   // Auto-login check
   useEffect(() => {
@@ -125,12 +157,31 @@ export default function LoginScreen() {
       
       {/* Top Image with Seamless Fade */}
       <View style={styles.imageContainer}>
-        <ImageBackground source={bgImage} style={styles.bgImage} resizeMode="cover">
-          <LinearGradient
-            colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
-            style={styles.gradient}
+        {banners.length > 0 ? (
+          <FlatList
+            ref={flatListRef}
+            data={banners}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item._id}
+            renderItem={({ item }) => (
+              <ImageBackground source={{ uri: item.url }} style={[styles.bgImage, { width }]} resizeMode="cover">
+                <LinearGradient
+                  colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
+                  style={styles.gradient}
+                />
+              </ImageBackground>
+            )}
           />
-        </ImageBackground>
+        ) : (
+          <ImageBackground source={bgImage} style={styles.bgImage} resizeMode="cover">
+            <LinearGradient
+              colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
+              style={styles.gradient}
+            />
+          </ImageBackground>
+        )}
       </View>
 
       <SafeAreaView style={styles.safeArea}>
