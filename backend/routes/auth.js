@@ -21,9 +21,10 @@ router.post('/register', async (req, res) => {
 
     // Handle address logic for Residents
     if (role === 'Resident' && address) {
-      // Check if address already exists
+      // Check if address already exists, ignoring spaces at ends and case
+      const escapedAddress = address.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const existingAddressUsers = await User.find({ 
-        address: { $regex: new RegExp('^' + address.trim() + '$', 'i') } 
+        address: { $regex: new RegExp('^\\s*' + escapedAddress + '\\s*$', 'i') } 
       });
 
       if (existingAddressUsers.length > 0) {
