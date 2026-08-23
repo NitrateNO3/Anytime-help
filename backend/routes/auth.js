@@ -21,11 +21,15 @@ router.post('/register', async (req, res) => {
 
     // Handle address logic for Residents
     if (role === 'Resident' && address) {
-      // Check if address already exists, ignoring spaces at ends and case
-      const escapedAddress = address.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const existingAddressUsers = await User.find({ 
-        address: { $regex: new RegExp('^\\s*' + escapedAddress + '\\s*$', 'i') } 
-      });
+      // Normalize address to keep only alphanumeric characters for comparison
+      const normalizeAddress = (str) => (str || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      const normalizedInputAddress = normalizeAddress(address);
+
+      // Fetch all residents that have an address
+      const allResidents = await User.find({ role: 'Resident', address: { $exists: true, $ne: null } });
+      
+      // Filter residents who have the same normalized address
+      const existingAddressUsers = allResidents.filter(u => normalizeAddress(u.address) === normalizedInputAddress);
 
       if (existingAddressUsers.length > 0) {
         // If relation is not provided, prompt the user
