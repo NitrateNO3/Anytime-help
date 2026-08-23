@@ -23,20 +23,28 @@ export default function RaiseComplaint() {
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [imageLoading, setImageLoading] = useState(false);
   
   const categories = ['Plumbing', 'Electrical', 'Cleaning', 'Security', 'Maintenance', 'Pest Control', 'Others'];
 
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], // Strict typing for expo-image-picker
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.5, // Compress for Base64
-      base64: true,
-    });
+    setImageLoading(true);
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'], // Strict typing for expo-image-picker
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5, // Compress for Base64
+        base64: true,
+      });
 
-    if (!result.canceled && result.assets && result.assets.length > 0) {
-      setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (e) {
+      console.log('Error picking image:', e);
+    } finally {
+      setImageLoading(false);
     }
   };
 
@@ -99,7 +107,7 @@ export default function RaiseComplaint() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <View style={styles.container}>
           
           <Text style={styles.label}>{t('raise.category')}</Text>
           <TouchableOpacity 
@@ -123,7 +131,7 @@ export default function RaiseComplaint() {
           <TextInput
             style={styles.textArea}
             multiline
-            numberOfLines={4}
+            numberOfLines={3}
             placeholder={t('raise.descriptionPlaceholder')}
             placeholderTextColor="#9CA3AF"
             value={description}
@@ -141,8 +149,12 @@ export default function RaiseComplaint() {
                 </TouchableOpacity>
               </View>
             ) : (
-              <TouchableOpacity style={styles.photoAddBtn} onPress={pickImage}>
-                <Ionicons name="camera-outline" size={32} color="#9CA3AF" />
+              <TouchableOpacity style={styles.photoAddBtn} onPress={pickImage} disabled={imageLoading}>
+                {imageLoading ? (
+                  <ActivityIndicator size="small" color="#9CA3AF" />
+                ) : (
+                  <Ionicons name="camera-outline" size={32} color="#9CA3AF" />
+                )}
               </TouchableOpacity>
             )}
             {!image && <View style={styles.photoPlaceholder} />}
@@ -163,8 +175,7 @@ export default function RaiseComplaint() {
             )}
           </TouchableOpacity>
 
-
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
 
       {/* Category Selection Modal */}
@@ -277,21 +288,21 @@ export default function RaiseComplaint() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 30) : 40, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
   iconBtn: { padding: 4 },
-  scrollContent: { padding: 20, paddingBottom: 150 },
-  label: { fontSize: 14, fontWeight: '600', color: '#4B5563', marginBottom: 8, marginTop: 16 },
-  dropdown: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 16, height: 52 },
-  dropdownText: { fontSize: 16, color: '#111827' },
-  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 16, fontSize: 16, color: '#111827', minHeight: 120 },
-  photosContainer: { flexDirection: 'row', gap: 12, marginTop: 8, marginBottom: 24 },
-  photoAddBtn: { width: 80, height: 80, borderRadius: 12, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
-  photoPlaceholder: { width: 80, height: 80, borderRadius: 12, backgroundColor: '#F3F4F6' },
-  imagePreviewContainer: { position: 'relative', width: 80, height: 80 },
-  previewImage: { width: 80, height: 80, borderRadius: 12 },
-  removeImageBtn: { position: 'absolute', top: -8, right: -8, backgroundColor: '#EF4444', borderRadius: 12, width: 24, height: 24, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
-  submitBtn: { backgroundColor: '#1D4ED8', borderRadius: 16, height: 56, justifyContent: 'center', alignItems: 'center', shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  container: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 90, flex: 1 },
+  label: { fontSize: 13, fontWeight: '600', color: '#4B5563', marginBottom: 6, marginTop: 12 },
+  dropdown: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 12, height: 48 },
+  dropdownText: { fontSize: 15, color: '#111827' },
+  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 12, fontSize: 15, color: '#111827', minHeight: 80 },
+  photosContainer: { flexDirection: 'row', gap: 12, marginTop: 4, marginBottom: 16 },
+  photoAddBtn: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
+  photoPlaceholder: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#F3F4F6' },
+  imagePreviewContainer: { position: 'relative', width: 64, height: 64 },
+  previewImage: { width: 64, height: 64, borderRadius: 12 },
+  removeImageBtn: { position: 'absolute', top: -6, right: -6, backgroundColor: '#EF4444', borderRadius: 10, width: 20, height: 20, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 4, elevation: 4 },
+  submitBtn: { backgroundColor: '#1D4ED8', borderRadius: 16, height: 52, justifyContent: 'center', alignItems: 'center', shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
   submitBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   
   // Custom Success Modal Styles
