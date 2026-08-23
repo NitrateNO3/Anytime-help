@@ -82,9 +82,10 @@ router.get('/', auth, async (req, res) => {
       ];
     }
 
-    // If Resident, only show their own complaints (or all if we want community +1)
+    // If Resident, only show their own complaints or ones they upvoted (duplicates)
     if (req.user.role === 'Resident') {
-      query.user = req.user.id; 
+      if (!query.$and) query.$and = [];
+      query.$and.push({ $or: [{ user: req.user.id }, { upvotes: req.user.id }] });
     } else if (req.user.role === 'Staff') {
       // Staff only sees complaints for their assigned category
       if (req.user.assigned_category) {
