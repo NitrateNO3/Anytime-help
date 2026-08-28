@@ -12,7 +12,7 @@ const API_URL = 'https://anytime-help.onrender.com/api';
 export default function RaiseComplaint() {
   const router = useRouter();
   const { t } = useTranslation();
-  const [category, setCategory] = useState('Plumbing');
+  const [category, setCategory] = useState('Plumber');
   const [subCategory, setSubCategory] = useState('Water Leakage');
   const [location, setLocation] = useState('Block A - 2nd Floor');
   const [description, setDescription] = useState('');
@@ -25,7 +25,7 @@ export default function RaiseComplaint() {
   const [errorMessage, setErrorMessage] = useState('');
   const [imageLoading, setImageLoading] = useState(false);
   
-  const categories = ['Plumbing', 'Electrical', 'Cleaning', 'Security', 'Maintenance', 'Pest Control', 'Others'];
+  const categories = ['Plumber', 'Electrician', 'Cleaner', 'Security Guard', 'Maintenance', 'Pest Control', 'Other'];
 
   const pickImage = async () => {
     setImageLoading(true);
@@ -244,7 +244,7 @@ export default function RaiseComplaint() {
               style={styles.doneBtn} 
               onPress={() => {
                 setSuccessModalVisible(false);
-                setCategory('Plumbing');
+                setCategory('Plumber');
                 setLocation('');
                 setDescription('');
                 setImage(null);

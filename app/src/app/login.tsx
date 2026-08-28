@@ -219,7 +219,7 @@ export default function LoginScreen() {
               <View style={styles.iconCircle}>
                 <Image 
                   source={require('../../assets/images/logo.png')} 
-                  style={{width: 130, height: 130, marginTop: 26}} 
+                  style={{width: 155, height: 155, marginTop: 34}} 
                   resizeMode="contain" 
                 />
               </View>

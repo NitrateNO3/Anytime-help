@@ -331,7 +331,7 @@ export default function ResidentHome() {
                 )}
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 10 }}>
-                {['All', 'Plumbing', 'Electrical', 'Cleaning', 'Security', 'Other'].map(cat => {
+                {['All', 'Plumber', 'Electrician', 'Cleaner', 'Security Guard', 'Other'].map(cat => {
                   const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
                   return (
                     <TouchableOpacity 
