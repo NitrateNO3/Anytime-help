@@ -6,8 +6,8 @@ import toast from 'react-hot-toast';
 import logoImg from '../assets/logo.png';
 
 export default function Login() {
-  const [email, setEmail] = useState('admin@anytimehelp.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -45,17 +45,7 @@ export default function Login() {
       <div className="login-left">
         <div style={{ width: '100%', maxWidth: '440px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '40px' }}>
-            <div style={{
-              background: 'rgba(29, 78, 216, 0.1)',
-              padding: '8px',
-              borderRadius: '14px',
-              border: '1px solid rgba(29, 78, 216, 0.2)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              <img src={logoImg} alt="Logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
-            </div>
+            <img src={logoImg} alt="Logo" style={{ width: 70, height: 70, objectFit: 'contain' }} />
             <span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-main)' }}>Anytime Help</span>
           </div>
 

@@ -27,7 +27,7 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <img src={logoImg} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain' }} />
+          <img src={logoImg} alt="Logo" style={{ width: 44, height: 44, objectFit: 'contain' }} />
           Anytime Help
         </div>
 

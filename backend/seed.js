@@ -48,10 +48,12 @@ const seedDB = async () => {
     // Admin
     let admin = await User.findOne({ email: 'admin@anytimehelp.com' });
     if (!admin) {
+      const adminSalt = await bcrypt.genSalt(10);
+      const adminHashedPassword = await bcrypt.hash('anytime@123', adminSalt);
       await User.create({
         name: 'Super Admin',
         email: 'admin@anytimehelp.com',
-        password: hashedPassword,
+        password: adminHashedPassword,
         role: 'Admin'
       });
       console.log('Admin created: admin@anytimehelp.com');
