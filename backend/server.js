@@ -14,7 +14,7 @@ const app = express();
 app.use(express.json({ limit: '10mb' }));
 app.use(cors({
   origin: function (origin, callback) {
-    const allowedOrigins = ['https://anytime-help-b71e.vercel.app', 'http://localhost:3000', 'http://localhost:5173'];
+    const allowedOrigins = ['https://anytime-help-b71e.vercel.app', 'http://localhost:3000', 'http://localhost:5173', 'https://www.anytimehelp.co.in', 'https://anytimehelp.co.in'];
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
