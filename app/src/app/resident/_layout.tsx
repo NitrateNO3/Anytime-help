@@ -2,8 +2,11 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function ResidentLayout() {
+  const insets = useSafeAreaInsets();
+  
   return (
     <Tabs
       screenOptions={{
@@ -22,7 +25,7 @@ export default function ResidentLayout() {
           paddingTop: 10,
           borderRadius: 40,
           position: 'absolute',
-          bottom: Platform.OS === 'ios' ? 34 : 24,
+          bottom: Math.max(insets.bottom + 10, 24),
           marginHorizontal: 24,
           paddingHorizontal: 10,
         },

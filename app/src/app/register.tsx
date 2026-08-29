@@ -18,7 +18,9 @@ export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [address, setAddress] = useState('');
+  const [houseNo, setHouseNo] = useState('');
+  const [housing, setHousing] = useState('');
+  const [sector, setSector] = useState('');
   const [relation, setRelation] = useState('');
   const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,8 +66,8 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    if (!name || !phoneNumber || phoneNumber.length < 10 || !address) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter Name, Phone Number, and Address' });
+    if (!name || !phoneNumber || phoneNumber.length < 10 || !houseNo || !sector) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter Name, Phone, House No, and Sector' });
       return;
     }
 
@@ -78,11 +80,17 @@ export default function RegisterScreen() {
 
     try {
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
+      let addressParts = [];
+      if (houseNo) addressParts.push(houseNo);
+      if (housing) addressParts.push(housing);
+      if (sector) addressParts.push(sector);
+      const combinedAddress = addressParts.join(', ');
+
       const payload: any = { 
         name, 
         phone_number: formattedPhone, 
         role: 'Resident',
-        address,
+        address: combinedAddress,
         relation: isDuplicateAddress ? relation : undefined
       };
 
@@ -130,7 +138,8 @@ export default function RegisterScreen() {
             keyExtractor={(item) => item._id}
             renderItem={({ item }) => (
               <View style={{ width, height: '100%' }}>
-                <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+                <Image source={{ uri: item.url }} style={StyleSheet.absoluteFillObject} resizeMode="cover" blurRadius={15} />
+                <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%', transform: [{ translateY: -30 }] }} resizeMode="contain" />
                 <LinearGradient
                   colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
                   style={[StyleSheet.absoluteFillObject]}
@@ -162,7 +171,7 @@ export default function RegisterScreen() {
             </TouchableOpacity>
           </View>
 
-          <View style={[styles.mainContent, isDuplicateAddress && { paddingTop: 100 }]}>
+          <View style={[styles.mainContent, isDuplicateAddress && { paddingTop: 60 }]}>
             {/* Header / Hero */}
             <View style={[styles.heroSection, isDuplicateAddress && { marginBottom: 15, marginTop: 10 }]}>
               <View style={styles.badgeContainer}>
@@ -172,8 +181,8 @@ export default function RegisterScreen() {
               <View style={[styles.iconCircle, isDuplicateAddress && { width: 90, height: 90, marginBottom: 20 }]}>
                 <Image 
                   source={require('../../assets/images/logo.png')} 
-                  style={{width: isDuplicateAddress ? 100 : 130, height: isDuplicateAddress ? 100 : 130, marginTop: isDuplicateAddress ? 18 : 26}} 
-                  resizeMode="contain" 
+                  style={{width: isDuplicateAddress ? 80 : 100, height: isDuplicateAddress ? 80 : 100, transform: [{ translateY: isDuplicateAddress ? 5 : 15 }]}} 
+                  resizeMode="cover" 
                 />
               </View>
               <Text style={[styles.title, isDuplicateAddress && { fontSize: 24, marginBottom: 4 }]}>{t('register.title') || 'Create Account'}</Text>
@@ -211,11 +220,41 @@ export default function RegisterScreen() {
                 <Ionicons name="home-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Complete Address (e.g., Flat 101, Block A)"
+                  placeholder="House / Flat No.*"
                   placeholderTextColor="#777"
-                  value={address}
+                  value={houseNo}
                   onChangeText={(text) => {
-                    setAddress(text);
+                    setHouseNo(text);
+                    if (isDuplicateAddress) setIsDuplicateAddress(false);
+                  }}
+                  editable={!isDuplicateAddress}
+                />
+              </View>
+
+              <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
+                <Ionicons name="business-outline" size={20} color="#555" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Housing Society / Apartment"
+                  placeholderTextColor="#777"
+                  value={housing}
+                  onChangeText={(text) => {
+                    setHousing(text);
+                    if (isDuplicateAddress) setIsDuplicateAddress(false);
+                  }}
+                  editable={!isDuplicateAddress}
+                />
+              </View>
+
+              <View style={[styles.inputContainer, { marginBottom: 12 }, isDuplicateAddress && { height: 45, marginBottom: 8 }]}>
+                <Ionicons name="location-outline" size={20} color="#555" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Sector / Area*"
+                  placeholderTextColor="#777"
+                  value={sector}
+                  onChangeText={(text) => {
+                    setSector(text);
                     if (isDuplicateAddress) setIsDuplicateAddress(false);
                   }}
                   editable={!isDuplicateAddress}
@@ -250,7 +289,7 @@ export default function RegisterScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-              </View>
+            </View>
             </View>
           </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
@@ -287,9 +326,9 @@ const styles = StyleSheet.create({
   mainContent: {
     flex: 1,
     justifyContent: 'flex-end',
-    paddingTop: 140, // Minimum space from top
+    paddingTop: Platform.OS === 'ios' ? 40 : 20, 
     paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
   },
   langToggleContainer: {
     position: 'absolute',
@@ -319,8 +358,8 @@ const styles = StyleSheet.create({
   },
   heroSection: {
     alignItems: 'center',
-    marginBottom: 30,
-    marginTop: 20, // Push the whole section (badge + logo) down together
+    marginBottom: 10,
+    marginTop: 5, 
   },
   badgeContainer: {
     flexDirection: 'row',
@@ -341,14 +380,14 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
   iconCircle: {
-    width: 120,
-    height: 120,
+    width: 80,
+    height: 80,
     backgroundColor: '#FFFFFF',
-    borderRadius: 60,
+    borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8, // Logo is now very close to the badge
-    marginBottom: 35,
+    marginTop: 4, 
+    marginBottom: 15,
     elevation: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
@@ -370,23 +409,23 @@ const styles = StyleSheet.create({
   formCard: {
     backgroundColor: '#DBEAFE', // Light blue card
     borderRadius: 30, // Rounded all corners
-    padding: 24,
-    paddingTop: 32,
+    padding: 20,
+    paddingTop: 20,
     flex: 1,
-    minHeight: 400,
-    marginBottom: 20,
+    minHeight: 350,
+    marginBottom: 10,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F9FBF9', // Almost white
     borderRadius: 30, // Changed from 12 to 30 for pill shape
-    marginBottom: 16,
-    paddingHorizontal: 20, // Increased padding slightly
-    height: 60,
+    marginBottom: 10,
+    paddingHorizontal: 16, // Increased padding slightly
+    height: 48,
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   eyeIcon: {
     padding: 8,
@@ -394,17 +433,17 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: '100%',
-    fontSize: 16,
+    fontSize: 14,
     color: '#333',
   },
   registerBtn: {
     backgroundColor: '#1D4ED8', // Dark blue button
     borderRadius: 30, // Changed from 12 to 30 for pill shape
-    height: 60,
+    height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 12,
-    marginBottom: 24,
+    marginTop: 5,
+    marginBottom: 10,
   },
   registerBtnDisabled: {
     opacity: 0.7,
@@ -419,15 +458,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 'auto',
-    paddingBottom: 20,
+    paddingBottom: 5,
   },
   footerText: {
     color: '#555',
-    fontSize: 15,
+    fontSize: 14,
   },
   footerLink: {
     color: '#1D4ED8',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   }
 });

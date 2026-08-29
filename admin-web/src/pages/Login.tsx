@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Shield, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
+import logoImg from '../assets/logo.png';
 
 export default function Login() {
   const [email, setEmail] = useState('admin@anytimehelp.com');
@@ -45,12 +46,15 @@ export default function Login() {
         <div style={{ width: '100%', maxWidth: '440px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '40px' }}>
             <div style={{
-              background: 'rgba(255, 99, 71, 0.1)',
-              padding: '12px',
+              background: 'rgba(29, 78, 216, 0.1)',
+              padding: '8px',
               borderRadius: '14px',
-              border: '1px solid rgba(255, 99, 71, 0.2)'
+              border: '1px solid rgba(29, 78, 216, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}>
-              <Shield size={32} color="var(--primary)" strokeWidth={2} />
+              <img src={logoImg} alt="Logo" style={{ width: 36, height: 36, objectFit: 'contain' }} />
             </div>
             <span style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text-main)' }}>Anytime Help</span>
           </div>
@@ -117,7 +121,7 @@ export default function Login() {
         </div>
       </div>
       <div className="login-right">
-        <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', color: 'white', background: 'linear-gradient(135deg, rgba(255, 99, 71, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%)' }}>
+        <div style={{ height: '100%', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '60px', color: 'white', background: 'linear-gradient(135deg, rgba(29, 78, 216, 0.4) 0%, rgba(15, 23, 42, 0.8) 100%)' }}>
           <div style={{ maxWidth: '480px' }}>
             <h1 style={{ fontSize: '48px', fontWeight: 800, marginBottom: '24px', lineHeight: 1.1 }}>Manage your society efficiently.</h1>
             <p style={{ fontSize: '18px', opacity: 0.9, lineHeight: 1.6 }}>The Anytime Help administrative dashboard gives you full control over complaints, staff management, and analytics.</p>

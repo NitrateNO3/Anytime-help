@@ -1,19 +1,19 @@
 {
   "expo": {
-    "name": "app",
+    "name": "Anytime-help",
     "slug": "app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "splash": {
-      "image": "./assets/images/splash-logo-new.png",
+      "image": "./assets/images/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "scheme": "app",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon",
+      "icon": "./assets/images/logo.png",
       "bundleIdentifier": "com.princesani.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -40,7 +40,7 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFFFF",
-          "image": "./assets/images/splash-logo-new.png",
+          "image": "./assets/images/logo.png",
           "imageWidth": 200
         }
       ],

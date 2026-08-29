@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { LayoutDashboard, Users, LogOut, ShieldAlert, Megaphone, Image as ImageIcon, Home } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="sidebar-logo">
-          <ShieldAlert size={28} color="var(--primary)" />
+          <img src={logoImg} alt="Logo" style={{ width: 32, height: 32, objectFit: 'contain' }} />
           Anytime Help
         </div>
 

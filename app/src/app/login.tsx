@@ -177,7 +177,8 @@ export default function LoginScreen() {
             keyExtractor={(item) => item._id}
             renderItem={({ item }) => (
               <View style={{ width, height: '100%' }}>
-                <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+                <Image source={{ uri: item.url }} style={StyleSheet.absoluteFillObject} resizeMode="cover" blurRadius={15} />
+                <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%', transform: [{ translateY: -30 }] }} resizeMode="contain" />
                 <LinearGradient
                   colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
                   style={[StyleSheet.absoluteFillObject]}
