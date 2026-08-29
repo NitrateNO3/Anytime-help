@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, ShieldAlert, Megaphone, Image as ImageIcon, Home } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export default function AdminLayout() {
