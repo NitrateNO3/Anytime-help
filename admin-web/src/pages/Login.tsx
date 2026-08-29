@@ -62,7 +62,7 @@ export default function Login() {
                 value={email} 
                 onChange={(e) => setEmail(e.target.value)} 
                 required
-                placeholder="admin@anytimehelp.com"
+                placeholder="Email Address"
               />
             </div>
             <div className="input-group" style={{ position: 'relative' }}>
@@ -96,13 +96,6 @@ export default function Login() {
               </button>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                <input type="checkbox" style={{ width: '16px', height: '16px', borderRadius: '4px' }} />
-                <span style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Remember me</span>
-              </label>
-              <a href="#" style={{ fontSize: '14px', color: 'var(--primary)', fontWeight: 600, textDecoration: 'none' }}>Forgot password?</a>
-            </div>
 
             <button type="submit" className="btn-primary" disabled={loading}>
               {loading ? 'Authenticating...' : 'Sign In'}
