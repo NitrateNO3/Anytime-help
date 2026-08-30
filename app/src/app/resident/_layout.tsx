@@ -76,6 +76,13 @@ export default function ResidentLayout() {
       <Tabs.Screen name="privacy" options={{ href: null }} />
       <Tabs.Screen name="about" options={{ href: null }} />
       <Tabs.Screen name="support" options={{ href: null }} />
+      <Tabs.Screen 
+        name="book-service" 
+        options={{ 
+          href: null,
+          tabBarStyle: { display: 'none' }
+        }} 
+      />
     </Tabs>
   );
 }
