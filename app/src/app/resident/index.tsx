@@ -67,7 +67,12 @@ export default function ResidentHome() {
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'Complaints' | 'Announcements'>('Complaints');
+  const [activeTab, setActiveTab] = useState<'Complaints' | 'Announcements' | 'Services'>('Complaints');
+  const [services, setServices] = useState([
+    { id: '1', name: 'Electrician', icon: 'flash', price: 'Paid' },
+    { id: '2', name: 'Plumber', icon: 'water', price: 'Paid' },
+    { id: '3', name: 'Pest Control', icon: 'bug', price: 'Paid' }
+  ]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -300,7 +305,7 @@ export default function ResidentHome() {
             <Text style={[styles.filterText, activeTab === 'Complaints' && styles.filterTextActive]}>{t('resident.myComplaints')}</Text>
           </TouchableOpacity>
           <TouchableOpacity 
-            style={[styles.filterChip, activeTab === 'Announcements' && styles.filterChipActive, { position: 'relative', marginRight: 15, overflow: 'visible' }]}
+            style={[styles.filterChip, activeTab === 'Announcements' && styles.filterChipActive, { position: 'relative', overflow: 'visible' }]}
             onPress={() => setActiveTab('Announcements')}
           >
             <Text style={[styles.filterText, activeTab === 'Announcements' && styles.filterTextActive]}>{t('resident.announcements')}</Text>
@@ -309,6 +314,12 @@ export default function ResidentHome() {
                 <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
               </View>
             )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.filterChip, activeTab === 'Services' && styles.filterChipActive]}
+            onPress={() => setActiveTab('Services')}
+          >
+            <Text style={[styles.filterText, activeTab === 'Services' && styles.filterTextActive]}>Services</Text>
           </TouchableOpacity>
         </ScrollView>
 
@@ -331,7 +342,7 @@ export default function ResidentHome() {
                 )}
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 10 }}>
-                {['All', 'Plumber', 'Electrician', 'Cleaner', 'Security Guard', 'Other'].map(cat => {
+                {['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'].map(cat => {
                   const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
                   return (
                     <TouchableOpacity 
@@ -462,6 +473,24 @@ export default function ResidentHome() {
               </View>
             )}
           </>
+        ) : activeTab === 'Services' ? (
+          <View>
+            <Text style={styles.sectionTitle}>Paid Services</Text>
+            {services.map((item) => (
+              <TouchableOpacity key={item.id} style={[styles.card, { flexDirection: 'row', alignItems: 'center', padding: 16 }]}>
+                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+                  <Ionicons name={item.icon as any} size={24} color="#1D4ED8" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>{item.name}</Text>
+                  <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>Book professional service</Text>
+                </View>
+                <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#F59E0B' }}>
+                  <Text style={{ color: '#D97706', fontSize: 12, fontWeight: '700' }}>{item.price}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
         ) : (
           <>
             {loadingAnnouncements ? (
