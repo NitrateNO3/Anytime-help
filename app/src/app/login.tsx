@@ -76,6 +76,8 @@ export default function LoginScreen() {
             router.replace('/resident');
           } else if (user.role === 'Staff') {
             router.replace('/staff');
+          } else if (user.role === 'PaidStaff') {
+            router.replace('/paid-staff');
           }
         }
       } catch (e) {
@@ -146,6 +148,9 @@ export default function LoginScreen() {
       } else if (user.role === 'Staff') {
         Toast.show({ type: 'success', text1: 'Welcome', text2: 'Logged in successfully' });
         router.replace('/staff');
+      } else if (user.role === 'PaidStaff') {
+        Toast.show({ type: 'success', text1: 'Welcome', text2: 'Logged in successfully' });
+        router.replace('/paid-staff');
       }
     } catch (err: any) {
       Toast.show({ type: 'error', text1: 'Login Failed', text2: err.response?.data?.msg || err.message || 'Invalid OTP' });
@@ -236,7 +241,7 @@ export default function LoginScreen() {
                   onPress={() => setRole('Resident')}
                 >
                   <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>
-                    {t('login.residentLogin') || 'Resident'}
+                    Resident
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -244,7 +249,15 @@ export default function LoginScreen() {
                   onPress={() => setRole('Staff')}
                 >
                   <Text style={[styles.roleBtnText, role === 'Staff' && styles.roleBtnTextActive]}>
-                    {t('login.staffLogin') || 'Staff'}
+                    Staff
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.roleBtn, role === 'PaidStaff' && styles.roleBtnActive]}
+                  onPress={() => setRole('PaidStaff')}
+                >
+                  <Text style={[styles.roleBtnText, role === 'PaidStaff' && styles.roleBtnTextActive]}>
+                    Partner
                   </Text>
                 </TouchableOpacity>
               </View>

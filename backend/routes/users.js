@@ -19,6 +19,21 @@ router.get('/staff', auth, async (req, res) => {
   }
 });
 
+// @route   GET api/users/paid-staff
+// @desc    Get all paid staff members
+// @access  Admin Private
+router.get('/paid-staff', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    const staff = await User.find({ role: 'PaidStaff' }).select('-password');
+    res.json(staff);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   GET api/users/residents
 // @desc    Get all resident members
 // @access  Admin Private
@@ -45,7 +60,6 @@ router.post('/staff', auth, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    // Ensure phone number starts with +91 to match auth logic
     if (!phone_number.startsWith('+')) {
       phone_number = `+91${phone_number}`;
     }
@@ -64,16 +78,54 @@ router.post('/staff', auth, async (req, res) => {
 
     await user.save();
     
-    // Return the created user
-    const userToReturn = {
+    res.status(201).json({
       id: user.id,
       name: user.name,
       phone_number: user.phone_number,
       role: user.role,
       assigned_category: user.assigned_category
-    };
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
 
-    res.status(201).json(userToReturn);
+// @route   POST api/users/paid-staff
+// @desc    Create a new paid staff member
+// @access  Admin Private
+router.post('/paid-staff', auth, async (req, res) => {
+  let { name, phone_number, assigned_category } = req.body;
+
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    if (!phone_number.startsWith('+')) {
+      phone_number = `+91${phone_number}`;
+    }
+
+    let user = await User.findOne({ phone_number });
+    if (user) {
+      return res.status(400).json({ msg: 'User already exists' });
+    }
+
+    user = new User({
+      name,
+      phone_number,
+      role: 'PaidStaff',
+      assigned_category
+    });
+
+    await user.save();
+    
+    res.status(201).json({
+      id: user.id,
+      name: user.name,
+      phone_number: user.phone_number,
+      role: user.role,
+      assigned_category: user.assigned_category
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

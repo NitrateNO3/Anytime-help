@@ -7,6 +7,8 @@ import Announcements from './pages/Announcements';
 import AdminLayout from './layouts/AdminLayout';
 import Banners from './pages/Banners';
 import Residents from './pages/Residents';
+import PaidServices from './pages/PaidServices';
+import PaidStaff from './pages/PaidStaff';
 
 function App() {
   return (
@@ -23,6 +25,8 @@ function App() {
             <Route path="residents" element={<Residents />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="banners" element={<Banners />} />
+            <Route path="paid-services" element={<PaidServices />} />
+            <Route path="paid-staff" element={<PaidStaff />} />
           </Route>
         </Routes>
       </BrowserRouter>

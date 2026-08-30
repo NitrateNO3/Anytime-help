@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, Briefcase, Wrench } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export default function AdminLayout() {
@@ -43,6 +43,14 @@ export default function AdminLayout() {
           <Link to="/staff" className={`nav-link ${location.pathname === '/staff' ? 'active' : ''}`}>
             <Users size={20} />
             Staff Team
+          </Link>
+          <Link to="/paid-services" className={`nav-link ${location.pathname === '/paid-services' ? 'active' : ''}`}>
+            <Briefcase size={20} />
+            Paid Services
+          </Link>
+          <Link to="/paid-staff" className={`nav-link ${location.pathname === '/paid-staff' ? 'active' : ''}`}>
+            <Wrench size={20} />
+            Paid Staff
           </Link>
           <Link to="/announcements" className={`nav-link ${location.pathname === '/announcements' ? 'active' : ''}`}>
             <Megaphone size={20} />

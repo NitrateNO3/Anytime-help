@@ -68,11 +68,8 @@ export default function ResidentHome() {
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'Complaints' | 'Announcements' | 'Services'>('Complaints');
-  const [services, setServices] = useState([
-    { id: '1', name: 'Electrician', icon: 'flash', price: 'Paid' },
-    { id: '2', name: 'Plumber', icon: 'water', price: 'Paid' },
-    { id: '3', name: 'Pest Control', icon: 'bug', price: 'Paid' }
-  ]);
+  const [services, setServices] = useState<any[]>([]);
+  const [serviceBookings, setServiceBookings] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -185,6 +182,27 @@ export default function ResidentHome() {
     }
   };
 
+  const fetchPaidServices = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/paid-services`);
+      setServices(res.data);
+    } catch (err) {
+      console.error('Fetch paid services error:', err);
+    }
+  };
+
+  const fetchServiceBookings = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      const res = await axios.get(`${API_URL}/service-bookings/me`, {
+        headers: { 'x-auth-token': token }
+      });
+      setServiceBookings(res.data);
+    } catch (err) {
+      console.error('Fetch service bookings error:', err);
+    }
+  };
+
   const { tab } = useLocalSearchParams();
 
   React.useEffect(() => {
@@ -204,6 +222,8 @@ export default function ResidentHome() {
     useCallback(() => {
       fetchComplaints(1, false);
       fetchAnnouncements();
+      fetchPaidServices();
+      fetchServiceBookings();
       if (tab === 'Complaints') {
         setActiveTab('Complaints');
       }
@@ -475,21 +495,68 @@ export default function ResidentHome() {
           </>
         ) : activeTab === 'Services' ? (
           <View>
-            <Text style={styles.sectionTitle}>Paid Services</Text>
-            {services.map((item) => (
-              <TouchableOpacity key={item.id} style={[styles.card, { flexDirection: 'row', alignItems: 'center', padding: 16 }]}>
-                <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
-                  <Ionicons name={item.icon as any} size={24} color="#1D4ED8" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>{item.name}</Text>
-                  <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>Book professional service</Text>
-                </View>
-                <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#F59E0B' }}>
-                  <Text style={{ color: '#D97706', fontSize: 12, fontWeight: '700' }}>{item.price}</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+            {serviceBookings.length > 0 && (
+              <View style={{ marginBottom: 32 }}>
+                <Text style={styles.sectionTitle}>Active Bookings</Text>
+                {serviceBookings.map((booking) => (
+                  <View key={booking._id} style={styles.card}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>{booking.service?.name || 'Service'}</Text>
+                      <View style={{ backgroundColor: booking.status === 'COMPLETED' ? '#D1FAE5' : '#DBEAFE', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 }}>
+                        <Text style={{ color: booking.status === 'COMPLETED' ? '#059669' : '#1D4ED8', fontSize: 12, fontWeight: '700' }}>{booking.status}</Text>
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>{booking.description}</Text>
+                    
+                    {booking.status !== 'COMPLETED' && booking.status !== 'CANCELLED' && (
+                      <View style={{ backgroundColor: '#F3F4F6', padding: 12, borderRadius: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <View>
+                          <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>{booking.status === 'PENDING' || booking.status === 'ACCEPTED' ? 'Share Start OTP to begin' : 'Share End OTP to complete'}</Text>
+                          <Text style={{ fontSize: 24, fontWeight: '800', color: '#111827', letterSpacing: 4 }}>
+                            {booking.status === 'PENDING' || booking.status === 'ACCEPTED' ? booking.start_otp : booking.end_otp}
+                          </Text>
+                        </View>
+                        <Ionicons name="shield-checkmark" size={32} color="#10B981" />
+                      </View>
+                    )}
+                    
+                    {booking.assigned_staff && (
+                      <View style={{ marginTop: 12, flexDirection: 'row', alignItems: 'center' }}>
+                        <Ionicons name="person-circle" size={20} color="#9CA3AF" style={{ marginRight: 8 }} />
+                        <Text style={{ fontSize: 13, color: '#4B5563', fontWeight: '500' }}>Partner: {booking.assigned_staff.name} ({booking.assigned_staff.phone_number})</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
+
+            <Text style={styles.sectionTitle}>Available Services</Text>
+            {services.length === 0 ? (
+              <View style={styles.emptyStateContainer}>
+                <Ionicons name="briefcase-outline" size={64} color="#D1D5DB" />
+                <Text style={styles.emptyTextLarge}>No Services Available</Text>
+              </View>
+            ) : (
+              services.map((item) => (
+                <TouchableOpacity 
+                  key={item._id} 
+                  style={[styles.card, { flexDirection: 'row', alignItems: 'center', padding: 16 }]}
+                  onPress={() => router.push({ pathname: '/resident/book-service', params: { serviceId: item._id, name: item.name, icon: item.icon, basePrice: item.basePrice } })}
+                >
+                  <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginRight: 16 }}>
+                    <Ionicons name={item.icon as any} size={24} color="#1D4ED8" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '700', color: '#111827' }}>{item.name}</Text>
+                    <Text style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>Book professional service</Text>
+                  </View>
+                  <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#F59E0B' }}>
+                    <Text style={{ color: '#D97706', fontSize: 12, fontWeight: '700' }}>{item.basePrice}</Text>
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         ) : (
           <>
