@@ -63,6 +63,34 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.settingsGroup}>
+        <Text style={styles.groupTitle}>Support & About</Text>
+        
+        <TouchableOpacity style={styles.settingItemAction} onPress={() => router.push('/resident/privacy')}>
+          <View style={styles.settingItemLeft}>
+            <Ionicons name="shield-checkmark-outline" size={24} color="#4B5563" style={styles.settingIcon} />
+            <Text style={styles.settingText}>Privacy Policy</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingItemAction} onPress={() => router.push('/resident/about')}>
+          <View style={styles.settingItemLeft}>
+            <Ionicons name="information-circle-outline" size={24} color="#4B5563" style={styles.settingIcon} />
+            <Text style={styles.settingText}>About Us</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.settingItemAction} onPress={() => router.push('/resident/support')}>
+          <View style={styles.settingItemLeft}>
+            <Ionicons name="help-buoy-outline" size={24} color="#4B5563" style={styles.settingIcon} />
+            <Text style={styles.settingText}>Help & Support</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.settingsGroup}>
         <Text style={styles.groupTitle}>{t('settings.account')}</Text>
 
         <TouchableOpacity style={styles.settingItemAction} onPress={handleLogout}>

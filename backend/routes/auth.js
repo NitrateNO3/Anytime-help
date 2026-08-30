@@ -169,24 +169,35 @@ router.post('/send-otp', async (req, res) => {
 
     // Check if user is registered before sending OTP
     const dbPhoneNumber = `+91${phone_number}`;
-    const userExists = await User.findOne({ phone_number: dbPhoneNumber });
+    let userExists = await User.findOne({ phone_number: dbPhoneNumber });
     
     if (!userExists) {
-      return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
+      // Auto-register Apple Reviewer test account
+      if (phone_number === '9999999999') {
+        userExists = new User({ name: 'Apple Reviewer', phone_number: dbPhoneNumber, role: 'Resident' });
+        await userExists.save();
+      } else {
+        return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
+      }
     }
 
     if (role && userExists.role !== role) {
       return res.status(403).json({ msg: `Access Denied. You are registered as ${userExists.role}, not ${role}.` });
     }
 
-    // Generate 6 digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 6 digit OTP (Hardcoded for Apple Review)
+    const otp = phone_number === '9999999999' ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
     
     // Store OTP with 5 minute expiration
     otpStore.set(phone_number, {
       otp,
       expiresAt: Date.now() + 5 * 60 * 1000
     });
+
+    // Bypass Fast2SMS for Apple Review
+    if (phone_number === '9999999999') {
+      return res.json({ msg: 'OTP sent successfully' });
+    }
 
     // Call Fast2SMS API
     const fast2smsKey = process.env.FAST2SMS_API_KEY;
