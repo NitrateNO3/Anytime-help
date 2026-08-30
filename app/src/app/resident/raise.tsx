@@ -12,20 +12,28 @@ const API_URL = 'https://anytime-help.onrender.com/api';
 export default function RaiseComplaint() {
   const router = useRouter();
   const { t } = useTranslation();
-  const [category, setCategory] = useState('Plumber');
+  const [category, setCategory] = useState('Electricity');
   const [subCategory, setSubCategory] = useState('Water Leakage');
   const [location, setLocation] = useState('Block A - 2nd Floor');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [allowAI, setAllowAI] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [categoryModalVisible, setCategoryModalVisible] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [imageLoading, setImageLoading] = useState(false);
   
-  const categories = ['Plumber', 'Electrician', 'Cleaner', 'Security Guard', 'Maintenance', 'Pest Control', 'Other'];
+  const categories = [
+    { id: 'Electricity', icon: 'flash-outline' },
+    { id: 'Garbage', icon: 'trash-outline' },
+    { id: 'Sweeping', icon: 'brush-outline' },
+    { id: 'Sewage cleaning', icon: 'construct-outline' },
+    { id: 'Rainwater drainage', icon: 'rainy-outline' },
+    { id: 'Tree cutting', icon: 'leaf-outline' },
+    { id: 'Street light', icon: 'bulb-outline' },
+    { id: 'Water service', icon: 'water-outline' }
+  ];
 
   const pickImage = async () => {
     setImageLoading(true);
@@ -107,16 +115,26 @@ export default function RaiseComplaint() {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.container}>
+        <ScrollView 
+          style={styles.container} 
+          contentContainerStyle={{ paddingBottom: 120 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
           
-          <Text style={styles.label}>{t('raise.category')}</Text>
-          <TouchableOpacity 
-            style={styles.dropdown}
-            onPress={() => setCategoryModalVisible(true)}
-          >
-            <Text style={styles.dropdownText}>{category}</Text>
-            <Ionicons name="chevron-down" size={20} color="#6B7280" />
-          </TouchableOpacity>
+          <Text style={styles.label}>{t('raise.category') || 'Select Category'}</Text>
+          <View style={styles.gridContainer}>
+            {categories.map((cat) => (
+              <TouchableOpacity 
+                key={cat.id} 
+                style={[styles.gridItem, category === cat.id && styles.gridItemSelected]}
+                onPress={() => setCategory(cat.id)}
+              >
+                <Ionicons name={cat.icon as any} size={28} color={category === cat.id ? '#1D4ED8' : '#6B7280'} />
+                <Text style={[styles.gridItemText, category === cat.id && styles.gridItemTextSelected]}>{cat.id}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
           <Text style={styles.label}>{t('raise.location')}</Text>
           <TextInput
@@ -175,57 +193,10 @@ export default function RaiseComplaint() {
             )}
           </TouchableOpacity>
 
-        </View>
+        </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Category Selection Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={categoryModalVisible}
-        onRequestClose={() => setCategoryModalVisible(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setCategoryModalVisible(false)}
-        >
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Category</Text>
-              <TouchableOpacity onPress={() => setCategoryModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            
-            <FlatList
-              data={categories}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={[
-                    styles.categoryOption,
-                    category === item && styles.categoryOptionSelected
-                  ]}
-                  onPress={() => {
-                    setCategory(item);
-                    setCategoryModalVisible(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.categoryOptionText,
-                    category === item && styles.categoryOptionTextSelected
-                  ]}>{item}</Text>
-                  {category === item && (
-                    <Ionicons name="checkmark-circle" size={20} color="#000" />
-                  )}
-                </TouchableOpacity>
-              )}
-              showsVerticalScrollIndicator={false}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+
 
       {/* Success Confirmation Modal */}
       <Modal
@@ -244,7 +215,7 @@ export default function RaiseComplaint() {
               style={styles.doneBtn} 
               onPress={() => {
                 setSuccessModalVisible(false);
-                setCategory('Plumber');
+                setCategory('Electricity');
                 setLocation('');
                 setDescription('');
                 setImage(null);
@@ -293,8 +264,11 @@ const styles = StyleSheet.create({
   iconBtn: { padding: 4 },
   container: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 90, flex: 1 },
   label: { fontSize: 13, fontWeight: '600', color: '#4B5563', marginBottom: 6, marginTop: 12 },
-  dropdown: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 12, height: 48 },
-  dropdownText: { fontSize: 15, color: '#111827' },
+  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 8 },
+  gridItem: { width: '48%', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 12 },
+  gridItemSelected: { borderColor: '#1D4ED8', backgroundColor: 'rgba(29, 78, 216, 0.05)' },
+  gridItemText: { marginTop: 8, fontSize: 13, color: '#4B5563', fontWeight: '500', textAlign: 'center' },
+  gridItemTextSelected: { color: '#1D4ED8', fontWeight: '700' },
   textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 12, fontSize: 15, color: '#111827', minHeight: 80 },
   photosContainer: { flexDirection: 'row', gap: 12, marginTop: 4, marginBottom: 16 },
   photoAddBtn: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },
@@ -314,12 +288,4 @@ const styles = StyleSheet.create({
   doneBtn: { width: '100%', paddingVertical: 16, borderRadius: 16, backgroundColor: '#1D4ED8', alignItems: 'center' },
   doneBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '70%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  categoryOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  categoryOptionSelected: { backgroundColor: 'rgba(225, 242, 30, 0.1)', paddingHorizontal: 12, borderRadius: 12, borderBottomWidth: 0 },
-  categoryOptionText: { fontSize: 16, color: '#4B5563', fontWeight: '500' },
-  categoryOptionTextSelected: { color: '#111827', fontWeight: '700' }
 });

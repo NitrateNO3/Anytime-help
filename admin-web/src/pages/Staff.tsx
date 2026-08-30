@@ -13,7 +13,7 @@ export default function Staff() {
   // Form State
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [category, setCategory] = useState('Plumbing');
+  const [category, setCategory] = useState('Electricity');
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
@@ -58,7 +58,7 @@ export default function Staff() {
       // Reset form
       setName('');
       setPhoneNumber('');
-      setCategory('Plumbing');
+      setCategory('Electricity');
       
       // Auto switch back to list
       setActiveTab('list');
@@ -262,10 +262,14 @@ export default function Staff() {
                     cursor: 'pointer'
                   }}
                 >
-                  <option value="Plumbing">Plumbing</option>
-                  <option value="Cleaning">Cleaning</option>
-                  <option value="Electrical">Electrical</option>
-                  <option value="Carpentry">Carpentry</option>
+                  <option value="Electricity">Electricity</option>
+                  <option value="Garbage">Garbage</option>
+                  <option value="Sweeping">Sweeping</option>
+                  <option value="Sewage cleaning">Sewage cleaning</option>
+                  <option value="Rainwater drainage">Rainwater drainage</option>
+                  <option value="Tree cutting">Tree cutting</option>
+                  <option value="Street light">Street light</option>
+                  <option value="Water service">Water service</option>
                 </select>
               </div>
             </div>

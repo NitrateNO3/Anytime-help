@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard, Image, FlatList, Dimensions, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard, Image, FlatList, Dimensions, Animated, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -24,6 +24,9 @@ export default function RegisterScreen() {
   const [relation, setRelation] = useState('');
   const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState('');
+  const [phaseModalVisible, setPhaseModalVisible] = useState(false);
+  const phases = ['Sushant lok 2', 'Sushant lok 3'];
 
   const [banners, setBanners] = React.useState<any[]>([]);
   const flatListRef = React.useRef<FlatList>(null);
@@ -66,8 +69,8 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    if (!name || !phoneNumber || phoneNumber.length < 10 || !houseNo || !sector) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter Name, Phone, House No, and Sector' });
+    if (!name || !phoneNumber || phoneNumber.length < 10 || !houseNo || !sector || !phase) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please fill all required fields including Phase' });
       return;
     }
 
@@ -83,6 +86,7 @@ export default function RegisterScreen() {
       let addressParts = [];
       if (houseNo) addressParts.push(houseNo);
       if (housing) addressParts.push(housing);
+      if (phase) addressParts.push(phase);
       if (sector) addressParts.push(sector);
       const combinedAddress = addressParts.join(', ');
 
@@ -246,6 +250,17 @@ export default function RegisterScreen() {
                 />
               </View>
 
+              <TouchableOpacity 
+                style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]} 
+                onPress={() => !isDuplicateAddress && setPhaseModalVisible(true)}
+              >
+                <Ionicons name="map-outline" size={20} color="#555" style={styles.inputIcon} />
+                <Text style={{ flex: 1, fontSize: 14, color: phase ? '#333' : '#777', alignSelf: 'center' }}>
+                  {phase || 'Phase*'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#777" />
+              </TouchableOpacity>
+
               <View style={[styles.inputContainer, { marginBottom: 12 }, isDuplicateAddress && { height: 45, marginBottom: 8 }]}>
                 <Ionicons name="location-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
@@ -294,6 +309,55 @@ export default function RegisterScreen() {
           </KeyboardAvoidingView>
         </TouchableWithoutFeedback>
       </SafeAreaView>
+
+      {/* Phase Selection Modal */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={phaseModalVisible}
+        onRequestClose={() => setPhaseModalVisible(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1} 
+          onPress={() => setPhaseModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Phase</Text>
+              <TouchableOpacity onPress={() => setPhaseModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <FlatList
+              data={phases}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={[
+                    styles.categoryOption,
+                    phase === item && styles.categoryOptionSelected
+                  ]}
+                  onPress={() => {
+                    setPhase(item);
+                    setPhaseModalVisible(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.categoryOptionText,
+                    phase === item && styles.categoryOptionTextSelected
+                  ]}>{item}</Text>
+                  {phase === item && (
+                    <Ionicons name="checkmark-circle" size={20} color="#1D4ED8" />
+                  )}
+                </TouchableOpacity>
+              )}
+              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -468,5 +532,13 @@ const styles = StyleSheet.create({
     color: '#1D4ED8',
     fontSize: 14,
     fontWeight: '700',
-  }
+  },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '50%' },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
+  categoryOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
+  categoryOptionSelected: { backgroundColor: 'rgba(29, 78, 216, 0.1)', paddingHorizontal: 12, borderRadius: 12, borderBottomWidth: 0 },
+  categoryOptionText: { fontSize: 16, color: '#4B5563', fontWeight: '500' },
+  categoryOptionTextSelected: { color: '#1D4ED8', fontWeight: '700' }
 });
