@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { ClipboardList, Clock, CheckCircle, AlertCircle, PlayCircle } from 'lucide-react';
+import { ClipboardList, Clock, CheckCircle, AlertCircle, PlayCircle, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -26,6 +26,23 @@ export default function ServiceBookings() {
       toast.error('Failed to fetch service bookings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this booking?')) return;
+
+    const loadingToast = toast.loading('Deleting booking...');
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.delete(`${API_URL}/service-bookings/${id}`, {
+        headers: { 'x-auth-token': token }
+      });
+      toast.success('Booking deleted successfully!', { id: loadingToast });
+      fetchBookings();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to delete booking', { id: loadingToast });
     }
   };
 
@@ -72,6 +89,7 @@ export default function ServiceBookings() {
                 <th>Staff Assigned</th>
                 <th>Status</th>
                 <th>Requested At</th>
+                <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -93,6 +111,15 @@ export default function ServiceBookings() {
                   </td>
                   <td>{getStatusBadge(booking.status)}</td>
                   <td>{new Date(booking.createdAt).toLocaleDateString()}</td>
+                  <td style={{ textAlign: 'center' }}>
+                    <button 
+                      onClick={() => handleDelete(booking._id)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                      title="Delete Booking"
+                    >
+                      <Trash2 size={18} color="var(--danger)" />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -172,4 +172,20 @@ router.put('/:id/complete', auth, async (req, res) => {
   }
 });
 
+// @route   DELETE api/service-bookings/:id
+// @desc    Delete a service booking
+// @access  Admin Private
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Only admins can delete bookings' });
+    }
+    const booking = await ServiceBooking.findByIdAndDelete(req.params.id);
+    if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    res.json({ message: 'Booking deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;
