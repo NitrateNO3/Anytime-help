@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Trash2, Plus, Briefcase } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function PaidServices() {
   const [services, setServices] = useState<any[]>([]);
@@ -17,11 +19,20 @@ export default function PaidServices() {
 
   useEffect(() => {
     fetchServices();
+    
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socket.on('service_changed', () => {
+      fetchServices(false);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
-  const fetchServices = async () => {
+  const fetchServices = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
       const res = await axios.get(`${API_URL}/paid-services/all`, {
         headers: { 'x-auth-token': token }
@@ -31,7 +42,7 @@ export default function PaidServices() {
       console.error(error);
       toast.error('Failed to fetch paid services');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -55,7 +66,7 @@ export default function PaidServices() {
       setName('');
       setIcon('flash');
       setBasePrice('Paid');
-      fetchServices();
+      fetchServices(false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create service', { id: loadingToast });
     } finally {
@@ -84,7 +95,7 @@ export default function PaidServices() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Service deleted successfully!', { id: loadingToast });
-                fetchServices();
+                setServices(prev => prev.filter(s => s._id !== id));
               } catch (error) {
                 console.error(error);
                 toast.error('Failed to delete service', { id: loadingToast });

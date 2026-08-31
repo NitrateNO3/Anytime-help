@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ClipboardList, Clock, CheckCircle, AlertCircle, PlayCircle, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function ServiceBookings() {
   const [bookings, setBookings] = useState<any[]>([]);
@@ -11,11 +13,19 @@ export default function ServiceBookings() {
 
   useEffect(() => {
     fetchBookings();
+    
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socket.on('booking_updated', () => fetchBookings(false));
+    socket.on('new_service_booking', () => fetchBookings(false));
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
-  const fetchBookings = async () => {
+  const fetchBookings = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
       const res = await axios.get(`${API_URL}/service-bookings/me`, {
         headers: { 'x-auth-token': token }
@@ -25,7 +35,7 @@ export default function ServiceBookings() {
       console.error(error);
       toast.error('Failed to fetch service bookings');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -50,7 +60,7 @@ export default function ServiceBookings() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Booking deleted successfully!', { id: loadingToast });
-                fetchBookings();
+                setBookings(prev => prev.filter(b => b._id !== id));
               } catch (error) {
                 console.error(error);
                 toast.error('Failed to delete booking', { id: loadingToast });

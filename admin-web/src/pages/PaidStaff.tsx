@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Trash2, UserPlus, Wrench, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function PaidStaff() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
@@ -24,11 +26,20 @@ export default function PaidStaff() {
     if (activeTab === 'create') {
       fetchServices();
     }
+    
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socket.on('staff_changed', () => {
+      if (activeTab === 'list') fetchStaff(false);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [activeTab]);
 
-  const fetchStaff = async () => {
+  const fetchStaff = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
       const res = await axios.get(`${API_URL}/users/paid-staff`, {
         headers: { 'x-auth-token': token }
@@ -38,7 +49,7 @@ export default function PaidStaff() {
       console.error(err);
       toast.error('Failed to load paid staff members');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -114,7 +125,7 @@ export default function PaidStaff() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Staff member deleted', { id: loadingToast });
-                fetchStaff();
+                setStaff(prev => prev.filter(s => s._id !== id));
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete staff', { id: loadingToast });

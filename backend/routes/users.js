@@ -78,6 +78,11 @@ router.post('/staff', auth, async (req, res) => {
 
     await user.save();
     
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('staff_changed', { action: 'create', data: user });
+    }
+
     res.status(201).json({
       id: user.id,
       name: user.name,
@@ -119,6 +124,11 @@ router.post('/paid-staff', auth, async (req, res) => {
 
     await user.save();
     
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('staff_changed', { action: 'create', data: user });
+    }
+
     res.status(201).json({
       id: user.id,
       name: user.name,
@@ -145,10 +155,13 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
     
-    // Emit live event for remote logout
+    // Emit live event for remote logout and realtime update
     const io = req.app.get('io');
     if (io) {
       io.emit('user_deleted', { id: req.params.id });
+      if (user.role === 'Staff' || user.role === 'PaidStaff') {
+        io.emit('staff_changed', { action: 'delete', id: req.params.id });
+      }
     }
     
     res.json({ message: 'User deleted successfully' });
