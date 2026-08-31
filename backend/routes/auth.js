@@ -172,9 +172,15 @@ router.post('/send-otp', async (req, res) => {
     let userExists = await User.findOne({ phone_number: dbPhoneNumber });
     
     if (!userExists) {
-      // Auto-register Apple Reviewer test account
+      // Auto-register Reviewer test accounts
       if (phone_number === '9999999999') {
-        userExists = new User({ name: 'Apple Reviewer', phone_number: dbPhoneNumber, role: 'Resident' });
+        userExists = new User({ name: 'Resident Reviewer', phone_number: dbPhoneNumber, role: 'Resident' });
+        await userExists.save();
+      } else if (phone_number === '8888888888') {
+        userExists = new User({ name: 'Staff Reviewer', phone_number: dbPhoneNumber, role: 'Staff', assigned_category: 'Electrical' });
+        await userExists.save();
+      } else if (phone_number === '7777777777') {
+        userExists = new User({ name: 'Partner Reviewer', phone_number: dbPhoneNumber, role: 'PaidStaff' });
         await userExists.save();
       } else {
         return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
@@ -185,8 +191,9 @@ router.post('/send-otp', async (req, res) => {
       return res.status(403).json({ msg: `Access Denied. You are registered as ${userExists.role}, not ${role}.` });
     }
 
-    // Generate 6 digit OTP (Hardcoded for Apple Review)
-    const otp = phone_number === '9999999999' ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
+    // Generate 6 digit OTP (Hardcoded for Review Accounts)
+    const isTestAccount = ['9999999999', '8888888888', '7777777777'].includes(phone_number);
+    const otp = isTestAccount ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
     
     // Store OTP with 5 minute expiration
     otpStore.set(phone_number, {
@@ -194,9 +201,9 @@ router.post('/send-otp', async (req, res) => {
       expiresAt: Date.now() + 5 * 60 * 1000
     });
 
-    // Bypass Fast2SMS for Apple Review
-    if (phone_number === '9999999999') {
-      return res.json({ msg: 'OTP sent successfully' });
+    // Bypass Fast2SMS for Review Accounts
+    if (isTestAccount) {
+      return res.json({ msg: 'OTP sent successfully (Test Account)' });
     }
 
     // Call Fast2SMS API
