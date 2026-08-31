@@ -26,6 +26,7 @@ const seedDB = async () => {
 
     // Staff
     const staffAccounts = [
+      { email: 'test@staff.com', name: 'Test Staff', category: 'Electricity' },
       { email: 'plumber@staff.com', name: 'Ramu Plumber', category: 'Plumbing' },
       { email: 'electrician@staff.com', name: 'Shyamu Electrician', category: 'Electrical' },
       { email: 'cleaner@staff.com', name: 'Raju Cleaner', category: 'Cleaning' }
@@ -43,6 +44,19 @@ const seedDB = async () => {
         });
         console.log(`Staff created: ${s.name} (${s.category})`);
       }
+    }
+
+    // Partner (PaidStaff)
+    let partner = await User.findOne({ email: 'test@partner.com' });
+    if (!partner) {
+      await User.create({
+        name: 'Test Partner',
+        email: 'test@partner.com',
+        password: hashedPassword,
+        role: 'PaidStaff',
+        phone_number: '9999999999' // PaidStaff often need phone number in app
+      });
+      console.log('Partner (PaidStaff) created');
     }
 
     // Admin
