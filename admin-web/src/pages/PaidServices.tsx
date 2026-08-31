@@ -8,6 +8,7 @@ const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function PaidServices() {
+  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [services, setServices] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -66,6 +67,7 @@ export default function PaidServices() {
       setName('');
       setIcon('flash');
       setBasePrice('Paid');
+      setActiveTab('list');
       fetchServices(false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to create service', { id: loadingToast });
@@ -119,51 +121,35 @@ export default function PaidServices() {
         </div>
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        
-        {/* Create Form */}
-        <div className="glass" style={{ padding: '24px' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Plus size={20} color="var(--primary)" /> Add New Service
-          </h2>
-          <form onSubmit={handleCreate}>
-            <div className="input-group">
-              <label>Service Name</label>
-              <input 
-                type="text" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                required
-                placeholder="e.g. AC Repair"
-              />
-            </div>
-            <div className="input-group">
-              <label>Icon Name (Ionicons)</label>
-              <input 
-                type="text" 
-                value={icon} 
-                onChange={(e) => setIcon(e.target.value)} 
-                required
-                placeholder="e.g. snow, flash, water, bug"
-              />
-              <small style={{ color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>Use valid Ionicons names.</small>
-            </div>
-            <div className="input-group">
-              <label>Price Tag / Base Price</label>
-              <input 
-                type="text" 
-                value={basePrice} 
-                onChange={(e) => setBasePrice(e.target.value)} 
-                required
-                placeholder="e.g. Paid, ₹500, /hour"
-              />
-            </div>
-            <button type="submit" className="btn-primary" disabled={isCreating} style={{ width: '100%', marginTop: '16px' }}>
-              {isCreating ? 'Creating...' : 'Create Service'}
-            </button>
-          </form>
-        </div>
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 16, marginBottom: 32 }}>
+        <button 
+          onClick={() => setActiveTab('list')}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+            background: activeTab === 'list' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'list' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'list' ? 'none' : '1px solid var(--border-color)',
+            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+          }}
+        >
+          <Briefcase size={18} /> Active Services
+        </button>
+        <button 
+          onClick={() => setActiveTab('create')}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+            background: activeTab === 'create' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
+            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+          }}
+        >
+          <Plus size={18} /> Create Service
+        </button>
+      </div>
 
+      {activeTab === 'list' ? (
         {/* List of Services */}
         <div className="glass table-container">
           <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Active Services</h2>
@@ -234,7 +220,54 @@ export default function PaidServices() {
             </table>
           )}
         </div>
-      </div>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
+          <div className="glass" style={{ padding: '40px', width: '100%', maxWidth: '600px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+              <div style={{ background: 'rgba(255, 99, 71, 0.1)', padding: 12, borderRadius: 12 }}>
+                <Plus size={28} color="var(--primary)" />
+              </div>
+              <h2 style={{ fontSize: 24, fontWeight: 700 }}>Add New Service</h2>
+            </div>
+            <form onSubmit={handleCreate}>
+              <div className="input-group">
+                <label>Service Name</label>
+                <input 
+                  type="text" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                  required
+                  placeholder="e.g. AC Repair"
+                />
+              </div>
+              <div className="input-group">
+                <label>Icon Name (Ionicons)</label>
+                <input 
+                  type="text" 
+                  value={icon} 
+                  onChange={(e) => setIcon(e.target.value)} 
+                  required
+                  placeholder="e.g. snow, flash, water, bug"
+                />
+                <small style={{ color: 'var(--text-muted)', marginTop: 4, display: 'block' }}>Use valid Ionicons names.</small>
+              </div>
+              <div className="input-group">
+                <label>Price Tag / Base Price</label>
+                <input 
+                  type="text" 
+                  value={basePrice} 
+                  onChange={(e) => setBasePrice(e.target.value)} 
+                  required
+                  placeholder="e.g. Paid, ₹500, /hour"
+                />
+              </div>
+              <button type="submit" className="btn-primary" disabled={isCreating} style={{ width: '100%', marginTop: '16px', height: '52px' }}>
+                {isCreating ? 'Creating Service...' : 'Create Service'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
