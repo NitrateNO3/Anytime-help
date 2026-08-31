@@ -93,21 +93,40 @@ export default function PaidStaff() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this paid staff member?')) return;
-    
-    const loadingToast = toast.loading('Deleting staff...');
-    try {
-      const token = localStorage.getItem('adminToken');
-      await axios.delete(`${API_URL}/users/${id}`, {
-        headers: { 'x-auth-token': token }
-      });
-      toast.success('Staff member deleted', { id: loadingToast });
-      fetchStaff();
-    } catch (err) {
-      console.error(err);
-      toast.error('Failed to delete staff', { id: loadingToast });
-    }
+  const handleDelete = (id: string) => {
+    toast((t) => (
+      <div>
+        <p style={{ fontWeight: 600, marginBottom: 12, color: 'var(--text-main)' }}>Are you sure you want to delete this paid staff member?</p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontWeight: 500, color: 'var(--text-main)' }}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const loadingToast = toast.loading('Deleting staff...');
+              try {
+                const token = localStorage.getItem('adminToken');
+                await axios.delete(`${API_URL}/users/${id}`, {
+                  headers: { 'x-auth-token': token }
+                });
+                toast.success('Staff member deleted', { id: loadingToast });
+                fetchStaff();
+              } catch (err) {
+                console.error(err);
+                toast.error('Failed to delete staff', { id: loadingToast });
+              }
+            }} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: 'var(--danger)', color: 'white', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
   return (
@@ -162,7 +181,14 @@ export default function PaidStaff() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={4} style={{textAlign:'center', padding:'20px'}}>Loading...</td></tr>
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`}>
+                    <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: '60%' }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 100, height: 24, borderRadius: 20 }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 30, margin: '0 auto' }}></div></td>
+                  </tr>
+                ))
               ) : staff.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>

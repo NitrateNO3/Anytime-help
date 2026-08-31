@@ -29,21 +29,40 @@ export default function ServiceBookings() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this booking?')) return;
-
-    const loadingToast = toast.loading('Deleting booking...');
-    try {
-      const token = localStorage.getItem('adminToken');
-      await axios.delete(`${API_URL}/service-bookings/${id}`, {
-        headers: { 'x-auth-token': token }
-      });
-      toast.success('Booking deleted successfully!', { id: loadingToast });
-      fetchBookings();
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to delete booking', { id: loadingToast });
-    }
+  const handleDelete = (id: string) => {
+    toast((t) => (
+      <div>
+        <p style={{ fontWeight: 600, marginBottom: 12, color: 'var(--text-main)' }}>Are you sure you want to delete this booking?</p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontWeight: 500, color: 'var(--text-main)' }}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const loadingToast = toast.loading('Deleting booking...');
+              try {
+                const token = localStorage.getItem('adminToken');
+                await axios.delete(`${API_URL}/service-bookings/${id}`, {
+                  headers: { 'x-auth-token': token }
+                });
+                toast.success('Booking deleted successfully!', { id: loadingToast });
+                fetchBookings();
+              } catch (error) {
+                console.error(error);
+                toast.error('Failed to delete booking', { id: loadingToast });
+              }
+            }} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: 'var(--danger)', color: 'white', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
   const getStatusBadge = (status: string) => {
@@ -72,7 +91,37 @@ export default function ServiceBookings() {
 
       <div className="glass table-container">
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>
+          <table style={{ width: '100%' }}>
+            <thead>
+              <tr>
+                <th>Service</th>
+                <th>Resident</th>
+                <th>Address</th>
+                <th>Preferred Time</th>
+                <th>Staff Assigned</th>
+                <th>Status</th>
+                <th>Requested At</th>
+                <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <tr key={`skeleton-${idx}`}>
+                  <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
+                  <td>
+                    <div className="skeleton skeleton-row" style={{ height: 16, width: '80%', marginBottom: 4 }}></div>
+                    <div className="skeleton skeleton-row" style={{ height: 12, width: '60%' }}></div>
+                  </td>
+                  <td><div className="skeleton skeleton-row" style={{ width: '70%' }}></div></td>
+                  <td><div className="skeleton skeleton-row" style={{ width: '60%' }}></div></td>
+                  <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
+                  <td><div className="skeleton skeleton-row" style={{ width: 80, height: 24, borderRadius: 12 }}></div></td>
+                  <td><div className="skeleton skeleton-row" style={{ width: '70%' }}></div></td>
+                  <td><div className="skeleton skeleton-row" style={{ width: 30, margin: '0 auto' }}></div></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : bookings.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
             <ClipboardList size={40} color="var(--border-color)" style={{ margin: '0 auto 16px' }} />

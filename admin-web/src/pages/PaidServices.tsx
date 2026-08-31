@@ -63,21 +63,40 @@ export default function PaidServices() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this service?')) return;
-
-    const loadingToast = toast.loading('Deleting service...');
-    try {
-      const token = localStorage.getItem('adminToken');
-      await axios.delete(`${API_URL}/paid-services/${id}`, {
-        headers: { 'x-auth-token': token }
-      });
-      toast.success('Service deleted successfully!', { id: loadingToast });
-      fetchServices();
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to delete service', { id: loadingToast });
-    }
+  const handleDelete = (id: string) => {
+    toast((t) => (
+      <div>
+        <p style={{ fontWeight: 600, marginBottom: 12, color: 'var(--text-main)' }}>Are you sure you want to delete this service?</p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontWeight: 500, color: 'var(--text-main)' }}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const loadingToast = toast.loading('Deleting service...');
+              try {
+                const token = localStorage.getItem('adminToken');
+                await axios.delete(`${API_URL}/paid-services/${id}`, {
+                  headers: { 'x-auth-token': token }
+                });
+                toast.success('Service deleted successfully!', { id: loadingToast });
+                fetchServices();
+              } catch (error) {
+                console.error(error);
+                toast.error('Failed to delete service', { id: loadingToast });
+              }
+            }} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: 'var(--danger)', color: 'white', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
   return (
@@ -138,7 +157,26 @@ export default function PaidServices() {
         <div className="glass table-container">
           <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Active Services</h2>
           {loading ? (
-             <div style={{ textAlign: 'center', padding: '20px' }}>Loading...</div>
+            <table style={{ width: '100%' }}>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Icon</th>
+                  <th>Price Tag</th>
+                  <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 4 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`}>
+                    <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 60, height: 24 }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 80, height: 24, borderRadius: 12 }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 30, margin: '0 auto' }}></div></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           ) : services.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
               <Briefcase size={40} color="var(--border-color)" style={{ margin: '0 auto 16px' }} />
