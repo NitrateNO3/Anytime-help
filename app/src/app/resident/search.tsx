@@ -6,11 +6,12 @@ import { useTranslation } from 'react-i18next';
 export default function DirectoryScreen() {
   const { t } = useTranslation();
   const contacts = [
-    { id: '1', name: 'Security Gate Main', role: 'Security', phone: '+91 9876543210', icon: 'shield-checkmark' },
-    { id: '2', name: 'Estate Manager', role: 'Admin', phone: '+91 9876543211', icon: 'business' },
-    { id: '3', name: 'Emergency Medical', role: 'Ambulance', phone: '108', icon: 'medkit' },
-    { id: '4', name: 'Electrician (Ramesh)', role: 'Maintenance', phone: '+91 9876543212', icon: 'flash' },
-    { id: '5', name: 'Plumber (Suresh)', role: 'Maintenance', phone: '+91 9876543213', icon: 'water' },
+    { id: '1', name: 'National Emergency', role: 'All Emergencies', phone: '112', icon: 'alert-circle' },
+    { id: '2', name: 'Police', role: 'Law Enforcement', phone: '100', icon: 'shield-checkmark' },
+    { id: '3', name: 'Fire Brigade', role: 'Fire Emergency', phone: '101', icon: 'flame' },
+    { id: '4', name: 'Ambulance', role: 'Medical Emergency', phone: '108', icon: 'medkit' },
+    { id: '5', name: 'Women Helpline', role: 'Women Safety', phone: '1091', icon: 'woman' },
+    { id: '6', name: 'Society Security Gate', role: 'Internal Security', phone: '+91 9876543210', icon: 'lock-closed' },
   ];
 
   const handleCall = (phone: string) => {

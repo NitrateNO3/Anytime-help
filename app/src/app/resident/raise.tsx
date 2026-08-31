@@ -25,14 +25,14 @@ export default function RaiseComplaint() {
   const [imageLoading, setImageLoading] = useState(false);
   
   const categories = [
-    { id: 'Electricity', icon: 'flash-outline' },
-    { id: 'Garbage', icon: 'trash-outline' },
-    { id: 'Sweeping', icon: 'brush-outline' },
-    { id: 'Sewage cleaning', icon: 'construct-outline' },
-    { id: 'Rainwater drainage', icon: 'rainy-outline' },
-    { id: 'Tree cutting', icon: 'leaf-outline' },
-    { id: 'Street light', icon: 'bulb-outline' },
-    { id: 'Water service', icon: 'water-outline' }
+    { id: 'Electricity', icon: 'flash', color: '#F59E0B', bgColor: '#FEF3C7' },
+    { id: 'Garbage', icon: 'trash', color: '#EF4444', bgColor: '#FEE2E2' },
+    { id: 'Sweeping', icon: 'brush', color: '#8B5CF6', bgColor: '#EDE9FE' },
+    { id: 'Sewage cleaning', icon: 'construct', color: '#6366F1', bgColor: '#E0E7FF' },
+    { id: 'Rainwater drainage', icon: 'rainy', color: '#3B82F6', bgColor: '#DBEAFE' },
+    { id: 'Tree cutting', icon: 'leaf', color: '#10B981', bgColor: '#D1FAE5' },
+    { id: 'Street light', icon: 'bulb', color: '#F59E0B', bgColor: '#FEF3C7' },
+    { id: 'Water service', icon: 'water', color: '#06B6D4', bgColor: '#CFFAFE' }
   ];
 
   const pickImage = async () => {
@@ -124,16 +124,24 @@ export default function RaiseComplaint() {
           
           <Text style={styles.label}>{t('raise.category') || 'Select Category'}</Text>
           <View style={styles.gridContainer}>
-            {categories.map((cat) => (
-              <TouchableOpacity 
-                key={cat.id} 
-                style={[styles.gridItem, category === cat.id && styles.gridItemSelected]}
-                onPress={() => setCategory(cat.id)}
-              >
-                <Ionicons name={cat.icon as any} size={28} color={category === cat.id ? '#1D4ED8' : '#6B7280'} />
-                <Text style={[styles.gridItemText, category === cat.id && styles.gridItemTextSelected]}>{cat.id}</Text>
-              </TouchableOpacity>
-            ))}
+            {categories.map((cat) => {
+              const isSelected = category === cat.id;
+              return (
+                <TouchableOpacity 
+                  key={cat.id} 
+                  style={[
+                    styles.gridItem, 
+                    isSelected && { borderColor: cat.color, backgroundColor: cat.bgColor, shadowColor: cat.color, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8, elevation: 4 }
+                  ]}
+                  onPress={() => setCategory(cat.id)}
+                >
+                  <View style={[styles.iconWrapper, { backgroundColor: isSelected ? '#FFFFFF' : cat.bgColor }]}>
+                    <Ionicons name={(isSelected ? cat.icon : `${cat.icon}-outline`) as any} size={24} color={cat.color} />
+                  </View>
+                  <Text style={[styles.gridItemText, isSelected ? { color: cat.color, fontWeight: '700' } : {}]}>{cat.id}</Text>
+                </TouchableOpacity>
+              )
+            })}
           </View>
 
           <Text style={styles.label}>{t('raise.location')}</Text>
@@ -265,10 +273,9 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 90, flex: 1 },
   label: { fontSize: 13, fontWeight: '600', color: '#4B5563', marginBottom: 6, marginTop: 12 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 8 },
-  gridItem: { width: '48%', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 12 },
-  gridItemSelected: { borderColor: '#1D4ED8', backgroundColor: 'rgba(29, 78, 216, 0.05)' },
+  gridItem: { width: '48%', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 16, padding: 12, alignItems: 'center', marginBottom: 12 },
+  iconWrapper: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
   gridItemText: { marginTop: 8, fontSize: 13, color: '#4B5563', fontWeight: '500', textAlign: 'center' },
-  gridItemTextSelected: { color: '#1D4ED8', fontWeight: '700' },
   textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 12, fontSize: 15, color: '#111827', minHeight: 80 },
   photosContainer: { flexDirection: 'row', gap: 12, marginTop: 4, marginBottom: 16 },
   photoAddBtn: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },

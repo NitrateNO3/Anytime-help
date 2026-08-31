@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, SafeAreaView, ScrollView, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import axios from 'axios';
@@ -17,6 +17,17 @@ export default function BookServiceScreen() {
   const [address, setAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [fetchingUser, setFetchingUser] = useState(true);
+  const [modalConfig, setModalConfig] = useState({ visible: false, type: 'success', title: '', message: '', onConfirm: null as any });
+
+  const showAlert = (type: 'success' | 'error' | 'info', title: string, message: string, onConfirm?: () => void) => {
+    setModalConfig({ visible: true, type, title, message, onConfirm });
+  };
+
+  const closeModal = () => {
+    const { onConfirm } = modalConfig;
+    setModalConfig(prev => ({ ...prev, visible: false }));
+    if (onConfirm) onConfirm();
+  };
 
   useEffect(() => {
     fetchUserData();
@@ -38,11 +49,11 @@ export default function BookServiceScreen() {
 
   const handleBook = async () => {
     if (!description.trim()) {
-      Alert.alert('Missing Details', 'Please provide a brief description of the issue.');
+      showAlert('info', 'Missing Details', 'Please provide a brief description of the issue.');
       return;
     }
     if (!preferredTime.trim()) {
-      Alert.alert('Missing Details', 'Please provide a preferred time (e.g., Today 4 PM).');
+      showAlert('info', 'Missing Details', 'Please provide a preferred time (e.g., Today 4 PM).');
       return;
     }
 
@@ -58,12 +69,10 @@ export default function BookServiceScreen() {
         headers: { 'x-auth-token': token }
       });
       
-      Alert.alert('Success', 'Your service has been booked successfully! A partner will be assigned shortly.', [
-        { text: 'OK', onPress: () => router.back() }
-      ]);
+      showAlert('success', 'Success', 'Your service has been booked successfully! A partner will be assigned shortly.', () => router.back());
     } catch (error: any) {
       console.error(error);
-      Alert.alert('Error', error.response?.data?.message || 'Failed to book service.');
+      showAlert('error', 'Error', error.response?.data?.message || 'Failed to book service.');
     } finally {
       setLoading(false);
     }
@@ -168,6 +177,43 @@ export default function BookServiceScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Custom Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalConfig.visible}
+        onRequestClose={closeModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={[
+              styles.modalIconCircle,
+              modalConfig.type === 'success' ? { backgroundColor: '#D1FAE5' } : 
+              modalConfig.type === 'error' ? { backgroundColor: '#FEE2E2' } : { backgroundColor: '#DBEAFE' }
+            ]}>
+              <Ionicons 
+                name={modalConfig.type === 'success' ? 'checkmark' : modalConfig.type === 'error' ? 'close' : 'information'} 
+                size={40} 
+                color={modalConfig.type === 'success' ? '#10B981' : modalConfig.type === 'error' ? '#EF4444' : '#3B82F6'} 
+              />
+            </View>
+            <Text style={styles.modalTitle}>{modalConfig.title}</Text>
+            <Text style={styles.modalText}>{modalConfig.message}</Text>
+            <TouchableOpacity 
+              style={[
+                styles.modalBtn,
+                modalConfig.type === 'success' ? { backgroundColor: '#10B981' } : 
+                modalConfig.type === 'error' ? { backgroundColor: '#EF4444' } : { backgroundColor: '#3B82F6' }
+              ]} 
+              onPress={closeModal}
+            >
+              <Text style={styles.modalBtnText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -239,5 +285,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 20
   },
-  bookBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' }
+  bookBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  
+  // Custom Modal Styles
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalContainer: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  modalIconCircle: { width: 72, height: 72, borderRadius: 36, justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontSize: 24, fontWeight: '800', color: '#111827', marginBottom: 8 },
+  modalText: { fontSize: 15, color: '#6B7280', textAlign: 'center', marginBottom: 28, lineHeight: 22 },
+  modalBtn: { width: '100%', paddingVertical: 16, borderRadius: 16, alignItems: 'center' },
+  modalBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' }
 });

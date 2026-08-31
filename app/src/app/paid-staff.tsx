@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, StatusBar, ActivityIndicator, RefreshControl, Modal, TextInput, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
@@ -25,6 +25,16 @@ export default function PaidStaffScreen() {
   const [otpAction, setOtpAction] = useState<'start' | 'complete'>('start');
   const [otpInput, setOtpInput] = useState('');
   const [processing, setProcessing] = useState(false);
+  
+  const [modalConfig, setModalConfig] = useState({ visible: false, title: '', message: '' });
+
+  const showAlert = (title: string, message: string) => {
+    setModalConfig({ visible: true, title, message });
+  };
+
+  const closeAlert = () => {
+    setModalConfig(prev => ({ ...prev, visible: false }));
+  };
 
   useEffect(() => {
     fetchUserData();
@@ -111,7 +121,7 @@ export default function PaidStaffScreen() {
 
   const handleVerifyOtp = async () => {
     if (!otpInput || otpInput.length !== 4) {
-      Alert.alert('Invalid OTP', 'Please enter a 4-digit OTP');
+      showAlert('Invalid OTP', 'Please enter a 4-digit OTP');
       return;
     }
 
@@ -131,7 +141,7 @@ export default function PaidStaffScreen() {
       setOtpModalVisible(false);
       fetchBookings();
     } catch (error: any) {
-      Alert.alert('Verification Failed', error.response?.data?.message || 'Invalid OTP');
+      showAlert('Verification Failed', error.response?.data?.message || 'Invalid OTP');
     } finally {
       setProcessing(false);
     }
@@ -269,6 +279,27 @@ export default function PaidStaffScreen() {
         </View>
       </Modal>
 
+      {/* Custom Alert Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalConfig.visible}
+        onRequestClose={closeAlert}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.alertModalContainer}>
+            <View style={styles.alertIconCircle}>
+              <Ionicons name="information-circle" size={40} color="#3B82F6" />
+            </View>
+            <Text style={styles.alertModalTitle}>{modalConfig.title}</Text>
+            <Text style={styles.alertModalText}>{modalConfig.message}</Text>
+            <TouchableOpacity style={styles.alertModalBtn} onPress={closeAlert}>
+              <Text style={styles.alertModalBtnText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -304,5 +335,13 @@ const styles = StyleSheet.create({
   cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center' },
   cancelBtnText: { fontSize: 15, fontWeight: '700', color: '#4B5563' },
   confirmBtn: { flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#1D4ED8', alignItems: 'center' },
-  confirmBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' }
+  confirmBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+  
+  // Custom Alert Styles
+  alertModalContainer: { width: '85%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 28, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  alertIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#DBEAFE', justifyContent: 'center', alignItems: 'center', marginBottom: 20 },
+  alertModalTitle: { fontSize: 24, fontWeight: '800', color: '#111827', marginBottom: 8, textAlign: 'center' },
+  alertModalText: { fontSize: 15, color: '#6B7280', textAlign: 'center', marginBottom: 28, lineHeight: 22 },
+  alertModalBtn: { width: '100%', paddingVertical: 16, borderRadius: 16, backgroundColor: '#3B82F6', alignItems: 'center' },
+  alertModalBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' }
 });

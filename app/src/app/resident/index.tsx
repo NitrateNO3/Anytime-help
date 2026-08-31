@@ -184,7 +184,7 @@ export default function ResidentHome() {
 
   const fetchPaidServices = async () => {
     try {
-      const res = await axios.get(`${API_URL}/paid-services`);
+      const res = await axios.get(`${API_URL}/paid-services?t=${new Date().getTime()}`);
       setServices(res.data);
     } catch (err) {
       console.error('Fetch paid services error:', err);
@@ -212,6 +212,19 @@ export default function ResidentHome() {
     });
     socket.on('announcement_changed', () => {
       fetchAnnouncements();
+    });
+    socket.on('service_changed', (data: any) => {
+      console.log('SOCKET EVENT (service_changed) RECEIVED IN APP:', data);
+      if (data && data.action === 'delete' && data.id) {
+        setServices(prev => prev.filter(s => s._id !== data.id));
+      } else if (data && data.action === 'create' && data.data) {
+        setServices(prev => {
+          if (prev.find(s => s._id === data.data._id)) return prev;
+          return [...prev, data.data];
+        });
+      } else {
+        fetchPaidServices();
+      }
     });
     return () => {
       socket.disconnect();
