@@ -25,14 +25,14 @@ export default function RaiseComplaint() {
   const [imageLoading, setImageLoading] = useState(false);
   
   const categories = [
-    { id: 'Electricity', icon: 'flash', color: '#F59E0B', bgColor: '#FEF3C7' },
-    { id: 'Garbage', icon: 'trash', color: '#EF4444', bgColor: '#FEE2E2' },
-    { id: 'Sweeping', icon: 'brush', color: '#8B5CF6', bgColor: '#EDE9FE' },
-    { id: 'Sewage cleaning', icon: 'construct', color: '#6366F1', bgColor: '#E0E7FF' },
-    { id: 'Rainwater drainage', icon: 'rainy', color: '#3B82F6', bgColor: '#DBEAFE' },
-    { id: 'Tree cutting', icon: 'leaf', color: '#10B981', bgColor: '#D1FAE5' },
+    { id: 'Electricity', icon: 'flash', color: '#3B82F6', bgColor: '#DBEAFE' },
+    { id: 'Garbage', icon: 'trash', color: '#F97316', bgColor: '#FFEDD5' },
+    { id: 'Sweeping', icon: 'brush', color: '#EF4444', bgColor: '#FEE2E2' },
+    { id: 'Sewage cleaning', icon: 'construct', color: '#10B981', bgColor: '#D1FAE5' },
+    { id: 'Rainwater drainage', icon: 'rainy', color: '#06B6D4', bgColor: '#CFFAFE' },
+    { id: 'Tree cutting', icon: 'leaf', color: '#6366F1', bgColor: '#E0E7FF' },
     { id: 'Street light', icon: 'bulb', color: '#F59E0B', bgColor: '#FEF3C7' },
-    { id: 'Water service', icon: 'water', color: '#06B6D4', bgColor: '#CFFAFE' }
+    { id: 'Water service', icon: 'water', color: '#0EA5E9', bgColor: '#E0F2FE' }
   ];
 
   const pickImage = async () => {
@@ -135,10 +135,10 @@ export default function RaiseComplaint() {
                   ]}
                   onPress={() => setCategory(cat.id)}
                 >
-                  <View style={[styles.iconWrapper, { backgroundColor: isSelected ? '#FFFFFF' : cat.bgColor }]}>
-                    <Ionicons name={(isSelected ? cat.icon : `${cat.icon}-outline`) as any} size={24} color={cat.color} />
+                  <View style={[styles.iconWrapper, { backgroundColor: cat.color }]}>
+                    <Ionicons name={cat.icon as any} size={24} color="#FFFFFF" />
                   </View>
-                  <Text style={[styles.gridItemText, isSelected ? { color: cat.color, fontWeight: '700' } : {}]}>{cat.id}</Text>
+                  <Text style={[styles.gridItemText, isSelected ? { color: cat.color } : {}]}>{cat.id}</Text>
                 </TouchableOpacity>
               )
             })}
@@ -273,9 +273,9 @@ const styles = StyleSheet.create({
   container: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 90, flex: 1 },
   label: { fontSize: 13, fontWeight: '600', color: '#4B5563', marginBottom: 6, marginTop: 12 },
   gridContainer: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 8 },
-  gridItem: { width: '48%', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 16, padding: 12, alignItems: 'center', marginBottom: 12 },
-  iconWrapper: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  gridItemText: { marginTop: 8, fontSize: 13, color: '#4B5563', fontWeight: '500', textAlign: 'center' },
+  gridItem: { width: '48%', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 20, padding: 16, alignItems: 'center', marginBottom: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+  iconWrapper: { width: 48, height: 48, borderRadius: 14, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 6, elevation: 4 },
+  gridItemText: { marginTop: 10, fontSize: 13, color: '#111827', fontWeight: '700', textAlign: 'center' },
   textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, padding: 12, fontSize: 15, color: '#111827', minHeight: 80 },
   photosContainer: { flexDirection: 'row', gap: 12, marginTop: 4, marginBottom: 16 },
   photoAddBtn: { width: 64, height: 64, borderRadius: 12, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB', borderStyle: 'dashed', justifyContent: 'center', alignItems: 'center' },

@@ -31,7 +31,19 @@ export default function BookServiceScreen() {
 
   useEffect(() => {
     fetchUserData();
-  }, []);
+    setDescription('');
+    setPreferredTime('');
+  }, [serviceId]);
+
+  const getPlaceholder = (serviceName: string) => {
+    const lower = (serviceName || '').toLowerCase();
+    if (lower.includes('plumb') || lower.includes('water')) return "E.g. Leaking pipe, tap replacement, drainage issue...";
+    if (lower.includes('electric') || lower.includes('light')) return "E.g. Switchboard not working, short circuit, fan installation...";
+    if (lower.includes('ac ') || lower.includes('ac') || lower.includes('cool')) return "E.g. AC is not cooling properly, making weird noises...";
+    if (lower.includes('clean') || lower.includes('sweep') || lower.includes('garbage')) return "E.g. Deep cleaning required, regular sweep, waste pickup...";
+    if (lower.includes('carpenter') || lower.includes('wood')) return "E.g. Door hinge broken, furniture assembly, custom woodwork...";
+    return `E.g. Briefly describe the ${serviceName ? serviceName.toLowerCase() : 'service'} issue you are facing...`;
+  };
 
   const fetchUserData = async () => {
     try {
@@ -118,7 +130,7 @@ export default function BookServiceScreen() {
             <Text style={styles.label}>Problem Description</Text>
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="E.g. AC is not cooling properly, making weird noises..."
+              placeholder={getPlaceholder(name as string)}
               placeholderTextColor="#9CA3AF"
               multiline
               numberOfLines={4}
