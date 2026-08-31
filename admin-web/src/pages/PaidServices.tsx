@@ -150,7 +150,6 @@ export default function PaidServices() {
       </div>
 
       {activeTab === 'list' ? (
-        {/* List of Services */}
         <div className="glass table-container">
           <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Active Services</h2>
           {loading ? (
