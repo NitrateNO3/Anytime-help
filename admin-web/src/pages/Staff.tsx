@@ -1,23 +1,37 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, UserPlus, Wrench, Users } from 'lucide-react';
+import { Trash2, UserPlus, Wrench, Users, MapPin } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function Staff() {
-  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
+  const [activeTab, setActiveTab] = useState<'sl2p1' | 'sl2p2' | 'sl3' | 'create'>('sl2p1');
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Form State
-  const [name, setName] = useState('');
+  const [selectedEntity, setSelectedEntity] = useState('SL 2 Part 1');
+  const [selectedBlock, setSelectedBlock] = useState('C');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [category, setCategory] = useState('Electricity');
   const [isCreating, setIsCreating] = useState(false);
 
+  const entityBlocks: any = {
+    'SL 2 Part 1': ['C', 'D', 'E'],
+    'SL 2 Part 2': ['F', 'G'],
+    'SL 3': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+  };
+
   useEffect(() => {
-    if (activeTab === 'list') {
+    // Whenever entity changes, reset block to first option
+    if (entityBlocks[selectedEntity]) {
+      setSelectedBlock(entityBlocks[selectedEntity][0]);
+    }
+  }, [selectedEntity]);
+
+  useEffect(() => {
+    if (activeTab !== 'create') {
       fetchStaff();
     }
   }, [activeTab]);
@@ -45,25 +59,28 @@ export default function Staff() {
 
     try {
       const token = localStorage.getItem('adminToken');
+      const staffName = `${selectedEntity}: Block ${selectedBlock}`;
+      
       await axios.post(`${API_URL}/users/staff`, {
-        name,
+        name: staffName,
         phone_number: phoneNumber,
         assigned_category: category
       }, {
         headers: { 'x-auth-token': token }
       });
       
-      toast.success('Staff account created successfully!', { id: loadingToast });
+      toast.success('Staff account assigned successfully!', { id: loadingToast });
       
       // Reset form
-      setName('');
       setPhoneNumber('');
       setCategory('Electricity');
       
-      // Auto switch back to list
-      setActiveTab('list');
+      // Auto switch back to respective list
+      if (selectedEntity === 'SL 2 Part 1') setActiveTab('sl2p1');
+      if (selectedEntity === 'SL 2 Part 2') setActiveTab('sl2p2');
+      if (selectedEntity === 'SL 3') setActiveTab('sl3');
     } catch (err: any) {
-      toast.error(err.response?.data?.msg || err.response?.data?.message || 'Failed to create account', { id: loadingToast });
+      toast.error(err.response?.data?.msg || err.response?.data?.message || 'Failed to assign staff', { id: loadingToast });
     } finally {
       setIsCreating(false);
     }
@@ -105,29 +122,63 @@ export default function Staff() {
     ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
+  const getFilteredStaff = () => {
+    if (activeTab === 'sl2p1') return staff.filter(s => s.name?.startsWith('SL 2 Part 1:'));
+    if (activeTab === 'sl2p2') return staff.filter(s => s.name?.startsWith('SL 2 Part 2:'));
+    if (activeTab === 'sl3') return staff.filter(s => s.name?.startsWith('SL 3:'));
+    return [];
+  };
+
+  const displayedStaff = getFilteredStaff();
+
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <header className="page-header" style={{ marginBottom: 24 }}>
         <div>
           <h1 className="page-title">Staff Team</h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>Manage your service staff and create new accounts for the mobile app.</p>
+          <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>Manage your service staff block-wise and create new accounts for the mobile app.</p>
         </div>
       </header>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 16, marginBottom: 32 }}>
+      <div style={{ display: 'flex', gap: 12, borderBottom: '1px solid var(--border-color)', paddingBottom: 16, marginBottom: 32, flexWrap: 'wrap' }}>
         <button 
-          onClick={() => setActiveTab('list')}
+          onClick={() => setActiveTab('sl2p1')}
           style={{ 
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
-            background: activeTab === 'list' ? 'var(--primary)' : 'white', 
-            color: activeTab === 'list' ? 'white' : 'var(--text-muted)',
-            border: activeTab === 'list' ? 'none' : '1px solid var(--border-color)',
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', 
+            background: activeTab === 'sl2p1' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'sl2p1' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'sl2p1' ? 'none' : '1px solid var(--border-color)',
             borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
           }}
         >
-          <Users size={18} /> Active Members
+          <MapPin size={18} /> SL 2 Part 1
         </button>
+        <button 
+          onClick={() => setActiveTab('sl2p2')}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', 
+            background: activeTab === 'sl2p2' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'sl2p2' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'sl2p2' ? 'none' : '1px solid var(--border-color)',
+            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+          }}
+        >
+          <MapPin size={18} /> SL 2 Part 2
+        </button>
+        <button 
+          onClick={() => setActiveTab('sl3')}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', 
+            background: activeTab === 'sl3' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'sl3' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'sl3' ? 'none' : '1px solid var(--border-color)',
+            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+          }}
+        >
+          <MapPin size={18} /> SL 3
+        </button>
+        <div style={{ flex: 1 }}></div>
         <button 
           onClick={() => { setActiveTab('create'); }}
           style={{ 
@@ -143,13 +194,15 @@ export default function Staff() {
       </div>
 
       {/* Content Area */}
-      {activeTab === 'list' ? (
+      {activeTab !== 'create' ? (
         <div className="glass table-container">
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Active Staff Members</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>
+            {activeTab === 'sl2p1' ? 'Staff in Sushant Lok 2 Part 1' : activeTab === 'sl2p2' ? 'Staff in Sushant Lok 2 Part 2' : 'Staff in Sushant Lok 3'}
+          </h2>
           <table>
             <thead>
               <tr>
-                <th>Name</th>
+                <th>Block / Name</th>
                 <th>Phone Number</th>
                 <th>Category</th>
                 <th style={{ width: 80 }}>Actions</th>
@@ -165,42 +218,45 @@ export default function Staff() {
                     <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>
                   </tr>
                 ))
-              ) : staff.length === 0 ? (
+              ) : displayedStaff.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       <Users size={40} color="var(--border-color)" style={{ margin: '0 auto 16px' }} />
-                      No active staff members found.
+                      No staff members assigned to this group yet.
                     </td>
                   </tr>
                 ) : (
-                  staff.map(member => (
-                    <tr key={member._id}>
-                      <td style={{ fontWeight: 600 }}>{member.name}</td>
-                      <td style={{ color: 'var(--text-muted)' }}>{member.phone_number}</td>
-                      <td>
-                        <span style={{ 
-                          background: 'rgba(255, 99, 71, 0.1)', 
-                          color: 'var(--primary)', 
-                          padding: '6px 12px', 
-                          borderRadius: '20px', 
-                          fontSize: '12px',
-                          fontWeight: 600
-                        }}>
-                          {member.assigned_category}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button 
-                          onClick={() => handleDelete(member._id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                        >
-                          <Trash2 size={20} color="var(--danger)" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  displayedStaff.map(member => {
+                    const displayName = member.name?.includes(':') ? member.name.split(':')[1].trim() : member.name;
+                    return (
+                      <tr key={member._id}>
+                        <td style={{ fontWeight: 600 }}>{displayName}</td>
+                        <td style={{ color: 'var(--text-muted)' }}>{member.phone_number}</td>
+                        <td>
+                          <span style={{ 
+                            background: 'rgba(255, 99, 71, 0.1)', 
+                            color: 'var(--primary)', 
+                            padding: '6px 12px', 
+                            borderRadius: '20px', 
+                            fontSize: '12px',
+                            fontWeight: 600
+                          }}>
+                            {member.assigned_category}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button 
+                            onClick={() => handleDelete(member._id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                          >
+                            <Trash2 size={20} color="var(--danger)" />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
             </tbody>
           </table>
@@ -212,19 +268,54 @@ export default function Staff() {
               <div style={{ background: 'rgba(255, 99, 71, 0.1)', padding: 12, borderRadius: 12 }}>
                 <UserPlus size={28} color="var(--primary)" />
               </div>
-              <h2 style={{ fontSize: 24, fontWeight: 700 }}>Create New Staff</h2>
+              <h2 style={{ fontSize: 24, fontWeight: 700 }}>Assign Staff to Block</h2>
             </div>
 
             <form onSubmit={handleCreateStaff}>
             <div className="input-group">
-              <label>Full Name</label>
-              <input 
-                type="text" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                required
-                placeholder="e.g. Ramu Plumber"
-              />
+              <label>Select Entity (Group)</label>
+              <select 
+                  value={selectedEntity}
+                  onChange={(e) => setSelectedEntity(e.target.value)}
+                  style={{ 
+                    width: '100%', 
+                    padding: '14px 16px', 
+                    background: 'white', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    color: 'var(--text-main)',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {Object.keys(entityBlocks).map(entity => (
+                    <option key={entity} value={entity}>{entity}</option>
+                  ))}
+                </select>
+            </div>
+
+            <div className="input-group">
+              <label>Select Block</label>
+              <select 
+                  value={selectedBlock}
+                  onChange={(e) => setSelectedBlock(e.target.value)}
+                  style={{ 
+                    width: '100%', 
+                    padding: '14px 16px', 
+                    background: 'white', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    color: 'var(--text-main)',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {entityBlocks[selectedEntity]?.map((blk: string) => (
+                    <option key={blk} value={blk}>Block {blk}</option>
+                  ))}
+                </select>
             </div>
             
             <div className="input-group">
@@ -275,7 +366,7 @@ export default function Staff() {
             </div>
 
             <button type="submit" className="btn-primary" disabled={isCreating} style={{ marginTop: '16px', height: '52px' }}>
-              {isCreating ? 'Creating Account...' : 'Create Staff Account'}
+              {isCreating ? 'Assigning Staff...' : 'Assign Staff'}
             </button>
           </form>
         </div>
