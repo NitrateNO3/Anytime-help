@@ -252,14 +252,6 @@ export default function LoginScreen() {
                     Staff
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity 
-                  style={[styles.roleBtn, role === 'PaidStaff' && styles.roleBtnActive]}
-                  onPress={() => setRole('PaidStaff')}
-                >
-                  <Text style={[styles.roleBtnText, role === 'PaidStaff' && styles.roleBtnTextActive]}>
-                    Partner
-                  </Text>
-                </TouchableOpacity>
               </View>
 
               {step === 'PHONE' ? (

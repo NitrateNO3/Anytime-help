@@ -18,15 +18,28 @@ export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [propertyType, setPropertyType] = useState('');
+  const [propertyTypeModalVisible, setPropertyTypeModalVisible] = useState(false);
+  const propertyTypes = ['Owned', 'Rented'];
+  
   const [houseNo, setHouseNo] = useState('');
-  const [housing, setHousing] = useState('');
-  const [sector, setSector] = useState('');
+  
+  const [phase, setPhase] = useState('');
+  const [phaseModalVisible, setPhaseModalVisible] = useState(false);
+  const phasesList = ['Sushant Lok 2', 'Sushant Lok 3'];
+
+  const [block, setBlock] = useState('');
+  const [blockModalVisible, setBlockModalVisible] = useState(false);
+  
+  const getBlockOptions = () => {
+    if (phase === 'Sushant Lok 2') return ['C', 'D', 'E', 'F', 'G'];
+    if (phase === 'Sushant Lok 3') return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    return [];
+  };
+
   const [relation, setRelation] = useState('');
   const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [phase, setPhase] = useState('');
-  const [phaseModalVisible, setPhaseModalVisible] = useState(false);
-  const phases = ['Sushant lok 2', 'Sushant lok 3'];
 
   const [banners, setBanners] = React.useState<any[]>([]);
   const flatListRef = React.useRef<FlatList>(null);
@@ -69,8 +82,8 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    if (!name || !phoneNumber || phoneNumber.length < 10 || !houseNo || !sector || !phase) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please fill all required fields including Phase' });
+    if (!name || !phoneNumber || phoneNumber.length < 10 || !propertyType || !houseNo || !phase || !block) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please fill all required fields' });
       return;
     }
 
@@ -84,10 +97,10 @@ export default function RegisterScreen() {
     try {
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
       let addressParts = [];
-      if (houseNo) addressParts.push(houseNo);
-      if (housing) addressParts.push(housing);
+      if (houseNo) addressParts.push(`House/Flat: ${houseNo}`);
       if (phase) addressParts.push(phase);
-      if (sector) addressParts.push(sector);
+      if (block) addressParts.push(`Block ${block}`);
+      if (propertyType) addressParts.push(`(${propertyType})`);
       const combinedAddress = addressParts.join(', ');
 
       const payload: any = { 
@@ -95,7 +108,8 @@ export default function RegisterScreen() {
         phone_number: formattedPhone, 
         role: 'Resident',
         address: combinedAddress,
-        relation: isDuplicateAddress ? relation : undefined
+        property_type: propertyType,
+        relation: isDuplicateAddress ? relation : propertyType
       };
 
       const res = await axios.post(`${API_URL}/auth/register`, payload);
@@ -220,8 +234,20 @@ export default function RegisterScreen() {
                 />
               </View>
 
-              <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
+              {/* Property Type Dropdown */}
+              <TouchableOpacity 
+                style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]} 
+                onPress={() => !isDuplicateAddress && setPropertyTypeModalVisible(true)}
+              >
                 <Ionicons name="home-outline" size={20} color="#555" style={styles.inputIcon} />
+                <Text style={{ flex: 1, fontSize: 14, color: propertyType ? '#333' : '#777', alignSelf: 'center' }}>
+                  {propertyType || 'Property Type (Owned/Rented)*'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#777" />
+              </TouchableOpacity>
+
+              <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
+                <Ionicons name="business-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   placeholder="House / Flat No.*"
@@ -235,46 +261,37 @@ export default function RegisterScreen() {
                 />
               </View>
 
-              <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
-                <Ionicons name="business-outline" size={20} color="#555" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Housing Society / Apartment"
-                  placeholderTextColor="#777"
-                  value={housing}
-                  onChangeText={(text) => {
-                    setHousing(text);
-                    if (isDuplicateAddress) setIsDuplicateAddress(false);
-                  }}
-                  editable={!isDuplicateAddress}
-                />
-              </View>
-
+              {/* Phase Dropdown */}
               <TouchableOpacity 
                 style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]} 
                 onPress={() => !isDuplicateAddress && setPhaseModalVisible(true)}
               >
                 <Ionicons name="map-outline" size={20} color="#555" style={styles.inputIcon} />
                 <Text style={{ flex: 1, fontSize: 14, color: phase ? '#333' : '#777', alignSelf: 'center' }}>
-                  {phase || 'Phase*'}
+                  {phase || 'Phase (Sushant Lok 2 / 3)*'}
                 </Text>
                 <Ionicons name="chevron-down" size={20} color="#777" />
               </TouchableOpacity>
 
-              <View style={[styles.inputContainer, { marginBottom: 12 }, isDuplicateAddress && { height: 45, marginBottom: 8 }]}>
+              {/* Block Dropdown */}
+              <TouchableOpacity 
+                style={[styles.inputContainer, { marginBottom: 12 }, isDuplicateAddress && { height: 45, marginBottom: 8 }]} 
+                onPress={() => {
+                  if (!isDuplicateAddress) {
+                    if (!phase) {
+                      Toast.show({ type: 'info', text1: 'Select Phase', text2: 'Please select a phase first' });
+                      return;
+                    }
+                    setBlockModalVisible(true);
+                  }
+                }}
+              >
                 <Ionicons name="location-outline" size={20} color="#555" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Sector / Area*"
-                  placeholderTextColor="#777"
-                  value={sector}
-                  onChangeText={(text) => {
-                    setSector(text);
-                    if (isDuplicateAddress) setIsDuplicateAddress(false);
-                  }}
-                  editable={!isDuplicateAddress}
-                />
-              </View>
+                <Text style={{ flex: 1, fontSize: 14, color: block ? '#333' : '#777', alignSelf: 'center' }}>
+                  {block || 'Block*'}
+                </Text>
+                <Ionicons name="chevron-down" size={20} color="#777" />
+              </TouchableOpacity>
 
               {isDuplicateAddress && (
                 <View style={[styles.inputContainer, { height: 50, marginBottom: 12 }]}>
@@ -310,50 +327,76 @@ export default function RegisterScreen() {
         </TouchableWithoutFeedback>
       </SafeAreaView>
 
-      {/* Phase Selection Modal */}
-      <Modal
-        animationType="slide"
-        transparent={true}
-        visible={phaseModalVisible}
-        onRequestClose={() => setPhaseModalVisible(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setPhaseModalVisible(false)}
-        >
+      {/* Property Type Modal */}
+      <Modal animationType="slide" transparent={true} visible={propertyTypeModalVisible} onRequestClose={() => setPropertyTypeModalVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPropertyTypeModalVisible(false)}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Phase</Text>
-              <TouchableOpacity onPress={() => setPhaseModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Select Property Type</Text>
+              <TouchableOpacity onPress={() => setPropertyTypeModalVisible(false)}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
             </View>
-            
             <FlatList
-              data={phases}
+              data={propertyTypes}
               keyExtractor={(item) => item}
               renderItem={({ item }) => (
                 <TouchableOpacity 
-                  style={[
-                    styles.categoryOption,
-                    phase === item && styles.categoryOptionSelected
-                  ]}
-                  onPress={() => {
-                    setPhase(item);
-                    setPhaseModalVisible(false);
-                  }}
+                  style={[styles.categoryOption, propertyType === item && styles.categoryOptionSelected]}
+                  onPress={() => { setPropertyType(item); setPropertyTypeModalVisible(false); }}
                 >
-                  <Text style={[
-                    styles.categoryOptionText,
-                    phase === item && styles.categoryOptionTextSelected
-                  ]}>{item}</Text>
-                  {phase === item && (
-                    <Ionicons name="checkmark-circle" size={20} color="#1D4ED8" />
-                  )}
+                  <Text style={[styles.categoryOptionText, propertyType === item && styles.categoryOptionTextSelected]}>{item}</Text>
+                  {propertyType === item && <Ionicons name="checkmark-circle" size={20} color="#1D4ED8" />}
                 </TouchableOpacity>
               )}
-              showsVerticalScrollIndicator={false}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Phase Modal */}
+      <Modal animationType="slide" transparent={true} visible={phaseModalVisible} onRequestClose={() => setPhaseModalVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPhaseModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Phase</Text>
+              <TouchableOpacity onPress={() => setPhaseModalVisible(false)}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
+            </View>
+            <FlatList
+              data={phasesList}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={[styles.categoryOption, phase === item && styles.categoryOptionSelected]}
+                  onPress={() => { setPhase(item); setBlock(''); setPhaseModalVisible(false); }}
+                >
+                  <Text style={[styles.categoryOptionText, phase === item && styles.categoryOptionTextSelected]}>{item}</Text>
+                  {phase === item && <Ionicons name="checkmark-circle" size={20} color="#1D4ED8" />}
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
+      {/* Block Modal */}
+      <Modal animationType="slide" transparent={true} visible={blockModalVisible} onRequestClose={() => setBlockModalVisible(false)}>
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBlockModalVisible(false)}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Block</Text>
+              <TouchableOpacity onPress={() => setBlockModalVisible(false)}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
+            </View>
+            <FlatList
+              data={getBlockOptions()}
+              keyExtractor={(item) => item}
+              renderItem={({ item }) => (
+                <TouchableOpacity 
+                  style={[styles.categoryOption, block === item && styles.categoryOptionSelected]}
+                  onPress={() => { setBlock(item); setBlockModalVisible(false); }}
+                >
+                  <Text style={[styles.categoryOptionText, block === item && styles.categoryOptionTextSelected]}>Block {item}</Text>
+                  {block === item && <Ionicons name="checkmark-circle" size={20} color="#1D4ED8" />}
+                </TouchableOpacity>
+              )}
             />
           </View>
         </TouchableOpacity>
