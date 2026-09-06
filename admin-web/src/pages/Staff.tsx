@@ -9,7 +9,6 @@ export default function Staff() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedFilterEntity, setSelectedFilterEntity] = useState('Sushant Lok 2 Option 1');
 
   // Form State
   const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 Option 1');
@@ -76,8 +75,7 @@ export default function Staff() {
       setPhoneNumber('');
       setCategory('Electricity');
       
-      // Auto switch back to list and select the created entity
-      setSelectedFilterEntity(selectedEntity);
+      // Auto switch back to list
       setActiveTab('list');
     } catch (err: any) {
       toast.error(err.response?.data?.msg || err.response?.data?.message || 'Failed to assign staff', { id: loadingToast });
@@ -122,11 +120,8 @@ export default function Staff() {
     ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
-  const getFilteredStaff = () => {
-    return staff.filter(s => s.name?.startsWith(`${selectedFilterEntity}:`));
-  };
-
-  const displayedStaff = getFilteredStaff();
+  // Show all staff in the list view without filtering
+  const displayedStaff = staff;
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -170,33 +165,11 @@ export default function Staff() {
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 600 }}>Staff List</h2>
-            <div style={{ position: 'relative', width: 250 }}>
-              <select 
-                  value={selectedFilterEntity}
-                  onChange={(e) => setSelectedFilterEntity(e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '10px 16px', 
-                    background: 'white', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '12px',
-                    fontSize: '14px',
-                    color: 'var(--text-main)',
-                    outline: 'none',
-                    cursor: 'pointer',
-                    fontWeight: 600
-                  }}
-                >
-                  {Object.keys(entityBlocks).map(entity => (
-                    <option key={entity} value={entity}>{entity}</option>
-                  ))}
-                </select>
-            </div>
           </div>
           <table>
             <thead>
               <tr>
-                <th>Block / Name</th>
+                <th>Group / Block / Name</th>
                 <th>Phone Number</th>
                 <th>Category</th>
                 <th style={{ width: 80 }}>Actions</th>
@@ -218,12 +191,12 @@ export default function Staff() {
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
                         <Users size={40} color="var(--border-color)" />
                       </div>
-                      No staff members assigned to this group yet.
+                      No staff members assigned yet.
                     </td>
                   </tr>
                 ) : (
                   displayedStaff.map(member => {
-                    const displayName = member.name?.includes(':') ? member.name.split(':')[1].trim() : member.name;
+                    const displayName = member.name || 'Unnamed Staff';
                     return (
                       <tr key={member._id}>
                         <td style={{ fontWeight: 600 }}>{displayName}</td>
