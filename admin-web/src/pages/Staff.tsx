@@ -11,16 +11,16 @@ export default function Staff() {
   const [loading, setLoading] = useState(true);
 
   // Form State
-  const [selectedEntity, setSelectedEntity] = useState('SL 2 Part 1');
+  const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 Option 1');
   const [selectedBlock, setSelectedBlock] = useState('C');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [category, setCategory] = useState('Electricity');
   const [isCreating, setIsCreating] = useState(false);
 
   const entityBlocks: any = {
-    'SL 2 Part 1': ['C', 'D', 'E'],
-    'SL 2 Part 2': ['F', 'G'],
-    'SL 3': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+    'Sushant Lok 2 Option 1': ['C', 'D', 'E'],
+    'Sushant Lok 2 Option 2': ['F', 'G'],
+    'Sushant Lok 3': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
   };
 
   useEffect(() => {
@@ -76,9 +76,9 @@ export default function Staff() {
       setCategory('Electricity');
       
       // Auto switch back to respective list
-      if (selectedEntity === 'SL 2 Part 1') setActiveTab('sl2p1');
-      if (selectedEntity === 'SL 2 Part 2') setActiveTab('sl2p2');
-      if (selectedEntity === 'SL 3') setActiveTab('sl3');
+      if (selectedEntity === 'Sushant Lok 2 Option 1') setActiveTab('sl2p1');
+      if (selectedEntity === 'Sushant Lok 2 Option 2') setActiveTab('sl2p2');
+      if (selectedEntity === 'Sushant Lok 3') setActiveTab('sl3');
     } catch (err: any) {
       toast.error(err.response?.data?.msg || err.response?.data?.message || 'Failed to assign staff', { id: loadingToast });
     } finally {
@@ -123,9 +123,9 @@ export default function Staff() {
   };
 
   const getFilteredStaff = () => {
-    if (activeTab === 'sl2p1') return staff.filter(s => s.name?.startsWith('SL 2 Part 1:'));
-    if (activeTab === 'sl2p2') return staff.filter(s => s.name?.startsWith('SL 2 Part 2:'));
-    if (activeTab === 'sl3') return staff.filter(s => s.name?.startsWith('SL 3:'));
+    if (activeTab === 'sl2p1') return staff.filter(s => s.name?.startsWith('Sushant Lok 2 Option 1:'));
+    if (activeTab === 'sl2p2') return staff.filter(s => s.name?.startsWith('Sushant Lok 2 Option 2:'));
+    if (activeTab === 'sl3') return staff.filter(s => s.name?.startsWith('Sushant Lok 3:'));
     return [];
   };
 
@@ -145,51 +145,51 @@ export default function Staff() {
         <button 
           onClick={() => setActiveTab('sl2p1')}
           style={{ 
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', 
             background: activeTab === 'sl2p1' ? 'var(--primary)' : 'white', 
             color: activeTab === 'sl2p1' ? 'white' : 'var(--text-muted)',
             border: activeTab === 'sl2p1' ? 'none' : '1px solid var(--border-color)',
             borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
           }}
         >
-          <MapPin size={18} /> SL 2 Part 1
+          <MapPin size={18} /> <span>Sushant Lok 2 Option 1</span>
         </button>
         <button 
           onClick={() => setActiveTab('sl2p2')}
           style={{ 
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', 
             background: activeTab === 'sl2p2' ? 'var(--primary)' : 'white', 
             color: activeTab === 'sl2p2' ? 'white' : 'var(--text-muted)',
             border: activeTab === 'sl2p2' ? 'none' : '1px solid var(--border-color)',
             borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
           }}
         >
-          <MapPin size={18} /> SL 2 Part 2
+          <MapPin size={18} /> <span>Sushant Lok 2 Option 2</span>
         </button>
         <button 
           onClick={() => setActiveTab('sl3')}
           style={{ 
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', 
             background: activeTab === 'sl3' ? 'var(--primary)' : 'white', 
             color: activeTab === 'sl3' ? 'white' : 'var(--text-muted)',
             border: activeTab === 'sl3' ? 'none' : '1px solid var(--border-color)',
             borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
           }}
         >
-          <MapPin size={18} /> SL 3
+          <MapPin size={18} /> <span>Sushant Lok 3</span>
         </button>
         <div style={{ flex: 1 }}></div>
         <button 
           onClick={() => { setActiveTab('create'); }}
           style={{ 
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 20px', 
             background: activeTab === 'create' ? 'var(--primary)' : 'white', 
             color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
             border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
             borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
           }}
         >
-          <UserPlus size={18} /> Create Account
+          <UserPlus size={18} /> <span>Create Account</span>
         </button>
       </div>
 
@@ -197,7 +197,7 @@ export default function Staff() {
       {activeTab !== 'create' ? (
         <div className="glass table-container">
           <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>
-            {activeTab === 'sl2p1' ? 'Staff in Sushant Lok 2 Part 1' : activeTab === 'sl2p2' ? 'Staff in Sushant Lok 2 Part 2' : 'Staff in Sushant Lok 3'}
+            {activeTab === 'sl2p1' ? 'Staff in Sushant Lok 2 Option 1' : activeTab === 'sl2p2' ? 'Staff in Sushant Lok 2 Option 2' : 'Staff in Sushant Lok 3'}
           </h2>
           <table>
             <thead>
@@ -221,7 +221,9 @@ export default function Staff() {
               ) : displayedStaff.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
-                      <Users size={40} color="var(--border-color)" style={{ margin: '0 auto 16px' }} />
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                        <Users size={40} color="var(--border-color)" />
+                      </div>
                       No staff members assigned to this group yet.
                     </td>
                   </tr>
