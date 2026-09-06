@@ -6,9 +6,10 @@ import toast from 'react-hot-toast';
 const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function Staff() {
-  const [activeTab, setActiveTab] = useState<'sl2p1' | 'sl2p2' | 'sl3' | 'create'>('sl2p1');
+  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFilterEntity, setSelectedFilterEntity] = useState('Sushant Lok 2 Option 1');
 
   // Form State
   const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 Option 1');
@@ -31,7 +32,7 @@ export default function Staff() {
   }, [selectedEntity]);
 
   useEffect(() => {
-    if (activeTab !== 'create') {
+    if (activeTab === 'list') {
       fetchStaff();
     }
   }, [activeTab]);
@@ -75,10 +76,9 @@ export default function Staff() {
       setPhoneNumber('');
       setCategory('Electricity');
       
-      // Auto switch back to respective list
-      if (selectedEntity === 'Sushant Lok 2 Option 1') setActiveTab('sl2p1');
-      if (selectedEntity === 'Sushant Lok 2 Option 2') setActiveTab('sl2p2');
-      if (selectedEntity === 'Sushant Lok 3') setActiveTab('sl3');
+      // Auto switch back to list and select the created entity
+      setSelectedFilterEntity(selectedEntity);
+      setActiveTab('list');
     } catch (err: any) {
       toast.error(err.response?.data?.msg || err.response?.data?.message || 'Failed to assign staff', { id: loadingToast });
     } finally {
@@ -123,10 +123,7 @@ export default function Staff() {
   };
 
   const getFilteredStaff = () => {
-    if (activeTab === 'sl2p1') return staff.filter(s => s.name?.startsWith('Sushant Lok 2 Option 1:'));
-    if (activeTab === 'sl2p2') return staff.filter(s => s.name?.startsWith('Sushant Lok 2 Option 2:'));
-    if (activeTab === 'sl3') return staff.filter(s => s.name?.startsWith('Sushant Lok 3:'));
-    return [];
+    return staff.filter(s => s.name?.startsWith(`${selectedFilterEntity}:`));
   };
 
   const displayedStaff = getFilteredStaff();
@@ -141,44 +138,19 @@ export default function Staff() {
       </header>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 12, borderBottom: '1px solid var(--border-color)', paddingBottom: 16, marginBottom: 32, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 12, borderBottom: '1px solid var(--border-color)', paddingBottom: 16, marginBottom: 32 }}>
         <button 
-          onClick={() => setActiveTab('sl2p1')}
+          onClick={() => setActiveTab('list')}
           style={{ 
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', 
-            background: activeTab === 'sl2p1' ? 'var(--primary)' : 'white', 
-            color: activeTab === 'sl2p1' ? 'white' : 'var(--text-muted)',
-            border: activeTab === 'sl2p1' ? 'none' : '1px solid var(--border-color)',
+            background: activeTab === 'list' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'list' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'list' ? 'none' : '1px solid var(--border-color)',
             borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
           }}
         >
-          <MapPin size={18} /> <span>Sushant Lok 2 Option 1</span>
+          <Users size={18} /> <span>Active Members</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('sl2p2')}
-          style={{ 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', 
-            background: activeTab === 'sl2p2' ? 'var(--primary)' : 'white', 
-            color: activeTab === 'sl2p2' ? 'white' : 'var(--text-muted)',
-            border: activeTab === 'sl2p2' ? 'none' : '1px solid var(--border-color)',
-            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
-          }}
-        >
-          <MapPin size={18} /> <span>Sushant Lok 2 Option 2</span>
-        </button>
-        <button 
-          onClick={() => setActiveTab('sl3')}
-          style={{ 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 16px', 
-            background: activeTab === 'sl3' ? 'var(--primary)' : 'white', 
-            color: activeTab === 'sl3' ? 'white' : 'var(--text-muted)',
-            border: activeTab === 'sl3' ? 'none' : '1px solid var(--border-color)',
-            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
-          }}
-        >
-          <MapPin size={18} /> <span>Sushant Lok 3</span>
-        </button>
-        <div style={{ flex: 1 }}></div>
         <button 
           onClick={() => { setActiveTab('create'); }}
           style={{ 
@@ -194,11 +166,33 @@ export default function Staff() {
       </div>
 
       {/* Content Area */}
-      {activeTab !== 'create' ? (
+      {activeTab === 'list' ? (
         <div className="glass table-container">
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>
-            {activeTab === 'sl2p1' ? 'Staff in Sushant Lok 2 Option 1' : activeTab === 'sl2p2' ? 'Staff in Sushant Lok 2 Option 2' : 'Staff in Sushant Lok 3'}
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600 }}>Staff List</h2>
+            <div style={{ position: 'relative', width: 250 }}>
+              <select 
+                  value={selectedFilterEntity}
+                  onChange={(e) => setSelectedFilterEntity(e.target.value)}
+                  style={{ 
+                    width: '100%', 
+                    padding: '10px 16px', 
+                    background: 'white', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '12px',
+                    fontSize: '14px',
+                    color: 'var(--text-main)',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                >
+                  {Object.keys(entityBlocks).map(entity => (
+                    <option key={entity} value={entity}>{entity}</option>
+                  ))}
+                </select>
+            </div>
+          </div>
           <table>
             <thead>
               <tr>
