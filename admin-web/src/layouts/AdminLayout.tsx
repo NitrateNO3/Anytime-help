@@ -44,18 +44,7 @@ export default function AdminLayout() {
             <Users size={20} />
             Staff Team
           </Link>
-          <Link to="/paid-services" className={`nav-link ${location.pathname === '/paid-services' ? 'active' : ''}`}>
-            <Briefcase size={20} />
-            Paid Services
-          </Link>
-          <Link to="/paid-staff" className={`nav-link ${location.pathname === '/paid-staff' ? 'active' : ''}`}>
-            <Wrench size={20} />
-            Paid Staff
-          </Link>
-          <Link to="/service-bookings" className={`nav-link ${location.pathname === '/service-bookings' ? 'active' : ''}`}>
-            <ClipboardList size={20} />
-            Service Bookings
-          </Link>
+
           <Link to="/announcements" className={`nav-link ${location.pathname === '/announcements' ? 'active' : ''}`}>
             <Megaphone size={20} />
             Announcements
