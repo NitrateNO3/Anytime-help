@@ -18,8 +18,14 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 const defaultCategories = [
-  'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 
-  'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'
+  { title: 'Electricity', subCategories: ['Power Outage', 'Sparking Wire', 'Meter Issue', 'Other'] },
+  { title: 'Garbage', subCategories: ['Missed Pickup', 'Overflowing Bin', 'Debris Waste', 'Other'] },
+  { title: 'Sweeping', subCategories: ['Road Not Swept', 'Leaves Accumulation', 'Other'] },
+  { title: 'Sewage cleaning', subCategories: ['Blocked Drain', 'Overflowing Manhole', 'Foul Odor', 'Other'] },
+  { title: 'Rainwater drainage', subCategories: ['Water Logging', 'Broken Drain Cover', 'Other'] },
+  { title: 'Tree cutting', subCategories: ['Fallen Tree', 'Overgrown Branches', 'Other'] },
+  { title: 'Street light', subCategories: ['Not Working', 'Flickering', 'Pole Damaged', 'Other'] },
+  { title: 'Water service', subCategories: ['No Water Supply', 'Contaminated Water', 'Pipeline Leakage', 'Other'] }
 ];
 
 // @route   GET /api/categories
@@ -30,11 +36,7 @@ router.get('/', async (req, res) => {
     
     // Seed default categories if DB is completely empty
     if (categories.length === 0) {
-      const seedData = defaultCategories.map(title => ({
-        title,
-        subCategories: []
-      }));
-      await Category.insertMany(seedData);
+      await Category.insertMany(defaultCategories);
       categories = await Category.find().sort({ createdAt: -1 });
     }
     
