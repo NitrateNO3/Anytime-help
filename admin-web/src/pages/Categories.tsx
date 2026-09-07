@@ -131,17 +131,13 @@ export default function Categories() {
   };
 
   return (
-    <div className="page-container fade-in">
-      <header className="page-header">
-        <div>
-          <h1 className="page-title">Manage Categories</h1>
-          <p className="page-subtitle">Configure grievance categories and sub-categories</p>
-        </div>
-        
+    <div style={{ marginTop: '40px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h2 style={{ fontSize: 24, fontWeight: 700 }}>Manage Categories & Sub-Categories</h2>
         <button className="btn btn-primary" onClick={() => handleOpenModal()}>
           <Plus size={18} /> Add Category
         </button>
-      </header>
+      </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '40px' }}>Loading categories...</div>

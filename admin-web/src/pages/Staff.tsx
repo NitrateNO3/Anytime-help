@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, UserPlus, Wrench, Users, Plus, ListPlus } from 'lucide-react';
+import { UserPlus, Users, ListPlus, Trash2, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
+import Categories from './Categories';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -23,11 +24,30 @@ export default function Staff() {
   const [isCreating, setIsCreating] = useState(false);
   
   // Custom Category State
-  const [availableCategories, setAvailableCategories] = useState<string[]>(() => {
-    const saved = localStorage.getItem('customCategories');
-    return saved ? JSON.parse(saved) : defaultCategories;
-  });
-  const [newCategoryInput, setNewCategoryInput] = useState('');
+  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+
+  useEffect(() => {
+    // Fetch categories for the dropdown when tab changes
+    if (activeTab === 'create') {
+      axios.get(`${API_URL}/categories`)
+        .then(res => {
+          if (res.data && res.data.length > 0) {
+            setAvailableCategories(res.data.map((c: any) => c.title));
+            if (!category || !res.data.find((c: any) => c.title === category)) {
+              setCategory(res.data[0].title);
+            }
+          } else {
+            setAvailableCategories(defaultCategories);
+            if (!category) setCategory(defaultCategories[0]);
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching categories for dropdown:', err);
+          setAvailableCategories(defaultCategories);
+          if (!category) setCategory(defaultCategories[0]);
+        });
+    }
+  }, [activeTab]);
 
   // Group blocks together into a single option for each entity
   const entityBlocks: any = {
@@ -48,59 +68,6 @@ export default function Staff() {
       fetchStaff();
     }
   }, [activeTab]);
-
-  const saveCategories = (newCategories: string[]) => {
-    setAvailableCategories(newCategories);
-    localStorage.setItem('customCategories', JSON.stringify(newCategories));
-    
-    // If the currently selected category was deleted, reset it to the first available one
-    if (newCategories.length > 0 && !newCategories.includes(category)) {
-      setCategory(newCategories[0]);
-    } else if (newCategories.length === 0) {
-      setCategory('');
-    }
-  };
-
-  const handleAddCategory = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = newCategoryInput.trim();
-    if (!trimmed) return;
-    
-    if (availableCategories.includes(trimmed)) {
-      toast.error('Category already exists');
-      return;
-    }
-    
-    saveCategories([...availableCategories, trimmed]);
-    setNewCategoryInput('');
-    toast.success('Category added successfully');
-  };
-
-  const handleDeleteCategory = (catToDelete: string) => {
-    toast((t) => (
-      <div>
-        <p style={{ fontWeight: 600, marginBottom: 12, color: 'var(--text-main)' }}>Delete category '{catToDelete}'?</p>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button 
-            onClick={() => toast.dismiss(t.id)} 
-            style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontWeight: 500, color: 'var(--text-main)' }}
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={() => {
-              toast.dismiss(t.id);
-              saveCategories(availableCategories.filter(c => c !== catToDelete));
-              toast.success('Category deleted');
-            }} 
-            style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: 'var(--danger)', color: 'white', cursor: 'pointer', fontWeight: 600 }}
-          >
-            Delete
-          </button>
-        </div>
-      </div>
-    ), { duration: Infinity });
-  };
 
   const fetchStaff = async () => {
     try {
@@ -425,81 +392,7 @@ export default function Staff() {
       )}
 
       {activeTab === 'categories' && (
-        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
-          <div className="glass" style={{ padding: '40px', width: '100%', maxWidth: '600px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
-              <div style={{ background: 'rgba(255, 99, 71, 0.1)', padding: 12, borderRadius: 12 }}>
-                <ListPlus size={28} color="var(--primary)" />
-              </div>
-              <h2 style={{ fontSize: 24, fontWeight: 700 }}>Manage Categories</h2>
-            </div>
-            
-            <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '12px', marginBottom: '32px' }}>
-              <div style={{ flex: 1 }}>
-                <input 
-                  type="text" 
-                  value={newCategoryInput} 
-                  onChange={(e) => setNewCategoryInput(e.target.value)} 
-                  required
-                  placeholder="E.g. Plumber, Electrician..."
-                  style={{ 
-                    width: '100%', 
-                    padding: '12px 16px', 
-                    background: 'white', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '12px',
-                    fontSize: '15px'
-                  }}
-                />
-              </div>
-              <button type="submit" style={{ 
-                background: 'var(--primary)', 
-                color: 'white', 
-                border: 'none', 
-                borderRadius: '12px', 
-                padding: '0 24px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px'
-              }}>
-                <Plus size={18} /> Add
-              </button>
-            </form>
-
-            <div style={{ background: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden' }}>
-              {availableCategories.length === 0 ? (
-                <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                  No categories found. Add one above.
-                </div>
-              ) : (
-                availableCategories.map((cat, idx) => (
-                  <div key={cat} style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    alignItems: 'center', 
-                    padding: '16px 20px',
-                    borderBottom: idx < availableCategories.length - 1 ? '1px solid var(--border-color)' : 'none'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <Wrench size={16} color="var(--text-muted)" />
-                      <span style={{ fontWeight: 500 }}>{cat}</span>
-                    </div>
-                    <button 
-                      onClick={() => handleDeleteCategory(cat)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, color: 'var(--danger)' }}
-                      title="Delete Category"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-            
-          </div>
-        </div>
+        <Categories />
       )}
     </div>
   );
