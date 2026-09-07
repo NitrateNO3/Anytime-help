@@ -14,11 +14,9 @@ export default function Categories() {
   
   const [formData, setFormData] = useState({
     title: '',
-    icon: 'water',
-    color: '#06B6D4',
-    bgColor: '#CFFAFE',
     subCategories: [] as string[]
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [newSubCategory, setNewSubCategory] = useState('');
 
   useEffect(() => {
@@ -42,21 +40,16 @@ export default function Categories() {
       setEditingId(category._id);
       setFormData({
         title: category.title,
-        icon: category.icon,
-        color: category.color,
-        bgColor: category.bgColor,
         subCategories: category.subCategories || []
       });
     } else {
       setEditingId(null);
       setFormData({
         title: '',
-        icon: 'water',
-        color: '#3B82F6',
-        bgColor: '#DBEAFE',
         subCategories: []
       });
     }
+    setImageFile(null);
     setNewSubCategory('');
     setIsModalOpen(true);
   };
@@ -89,18 +82,31 @@ export default function Categories() {
       return;
     }
 
+    const payload = new FormData();
+    payload.append('title', formData.title);
+    payload.append('subCategories', JSON.stringify(formData.subCategories));
+    if (imageFile) {
+      payload.append('image', imageFile);
+    }
+
     const loadingToast = toast.loading(editingId ? 'Updating category...' : 'Adding category...');
     try {
       const token = localStorage.getItem('token') || '';
       
       if (editingId) {
-        await axios.put(`${API_URL}/categories/${editingId}`, formData, {
-          headers: { 'x-auth-token': token }
+        await axios.put(`${API_URL}/categories/${editingId}`, payload, {
+          headers: { 
+            'x-auth-token': token,
+            'Content-Type': 'multipart/form-data'
+          }
         });
         toast.success('Category updated successfully!', { id: loadingToast });
       } else {
-        await axios.post(`${API_URL}/categories`, formData, {
-          headers: { 'x-auth-token': token }
+        await axios.post(`${API_URL}/categories`, payload, {
+          headers: { 
+            'x-auth-token': token,
+            'Content-Type': 'multipart/form-data'
+          }
         });
         toast.success('Category added successfully!', { id: loadingToast });
       }
@@ -154,11 +160,15 @@ export default function Categories() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ 
-                      width: '40px', height: '40px', borderRadius: '8px', 
-                      backgroundColor: cat.bgColor || '#DBEAFE', color: cat.color || '#3B82F6',
-                      display: 'flex', justifyContent: 'center', alignItems: 'center', fontWeight: 'bold'
+                      width: '48px', height: '48px', borderRadius: '12px', 
+                      backgroundColor: '#F1F5F9', overflow: 'hidden',
+                      display: 'flex', justifyContent: 'center', alignItems: 'center'
                     }}>
-                      {cat.icon ? cat.icon.substring(0, 2).toUpperCase() : 'C'}
+                      {cat.image ? (
+                        <img src={cat.image} alt={cat.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <span style={{ fontWeight: 'bold', color: '#94A3B8' }}>{cat.title.substring(0, 2).toUpperCase()}</span>
+                      )}
                     </div>
                     <div>
                       <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--text-primary)' }}>{cat.title}</h3>
@@ -218,37 +228,18 @@ export default function Categories() {
                 />
               </div>
 
-              <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Icon Name</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={formData.icon} 
-                    onChange={(e) => setFormData({...formData, icon: e.target.value})} 
-                    placeholder="e.g. flash" 
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Color (Hex)</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={formData.color} 
-                    onChange={(e) => setFormData({...formData, color: e.target.value})} 
-                    placeholder="#3B82F6" 
-                  />
-                </div>
-                <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="form-label">Bg Color (Hex)</label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={formData.bgColor} 
-                    onChange={(e) => setFormData({...formData, bgColor: e.target.value})} 
-                    placeholder="#DBEAFE" 
-                  />
-                </div>
+              <div className="form-group">
+                <label className="form-label">Category Image</label>
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  className="form-input" 
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setImageFile(e.target.files[0]);
+                    }
+                  }}
+                />
               </div>
 
               <div className="form-group">

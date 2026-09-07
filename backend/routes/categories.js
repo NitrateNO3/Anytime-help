@@ -1,12 +1,43 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const cloudinary = require('cloudinary').v2;
+const streamifier = require('streamifier');
 const Category = require('../models/Category');
 const auth = require('../middleware/auth');
 
-// GET /api/categories - Get all categories
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
+
+// Configure Multer (memory storage for stream to Cloudinary)
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+const defaultCategories = [
+  'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 
+  'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'
+];
+
+// @route   GET /api/categories
+// @desc    Get all categories (seeds default if empty)
 router.get('/', async (req, res) => {
   try {
-    const categories = await Category.find().sort({ createdAt: -1 });
+    let categories = await Category.find().sort({ createdAt: -1 });
+    
+    // Seed default categories if DB is completely empty
+    if (categories.length === 0) {
+      const seedData = defaultCategories.map(title => ({
+        title,
+        subCategories: []
+      }));
+      await Category.insertMany(seedData);
+      categories = await Category.find().sort({ createdAt: -1 });
+    }
+    
     res.json(categories);
   } catch (err) {
     console.error(err.message);
@@ -14,17 +45,55 @@ router.get('/', async (req, res) => {
   }
 });
 
-// POST /api/categories - Create a category (admin only ideally, but we'll secure later or use auth)
-router.post('/', auth, async (req, res) => {
-  const { title, icon, color, bgColor, subCategories } = req.body;
+// Helper for Cloudinary upload
+const streamUpload = (req) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: 'anytime_help/categories',
+        quality: 'auto',
+        fetch_format: 'auto',
+      },
+      (error, result) => {
+        if (result) {
+          resolve(result);
+        } else {
+          reject(error);
+        }
+      }
+    );
+    streamifier.createReadStream(req.file.buffer).pipe(stream);
+  });
+};
+
+// @route   POST /api/categories
+// @desc    Create a category
+router.post('/', [auth, upload.single('image')], async (req, res) => {
+  let { title, subCategories } = req.body;
+  
+  if (typeof subCategories === 'string') {
+    try {
+      subCategories = JSON.parse(subCategories);
+    } catch(e) {
+      subCategories = [];
+    }
+  }
 
   try {
+    let imageUrl = '';
+    let publicId = '';
+
+    if (req.file) {
+      const result = await streamUpload(req);
+      imageUrl = result.secure_url;
+      publicId = result.public_id;
+    }
+
     let category = new Category({
       title,
-      icon,
-      color,
-      bgColor,
-      subCategories
+      image: imageUrl,
+      public_id: publicId,
+      subCategories: subCategories || []
     });
 
     await category.save();
@@ -35,19 +104,36 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// PUT /api/categories/:id - Update a category
-router.put('/:id', auth, async (req, res) => {
-  const { title, icon, color, bgColor, subCategories } = req.body;
+// @route   PUT /api/categories/:id
+// @desc    Update a category
+router.put('/:id', [auth, upload.single('image')], async (req, res) => {
+  let { title, subCategories } = req.body;
+  
+  if (typeof subCategories === 'string') {
+    try {
+      subCategories = JSON.parse(subCategories);
+    } catch(e) {
+      subCategories = [];
+    }
+  }
 
   try {
     let category = await Category.findById(req.params.id);
     if (!category) return res.status(404).json({ msg: 'Category not found' });
 
     if (title) category.title = title;
-    if (icon) category.icon = icon;
-    if (color) category.color = color;
-    if (bgColor) category.bgColor = bgColor;
     if (subCategories) category.subCategories = subCategories;
+
+    if (req.file) {
+      // Delete old image if it exists
+      if (category.public_id) {
+        await cloudinary.uploader.destroy(category.public_id);
+      }
+      
+      const result = await streamUpload(req);
+      category.image = result.secure_url;
+      category.public_id = result.public_id;
+    }
 
     await category.save();
     res.json(category);
@@ -57,11 +143,16 @@ router.put('/:id', auth, async (req, res) => {
   }
 });
 
-// DELETE /api/categories/:id - Delete a category
+// @route   DELETE /api/categories/:id
+// @desc    Delete a category
 router.delete('/:id', auth, async (req, res) => {
   try {
     let category = await Category.findById(req.params.id);
     if (!category) return res.status(404).json({ msg: 'Category not found' });
+
+    if (category.public_id) {
+      await cloudinary.uploader.destroy(category.public_id);
+    }
 
     await Category.findByIdAndDelete(req.params.id);
     res.json({ msg: 'Category removed' });

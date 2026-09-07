@@ -6,17 +6,13 @@ const categorySchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
-  icon: {
+  image: {
     type: String,
-    required: true,
+    required: false,
   },
-  color: {
+  public_id: {
     type: String,
-    required: true,
-  },
-  bgColor: {
-    type: String,
-    required: true,
+    required: false,
   },
   subCategories: [{
     type: String,
