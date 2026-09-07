@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, UserPlus, Wrench, Users } from 'lucide-react';
+import { Trash2, UserPlus, Wrench, Users, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -16,6 +16,14 @@ export default function Staff() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [category, setCategory] = useState('Electricity');
   const [isCreating, setIsCreating] = useState(false);
+  
+  // Custom Category State
+  const [availableCategories, setAvailableCategories] = useState([
+    'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 
+    'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'
+  ]);
+  const [showCustomCategory, setShowCustomCategory] = useState(false);
+  const [customCategory, setCustomCategory] = useState('');
 
   // Group blocks together into a single option for each entity
   const entityBlocks: any = {
@@ -61,20 +69,28 @@ export default function Staff() {
     try {
       const token = localStorage.getItem('adminToken');
       const staffName = `${selectedEntity}: Block ${selectedBlock}`;
+      const finalCategory = showCustomCategory && customCategory.trim() ? customCategory.trim() : category;
       
       await axios.post(`${API_URL}/users/staff`, {
         name: staffName,
         phone_number: phoneNumber,
-        assigned_category: category
+        assigned_category: finalCategory
       }, {
         headers: { 'x-auth-token': token }
       });
       
       toast.success('Staff account assigned successfully!', { id: loadingToast });
       
+      // If a new category was added, save it to the list
+      if (showCustomCategory && customCategory.trim() && !availableCategories.includes(customCategory.trim())) {
+        setAvailableCategories([...availableCategories, customCategory.trim()]);
+        setCategory(customCategory.trim());
+      }
+      
       // Reset form
       setPhoneNumber('');
-      setCategory('Electricity');
+      setShowCustomCategory(false);
+      setCustomCategory('');
       
       // Auto switch back to list
       setActiveTab('list');
@@ -305,33 +321,64 @@ export default function Staff() {
             </div>
             
             <div className="input-group">
-              <label>Assigned Category</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ margin: 0 }}>Assigned Category</label>
+                {!showCustomCategory ? (
+                  <button 
+                    type="button" 
+                    onClick={() => setShowCustomCategory(true)}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Plus size={14} /> Add New
+                  </button>
+                ) : (
+                  <button 
+                    type="button" 
+                    onClick={() => {
+                      setShowCustomCategory(false);
+                      setCustomCategory('');
+                    }}
+                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <X size={14} /> Cancel
+                  </button>
+                )}
+              </div>
+              
               <div style={{ position: 'relative' }}>
                 <Wrench size={18} style={{ position: 'absolute', left: '16px', top: '15px', color: 'var(--text-muted)' }} />
-                <select 
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px 14px 44px', 
-                    background: 'white', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    color: 'var(--text-main)',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="Electricity">Electricity</option>
-                  <option value="Garbage">Garbage</option>
-                  <option value="Sweeping">Sweeping</option>
-                  <option value="Sewage cleaning">Sewage cleaning</option>
-                  <option value="Rainwater drainage">Rainwater drainage</option>
-                  <option value="Tree cutting">Tree cutting</option>
-                  <option value="Street light">Street light</option>
-                  <option value="Water service">Water service</option>
-                </select>
+                
+                {showCustomCategory ? (
+                  <input 
+                    type="text" 
+                    value={customCategory} 
+                    onChange={(e) => setCustomCategory(e.target.value)} 
+                    required
+                    placeholder="Enter custom category name..."
+                    style={{ paddingLeft: '44px' }}
+                    autoFocus
+                  />
+                ) : (
+                  <select 
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value)}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px 16px 14px 44px', 
+                      background: 'white', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '12px',
+                      fontSize: '15px',
+                      color: 'var(--text-main)',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {availableCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
 
