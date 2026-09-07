@@ -14,9 +14,11 @@ export default function Categories() {
   
   const [formData, setFormData] = useState({
     title: '',
+    image: '',
     subCategories: [] as string[]
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [removeImageFlag, setRemoveImageFlag] = useState(false);
   const [newSubCategory, setNewSubCategory] = useState('');
 
   useEffect(() => {
@@ -40,16 +42,19 @@ export default function Categories() {
       setEditingId(category._id);
       setFormData({
         title: category.title,
+        image: category.image || '',
         subCategories: category.subCategories || []
       });
     } else {
       setEditingId(null);
       setFormData({
         title: '',
+        image: '',
         subCategories: []
       });
     }
     setImageFile(null);
+    setRemoveImageFlag(false);
     setNewSubCategory('');
     setIsModalOpen(true);
   };
@@ -85,13 +90,15 @@ export default function Categories() {
     const payload = new FormData();
     payload.append('title', formData.title);
     payload.append('subCategories', JSON.stringify(formData.subCategories));
-    if (imageFile) {
+    if (removeImageFlag) {
+      payload.append('removeImage', 'true');
+    } else if (imageFile) {
       payload.append('image', imageFile);
     }
 
     const loadingToast = toast.loading(editingId ? 'Updating category...' : 'Adding category...');
     try {
-      const token = localStorage.getItem('token') || '';
+      const token = localStorage.getItem('adminToken') || '';
       
       if (editingId) {
         await axios.put(`${API_URL}/categories/${editingId}`, payload, {
@@ -124,7 +131,7 @@ export default function Categories() {
 
     const loadingToast = toast.loading('Deleting category...');
     try {
-      const token = localStorage.getItem('token') || '';
+      const token = localStorage.getItem('adminToken') || '';
       await axios.delete(`${API_URL}/categories/${id}`, {
         headers: { 'x-auth-token': token }
       });
@@ -230,6 +237,23 @@ export default function Categories() {
 
               <div className="form-group">
                 <label className="form-label">Category Image</label>
+                
+                {formData.image && !removeImageFlag && !imageFile && (
+                  <div style={{ marginBottom: '12px', position: 'relative', display: 'inline-block' }}>
+                    <img src={formData.image} alt="Preview" style={{ width: '80px', height: '80px', borderRadius: '12px', objectFit: 'cover', border: '1px solid var(--border-color)' }} />
+                    <button 
+                      type="button" 
+                      onClick={() => setRemoveImageFlag(true)}
+                      style={{ 
+                        position: 'absolute', top: '-8px', right: '-8px', background: '#EF4444', color: 'white', 
+                        border: 'none', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                      }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
+                
                 <input 
                   type="file" 
                   accept="image/*"
@@ -237,6 +261,7 @@ export default function Categories() {
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
                       setImageFile(e.target.files[0]);
+                      setRemoveImageFlag(false);
                     }
                   }}
                 />

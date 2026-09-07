@@ -126,7 +126,13 @@ router.put('/:id', [auth, upload.single('image')], async (req, res) => {
     if (title) category.title = title;
     if (subCategories) category.subCategories = subCategories;
 
-    if (req.file) {
+    if (req.body.removeImage === 'true') {
+      if (category.public_id) {
+        await cloudinary.uploader.destroy(category.public_id);
+      }
+      category.image = '';
+      category.public_id = '';
+    } else if (req.file) {
       // Delete old image if it exists
       if (category.public_id) {
         await cloudinary.uploader.destroy(category.public_id);
