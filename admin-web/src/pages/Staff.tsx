@@ -12,7 +12,6 @@ export default function Staff() {
 
   // Form State
   const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 Option 1');
-  const [selectedBlock, setSelectedBlock] = useState('C');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [category, setCategory] = useState('Electricity');
   const [isCreating, setIsCreating] = useState(false);
@@ -22,13 +21,6 @@ export default function Staff() {
     'Sushant Lok 2 Option 2': ['F', 'G'],
     'Sushant Lok 3': ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
   };
-
-  useEffect(() => {
-    // Whenever entity changes, reset block to first option
-    if (entityBlocks[selectedEntity]) {
-      setSelectedBlock(entityBlocks[selectedEntity][0]);
-    }
-  }, [selectedEntity]);
 
   useEffect(() => {
     if (activeTab === 'list') {
@@ -59,7 +51,7 @@ export default function Staff() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const staffName = `${selectedEntity}: Block ${selectedBlock}`;
+      const staffName = selectedEntity; // Use just the entity name, no block
       
       await axios.post(`${API_URL}/users/staff`, {
         name: staffName,
@@ -237,7 +229,7 @@ export default function Staff() {
               <div style={{ background: 'rgba(255, 99, 71, 0.1)', padding: 12, borderRadius: 12 }}>
                 <UserPlus size={28} color="var(--primary)" />
               </div>
-              <h2 style={{ fontSize: 24, fontWeight: 700 }}>Assign Staff to Block</h2>
+              <h2 style={{ fontSize: 24, fontWeight: 700 }}>Assign Staff to Group</h2>
             </div>
 
             <form onSubmit={handleCreateStaff}>
@@ -260,29 +252,6 @@ export default function Staff() {
                 >
                   {Object.keys(entityBlocks).map(entity => (
                     <option key={entity} value={entity}>{entity}</option>
-                  ))}
-                </select>
-            </div>
-
-            <div className="input-group">
-              <label>Select Block</label>
-              <select 
-                  value={selectedBlock}
-                  onChange={(e) => setSelectedBlock(e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    background: 'white', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    color: 'var(--text-main)',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {entityBlocks[selectedEntity]?.map((blk: string) => (
-                    <option key={blk} value={blk}>Block {blk}</option>
                   ))}
                 </select>
             </div>
