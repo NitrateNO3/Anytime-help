@@ -89,7 +89,12 @@ export default function Categories() {
 
     const payload = new FormData();
     payload.append('title', formData.title);
-    payload.append('subCategories', JSON.stringify(formData.subCategories));
+    
+    let finalSubCategories = [...formData.subCategories];
+    if (newSubCategory.trim() !== '') {
+      finalSubCategories.push(newSubCategory.trim());
+    }
+    payload.append('subCategories', JSON.stringify(finalSubCategories));
     if (removeImageFlag) {
       payload.append('removeImage', 'true');
     } else if (imageFile) {
@@ -119,6 +124,7 @@ export default function Categories() {
       }
       
       handleCloseModal();
+      setNewSubCategory('');
       fetchCategories();
     } catch (error) {
       console.error(error);
@@ -254,17 +260,37 @@ export default function Categories() {
                   </div>
                 )}
                 
-                <input 
-                  type="file" 
-                  accept="image/*"
-                  className="form-input" 
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setImageFile(e.target.files[0]);
-                      setRemoveImageFlag(false);
-                    }
-                  }}
-                />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input 
+                    type="file" 
+                    accept="image/*"
+                    className="form-input" 
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files[0]) {
+                        setImageFile(e.target.files[0]);
+                        setRemoveImageFlag(false);
+                      }
+                    }}
+                    style={{ display: imageFile ? 'none' : 'block' }}
+                  />
+                  {imageFile && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', backgroundColor: '#F3F4F6', borderRadius: '8px', border: '1px solid #D1D5DB' }}>
+                      <span style={{ fontSize: '14px', color: '#374151' }}>{imageFile.name}</span>
+                      <button 
+                        type="button" 
+                        onClick={() => {
+                          setImageFile(null);
+                          // Reset the file input value so the same file can be selected again if needed
+                          const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+                          if (fileInput) fileInput.value = '';
+                        }} 
+                        style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', display: 'flex' }}
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="form-group">
