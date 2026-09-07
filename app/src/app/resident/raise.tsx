@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, StatusBar, ActivityIndicator, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
@@ -30,9 +31,11 @@ export default function RaiseComplaint() {
   const [errorMessage, setErrorMessage] = useState('');
   const [imageLoading, setImageLoading] = useState(false);
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchCategories();
+    }, [])
+  );
 
   const fetchCategories = async () => {
     try {
