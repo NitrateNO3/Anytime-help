@@ -6,6 +6,7 @@ import Staff from './pages/Staff';
 import Announcements from './pages/Announcements';
 import AdminLayout from './layouts/AdminLayout';
 import Banners from './pages/Banners';
+import Categories from './pages/Categories';
 import Residents from './pages/Residents';
 import PaidServices from './pages/PaidServices';
 import PaidStaff from './pages/PaidStaff';
@@ -26,6 +27,7 @@ function App() {
             <Route path="residents" element={<Residents />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="banners" element={<Banners />} />
+            <Route path="categories" element={<Categories />} />
             <Route path="paid-services" element={<PaidServices />} />
             <Route path="paid-staff" element={<PaidStaff />} />
             <Route path="service-bookings" element={<ServiceBookings />} />

@@ -45,6 +45,10 @@ export default function AdminLayout() {
             Staff Team
           </Link>
 
+          <Link to="/categories" className={`nav-link ${location.pathname === '/categories' ? 'active' : ''}`}>
+            <Megaphone size={20} />
+            Categories
+          </Link>
           <Link to="/announcements" className={`nav-link ${location.pathname === '/announcements' ? 'active' : ''}`}>
             <Megaphone size={20} />
             Announcements
