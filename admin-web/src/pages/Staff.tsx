@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, UserPlus, Wrench, Users, Plus, X } from 'lucide-react';
+import { Trash2, UserPlus, Wrench, Users, Plus, X, ListPlus } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
+const defaultCategories = [
+  'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 
+  'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'
+];
+
 export default function Staff() {
-  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'categories'>('list');
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -18,12 +23,11 @@ export default function Staff() {
   const [isCreating, setIsCreating] = useState(false);
   
   // Custom Category State
-  const [availableCategories, setAvailableCategories] = useState([
-    'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 
-    'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'
-  ]);
-  const [showCustomCategory, setShowCustomCategory] = useState(false);
-  const [customCategory, setCustomCategory] = useState('');
+  const [availableCategories, setAvailableCategories] = useState<string[]>(() => {
+    const saved = localStorage.getItem('customCategories');
+    return saved ? JSON.parse(saved) : defaultCategories;
+  });
+  const [newCategoryInput, setNewCategoryInput] = useState('');
 
   // Group blocks together into a single option for each entity
   const entityBlocks: any = {
@@ -45,6 +49,59 @@ export default function Staff() {
     }
   }, [activeTab]);
 
+  const saveCategories = (newCategories: string[]) => {
+    setAvailableCategories(newCategories);
+    localStorage.setItem('customCategories', JSON.stringify(newCategories));
+    
+    // If the currently selected category was deleted, reset it to the first available one
+    if (newCategories.length > 0 && !newCategories.includes(category)) {
+      setCategory(newCategories[0]);
+    } else if (newCategories.length === 0) {
+      setCategory('');
+    }
+  };
+
+  const handleAddCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newCategoryInput.trim();
+    if (!trimmed) return;
+    
+    if (availableCategories.includes(trimmed)) {
+      toast.error('Category already exists');
+      return;
+    }
+    
+    saveCategories([...availableCategories, trimmed]);
+    setNewCategoryInput('');
+    toast.success('Category added successfully');
+  };
+
+  const handleDeleteCategory = (catToDelete: string) => {
+    toast((t) => (
+      <div>
+        <p style={{ fontWeight: 600, marginBottom: 12, color: 'var(--text-main)' }}>Delete category '{catToDelete}'?</p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontWeight: 500, color: 'var(--text-main)' }}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={() => {
+              toast.dismiss(t.id);
+              saveCategories(availableCategories.filter(c => c !== catToDelete));
+              toast.success('Category deleted');
+            }} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: 'var(--danger)', color: 'white', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity });
+  };
+
   const fetchStaff = async () => {
     try {
       setLoading(true);
@@ -63,34 +120,30 @@ export default function Staff() {
 
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!category) {
+      toast.error('Please select or create a category first');
+      return;
+    }
+    
     setIsCreating(true);
     const loadingToast = toast.loading('Creating account...');
 
     try {
       const token = localStorage.getItem('adminToken');
       const staffName = `${selectedEntity}: Block ${selectedBlock}`;
-      const finalCategory = showCustomCategory && customCategory.trim() ? customCategory.trim() : category;
       
       await axios.post(`${API_URL}/users/staff`, {
         name: staffName,
         phone_number: phoneNumber,
-        assigned_category: finalCategory
+        assigned_category: category
       }, {
         headers: { 'x-auth-token': token }
       });
       
       toast.success('Staff account assigned successfully!', { id: loadingToast });
       
-      // If a new category was added, save it to the list
-      if (showCustomCategory && customCategory.trim() && !availableCategories.includes(customCategory.trim())) {
-        setAvailableCategories([...availableCategories, customCategory.trim()]);
-        setCategory(customCategory.trim());
-      }
-      
       // Reset form
       setPhoneNumber('');
-      setShowCustomCategory(false);
-      setCustomCategory('');
       
       // Auto switch back to list
       setActiveTab('list');
@@ -175,10 +228,23 @@ export default function Staff() {
         >
           <UserPlus size={18} /> <span>Create Account</span>
         </button>
+        <button 
+          onClick={() => { setActiveTab('categories'); }}
+          style={{ 
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 20px', 
+            background: activeTab === 'categories' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'categories' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'categories' ? 'none' : '1px solid var(--border-color)',
+            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s',
+            marginLeft: 'auto'
+          }}
+        >
+          <ListPlus size={18} /> <span>Manage Categories</span>
+        </button>
       </div>
 
       {/* Content Area */}
-      {activeTab === 'list' ? (
+      {activeTab === 'list' && (
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 600 }}>Staff List</h2>
@@ -247,7 +313,9 @@ export default function Staff() {
             </tbody>
           </table>
         </div>
-      ) : (
+      )}
+      
+      {activeTab === 'create' && (
         <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
           <div className="glass" style={{ padding: '40px', width: '100%', maxWidth: '600px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
@@ -321,64 +389,30 @@ export default function Staff() {
             </div>
             
             <div className="input-group">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ margin: 0 }}>Assigned Category</label>
-                {!showCustomCategory ? (
-                  <button 
-                    type="button" 
-                    onClick={() => setShowCustomCategory(true)}
-                    style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <Plus size={14} /> Add New
-                  </button>
-                ) : (
-                  <button 
-                    type="button" 
-                    onClick={() => {
-                      setShowCustomCategory(false);
-                      setCustomCategory('');
-                    }}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                  >
-                    <X size={14} /> Cancel
-                  </button>
-                )}
-              </div>
-              
+              <label>Assigned Category</label>
               <div style={{ position: 'relative' }}>
                 <Wrench size={18} style={{ position: 'absolute', left: '16px', top: '15px', color: 'var(--text-muted)' }} />
-                
-                {showCustomCategory ? (
-                  <input 
-                    type="text" 
-                    value={customCategory} 
-                    onChange={(e) => setCustomCategory(e.target.value)} 
-                    required
-                    placeholder="Enter custom category name..."
-                    style={{ paddingLeft: '44px' }}
-                    autoFocus
-                  />
-                ) : (
-                  <select 
-                    value={category}
-                    onChange={(e) => setCategory(e.target.value)}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px 14px 44px', 
-                      background: 'white', 
-                      border: '1px solid var(--border-color)', 
-                      borderRadius: '12px',
-                      fontSize: '15px',
-                      color: 'var(--text-main)',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {availableCategories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                )}
+                <select 
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  style={{ 
+                    width: '100%', 
+                    padding: '14px 16px 14px 44px', 
+                    background: 'white', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '12px',
+                    fontSize: '15px',
+                    color: 'var(--text-main)',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                  required
+                >
+                  {availableCategories.length === 0 && <option value="" disabled>No categories available</option>}
+                  {availableCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -387,6 +421,84 @@ export default function Staff() {
             </button>
           </form>
         </div>
+        </div>
+      )}
+
+      {activeTab === 'categories' && (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px' }}>
+          <div className="glass" style={{ padding: '40px', width: '100%', maxWidth: '600px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+              <div style={{ background: 'rgba(255, 99, 71, 0.1)', padding: 12, borderRadius: 12 }}>
+                <ListPlus size={28} color="var(--primary)" />
+              </div>
+              <h2 style={{ fontSize: 24, fontWeight: 700 }}>Manage Categories</h2>
+            </div>
+            
+            <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '12px', marginBottom: '32px' }}>
+              <div style={{ flex: 1 }}>
+                <input 
+                  type="text" 
+                  value={newCategoryInput} 
+                  onChange={(e) => setNewCategoryInput(e.target.value)} 
+                  required
+                  placeholder="E.g. Plumber, Electrician..."
+                  style={{ 
+                    width: '100%', 
+                    padding: '12px 16px', 
+                    background: 'white', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '12px',
+                    fontSize: '15px'
+                  }}
+                />
+              </div>
+              <button type="submit" style={{ 
+                background: 'var(--primary)', 
+                color: 'white', 
+                border: 'none', 
+                borderRadius: '12px', 
+                padding: '0 24px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <Plus size={18} /> Add
+              </button>
+            </form>
+
+            <div style={{ background: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden' }}>
+              {availableCategories.length === 0 ? (
+                <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                  No categories found. Add one above.
+                </div>
+              ) : (
+                availableCategories.map((cat, idx) => (
+                  <div key={cat} style={{ 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center', 
+                    padding: '16px 20px',
+                    borderBottom: idx < availableCategories.length - 1 ? '1px solid var(--border-color)' : 'none'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <Wrench size={16} color="var(--text-muted)" />
+                      <span style={{ fontWeight: 500 }}>{cat}</span>
+                    </div>
+                    <button 
+                      onClick={() => handleDeleteCategory(cat)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, color: 'var(--danger)' }}
+                      title="Delete Category"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+            
+          </div>
         </div>
       )}
     </div>
