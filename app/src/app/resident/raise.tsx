@@ -66,62 +66,48 @@ export default function RaiseComplaint() {
     setStep(2);
   };
 
-  const pickImage = () => {
-    Alert.alert(
-      "Add Photo",
-      "Choose how you want to add a photo",
-      [
-        {
-          text: "Take Photo",
-          onPress: async () => {
-            const { status } = await ImagePicker.requestCameraPermissionsAsync();
-            if (status !== 'granted') {
-              Alert.alert('Permission Denied', 'Sorry, we need camera permissions to make this work!');
-              return;
-            }
-            setImageLoading(true);
-            try {
-              let result = await ImagePicker.launchCameraAsync({
-                allowsEditing: true,
-                aspect: [4, 3],
-                quality: 0.5,
-                base64: true,
-              });
-              if (!result.canceled && result.assets && result.assets.length > 0) {
-                setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
-              }
-            } catch (e) {
-              console.log('Error taking photo:', e);
-            } finally {
-              setImageLoading(false);
-            }
-          }
-        },
-        {
-          text: "Choose from Gallery",
-          onPress: async () => {
-            setImageLoading(true);
-            try {
-              let result = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'],
-                allowsEditing: true,
-                aspect: [4, 3],
-                quality: 0.5,
-                base64: true,
-              });
-              if (!result.canceled && result.assets && result.assets.length > 0) {
-                setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
-              }
-            } catch (e) {
-              console.log('Error picking image:', e);
-            } finally {
-              setImageLoading(false);
-            }
-          }
-        },
-        { text: "Cancel", style: "cancel" }
-      ]
-    );
+  const takePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need camera permissions to make this work!');
+      return;
+    }
+    setImageLoading(true);
+    try {
+      let result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (e) {
+      console.log('Error taking photo:', e);
+    } finally {
+      setImageLoading(false);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    setImageLoading(true);
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (e) {
+      console.log('Error picking image:', e);
+    } finally {
+      setImageLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -262,13 +248,28 @@ export default function RaiseComplaint() {
                       </TouchableOpacity>
                     </View>
                   ) : (
-                    <TouchableOpacity style={styles.photoAddBtn} onPress={pickImage} disabled={imageLoading}>
-                      {imageLoading ? (
-                        <ActivityIndicator size="small" color="#3B82F6" />
-                      ) : (
-                        <Text style={styles.photoAddBtnText}>CLICK PHOTO <Text style={{color: '#EF4444'}}>*</Text></Text>
-                      )}
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <TouchableOpacity style={styles.photoAddBtn} onPress={takePhoto} disabled={imageLoading}>
+                        {imageLoading ? (
+                          <ActivityIndicator size="small" color="#3B82F6" />
+                        ) : (
+                          <>
+                            <Ionicons name="camera" size={20} color="#3B82F6" style={{ marginRight: 6 }} />
+                            <Text style={styles.photoAddBtnText}>CAMERA <Text style={{color: '#EF4444'}}>*</Text></Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.photoAddBtn} onPress={pickFromGallery} disabled={imageLoading}>
+                        {imageLoading ? (
+                          <ActivityIndicator size="small" color="#3B82F6" />
+                        ) : (
+                          <>
+                            <Ionicons name="image" size={20} color="#3B82F6" style={{ marginRight: 6 }} />
+                            <Text style={styles.photoAddBtnText}>GALLERY <Text style={{color: '#EF4444'}}>*</Text></Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
 
@@ -291,7 +292,7 @@ export default function RaiseComplaint() {
 
       {/* Sub Category Bottom Sheet Modal */}
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={bottomSheetVisible}
         onRequestClose={() => setBottomSheetVisible(false)}
@@ -420,7 +421,7 @@ const styles = StyleSheet.create({
   charCount: { textAlign: 'right', fontSize: 12, color: '#6B7280', marginTop: 4 },
   
   photosContainer: { marginTop: 4, marginBottom: 24 },
-  photoAddBtn: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#3B82F6', borderRadius: 6, paddingVertical: 14, paddingHorizontal: 20, alignSelf: 'flex-start' },
+  photoAddBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#3B82F6', borderRadius: 6, paddingVertical: 14, paddingHorizontal: 16 },
   photoAddBtnText: { color: '#3B82F6', fontSize: 14, fontWeight: '700' },
   imagePreviewContainer: { position: 'relative', width: 80, height: 80 },
   previewImage: { width: 80, height: 80, borderRadius: 8, borderWidth: 1, borderColor: '#D1D5DB' },
