@@ -37,7 +37,7 @@ export default function ResidentHome() {
               <Text style={[styles.greetingText, {color: '#93C5FD'}]}>
                 {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Resident'} 👋
               </Text>
-              <Text style={[styles.exploreText, {color: '#FFFFFF'}]}>Anytime Help Society</Text>
+              <Text style={[styles.exploreText, {color: '#FFFFFF'}]}>{t('resident.societyName')}</Text>
             </View>
             <TouchableOpacity style={styles.avatarContainer} onPress={() => router.push('/resident/settings')}>
               <Ionicons name="person" size={24} color="#1D4ED8" />
@@ -57,8 +57,8 @@ export default function ResidentHome() {
               <View style={[styles.gridIconCircle, { backgroundColor: '#FEE2E2' }]}>
                 <Ionicons name="megaphone" size={32} color="#EF4444" />
               </View>
-              <Text style={styles.gridCardTitle}>Lodge Grievance</Text>
-              <Text style={styles.gridCardSub}>Register new complaint</Text>
+              <Text style={styles.gridCardTitle}>{t('resident.lodgeGrievance')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.lodgeGrievanceSub')}</Text>
             </TouchableOpacity>
 
             {/* Card 2: My Complaints */}
@@ -70,8 +70,8 @@ export default function ResidentHome() {
               <View style={[styles.gridIconCircle, { backgroundColor: '#D1FAE5' }]}>
                 <Ionicons name="list" size={32} color="#10B981" />
               </View>
-              <Text style={styles.gridCardTitle}>My Complaints</Text>
-              <Text style={styles.gridCardSub}>List of your grievances</Text>
+              <Text style={styles.gridCardTitle}>{t('resident.myComplaints')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub')}</Text>
             </TouchableOpacity>
 
             {/* Card 3: Announcements */}
@@ -83,8 +83,8 @@ export default function ResidentHome() {
               <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
                 <Ionicons name="notifications" size={32} color="#3B82F6" />
               </View>
-              <Text style={styles.gridCardTitle}>Announcements</Text>
-              <Text style={styles.gridCardSub}>Society notices & alerts</Text>
+              <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
             </TouchableOpacity>
 
             {/* Card 4: Directory */}
@@ -96,8 +96,8 @@ export default function ResidentHome() {
               <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
                 <Ionicons name="people" size={32} color="#8B5CF6" />
               </View>
-              <Text style={styles.gridCardTitle}>Directory</Text>
-              <Text style={styles.gridCardSub}>Important contacts</Text>
+              <Text style={styles.gridCardTitle}>{t('resident.directory')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.directorySub')}</Text>
             </TouchableOpacity>
           </View>
         </View>

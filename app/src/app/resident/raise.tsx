@@ -8,6 +8,8 @@ import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
+import MapView, { Marker, Circle } from 'react-native-maps';
+import * as Location from 'expo-location';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -35,6 +37,16 @@ export default function RaiseComplaint() {
   
   const [showModal, setShowModal] = useState(false);
   const slideAnim = React.useRef(new Animated.Value(400)).current;
+
+  // Location & Map State
+  const [locationObj, setLocationObj] = useState<{latitude: number, longitude: number} | null>(null);
+  const [mapRegion, setMapRegion] = useState({
+    latitude: 28.6139,
+    longitude: 77.2090,
+    latitudeDelta: 0.005,
+    longitudeDelta: 0.005,
+  });
+  const mapRef = React.useRef<MapView>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -79,11 +91,38 @@ export default function RaiseComplaint() {
     });
   };
 
-  const selectSubCategory = (sub: string) => {
+  const selectSubCategory = async (sub: string) => {
     setCategory(selectedMainCategory.title);
     setSubCategory(sub);
     closeBottomSheet();
     setStep(2);
+    
+    // Fetch Location when entering Step 2
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Allow location access to attach it to your complaint.');
+        return;
+      }
+      let loc = await Location.getCurrentPositionAsync({});
+      const coords = {
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude
+      };
+      setLocationObj(coords);
+      setMapRegion({
+        ...coords,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      });
+      mapRef.current?.animateToRegion({
+        ...coords,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      }, 1000);
+    } catch (e) {
+      console.log('Error getting location:', e);
+    }
   };
 
   const takePhoto = async () => {
@@ -147,7 +186,7 @@ export default function RaiseComplaint() {
         {
           title: category,
           description,
-          location: 'N/A', // Location removed from UI as per request
+          location: locationObj ? `${locationObj.latitude}, ${locationObj.longitude}` : 'N/A',
           category,
           subCategory,
           department: mockDepartmentId,
@@ -188,7 +227,7 @@ export default function RaiseComplaint() {
             <Ionicons name="chevron-back" size={28} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>
-            {step === 1 ? 'GRIEVANCE CATEGORY' : 'LODGE GRIEVANCE'}
+            {step === 1 ? t('raise.grievanceCategory') : t('raise.lodgeGrievance')}
           </Text>
           <View style={{ width: 28 }} />
         </View>
@@ -213,7 +252,7 @@ export default function RaiseComplaint() {
                 ))}
               </View>
             ) : categoriesData.length === 0 ? (
-              <Text style={{ textAlign: 'center', marginTop: 40, color: '#6B7280' }}>No categories available yet.</Text>
+              <Text style={{ textAlign: 'center', marginTop: 40, color: '#6B7280' }}>{t('raise.noCategories')}</Text>
             ) : (
               categoriesData.map((cat, index) => (
                 <TouchableOpacity 
@@ -230,7 +269,7 @@ export default function RaiseComplaint() {
                   </View>
                   <View style={styles.categoryInfo}>
                     <Text style={[styles.categoryTitle, { color: cat.color || '#3B82F6' }]}>{t(`categories.${cat.title}`, { defaultValue: cat.title })}</Text>
-                    <Text style={styles.subCategoryCount}>{cat.subCategories?.length || 0} SUB-CATEGORIES</Text>
+                    <Text style={styles.subCategoryCount}>{t('raise.subCategoriesCount', { count: cat.subCategories?.length || 0 })}</Text>
                   </View>
                 </TouchableOpacity>
               ))
@@ -244,9 +283,76 @@ export default function RaiseComplaint() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* Map Section */}
             <View style={styles.formSection}>
               <View style={styles.formSectionHeader}>
-                <Text style={styles.formSectionTitle}>Grievance Details</Text>
+                <Text style={styles.formSectionTitle}>{t('raise.grievanceLocation')}</Text>
+              </View>
+              <View style={[styles.formSectionContent, { padding: 0, overflow: 'hidden', alignItems: 'center' }]}>
+                <Text style={{ textAlign: 'center', fontSize: 12, fontWeight: '700', color: '#6B7280', marginVertical: 12, letterSpacing: 0.5 }}>
+                  {t('raise.showingPresentLocation')}
+                </Text>
+                
+                <View style={{ width: '100%', height: 250, position: 'relative' }}>
+                  <MapView
+                    ref={mapRef}
+                    style={{ width: '100%', height: '100%' }}
+                    region={mapRegion}
+                    onRegionChangeComplete={(region) => {
+                      setMapRegion(region);
+                      setLocationObj({ latitude: region.latitude, longitude: region.longitude });
+                    }}
+                  >
+                    {locationObj && (
+                      <>
+                        <Circle
+                          center={locationObj}
+                          radius={150}
+                          fillColor="rgba(59, 130, 246, 0.15)"
+                          strokeColor="#3B82F6"
+                          strokeWidth={2}
+                        />
+                        <Marker coordinate={locationObj} />
+                      </>
+                    )}
+                  </MapView>
+
+                  {/* Zoom Controls Overlay */}
+                  <View style={{ position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 }}>
+                    <TouchableOpacity 
+                      style={{ backgroundColor: 'rgba(209, 213, 219, 0.9)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4 }}
+                      onPress={() => {
+                        const newReg = { ...mapRegion, latitudeDelta: mapRegion.latitudeDelta / 2, longitudeDelta: mapRegion.longitudeDelta / 2 };
+                        setMapRegion(newReg);
+                        mapRef.current?.animateToRegion(newReg, 500);
+                      }}
+                    >
+                      <Text style={{ color: '#4B5563', fontWeight: '600', fontSize: 14 }}>{t('raise.zoomIn')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={{ backgroundColor: 'rgba(209, 213, 219, 0.9)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4 }}
+                      onPress={() => {
+                        const newReg = { ...mapRegion, latitudeDelta: mapRegion.latitudeDelta * 2, longitudeDelta: mapRegion.longitudeDelta * 2 };
+                        setMapRegion(newReg);
+                        mapRef.current?.animateToRegion(newReg, 500);
+                      }}
+                    >
+                      <Text style={{ color: '#4B5563', fontWeight: '600', fontSize: 14 }}>{t('raise.zoomOut')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={{ paddingVertical: 12, width: '100%', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
+                  <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                    {t('raise.tapToMark')}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.formSection}>
+              <View style={styles.formSectionHeader}>
+                <Text style={styles.formSectionTitle}>{t('raise.grievanceDetails')}</Text>
               </View>
               
               <View style={styles.formSectionContent}>
@@ -339,7 +445,7 @@ export default function RaiseComplaint() {
         >
           <Animated.View style={[styles.bottomSheetContainer, { transform: [{ translateY: slideAnim }] }]}>
             <View style={styles.bottomSheetHeader}>
-              <Text style={styles.bottomSheetTitle}>Grievance Sub Categories</Text>
+              <Text style={styles.bottomSheetTitle}>{t('raise.subCategoriesTitle')}</Text>
             </View>
             <ScrollView style={{ maxHeight: 400 }}>
               {selectedMainCategory?.subCategories?.map((sub: string, index: number) => (

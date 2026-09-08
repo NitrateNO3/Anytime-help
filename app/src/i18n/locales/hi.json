@@ -37,14 +37,24 @@
   "resident": {
     "hello": "नमस्ते,",
     "exploreSociety": "सोसाइटी एक्सप्लोर करें",
+    "societyName": "एनीटाइम हेल्प सोसाइटी",
     "myComplaints": "मेरी शिकायतें",
+    "myComplaintsSub": "आपकी शिकायतों की सूची",
     "announcements": "घोषणाएं",
+    "announcementsSub": "सोसाइटी नोटिस और अलर्ट",
     "noComplaints": "आपने अभी तक कोई शिकायत दर्ज नहीं की है।",
     "priority": "प्राथमिकता (Priority)",
     "noAnnouncements": "अभी कोई घोषणा नहीं है",
     "noAnnouncementsSub": "जब एडमिन नोटिस भेजेंगे, तो वे यहां दिखाई देंगे।",
     "menuComingSoon": "साइडबार जल्द आ रहा है!",
-    "menu": "मेनू"
+    "menu": "मेनू",
+    "lodgeGrievance": "शिकायत दर्ज करें",
+    "lodgeGrievanceSub": "नई शिकायत दर्ज करें",
+    "directory": "निर्देशिका",
+    "directorySub": "महत्वपूर्ण संपर्क",
+    "tabHome": "होम",
+    "tabProfile": "प्रोफाइल",
+    "searchComplaints": "शिकायतें खोजें..."
   },
   "raise": {
     "title": "शिकायत दर्ज करें",
@@ -61,7 +71,19 @@
     "errorTitle": "त्रुटि",
     "successTitle": "सफलता",
     "successDesc": "शिकायत सफलतापूर्वक दर्ज की गई!",
-    "errorSubmit": "शिकायत दर्ज करने में विफल। पुनः प्रयास करें।"
+    "errorSubmit": "शिकायत दर्ज करने में विफल। पुनः प्रयास करें।",
+    "grievanceCategory": "शिकायत की श्रेणी",
+    "lodgeGrievance": "शिकायत दर्ज करें",
+    "subCategoriesCount": "{{count}} उप-श्रेणियाँ",
+    "subCategoriesTitle": "शिकायत उप-श्रेणियाँ",
+    "grievanceDetails": "शिकायत का विवरण",
+    "noCategories": "अभी कोई श्रेणी उपलब्ध नहीं है।",
+    "grievanceLocation": "शिकायत का स्थान",
+    "showingPresentLocation": "आपका वर्तमान स्थान दिखा रहा है",
+    "tapToMark": "सटीक स्थान चिह्नित करने के लिए नीले घेरे में टैप करें",
+    "fetchingLocation": "स्थान प्राप्त किया जा रहा है...",
+    "zoomIn": "ज़ूम इन",
+    "zoomOut": "ज़ूम आउट"
   },
   "search": {
     "title": "सोसाइटी निर्देशिका (Directory)",

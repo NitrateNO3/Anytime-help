@@ -268,7 +268,7 @@ export default function MyComplaints() {
                 <Ionicons name="search-outline" size={20} color="#9CA3AF" style={{ marginRight: 8 }} />
                 <TextInput
                   style={{ flex: 1, height: 40, color: '#111827' }}
-                  placeholder="Search complaints..."
+                  placeholder={t('resident.searchComplaints')}
                   placeholderTextColor="#9CA3AF"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -389,7 +389,7 @@ export default function MyComplaints() {
                                   {idx === 2 && <Ionicons name="checkmark-circle" size={16} color={isActive ? '#FFFFFF' : '#9CA3AF'} />}
                                 </LinearGradient>
                                 <Text style={[styles.trackerLabel, { color: textColor }]}>
-                                  {s === 'IN_PROGRESS' ? 'In Progress' : s.charAt(0) + s.slice(1).toLowerCase()}
+                                  {s === 'PENDING' ? t('staff.pending') : s === 'IN_PROGRESS' ? t('staff.inProgress') : t('staff.resolved')}
                                 </Text>
                               </View>
                             );

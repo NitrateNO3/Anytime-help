@@ -4,9 +4,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTranslation } from 'react-i18next';
 
 export default function ResidentLayout() {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   
   return (
     <Tabs
@@ -37,8 +39,8 @@ export default function ResidentLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          tabBarLabel: "Home",
-          title: "Home",
+          tabBarLabel: t('resident.tabHome'),
+          title: t('resident.tabHome'),
           tabBarIcon: ({ color }) => (
             <Ionicons name="home" size={24} color={color} />
           ),
@@ -47,8 +49,8 @@ export default function ResidentLayout() {
       <Tabs.Screen
         name="my-complaints"
         options={{
-          tabBarLabel: "My Grievances",
-          title: "My Grievances",
+          tabBarLabel: t('resident.myComplaints'),
+          title: t('resident.myComplaints'),
           tabBarIcon: ({ color }) => (
             <Ionicons name="list" size={24} color={color} />
           ),
@@ -57,8 +59,8 @@ export default function ResidentLayout() {
       <Tabs.Screen
         name="settings"
         options={{
-          tabBarLabel: "Profile",
-          title: "Profile",
+          tabBarLabel: t('resident.tabProfile'),
+          title: t('resident.tabProfile'),
           tabBarIcon: ({ color }) => (
             <Ionicons name="person" size={24} color={color} />
           ),

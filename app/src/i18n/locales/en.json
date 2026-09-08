@@ -37,14 +37,24 @@
   "resident": {
     "hello": "Hello,",
     "exploreSociety": "Explore Society",
+    "societyName": "Anytime Help Society",
     "myComplaints": "My Complaints",
+    "myComplaintsSub": "List of your grievances",
     "announcements": "Announcements",
+    "announcementsSub": "Society notices & alerts",
     "noComplaints": "You haven't raised any complaints yet.",
     "priority": "Priority",
     "noAnnouncements": "No Announcements Yet",
     "noAnnouncementsSub": "When the admin broadcasts notices, they will appear here.",
     "menuComingSoon": "Sidebar coming soon!",
-    "menu": "Menu"
+    "menu": "Menu",
+    "lodgeGrievance": "Lodge Grievance",
+    "lodgeGrievanceSub": "Register new complaint",
+    "directory": "Directory",
+    "directorySub": "Important contacts",
+    "tabHome": "Home",
+    "tabProfile": "Profile",
+    "searchComplaints": "Search complaints..."
   },
   "raise": {
     "title": "Raise a Complaint",
@@ -61,7 +71,19 @@
     "errorTitle": "Error",
     "successTitle": "Success",
     "successDesc": "Complaint raised successfully!",
-    "errorSubmit": "Failed to submit complaint. Try again."
+    "errorSubmit": "Failed to submit complaint. Try again.",
+    "grievanceCategory": "GRIEVANCE CATEGORY",
+    "lodgeGrievance": "LODGE GRIEVANCE",
+    "subCategoriesCount": "{{count}} SUB-CATEGORIES",
+    "subCategoriesTitle": "Grievance Sub Categories",
+    "grievanceDetails": "Grievance Details",
+    "noCategories": "No categories available yet.",
+    "grievanceLocation": "Grievance Location",
+    "showingPresentLocation": "SHOWING YOUR PRESENT LOCATION",
+    "tapToMark": "TAP INSIDE BLUE CIRCLE TO MARK EXACT LOCATION",
+    "fetchingLocation": "Fetching location...",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out"
   },
   "search": {
     "title": "Society Directory",
