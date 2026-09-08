@@ -200,18 +200,7 @@ export default function Categories() {
                   </div>
                 </div>
 
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {cat.subCategories?.map((sub: string, index: number) => (
-                      <span key={index} style={{ 
-                        fontSize: '12px', padding: '4px 8px', backgroundColor: '#F3F4F6', 
-                        borderRadius: '16px', color: '#4B5563' 
-                      }}>
-                        {sub}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+
               </div>
             ))
           )}

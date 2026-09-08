@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, StatusBar, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, StatusBar, ActivityIndicator, Image, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
@@ -29,7 +29,11 @@ export default function RaiseComplaint() {
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  const [imageLoading, setImageLoading] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+  
+  const [showModal, setShowModal] = useState(false);
+  const slideAnim = React.useRef(new Animated.Value(400)).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -56,13 +60,28 @@ export default function RaiseComplaint() {
 
   const openSubCategories = (cat: any) => {
     setSelectedMainCategory(cat);
-    setBottomSheetVisible(true);
+    setShowModal(true);
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const closeBottomSheet = () => {
+    Animated.timing(slideAnim, {
+      toValue: 400,
+      duration: 250,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowModal(false);
+    });
   };
 
   const selectSubCategory = (sub: string) => {
     setCategory(selectedMainCategory.title);
     setSubCategory(sub);
-    setBottomSheetVisible(false);
+    closeBottomSheet();
     setStep(2);
   };
 
@@ -72,7 +91,7 @@ export default function RaiseComplaint() {
       Alert.alert('Permission Denied', 'Sorry, we need camera permissions to make this work!');
       return;
     }
-    setImageLoading(true);
+    setCameraLoading(true);
     try {
       let result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
@@ -86,12 +105,12 @@ export default function RaiseComplaint() {
     } catch (e) {
       console.log('Error taking photo:', e);
     } finally {
-      setImageLoading(false);
+      setCameraLoading(false);
     }
   };
 
   const pickFromGallery = async () => {
-    setImageLoading(true);
+    setGalleryLoading(true);
     try {
       let result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -106,7 +125,7 @@ export default function RaiseComplaint() {
     } catch (e) {
       console.log('Error picking image:', e);
     } finally {
-      setImageLoading(false);
+      setGalleryLoading(false);
     }
   };
 
@@ -180,7 +199,17 @@ export default function RaiseComplaint() {
             showsVerticalScrollIndicator={false}
           >
             {loadingCategories ? (
-              <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
+              <View>
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <View key={i} style={styles.categoryCard}>
+                    <View style={[styles.iconWrapper, { backgroundColor: '#E5E7EB' }]} />
+                    <View style={styles.categoryInfo}>
+                      <View style={{ width: '60%', height: 16, backgroundColor: '#E5E7EB', borderRadius: 4, marginBottom: 8 }} />
+                      <View style={{ width: '40%', height: 12, backgroundColor: '#E5E7EB', borderRadius: 4 }} />
+                    </View>
+                  </View>
+                ))}
+              </View>
             ) : categoriesData.length === 0 ? (
               <Text style={{ textAlign: 'center', marginTop: 40, color: '#6B7280' }}>No categories available yet.</Text>
             ) : (
@@ -190,8 +219,12 @@ export default function RaiseComplaint() {
                   style={styles.categoryCard}
                   onPress={() => openSubCategories(cat)}
                 >
-                  <View style={[styles.iconWrapper, { backgroundColor: cat.bgColor || '#DBEAFE' }]}>
-                    <Ionicons name={(cat.icon || 'list') as any} size={28} color={cat.color || '#3B82F6'} />
+                  <View style={[styles.iconWrapper, { backgroundColor: cat.image ? '#F3F4F6' : (cat.bgColor || '#DBEAFE'), overflow: 'hidden' }]}>
+                    {cat.image ? (
+                      <Image source={{ uri: cat.image }} style={{ width: '100%', height: '100%', borderRadius: 12, resizeMode: 'cover' }} />
+                    ) : (
+                      <Ionicons name={(cat.icon || 'list') as any} size={28} color={cat.color || '#3B82F6'} />
+                    )}
                   </View>
                   <View style={styles.categoryInfo}>
                     <Text style={[styles.categoryTitle, { color: cat.color || '#3B82F6' }]}>{cat.title}</Text>
@@ -249,8 +282,8 @@ export default function RaiseComplaint() {
                     </View>
                   ) : (
                     <View style={{ flexDirection: 'row', gap: 12 }}>
-                      <TouchableOpacity style={styles.photoAddBtn} onPress={takePhoto} disabled={imageLoading}>
-                        {imageLoading ? (
+                      <TouchableOpacity style={styles.photoAddBtn} onPress={takePhoto} disabled={cameraLoading || galleryLoading}>
+                        {cameraLoading ? (
                           <ActivityIndicator size="small" color="#3B82F6" />
                         ) : (
                           <>
@@ -259,8 +292,8 @@ export default function RaiseComplaint() {
                           </>
                         )}
                       </TouchableOpacity>
-                      <TouchableOpacity style={styles.photoAddBtn} onPress={pickFromGallery} disabled={imageLoading}>
-                        {imageLoading ? (
+                      <TouchableOpacity style={styles.photoAddBtn} onPress={pickFromGallery} disabled={cameraLoading || galleryLoading}>
+                        {galleryLoading ? (
                           <ActivityIndicator size="small" color="#3B82F6" />
                         ) : (
                           <>
@@ -294,15 +327,15 @@ export default function RaiseComplaint() {
       <Modal
         animationType="fade"
         transparent={true}
-        visible={bottomSheetVisible}
-        onRequestClose={() => setBottomSheetVisible(false)}
+        visible={showModal}
+        onRequestClose={closeBottomSheet}
       >
         <TouchableOpacity 
           style={styles.bottomSheetOverlay} 
           activeOpacity={1} 
-          onPress={() => setBottomSheetVisible(false)}
+          onPress={closeBottomSheet}
         >
-          <View style={styles.bottomSheetContainer}>
+          <Animated.View style={[styles.bottomSheetContainer, { transform: [{ translateY: slideAnim }] }]}>
             <View style={styles.bottomSheetHeader}>
               <Text style={styles.bottomSheetTitle}>Grievance Sub Categories</Text>
             </View>
@@ -318,7 +351,7 @@ export default function RaiseComplaint() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
+          </Animated.View>
         </TouchableOpacity>
       </Modal>
 
