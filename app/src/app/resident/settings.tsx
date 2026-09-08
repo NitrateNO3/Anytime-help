@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsScreen() {
@@ -34,10 +35,18 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('settings.settingsTitle')}</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 30) : 40, paddingBottom: 15, paddingHorizontal: 24, backgroundColor: '#1D4ED8', zIndex: 1 }}>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 16 }}>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 24, fontWeight: '700', color: '#FFFFFF' }}>{t('settings.settingsTitle')}</Text>
       </View>
+
+      <ScrollView contentContainerStyle={{ paddingBottom: 120, paddingTop: 10, paddingHorizontal: 20 }} showsVerticalScrollIndicator={false}>
+      
 
       <View style={styles.profileSection}>
         <View style={styles.avatarBox}>

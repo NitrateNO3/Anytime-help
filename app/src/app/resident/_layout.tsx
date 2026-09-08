@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function ResidentLayout() {
   const insets = useSafeAreaInsets();
@@ -11,68 +12,61 @@ export default function ResidentLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarShowLabel: false,
+        tabBarShowLabel: true,
+        tabBarActiveTintColor: '#1D4ED8',
+        tabBarInactiveTintColor: '#6B7280',
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
-          borderTopWidth: 0,
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+          height: Platform.OS === 'ios' ? 85 : 65,
+          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+          paddingTop: 10,
           elevation: 10,
           shadowColor: '#000',
           shadowOffset: { width: 0, height: -2 },
           shadowOpacity: 0.1,
-          shadowRadius: 10,
-          height: 80,
-          paddingBottom: 20,
-          paddingTop: 10,
-          borderRadius: 40,
-          position: 'absolute',
-          bottom: Math.max(insets.bottom + 10, 24),
-          marginHorizontal: 24,
-          paddingHorizontal: 10,
+          shadowRadius: 4,
         },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={28} color={focused ? '#000' : '#9CA3AF'} />
+          tabBarLabel: "Home",
+          title: "Home",
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="home" size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="search"
+        name="my-complaints"
         options={{
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'search' : 'search-outline'} size={28} color={focused ? '#000' : '#9CA3AF'} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="raise"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <View style={[styles.fabContainer, focused && styles.activeFab]}>
-              <Ionicons name="add" size={32} color="#FFF" />
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="community"
-        options={{
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={28} color={focused ? '#000' : '#9CA3AF'} />
+          tabBarLabel: "My Grievances",
+          title: "My Grievances",
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="list" size={24} color={color} />
           ),
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
-          tabBarIcon: ({ focused }) => (
-            <Ionicons name={focused ? 'settings' : 'settings-outline'} size={28} color={focused ? '#000' : '#9CA3AF'} />
+          tabBarLabel: "Profile",
+          title: "Profile",
+          tabBarIcon: ({ color }) => (
+            <Ionicons name="person" size={24} color={color} />
           ),
         }}
       />
+      <Tabs.Screen name="search" options={{ href: null }} />
+      <Tabs.Screen name="raise" options={{ href: null }} />
+      <Tabs.Screen name="community" options={{ href: null }} />
       <Tabs.Screen name="privacy" options={{ href: null }} />
       <Tabs.Screen name="about" options={{ href: null }} />
       <Tabs.Screen name="support" options={{ href: null }} />
@@ -83,6 +77,7 @@ export default function ResidentLayout() {
           tabBarStyle: { display: 'none' }
         }} 
       />
+      <Tabs.Screen name="announcements" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -95,21 +90,35 @@ const styles = StyleSheet.create({
   activeIcon: {
     backgroundColor: '#F3F4F6',
   },
-  fabContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#1D4ED8', // Primary Blue
+  fabOuter: {
+    width: 66,
+    height: 66,
+    borderRadius: 33,
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20, // Elevates the button slightly
+    marginBottom: 32, // Elevates the button significantly
     shadowColor: '#1D4ED8',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fabInner: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#93C5FD',
+  },
+  fabIconShadow: {
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 3,
   },
   activeFab: {
-    transform: [{ scale: 1.1 }],
+    transform: [{ scale: 1.08 }],
   }
 });

@@ -2,8 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Linking, Platform, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 
 export default function DirectoryScreen() {
+  const router = useRouter();
   const { t } = useTranslation();
   const contacts = [
     { id: '1', name: 'National Emergency', role: 'All Emergencies', phone: '112', icon: 'alert-circle' },
@@ -20,9 +23,14 @@ export default function DirectoryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('search.title')}</Text>
-        <Text style={styles.headerSubtitle}>{t('search.subtitle')}</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+
+      {/* Header */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 30) : 40, paddingBottom: 15, backgroundColor: '#1D4ED8', zIndex: 1 }}>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 16 }}>
+          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+        <Text style={{ fontSize: 24, fontWeight: '700', color: '#FFFFFF' }}>{t('search.title')}</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.contentContainer}>

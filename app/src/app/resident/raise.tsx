@@ -7,6 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import * as SecureStore from 'expo-secure-store';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -63,7 +64,7 @@ export default function RaiseComplaint() {
     setShowModal(true);
     Animated.timing(slideAnim, {
       toValue: 0,
-      duration: 300,
+      duration: 150,
       useNativeDriver: true,
     }).start();
   };
@@ -71,7 +72,7 @@ export default function RaiseComplaint() {
   const closeBottomSheet = () => {
     Animated.timing(slideAnim, {
       toValue: 400,
-      duration: 250,
+      duration: 150,
       useNativeDriver: true,
     }).start(() => {
       setShowModal(false);
@@ -176,9 +177,10 @@ export default function RaiseComplaint() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        
+        <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+
         {/* Header */}
-        <View style={styles.header}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 30) : 40, paddingBottom: 15, backgroundColor: '#1D4ED8', zIndex: 1 }}>
           <TouchableOpacity onPress={() => {
             if (step === 2) setStep(1);
             else router.back();
@@ -227,7 +229,7 @@ export default function RaiseComplaint() {
                     )}
                   </View>
                   <View style={styles.categoryInfo}>
-                    <Text style={[styles.categoryTitle, { color: cat.color || '#3B82F6' }]}>{cat.title}</Text>
+                    <Text style={[styles.categoryTitle, { color: cat.color || '#3B82F6' }]}>{t(`categories.${cat.title}`, { defaultValue: cat.title })}</Text>
                     <Text style={styles.subCategoryCount}>{cat.subCategories?.length || 0} SUB-CATEGORIES</Text>
                   </View>
                 </TouchableOpacity>
@@ -325,7 +327,7 @@ export default function RaiseComplaint() {
 
       {/* Sub Category Bottom Sheet Modal */}
       <Modal
-        animationType="fade"
+        animationType="none"
         transparent={true}
         visible={showModal}
         onRequestClose={closeBottomSheet}
@@ -346,7 +348,7 @@ export default function RaiseComplaint() {
                   style={styles.subCategoryItem}
                   onPress={() => selectSubCategory(sub)}
                 >
-                  <Text style={styles.subCategoryText}>{sub}</Text>
+                  <Text style={styles.subCategoryText}>{t(`categories.${sub}`, { defaultValue: sub })}</Text>
                   <Ionicons name="arrow-forward" size={20} color="#111827" />
                 </TouchableOpacity>
               ))}
@@ -405,14 +407,6 @@ export default function RaiseComplaint() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#EFF6FF' },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center', 
-    padding: 16, 
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 30) : 40, 
-    backgroundColor: '#1D4ED8',
-  },
   headerTitle: { fontSize: 18, fontWeight: '700', color: '#FFFFFF', letterSpacing: 1 },
   iconBtn: { padding: 4 },
   

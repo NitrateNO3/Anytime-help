@@ -83,5 +83,17 @@
     "signup": "साइन अप करें",
     "alreadyHave": "क्या आपके पास पहले से अकाउंट है? ",
     "loginHere": "यहाँ लॉगिन करें"
+  },
+  "categories": {
+    "All": "सभी",
+    "Electricity": "बिजली",
+    "Garbage": "कचरा",
+    "Sweeping": "सफाई",
+    "Sewage cleaning": "सीवेज सफाई",
+    "Rainwater drainage": "वर्षा जल निकासी",
+    "Tree cutting": "पेड़ काटना",
+    "Street light": "स्ट्रीट लाइट",
+    "Water service": "जल सेवा",
+    "Others": "अन्य"
   }
 }
