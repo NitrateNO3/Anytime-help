@@ -147,17 +147,20 @@ export default function Dashboard() {
       {/* Data Table */}
       <div className="glass table-container">
         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Recent Complaints</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Title & Desc</th>
-              <th>Category</th>
-              <th>Location</th>
-              <th>Resident</th>
-              <th>Status</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
+        <div className="table-card">
+        <div style={{ overflowX: 'auto', width: '100%' }}>
+          <table style={{ width: '100%', minWidth: '900px' }}>
+            <thead>
+              <tr>
+                <th style={{ minWidth: '250px' }}>Title & Desc</th>
+                <th style={{ minWidth: '150px' }}>Category</th>
+                <th style={{ minWidth: '200px' }}>Location</th>
+                <th style={{ minWidth: '150px' }}>Address</th>
+                <th style={{ minWidth: '150px' }}>Resident</th>
+                <th style={{ minWidth: '120px' }}>Status</th>
+                <th style={{ minWidth: '120px' }}>Actions</th>
+              </tr>
+            </thead>
           <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, idx) => (
@@ -175,7 +178,7 @@ export default function Dashboard() {
                 ))
               ) : complaints.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No complaints found.</td>
+                  <td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>No complaints found.</td>
                 </tr>
               ) : (
                 complaints.map(item => (
@@ -188,6 +191,7 @@ export default function Dashboard() {
                     </td>
                     <td>{item.category}</td>
                     <td>{item.location}</td>
+                    <td>{item.address || '-'}</td>
                     <td>{item.user?.name || 'Unknown'}</td>
                     <td>
                       <span className={`badge ${
@@ -233,8 +237,9 @@ export default function Dashboard() {
               )}
             </tbody>
           </table>
-          
-          {/* Pagination Controls */}
+        </div>
+        
+        {/* Pagination Controls */}
           {totalPages > 1 && (
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, padding: '0 10px' }}>
               <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
@@ -258,6 +263,7 @@ export default function Dashboard() {
               </div>
             </div>
           )}
+        </div>
       </div>
     </div>
   );

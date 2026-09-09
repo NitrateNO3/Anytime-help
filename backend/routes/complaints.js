@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 // POST /api/complaints
 router.post('/', auth, async (req, res) => {
   try {
-    const { title, description, location, category, department, priority, before_image } = req.body;
+    const { title, description, location, address, category, department, priority, before_image } = req.body;
     
     // Check for existing identical or similar complaint
     // We consider it a duplicate if it has the same department, category, location, and is not resolved
@@ -46,6 +46,7 @@ router.post('/', auth, async (req, res) => {
       title,
       description,
       location,
+      address,
       category,
       department,
       priority,

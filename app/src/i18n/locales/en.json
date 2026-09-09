@@ -81,6 +81,7 @@
     "grievanceLocation": "Grievance Location",
     "showingPresentLocation": "SHOWING YOUR PRESENT LOCATION",
     "tapToMark": "TAP INSIDE BLUE CIRCLE TO MARK EXACT LOCATION",
+    "manualAddress": "House/Flat No. & Building (Optional)",
     "fetchingLocation": "Fetching location...",
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out"

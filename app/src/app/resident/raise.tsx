@@ -40,6 +40,8 @@ export default function RaiseComplaint() {
 
   // Location & Map State
   const [locationObj, setLocationObj] = useState<{latitude: number, longitude: number} | null>(null);
+  const [locationAddress, setLocationAddress] = useState<string>('');
+  const [manualAddress, setManualAddress] = useState<string>('');
   const [mapRegion, setMapRegion] = useState({
     latitude: 28.6139,
     longitude: 77.2090,
@@ -120,8 +122,29 @@ export default function RaiseComplaint() {
         latitudeDelta: 0.005,
         longitudeDelta: 0.005,
       }, 1000);
+      
+      // Fetch readable address
+      fetchReadableAddress(coords.latitude, coords.longitude);
     } catch (e) {
       console.log('Error getting location:', e);
+    }
+  };
+
+  const fetchReadableAddress = async (lat: number, lon: number) => {
+    try {
+      const result = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
+      if (result && result.length > 0) {
+        const addr = result[0];
+        const parts = [addr.name || addr.street, addr.city || addr.district, addr.region || addr.subregion, addr.postalCode].filter(Boolean);
+        if (parts.length > 0) {
+          setLocationAddress(parts.join(', '));
+        } else {
+          setLocationAddress(`${lat.toFixed(5)}, ${lon.toFixed(5)}`);
+        }
+      }
+    } catch (err) {
+      console.log('Error reverse geocoding:', err);
+      setLocationAddress(`${lat.toFixed(5)}, ${lon.toFixed(5)}`);
     }
   };
 
@@ -186,7 +209,8 @@ export default function RaiseComplaint() {
         {
           title: category,
           description,
-          location: locationObj ? `${locationObj.latitude}, ${locationObj.longitude}` : 'N/A',
+          location: locationAddress || (locationObj ? `${locationObj.latitude}, ${locationObj.longitude}` : 'N/A'),
+          address: manualAddress,
           category,
           subCategory,
           department: mockDepartmentId,
@@ -301,6 +325,7 @@ export default function RaiseComplaint() {
                     onRegionChangeComplete={(region) => {
                       setMapRegion(region);
                       setLocationObj({ latitude: region.latitude, longitude: region.longitude });
+                      fetchReadableAddress(region.latitude, region.longitude);
                     }}
                   >
                     {locationObj && (
@@ -342,10 +367,23 @@ export default function RaiseComplaint() {
                   </View>
                 </View>
 
-                <View style={{ paddingVertical: 12, width: '100%', alignItems: 'center', backgroundColor: '#FFFFFF' }}>
-                  <Text style={{ fontSize: 12, color: '#6B7280' }}>
+                <View style={{ paddingVertical: 12, width: '100%', alignItems: 'center', backgroundColor: '#FFFFFF', paddingHorizontal: 16 }}>
+                  {locationAddress ? (
+                    <Text style={{ fontSize: 13, color: '#111827', fontWeight: '500', textAlign: 'center', marginBottom: 4 }}>
+                      {locationAddress}
+                    </Text>
+                  ) : null}
+                  <Text style={{ fontSize: 11, color: '#6B7280', marginBottom: 12 }}>
                     {t('raise.tapToMark')}
                   </Text>
+                  
+                  <TextInput
+                    style={[styles.input, { width: '100%', marginBottom: 0, height: 45, backgroundColor: '#F9FAFB' }]}
+                    placeholder={t('raise.manualAddress') || 'House/Flat No. & Building (Optional)'}
+                    placeholderTextColor="#9CA3AF"
+                    value={manualAddress}
+                    onChangeText={setManualAddress}
+                  />
                 </View>
               </View>
             </View>
@@ -550,6 +588,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: '#4B5563', marginBottom: 6, marginTop: 16 },
   readOnlyInput: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 6, padding: 14 },
   readOnlyText: { fontSize: 15, color: '#111827', fontWeight: '600' },
+  input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 6, padding: 14, fontSize: 15, color: '#111827' },
   textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 6, padding: 14, fontSize: 15, color: '#111827', minHeight: 120 },
   charCount: { textAlign: 'right', fontSize: 12, color: '#6B7280', marginTop: 4 },
   
