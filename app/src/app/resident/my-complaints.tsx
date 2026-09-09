@@ -324,6 +324,7 @@ export default function MyComplaints() {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.cardTitle}>{item.title}</Text>
                         <Text style={styles.cardLocation}>{item.location}</Text>
+                        {item.address ? <Text style={[styles.cardLocation, { marginTop: 4, color: '#4B5563', fontWeight: '500' }]}>{item.address}</Text> : null}
                       </View>
                       {item.status === 'PENDING' && (
                         <TouchableOpacity 

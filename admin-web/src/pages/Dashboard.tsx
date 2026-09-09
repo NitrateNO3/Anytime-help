@@ -149,16 +149,16 @@ export default function Dashboard() {
         <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Recent Complaints</h2>
         <div className="table-card">
         <div style={{ overflowX: 'auto', width: '100%' }}>
-          <table style={{ width: '100%', minWidth: '900px' }}>
+          <table style={{ width: '100%', tableLayout: 'fixed' }}>
             <thead>
               <tr>
-                <th style={{ minWidth: '250px' }}>Title & Desc</th>
-                <th style={{ minWidth: '150px' }}>Category</th>
-                <th style={{ minWidth: '200px' }}>Location</th>
-                <th style={{ minWidth: '150px' }}>Address</th>
-                <th style={{ minWidth: '150px' }}>Resident</th>
-                <th style={{ minWidth: '120px' }}>Status</th>
-                <th style={{ minWidth: '120px' }}>Actions</th>
+                <th style={{ width: '22%' }}>Title & Desc</th>
+                <th style={{ width: '13%' }}>Category</th>
+                <th style={{ width: '18%' }}>Location</th>
+                <th style={{ width: '16%' }}>Address</th>
+                <th style={{ width: '11%' }}>Resident</th>
+                <th style={{ width: '10%' }}>Status</th>
+                <th style={{ width: '10%' }}>Actions</th>
               </tr>
             </thead>
           <tbody>
