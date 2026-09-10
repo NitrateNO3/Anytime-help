@@ -175,8 +175,6 @@ export default function Directory() {
             </tbody>
           </table>
         </div>
-      )}
-
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
