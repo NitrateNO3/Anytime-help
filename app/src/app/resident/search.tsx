@@ -5,8 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function DirectoryScreen() {
   const router = useRouter();
@@ -18,6 +20,30 @@ export default function DirectoryScreen() {
 
   useEffect(() => {
     fetchContacts();
+
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    
+    socket.on('directory_updated', (payload) => {
+      if (!payload) {
+        fetchContacts();
+        return;
+      }
+      
+      setContacts(prev => {
+        if (payload.action === 'create') {
+          return [payload.data, ...prev]; // Or add to the end depending on your sorting
+        } else if (payload.action === 'update') {
+          return prev.map(c => c._id === payload.data._id ? payload.data : c);
+        } else if (payload.action === 'delete') {
+          return prev.filter(c => c._id !== payload.id);
+        }
+        return prev;
+      });
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const fetchContacts = async () => {

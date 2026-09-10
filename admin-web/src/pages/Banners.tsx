@@ -10,6 +10,7 @@ export default function Banners() {
   const [banners, setBanners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchBanners();
@@ -55,13 +56,17 @@ export default function Banners() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this banner?')) return;
+  const confirmDelete = (id: string) => {
+    setDeleteId(id);
+  };
 
+  const executeDelete = async () => {
+    if (!deleteId) return;
     const loadingToast = toast.loading('Deleting banner...');
     try {
-      await axios.delete(`${API_URL}/banners/${id}`);
+      await axios.delete(`${API_URL}/banners/${deleteId}`);
       toast.success('Banner deleted successfully!', { id: loadingToast });
+      setDeleteId(null);
       fetchBanners();
     } catch (error) {
       console.error(error);
@@ -93,7 +98,17 @@ export default function Banners() {
       </header>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>Loading banners...</div>
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+          {[1, 2, 3].map((idx) => (
+            <div key={`skeleton-${idx}`} className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <div className="skeleton" style={{ width: '100%', height: '200px' }}></div>
+              <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="skeleton skeleton-row" style={{ width: 120 }}></div>
+                <div className="skeleton skeleton-row" style={{ width: 24, height: 24, borderRadius: 12 }}></div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
           {banners.length === 0 ? (
@@ -116,7 +131,7 @@ export default function Banners() {
                   </span>
                   <button 
                     className="btn btn-icon" 
-                    onClick={() => handleDelete(banner._id)}
+                    onClick={() => confirmDelete(banner._id)}
                     style={{ color: 'var(--danger)' }}
                     title="Delete Banner"
                   >
@@ -126,6 +141,25 @@ export default function Banners() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteId && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Delete Banner</h2>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontWeight: 600, marginBottom: 12, color: 'var(--text-main)' }}>Are you sure you want to delete this banner?</p>
+              <p style={{ color: 'var(--text-secondary)' }}>This action cannot be undone. The image will be permanently removed.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setDeleteId(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{ background: 'var(--danger)' }} onClick={executeDelete}>Delete</button>
+            </div>
+          </div>
         </div>
       )}
     </div>

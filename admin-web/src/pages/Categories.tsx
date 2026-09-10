@@ -10,6 +10,7 @@ export default function Categories() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
@@ -132,16 +133,21 @@ export default function Categories() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this category?')) return;
+  const confirmDelete = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const executeDelete = async () => {
+    if (!deleteId) return;
 
     const loadingToast = toast.loading('Deleting category...');
     try {
       const token = localStorage.getItem('adminToken') || '';
-      await axios.delete(`${API_URL}/categories/${id}`, {
+      await axios.delete(`${API_URL}/categories/${deleteId}`, {
         headers: { 'x-auth-token': token }
       });
       toast.success('Category deleted successfully!', { id: loadingToast });
+      setDeleteId(null);
       fetchCategories();
     } catch (error) {
       console.error(error);
@@ -159,7 +165,21 @@ export default function Categories() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>Loading categories...</div>
+        <div className="grid">
+          {[1, 2, 3, 4].map(idx => (
+            <div key={`skeleton-${idx}`} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+                  <div className="skeleton" style={{ width: '48px', height: '48px', borderRadius: '12px' }}></div>
+                  <div style={{ width: '100%' }}>
+                    <div className="skeleton skeleton-row" style={{ width: '60%', height: '16px', marginBottom: '8px' }}></div>
+                    <div className="skeleton skeleton-row" style={{ width: '40%', height: '12px' }}></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className="grid">
           {categories.length === 0 ? (
@@ -194,7 +214,7 @@ export default function Categories() {
                     <button className="btn btn-icon" onClick={() => handleOpenModal(cat)} style={{ color: 'var(--primary)' }}>
                       <Edit2 size={16} />
                     </button>
-                    <button className="btn btn-icon" onClick={() => handleDelete(cat._id)} style={{ color: 'var(--danger)' }}>
+                    <button className="btn btn-icon" onClick={() => confirmDelete(cat._id)} style={{ color: 'var(--danger)' }}>
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -324,6 +344,25 @@ export default function Categories() {
                 <button type="submit" className="btn btn-primary">{editingId ? 'Update' : 'Save'} Category</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteId && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '400px' }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Delete Category</h2>
+            </div>
+            <div className="modal-body">
+              <p style={{ fontWeight: 600, marginBottom: 12, color: 'var(--text-main)' }}>Are you sure you want to delete this category?</p>
+              <p style={{ color: 'var(--text-secondary)' }}>This action cannot be undone. All associated sub-categories will also be removed.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setDeleteId(null)}>Cancel</button>
+              <button className="btn btn-primary" style={{ background: 'var(--danger)' }} onClick={executeDelete}>Delete</button>
+            </div>
           </div>
         </div>
       )}

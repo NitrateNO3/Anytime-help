@@ -30,6 +30,12 @@ router.post('/', auth, async (req, res) => {
     });
 
     await directory.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('directory_updated', { action: 'create', data: directory });
+    }
+
     res.json(directory);
   } catch (err) {
     console.error(err.message);
@@ -53,6 +59,12 @@ router.put('/:id', auth, async (req, res) => {
     if (order !== undefined) directory.order = order;
 
     await directory.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('directory_updated', { action: 'update', data: directory });
+    }
+
     res.json(directory);
   } catch (err) {
     console.error(err.message);
@@ -68,6 +80,12 @@ router.delete('/:id', auth, async (req, res) => {
     if (!directory) return res.status(404).json({ msg: 'Contact not found' });
 
     await Directory.findByIdAndDelete(req.params.id);
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('directory_updated', { action: 'delete', id: req.params.id });
+    }
+
     res.json({ msg: 'Contact removed' });
   } catch (err) {
     console.error(err.message);
