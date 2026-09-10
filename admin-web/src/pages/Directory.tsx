@@ -49,8 +49,8 @@ export default function Directory() {
     e.preventDefault();
     const loadingToast = toast.loading(editingId ? 'Updating contact...' : 'Adding contact...');
     
-    const token = localStorage.getItem('token');
-    const config = { headers: { Authorization: `Bearer ${token}` } };
+    const token = localStorage.getItem('adminToken');
+    const config = { headers: { 'x-auth-token': token } };
 
     try {
       if (editingId) {
@@ -71,11 +71,11 @@ export default function Directory() {
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this contact?')) return;
     
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('adminToken');
     const loadingToast = toast.loading('Deleting contact...');
     
     try {
-      await axios.delete(`${API_URL}/directory/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.delete(`${API_URL}/directory/${id}`, { headers: { 'x-auth-token': token } });
       toast.success('Contact deleted successfully', { id: loadingToast });
       fetchContacts();
     } catch (error) {
