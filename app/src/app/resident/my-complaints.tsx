@@ -432,13 +432,13 @@ export default function MyComplaints() {
             <View style={styles.deleteIconCircle}>
               <Ionicons name="trash" size={32} color="#EF4444" />
             </View>
-            <Text style={styles.deleteModalTitle}>Delete Complaint</Text>
+            <Text style={styles.deleteModalTitle}>{t('resident.deleteComplaint')}</Text>
             <Text style={styles.deleteModalText}>
-              Are you sure you want to delete this complaint? This action cannot be undone.
+              {t('resident.deleteConfirm')}
             </Text>
             <View style={styles.deleteModalActions}>
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setDeleteModalVisible(false)} disabled={isDeleting}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
+                <Text style={styles.cancelBtnText}>{t('staff.cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={[styles.deleteBtn, isDeleting && { opacity: 0.6 }]} 
@@ -448,7 +448,7 @@ export default function MyComplaints() {
                 {isDeleting ? (
                   <ActivityIndicator size="small" color="#FFFFFF" />
                 ) : (
-                  <Text style={styles.deleteBtnText}>Delete</Text>
+                  <Text style={styles.deleteBtnText}>{t('resident.deleteBtn')}</Text>
                 )}
               </TouchableOpacity>
             </View>

@@ -54,7 +54,10 @@
     "directorySub": "महत्वपूर्ण संपर्क",
     "tabHome": "होम",
     "tabProfile": "प्रोफाइल",
-    "searchComplaints": "शिकायतें खोजें..."
+    "searchComplaints": "शिकायतें खोजें...",
+    "deleteComplaint": "शिकायत हटाएँ",
+    "deleteConfirm": "क्या आप वाकई इस शिकायत को हटाना चाहते हैं? यह क्रिया पूर्ववत नहीं की जा सकती।",
+    "deleteBtn": "हटाएँ"
   },
   "raise": {
     "title": "शिकायत दर्ज करें",
@@ -84,7 +87,9 @@
     "manualAddress": "मकान/फ्लैट नं. और बिल्डिंग (वैकल्पिक)",
     "fetchingLocation": "स्थान प्राप्त किया जा रहा है...",
     "zoomIn": "ज़ूम इन",
-    "zoomOut": "ज़ूम आउट"
+    "zoomOut": "ज़ूम आउट",
+    "camera": "कैमरा",
+    "gallery": "गैलरी"
   },
   "search": {
     "title": "सोसाइटी निर्देशिका (Directory)",

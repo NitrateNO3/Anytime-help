@@ -173,6 +173,11 @@ export default function RaiseComplaint() {
   };
 
   const pickFromGallery = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Sorry, we need gallery permissions to make this work!');
+      return;
+    }
     setGalleryLoading(true);
     try {
       let result = await ImagePicker.launchImageLibraryAsync({
@@ -394,22 +399,22 @@ export default function RaiseComplaint() {
               </View>
               
               <View style={styles.formSectionContent}>
-                <Text style={styles.label}>Grievance Category</Text>
+                <Text style={styles.label}>{t('raise.grievanceCategory')}</Text>
                 <View style={styles.readOnlyInput}>
                   <Text style={styles.readOnlyText}>{category}</Text>
                 </View>
 
-                <Text style={styles.label}>Grievance Sub Categories</Text>
+                <Text style={styles.label}>{t('raise.subCategoriesTitle')}</Text>
                 <View style={styles.readOnlyInput}>
                   <Text style={styles.readOnlyText}>{subCategory}</Text>
                 </View>
 
-                <Text style={styles.label}>Grievance Details(Min 50 Character) <Text style={{color: '#EF4444'}}>*</Text></Text>
+                <Text style={styles.label}>{t('raise.grievanceDetails')} (Min 50 Character) <Text style={{color: '#EF4444'}}>*</Text></Text>
                 <TextInput
                   style={styles.textArea}
                   multiline
                   numberOfLines={4}
-                  placeholder="Describe the issue in detail..."
+                  placeholder={t('raise.descriptionPlaceholder')}
                   placeholderTextColor="#9CA3AF"
                   value={description}
                   onChangeText={setDescription}
@@ -417,7 +422,7 @@ export default function RaiseComplaint() {
                 />
                 <Text style={styles.charCount}>{description.length}/250</Text>
 
-                <Text style={styles.label}>Grievance photo</Text>
+                <Text style={styles.label}>{t('raise.addPhotos')}</Text>
                 <View style={styles.photosContainer}>
                   {image ? (
                     <View style={styles.imagePreviewContainer}>
@@ -434,7 +439,7 @@ export default function RaiseComplaint() {
                         ) : (
                           <>
                             <Ionicons name="camera" size={20} color="#3B82F6" style={{ marginRight: 6 }} />
-                            <Text style={styles.photoAddBtnText}>CAMERA <Text style={{color: '#EF4444'}}>*</Text></Text>
+                            <Text style={styles.photoAddBtnText}>{t('raise.camera')} <Text style={{color: '#EF4444'}}>*</Text></Text>
                           </>
                         )}
                       </TouchableOpacity>
@@ -444,7 +449,7 @@ export default function RaiseComplaint() {
                         ) : (
                           <>
                             <Ionicons name="image" size={20} color="#3B82F6" style={{ marginRight: 6 }} />
-                            <Text style={styles.photoAddBtnText}>GALLERY <Text style={{color: '#EF4444'}}>*</Text></Text>
+                            <Text style={styles.photoAddBtnText}>{t('raise.gallery')} <Text style={{color: '#EF4444'}}>*</Text></Text>
                           </>
                         )}
                       </TouchableOpacity>
@@ -460,7 +465,7 @@ export default function RaiseComplaint() {
                   {loading ? (
                     <ActivityIndicator size="small" color="#FFFFFF" />
                   ) : (
-                    <Text style={styles.submitBtnText}>SUBMIT</Text>
+                    <Text style={styles.submitBtnText}>{t('raise.submit')}</Text>
                   )}
                 </TouchableOpacity>
               </View>

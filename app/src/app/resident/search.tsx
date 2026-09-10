@@ -1,21 +1,41 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Linking, Platform, StatusBar } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, Linking, Platform, StatusBar, ActivityIndicator, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import axios from 'axios';
+
+const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function DirectoryScreen() {
   const router = useRouter();
   const { t } = useTranslation();
-  const contacts = [
-    { id: '1', name: 'National Emergency', role: 'All Emergencies', phone: '112', icon: 'alert-circle' },
-    { id: '2', name: 'Police', role: 'Law Enforcement', phone: '100', icon: 'shield-checkmark' },
-    { id: '3', name: 'Fire Brigade', role: 'Fire Emergency', phone: '101', icon: 'flame' },
-    { id: '4', name: 'Ambulance', role: 'Medical Emergency', phone: '108', icon: 'medkit' },
-    { id: '5', name: 'Women Helpline', role: 'Women Safety', phone: '1091', icon: 'woman' },
-    { id: '6', name: 'Society Security Gate', role: 'Internal Security', phone: '+91 9876543210', icon: 'lock-closed' },
-  ];
+  
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    fetchContacts();
+  }, []);
+
+  const fetchContacts = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/directory`);
+      setContacts(res.data);
+    } catch (error) {
+      console.error('Error fetching directory:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchContacts();
+    setRefreshing(false);
+  };
 
   const handleCall = (phone: string) => {
     Linking.openURL(`tel:${phone}`);
@@ -33,21 +53,30 @@ export default function DirectoryScreen() {
         <Text style={{ fontSize: 24, fontWeight: '700', color: '#FFFFFF' }}>{t('search.title')}</Text>
       </View>
 
-      <ScrollView contentContainerStyle={styles.contentContainer}>
-        {contacts.map((contact) => (
-          <View key={contact.id} style={styles.card}>
-            <View style={styles.iconBox}>
-              <Ionicons name={contact.icon as any} size={24} color="#111827" />
+      <ScrollView 
+        contentContainerStyle={styles.contentContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1D4ED8']} />}
+      >
+        {loading ? (
+          <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
+        ) : contacts.length === 0 ? (
+          <Text style={{ textAlign: 'center', marginTop: 40, color: '#6B7280' }}>No contacts found.</Text>
+        ) : (
+          contacts.map((contact) => (
+            <View key={contact._id || contact.id} style={styles.card}>
+              <View style={styles.iconBox}>
+                <Ionicons name={contact.icon as any || 'call'} size={24} color="#111827" />
+              </View>
+              <View style={styles.info}>
+                <Text style={styles.name}>{contact.name}</Text>
+                <Text style={styles.role}>{contact.role}</Text>
+              </View>
+              <TouchableOpacity style={styles.callBtn} onPress={() => handleCall(contact.phone)}>
+                <Ionicons name="call" size={20} color="#1D4ED8" />
+              </TouchableOpacity>
             </View>
-            <View style={styles.info}>
-              <Text style={styles.name}>{contact.name}</Text>
-              <Text style={styles.role}>{contact.role}</Text>
-            </View>
-            <TouchableOpacity style={styles.callBtn} onPress={() => handleCall(contact.phone)}>
-              <Ionicons name="call" size={20} color="#1D4ED8" />
-            </TouchableOpacity>
-          </View>
-        ))}
+          ))
+        )}
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>

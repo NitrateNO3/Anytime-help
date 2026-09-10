@@ -30,7 +30,12 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.aman_mirza.app",
       "versionCode": 3,
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyD8k_S6Ak-JvxcPp6ACVzBDPcKFa-doI58"
+        }
+      }
     },
     "web": {
       "output": "static",
@@ -51,7 +56,20 @@
       "expo-font",
       "expo-image",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to mark the complaint location."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app accesses your photos to let you upload complaint images.",
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to take complaint photos."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

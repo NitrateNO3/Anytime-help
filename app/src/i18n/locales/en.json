@@ -54,7 +54,10 @@
     "directorySub": "Important contacts",
     "tabHome": "Home",
     "tabProfile": "Profile",
-    "searchComplaints": "Search complaints..."
+    "searchComplaints": "Search complaints...",
+    "deleteComplaint": "Delete Complaint",
+    "deleteConfirm": "Are you sure you want to delete this complaint? This action cannot be undone.",
+    "deleteBtn": "Delete"
   },
   "raise": {
     "title": "Raise a Complaint",
@@ -84,7 +87,9 @@
     "manualAddress": "House/Flat No. & Building (Optional)",
     "fetchingLocation": "Fetching location...",
     "zoomIn": "Zoom In",
-    "zoomOut": "Zoom Out"
+    "zoomOut": "Zoom Out",
+    "camera": "CAMERA",
+    "gallery": "GALLERY"
   },
   "search": {
     "title": "Society Directory",
@@ -106,5 +111,17 @@
     "signup": "Sign Up",
     "alreadyHave": "Already have an account? ",
     "loginHere": "Login Here"
+  },
+  "categories": {
+    "All": "All",
+    "Electricity": "Electricity",
+    "Garbage": "Garbage",
+    "Sweeping": "Sweeping",
+    "Sewage cleaning": "Sewage cleaning",
+    "Rainwater drainage": "Rainwater drainage",
+    "Tree cutting": "Tree cutting",
+    "Street light": "Street light",
+    "Water service": "Water service",
+    "Others": "Others"
   }
 }
