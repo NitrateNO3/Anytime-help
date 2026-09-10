@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Complaint = require('../models/Complaint');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 
 // POST /api/complaints
@@ -8,6 +9,10 @@ router.post('/', auth, async (req, res) => {
   try {
     const { title, description, location, address, category, department, priority, before_image } = req.body;
     
+    // Fetch user to get their phase
+    const user = await User.findById(req.user.id);
+    const userPhase = user ? user.phase : null;
+
     // Check for existing identical or similar complaint
     // We consider it a duplicate if it has the same department, category, location, and is not resolved
     const existingComplaint = await Complaint.findOne({
@@ -52,6 +57,7 @@ router.post('/', auth, async (req, res) => {
       priority,
       user: req.user.id,
       before_image: before_image || '',
+      phase: userPhase
     });
     const createdComplaint = await complaint.save();
     
@@ -96,9 +102,13 @@ router.get('/', auth, async (req, res) => {
     if (req.user.role === 'Resident') {
       query.user = req.user.id; 
     } else if (req.user.role === 'Staff') {
-      // Staff only sees complaints for their assigned category
+      // Staff only sees complaints for their assigned category and phase
+      const user = await User.findById(req.user.id);
       if (req.user.assigned_category) {
         query.category = req.user.assigned_category;
+      }
+      if (user && user.phase) {
+        query.phase = user.phase;
       }
     }
     

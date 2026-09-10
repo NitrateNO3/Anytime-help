@@ -46,6 +46,10 @@ const complaintSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  phase: {
+    type: String,
+    required: false,
+  },
   status: {
     type: String,
     enum: ['PENDING', 'IN_PROGRESS', 'DONE'],

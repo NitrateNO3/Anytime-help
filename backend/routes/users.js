@@ -53,7 +53,7 @@ router.get('/residents', auth, async (req, res) => {
 // @desc    Create a new staff member
 // @access  Admin Private
 router.post('/staff', auth, async (req, res) => {
-  let { name, phone_number, assigned_category } = req.body;
+  let { name, phone_number, assigned_category, phase } = req.body;
 
   try {
     if (req.user.role !== 'Admin') {
@@ -73,7 +73,8 @@ router.post('/staff', auth, async (req, res) => {
       name,
       phone_number,
       role: 'Staff',
-      assigned_category
+      assigned_category,
+      phase
     });
 
     await user.save();

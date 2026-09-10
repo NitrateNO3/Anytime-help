@@ -20,6 +20,10 @@ const AnnouncementSchema = new mongoose.Schema({
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
+  },
+  phases: {
+    type: [String],
+    default: []
   }
 });
 

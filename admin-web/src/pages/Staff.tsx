@@ -102,7 +102,8 @@ export default function Staff() {
       await axios.post(`${API_URL}/users/staff`, {
         name: staffName,
         phone_number: phoneNumber,
-        assigned_category: category
+        assigned_category: category,
+        phase: selectedEntity
       }, {
         headers: { 'x-auth-token': token }
       });

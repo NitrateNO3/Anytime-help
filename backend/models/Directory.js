@@ -5,7 +5,14 @@ const DirectorySchema = new mongoose.Schema({
   role: { type: String, default: '' },
   phone: { type: String, required: true },
   icon: { type: String, default: 'call' },
-  order: { type: Number, default: 0 }
+  order: {
+    type: Number,
+    default: 0
+  },
+  phases: {
+    type: [String],
+    default: []
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Directory', DirectorySchema);

@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
   firebase_uid: { type: String, required: false },
   role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'PaidStaff'], default: 'Resident' },
   assigned_category: { type: String, required: false }, // Only for Staff (e.g., 'Plumbing')
+  phase: { type: String, required: false }, // For phase/entity-based routing
   address: { type: String, required: false }, // For Resident
   relation: { type: String, required: false }, // e.g., 'Tenant', 'Family Member'
 }, { timestamps: true });

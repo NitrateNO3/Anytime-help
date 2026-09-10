@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
+import * as SecureStore from 'expo-secure-store';
 import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -48,7 +49,10 @@ export default function DirectoryScreen() {
 
   const fetchContacts = async () => {
     try {
-      const res = await axios.get(`${API_URL}/directory`);
+      const token = await SecureStore.getItemAsync('userToken');
+      const res = await axios.get(`${API_URL}/directory`, {
+        headers: { 'x-auth-token': token }
+      });
       setContacts(res.data);
     } catch (error) {
       console.error('Error fetching directory:', error);

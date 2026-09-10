@@ -15,6 +15,9 @@ export default function Directory() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', phone: '', order: 0 });
+  const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
+
+  const availablePhases = ['Sushant Lok 2 Option 1', 'Sushant Lok 2 Option 2', 'Sushant Lok 3'];
 
   useEffect(() => {
     fetchContacts();
@@ -63,12 +66,14 @@ export default function Directory() {
   const openAddModal = () => {
     setEditingId(null);
     setFormData({ name: '', phone: '', order: 0 });
+    setSelectedPhases(['All']);
     setIsModalOpen(true);
   };
 
   const openEditModal = (contact: any) => {
     setEditingId(contact._id);
     setFormData({ name: contact.name, phone: contact.phone, order: contact.order || 0 });
+    setSelectedPhases(contact.phases && contact.phases.length > 0 ? contact.phases : ['All']);
     setIsModalOpen(true);
   };
 
@@ -80,11 +85,13 @@ export default function Directory() {
     const config = { headers: { 'x-auth-token': token } };
 
     try {
+      const payload = { ...formData, phases: selectedPhases };
+
       if (editingId) {
-        await axios.put(`${API_URL}/directory/${editingId}`, formData, config);
+        await axios.put(`${API_URL}/directory/${editingId}`, payload, config);
         toast.success('Contact updated successfully', { id: loadingToast });
       } else {
-        await axios.post(`${API_URL}/directory`, formData, config);
+        await axios.post(`${API_URL}/directory`, payload, config);
         toast.success('Contact added successfully', { id: loadingToast });
       }
       setIsModalOpen(false);
@@ -192,6 +199,44 @@ export default function Directory() {
               <div className="form-group">
                 <label className="form-label">Phone Number</label>
                 <input type="text" className="form-control" name="phone" value={formData.phone} onChange={handleInputChange} required placeholder="e.g., 100, 108" />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 16 }}>
+                <label className="form-label" style={{ marginBottom: 8, display: 'block', fontWeight: 500, fontSize: 14 }}>Target Groups</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedPhases.includes('All')}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedPhases(['All']);
+                      }}
+                    />
+                    <span style={{ fontSize: 14 }}>All Groups (Send to Everyone)</span>
+                  </label>
+                  
+                  <div style={{ paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 8, opacity: selectedPhases.includes('All') ? 0.5 : 1, pointerEvents: selectedPhases.includes('All') ? 'none' : 'auto' }}>
+                    {availablePhases.map(phase => (
+                      <label key={phase} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedPhases.includes(phase)}
+                          onChange={(e) => {
+                            let updated = [...selectedPhases].filter(p => p !== 'All');
+                            if (e.target.checked) {
+                              updated.push(phase);
+                            } else {
+                              updated = updated.filter(p => p !== phase);
+                            }
+                            if (updated.length === 0) updated = ['All'];
+                            setSelectedPhases(updated);
+                          }}
+                        />
+                        <span style={{ fontSize: 14 }}>{phase}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
 
               <div className="modal-footer">

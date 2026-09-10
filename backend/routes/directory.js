@@ -1,13 +1,28 @@
 const express = require('express');
 const router = express.Router();
 const Directory = require('../models/Directory');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
 
 // @route   GET /api/directory
 // @desc    Get all directory contacts
-router.get('/', async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
-    const directories = await Directory.find().sort({ order: 1, createdAt: -1 });
+    let query = {};
+    if (req.user.role === 'Resident') {
+      const user = await User.findById(req.user.id);
+      if (user && user.phase) {
+        query.phases = { $in: [user.phase, 'All'] };
+      } else {
+        query.$or = [{ phases: 'All' }, { phases: { $size: 0 } }];
+      }
+    } else if (req.user.role === 'Staff') {
+      const user = await User.findById(req.user.id);
+      if (user && user.phase) {
+        query.phases = { $in: [user.phase, 'All'] };
+      }
+    }
+    const directories = await Directory.find(query).sort({ order: 1, createdAt: -1 });
     res.json(directories);
   } catch (err) {
     console.error(err.message);
@@ -18,7 +33,7 @@ router.get('/', async (req, res) => {
 // @route   POST /api/directory
 // @desc    Create a directory contact
 router.post('/', auth, async (req, res) => {
-  const { name, role, phone, icon, order } = req.body;
+  const { name, role, phone, icon, order, phases } = req.body;
 
   try {
     const directory = new Directory({
@@ -26,7 +41,8 @@ router.post('/', auth, async (req, res) => {
       role,
       phone,
       icon: icon || 'call',
-      order: order || 0
+      order: order || 0,
+      phases: phases || []
     });
 
     await directory.save();
@@ -46,17 +62,18 @@ router.post('/', auth, async (req, res) => {
 // @route   PUT /api/directory/:id
 // @desc    Update a directory contact
 router.put('/:id', auth, async (req, res) => {
-  const { name, role, phone, icon, order } = req.body;
+  const { name, role, phone, icon, order, phases } = req.body;
 
   try {
     let directory = await Directory.findById(req.params.id);
     if (!directory) return res.status(404).json({ msg: 'Contact not found' });
 
     if (name) directory.name = name;
-    if (role) directory.role = role;
+    if (role !== undefined) directory.role = role;
     if (phone) directory.phone = phone;
     if (icon) directory.icon = icon;
     if (order !== undefined) directory.order = order;
+    if (phases !== undefined) directory.phases = phases;
 
     await directory.save();
 

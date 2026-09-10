@@ -2,13 +2,29 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Announcement = require('../models/Announcement');
+const User = require('../models/User');
 
 // @route   GET api/announcements
 // @desc    Get all active announcements
 // @access  Private
 router.get('/', auth, async (req, res) => {
   try {
-    const announcements = await Announcement.find({ active: true }).sort({ date: -1 });
+    let query = { active: true };
+    if (req.user.role === 'Resident') {
+      const user = await User.findById(req.user.id);
+      if (user && user.phase) {
+        query.phases = { $in: [user.phase, 'All'] };
+      } else {
+        // If user has no phase, maybe fallback to 'All' or empty
+        query.$or = [{ phases: 'All' }, { phases: { $size: 0 } }];
+      }
+    } else if (req.user.role === 'Staff') {
+      const user = await User.findById(req.user.id);
+      if (user && user.phase) {
+        query.phases = { $in: [user.phase, 'All'] };
+      }
+    }
+    const announcements = await Announcement.find(query).sort({ date: -1 });
     res.json(announcements);
   } catch (err) {
     console.error(err.message);
@@ -24,13 +40,14 @@ router.post('/', auth, async (req, res) => {
     return res.status(403).json({ msg: 'Authorization denied, admin or staff only' });
   }
 
-  const { title, message } = req.body;
+  const { title, message, phases } = req.body;
 
   try {
     const newAnnouncement = new Announcement({
       title,
       message,
-      createdBy: req.user.id
+      createdBy: req.user.id,
+      phases: phases || []
     });
 
     const announcement = await newAnnouncement.save();

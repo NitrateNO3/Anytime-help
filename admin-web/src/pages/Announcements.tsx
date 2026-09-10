@@ -16,6 +16,9 @@ export default function Announcements() {
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
+
+  const availablePhases = ['Sushant Lok 2 Option 1', 'Sushant Lok 2 Option 2', 'Sushant Lok 3'];
 
   useEffect(() => {
     if (activeTab === 'list') {
@@ -65,7 +68,8 @@ export default function Announcements() {
       const token = localStorage.getItem('adminToken');
       await axios.post(`${API_URL}/announcements`, {
         title,
-        message
+        message,
+        phases: selectedPhases
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -75,6 +79,7 @@ export default function Announcements() {
       // Reset form
       setTitle('');
       setMessage('');
+      setSelectedPhases(['All']);
       
       // Auto switch back to list
       setActiveTab('list');
@@ -258,6 +263,45 @@ export default function Announcements() {
                     resize: 'vertical'
                   }}
                 />
+              </div>
+
+              <div className="input-group">
+                <label>Target Groups</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedPhases.includes('All')}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedPhases(['All']);
+                      }}
+                    />
+                    <span>All Groups (Send to Everyone)</span>
+                  </label>
+                  
+                  <div style={{ paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 8, opacity: selectedPhases.includes('All') ? 0.5 : 1, pointerEvents: selectedPhases.includes('All') ? 'none' : 'auto' }}>
+                    {availablePhases.map(phase => (
+                      <label key={phase} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedPhases.includes(phase)}
+                          onChange={(e) => {
+                            let updated = [...selectedPhases].filter(p => p !== 'All');
+                            if (e.target.checked) {
+                              updated.push(phase);
+                            } else {
+                              updated = updated.filter(p => p !== phase);
+                            }
+                            // If none selected, default back to 'All'
+                            if (updated.length === 0) updated = ['All'];
+                            setSelectedPhases(updated);
+                          }}
+                        />
+                        <span>{phase}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
               </div>
               
               <button type="submit" className="btn-primary" disabled={isCreating} style={{ marginTop: '16px', height: '52px' }}>

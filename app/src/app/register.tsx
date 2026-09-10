@@ -26,14 +26,15 @@ export default function RegisterScreen() {
   
   const [phase, setPhase] = useState('');
   const [phaseModalVisible, setPhaseModalVisible] = useState(false);
-  const phasesList = ['Sushant Lok 2', 'Sushant Lok 3'];
+  const phasesList = ['Sushant Lok 2 Option 1', 'Sushant Lok 2 Option 2', 'Sushant Lok 3'];
 
   const [block, setBlock] = useState('');
   const [blockModalVisible, setBlockModalVisible] = useState(false);
   
   const getBlockOptions = () => {
-    if (phase === 'Sushant Lok 2') return ['C', 'D', 'E', 'F', 'G'];
-    if (phase === 'Sushant Lok 3') return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    if (phase === 'Sushant Lok 2 Option 1') return ['C, D, E'];
+    if (phase === 'Sushant Lok 2 Option 2') return ['F, G'];
+    if (phase === 'Sushant Lok 3') return ['A, B, C, D, E, F, G, H'];
     return [];
   };
 
@@ -109,7 +110,8 @@ export default function RegisterScreen() {
         role: 'Resident',
         address: combinedAddress,
         property_type: propertyType,
-        relation: isDuplicateAddress ? relation : propertyType
+        relation: isDuplicateAddress ? relation : propertyType,
+        phase
       };
 
       const res = await axios.post(`${API_URL}/auth/register`, payload);
@@ -268,7 +270,7 @@ export default function RegisterScreen() {
               >
                 <Ionicons name="map-outline" size={20} color="#555" style={styles.inputIcon} />
                 <Text style={{ flex: 1, fontSize: 14, color: phase ? '#333' : '#777', alignSelf: 'center' }}>
-                  {phase || 'Phase (Sushant Lok 2 / 3)*'}
+                  {phase || 'Phase (Entity / Group)*'}
                 </Text>
                 <Ionicons name="chevron-down" size={20} color="#777" />
               </TouchableOpacity>
@@ -328,7 +330,7 @@ export default function RegisterScreen() {
       </SafeAreaView>
 
       {/* Property Type Modal */}
-      <Modal animationType="slide" transparent={true} visible={propertyTypeModalVisible} onRequestClose={() => setPropertyTypeModalVisible(false)}>
+      <Modal animationType="fade" transparent={true} visible={propertyTypeModalVisible} onRequestClose={() => setPropertyTypeModalVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPropertyTypeModalVisible(false)}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -353,7 +355,7 @@ export default function RegisterScreen() {
       </Modal>
 
       {/* Phase Modal */}
-      <Modal animationType="slide" transparent={true} visible={phaseModalVisible} onRequestClose={() => setPhaseModalVisible(false)}>
+      <Modal animationType="fade" transparent={true} visible={phaseModalVisible} onRequestClose={() => setPhaseModalVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPhaseModalVisible(false)}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
@@ -378,7 +380,7 @@ export default function RegisterScreen() {
       </Modal>
 
       {/* Block Modal */}
-      <Modal animationType="slide" transparent={true} visible={blockModalVisible} onRequestClose={() => setBlockModalVisible(false)}>
+      <Modal animationType="fade" transparent={true} visible={blockModalVisible} onRequestClose={() => setBlockModalVisible(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBlockModalVisible(false)}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
