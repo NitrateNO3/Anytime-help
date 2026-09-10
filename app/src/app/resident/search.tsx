@@ -69,7 +69,6 @@ export default function DirectoryScreen() {
               </View>
               <View style={styles.info}>
                 <Text style={styles.name}>{contact.name}</Text>
-                <Text style={styles.role}>{contact.role}</Text>
               </View>
               <TouchableOpacity style={styles.callBtn} onPress={() => handleCall(contact.phone)}>
                 <Ionicons name="call" size={20} color="#1D4ED8" />

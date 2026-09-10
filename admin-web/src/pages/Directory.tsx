@@ -11,7 +11,7 @@ export default function Directory() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', role: '', phone: '', icon: 'call', order: 0 });
+  const [formData, setFormData] = useState({ name: '', phone: '', order: 0 });
 
   useEffect(() => {
     fetchContacts();
@@ -35,13 +35,13 @@ export default function Directory() {
 
   const openAddModal = () => {
     setEditingId(null);
-    setFormData({ name: '', role: '', phone: '', icon: 'call', order: 0 });
+    setFormData({ name: '', phone: '', order: 0 });
     setIsModalOpen(true);
   };
 
   const openEditModal = (contact: any) => {
     setEditingId(contact._id);
-    setFormData({ name: contact.name, role: contact.role, phone: contact.phone, icon: contact.icon || 'call', order: contact.order || 0 });
+    setFormData({ name: contact.name, phone: contact.phone, order: contact.order || 0 });
     setIsModalOpen(true);
   };
 
@@ -104,28 +104,24 @@ export default function Directory() {
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Role / Category</th>
                 <th>Phone</th>
-                <th>Icon Name</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {contacts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '30px' }}>No contacts found. Add your first important number!</td>
+                  <td colSpan={3} style={{ textAlign: 'center', padding: '30px' }}>No contacts found. Add your first important number!</td>
                 </tr>
               ) : (
                 contacts.map(contact => (
                   <tr key={contact._id}>
                     <td><div style={{ fontWeight: 600 }}>{contact.name}</div></td>
-                    <td><span className="badge badge-blue">{contact.role}</span></td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Phone size={14} color="#6B7280" /> {contact.phone}
                       </div>
                     </td>
-                    <td>{contact.icon}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button className="btn-icon" onClick={() => openEditModal(contact)} title="Edit">
@@ -159,19 +155,8 @@ export default function Directory() {
               </div>
               
               <div className="form-group">
-                <label className="form-label">Role / Category</label>
-                <input type="text" className="form-control" name="role" value={formData.role} onChange={handleInputChange} required placeholder="e.g., Law Enforcement" />
-              </div>
-              
-              <div className="form-group">
                 <label className="form-label">Phone Number</label>
                 <input type="text" className="form-control" name="phone" value={formData.phone} onChange={handleInputChange} required placeholder="e.g., 100, 108" />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Icon (Ionicons name)</label>
-                <input type="text" className="form-control" name="icon" value={formData.icon} onChange={handleInputChange} placeholder="e.g., call, shield-checkmark" />
-                <small style={{ color: '#6B7280', marginTop: '4px', display: 'block' }}>See ionic.io/ionicons for valid names.</small>
               </div>
 
               <div className="modal-footer">
