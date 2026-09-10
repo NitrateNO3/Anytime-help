@@ -19,7 +19,7 @@ export default function Directory() {
 
   const fetchContacts = async () => {
     try {
-      const res = await axios.get(${API_URL}/directory);
+      const res = await axios.get(`${API_URL}/directory`);
       setContacts(res.data);
     } catch (error) {
       console.error(error);
@@ -50,14 +50,14 @@ export default function Directory() {
     const loadingToast = toast.loading(editingId ? 'Updating contact...' : 'Adding contact...');
     
     const token = localStorage.getItem('token');
-    const config = { headers: { Authorization: \Bearer \\ } };
+    const config = { headers: { Authorization: `Bearer ${token}` } };
 
     try {
       if (editingId) {
-        await axios.put(${API_URL}/directory/\, formData, config);
+        await axios.put(`${API_URL}/directory/${editingId}`, formData, config);
         toast.success('Contact updated successfully', { id: loadingToast });
       } else {
-        await axios.post(${API_URL}/directory, formData, config);
+        await axios.post(`${API_URL}/directory`, formData, config);
         toast.success('Contact added successfully', { id: loadingToast });
       }
       setIsModalOpen(false);
@@ -75,7 +75,7 @@ export default function Directory() {
     const loadingToast = toast.loading('Deleting contact...');
     
     try {
-      await axios.delete(${API_URL}/directory/\, { headers: { Authorization: \Bearer \\ } });
+      await axios.delete(`${API_URL}/directory/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       toast.success('Contact deleted successfully', { id: loadingToast });
       fetchContacts();
     } catch (error) {
