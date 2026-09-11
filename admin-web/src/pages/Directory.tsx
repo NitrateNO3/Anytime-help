@@ -16,6 +16,7 @@ export default function Directory() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', phone: '', order: 0 });
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
+  const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
 
   const availablePhases = ['Sushant Lok 2 Option 1', 'Sushant Lok 2 Option 2', 'Sushant Lok 3'];
 
@@ -123,6 +124,12 @@ export default function Directory() {
     }
   };
 
+  const displayedContacts = contacts.filter(c => {
+    if (filterPhase === 'All Groups (Show Everything)') return true;
+    if (filterPhase === 'Universal (Sent to Everyone)') return !c.phases || c.phases.length === 0 || c.phases.includes('All');
+    return c.phases && c.phases.includes(filterPhase);
+  });
+
   return (
     <div className="page-container fade-in">
       <header className="page-header">
@@ -130,9 +137,22 @@ export default function Directory() {
           <h1 className="page-title">Directory Management</h1>
           <p className="page-subtitle">Manage important contacts for residents</p>
         </div>
-        <button className="btn btn-primary" onClick={openAddModal}>
-          <Plus size={18} /> Add Contact
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <select 
+            value={filterPhase} 
+            onChange={(e) => setFilterPhase(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
+          >
+            <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
+            <option value="Universal (Sent to Everyone)">Universal (Sent to Everyone)</option>
+            <option value="Sushant Lok 2 Option 1">Sushant Lok 2 Option 1</option>
+            <option value="Sushant Lok 2 Option 2">Sushant Lok 2 Option 2</option>
+            <option value="Sushant Lok 3">Sushant Lok 3</option>
+          </select>
+          <button className="btn btn-primary" onClick={openAddModal}>
+            <Plus size={18} /> Add Contact
+          </button>
+        </div>
       </header>
 
       <div className="table-container">
@@ -153,12 +173,12 @@ export default function Directory() {
                     <td><div className="skeleton skeleton-row" style={{ width: 60, height: 24, borderRadius: 12 }}></div></td>
                   </tr>
                 ))
-              ) : contacts.length === 0 ? (
+              ) : displayedContacts.length === 0 ? (
                 <tr>
-                  <td colSpan={3} style={{ textAlign: 'center', padding: '30px' }}>No contacts found. Add your first important number!</td>
+                  <td colSpan={3} style={{ textAlign: 'center', padding: '30px' }}>No contacts found for this filter. Add your first important number!</td>
                 </tr>
               ) : (
-                contacts.map(contact => (
+                displayedContacts.map(contact => (
                   <tr key={contact._id}>
                     <td><div style={{ fontWeight: 600 }}>{contact.name}</div></td>
                     <td>

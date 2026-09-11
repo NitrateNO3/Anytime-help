@@ -15,6 +15,7 @@ export default function Staff() {
   const [activeTab, setActiveTab] = useState<'list' | 'create' | 'categories'>('list');
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterPhase, setFilterPhase] = useState('All');
 
   // Form State
   const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 Option 1');
@@ -158,8 +159,8 @@ export default function Staff() {
     ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
-  // Show all staff in the list view without filtering
-  const displayedStaff = staff;
+  // Show staff based on selected filter
+  const displayedStaff = filterPhase === 'All' ? staff : staff.filter(s => s.phase === filterPhase || s.name.includes(filterPhase));
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -216,6 +217,16 @@ export default function Staff() {
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 style={{ fontSize: 18, fontWeight: 600 }}>Staff List</h2>
+            <select 
+              value={filterPhase} 
+              onChange={(e) => setFilterPhase(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
+            >
+              <option value="All">All Groups</option>
+              <option value="Sushant Lok 2 Option 1">Sushant Lok 2 Option 1</option>
+              <option value="Sushant Lok 2 Option 2">Sushant Lok 2 Option 2</option>
+              <option value="Sushant Lok 3">Sushant Lok 3</option>
+            </select>
           </div>
           <table>
             <thead>

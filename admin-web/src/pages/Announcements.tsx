@@ -11,6 +11,7 @@ export default function Announcements() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
 
   // Form State
   const [title, setTitle] = useState('');
@@ -127,6 +128,12 @@ export default function Announcements() {
     ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
+  const displayedAnnouncements = announcements.filter(a => {
+    if (filterPhase === 'All Groups (Show Everything)') return true;
+    if (filterPhase === 'Universal (Sent to Everyone)') return !a.phases || a.phases.length === 0 || a.phases.includes('All');
+    return a.phases && a.phases.includes(filterPhase);
+  });
+
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <header className="page-header" style={{ marginBottom: 24 }}>
@@ -167,7 +174,20 @@ export default function Announcements() {
       {/* Content Area */}
       {activeTab === 'list' ? (
         <div className="glass table-container">
-          <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20 }}>Past Announcements</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <h2 style={{ fontSize: 18, fontWeight: 600 }}>Past Announcements</h2>
+            <select 
+              value={filterPhase} 
+              onChange={(e) => setFilterPhase(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
+            >
+              <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
+              <option value="Universal (Sent to Everyone)">Universal (Sent to Everyone)</option>
+              <option value="Sushant Lok 2 Option 1">Sushant Lok 2 Option 1</option>
+              <option value="Sushant Lok 2 Option 2">Sushant Lok 2 Option 2</option>
+              <option value="Sushant Lok 3">Sushant Lok 3</option>
+            </select>
+          </div>
           <table>
             <thead>
               <tr>
@@ -190,15 +210,15 @@ export default function Announcements() {
                     <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>
                   </tr>
                 ))
-              ) : announcements.length === 0 ? (
+              ) : displayedAnnouncements.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       <Megaphone size={40} color="var(--border-color)" style={{ margin: '0 auto 16px' }} />
-                      No announcements broadcasted yet.
+                      No announcements broadcasted yet for this filter.
                     </td>
                   </tr>
                 ) : (
-                  announcements.map(announcement => (
+                  displayedAnnouncements.map(announcement => (
                     <tr key={announcement._id}>
                       <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                         {new Date(announcement.date).toLocaleDateString()}
