@@ -50,7 +50,10 @@ export default function Directory() {
 
   const fetchContacts = async () => {
     try {
-      const res = await axios.get(`${API_URL}/directory`);
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/directory`, {
+        headers: { 'x-auth-token': token }
+      });
       setContacts(res.data);
     } catch (error) {
       console.error(error);
@@ -236,7 +239,7 @@ export default function Directory() {
                     <span style={{ fontSize: 14 }}>All Groups (Send to Everyone)</span>
                   </label>
                   
-                  <div style={{ paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 8, opacity: selectedPhases.includes('All') ? 0.5 : 1, pointerEvents: selectedPhases.includes('All') ? 'none' : 'auto' }}>
+                  <div style={{ paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {availablePhases.map(phase => (
                       <label key={phase} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0, fontWeight: 400 }}>
                         <input 
