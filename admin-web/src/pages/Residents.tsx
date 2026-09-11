@@ -9,6 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://anytime-help.onrender.c
 export default function Residents() {
   const [residents, setResidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
 
   useEffect(() => {
     fetchResidents();
@@ -94,9 +95,11 @@ export default function Residents() {
     ), { duration: Infinity, style: { minWidth: '320px', borderRadius: '12px' } });
   };
 
+  const displayedResidents = filterPhase === 'All Groups (Show Everything)' ? residents : residents.filter(r => r.phase === filterPhase);
+
   return (
-    <div className="page-container fade-in">
-      <div className="page-header" style={{ marginBottom: '32px' }}>
+    <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', marginBottom: '8px' }}>
             <Home size={28} color="var(--primary)" style={{ marginRight: '10px' }} />
@@ -109,26 +112,53 @@ export default function Residents() {
       </div>
 
       <div className="card" style={{ marginTop: '20px' }}>
-        <h2 style={{ marginBottom: '24px', fontSize: '18px', fontWeight: '600' }}>Total Registered: {residents.length}</h2>
-        {loading ? (
-          <div className="loading-spinner" />
-        ) : residents.length === 0 ? (
-          <p style={{ color: 'var(--text-secondary)' }}>No residents found.</p>
-        ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="data-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-secondary)' }}>
-                  <th style={{ padding: '16px' }}>Name</th>
-                  <th style={{ padding: '16px' }}>Phone Number</th>
-                  <th style={{ padding: '16px' }}>Address</th>
-                  <th style={{ padding: '16px' }}>Relation</th>
-                  <th style={{ padding: '16px' }}>Joined Date</th>
-                  <th style={{ padding: '16px', textAlign: 'center' }}>Actions</th>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '18px', fontWeight: '600' }}>Total Registered: {displayedResidents.length}</h2>
+          <select 
+            value={filterPhase} 
+            onChange={(e) => setFilterPhase(e.target.value)}
+            style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
+          >
+            <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
+            <option value="Sushant Lok 2 Option 1">Sushant Lok 2 Option 1</option>
+            <option value="Sushant Lok 2 Option 2">Sushant Lok 2 Option 2</option>
+            <option value="Sushant Lok 3">Sushant Lok 3</option>
+          </select>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="data-table" style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-secondary)' }}>
+                <th style={{ padding: '16px' }}>Name</th>
+                <th style={{ padding: '16px' }}>Phone Number</th>
+                <th style={{ padding: '16px' }}>Address</th>
+                <th style={{ padding: '16px' }}>Phase / Group</th>
+                <th style={{ padding: '16px' }}>Relation</th>
+                <th style={{ padding: '16px' }}>Joined Date</th>
+                <th style={{ padding: '16px', textAlign: 'center' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <tr key={`skeleton-${idx}`} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
+                    <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '100%' }}></div></td>
+                    <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: 80, height: 24, borderRadius: 12 }}></div></td>
+                    <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '70%' }}></div></td>
+                    <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '60%' }}></div></td>
+                    <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '90%' }}></div></td>
+                    <td style={{ padding: '16px', textAlign: 'center' }}><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8, margin: '0 auto' }}></div></td>
+                  </tr>
+                ))
+              ) : displayedResidents.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                    No residents found for this filter.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {residents.map((r) => (
+              ) : (
+                displayedResidents.map((r) => (
                   <tr key={r._id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
                     <td style={{ padding: '16px', fontWeight: '500' }}>{r.name || 'N/A'}</td>
                     <td style={{ padding: '16px' }}>{r.phone_number}</td>
@@ -137,6 +167,7 @@ export default function Residents() {
                         {r.address || 'N/A'}
                       </span>
                     </td>
+                    <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{r.phase || 'Unassigned'}</td>
                     <td style={{ padding: '16px' }}>{r.relation || 'Owner'}</td>
                     <td style={{ padding: '16px', color: 'var(--text-secondary)' }}>
                       {new Date(r.createdAt || r.updatedAt || Date.now()).toLocaleDateString()}
@@ -152,11 +183,11 @@ export default function Residents() {
                       </button>
                     </td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
