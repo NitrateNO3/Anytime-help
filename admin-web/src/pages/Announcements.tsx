@@ -288,22 +288,24 @@ export default function Announcements() {
               <div className="input-group">
                 <label>Target Groups</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0, fontWeight: 500 }}>
                     <input 
                       type="checkbox" 
+                      style={{ width: 'auto', marginBottom: 0 }}
                       checked={selectedPhases.includes('All')}
                       onChange={(e) => {
                         if (e.target.checked) setSelectedPhases(['All']);
                       }}
                     />
-                    <span>All Groups (Send to Everyone)</span>
+                    <span style={{ fontSize: 14 }}>All Groups (Send to Everyone)</span>
                   </label>
                   
                   <div style={{ paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 8, opacity: selectedPhases.includes('All') ? 0.5 : 1, pointerEvents: selectedPhases.includes('All') ? 'none' : 'auto' }}>
                     {availablePhases.map(phase => (
-                      <label key={phase} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <label key={phase} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0, fontWeight: 400 }}>
                         <input 
                           type="checkbox" 
+                          style={{ width: 'auto', marginBottom: 0 }}
                           checked={selectedPhases.includes(phase)}
                           onChange={(e) => {
                             let updated = [...selectedPhases].filter(p => p !== 'All');
@@ -317,7 +319,7 @@ export default function Announcements() {
                             setSelectedPhases(updated);
                           }}
                         />
-                        <span>{phase}</span>
+                        <span style={{ fontSize: 14 }}>{phase}</span>
                       </label>
                     ))}
                   </div>

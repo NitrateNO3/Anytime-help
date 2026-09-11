@@ -224,9 +224,10 @@ export default function Directory() {
               <div className="form-group" style={{ marginBottom: 16 }}>
                 <label className="form-label" style={{ marginBottom: 8, display: 'block', fontWeight: 500, fontSize: 14 }}>Target Groups</label>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0, fontWeight: 500 }}>
                     <input 
                       type="checkbox" 
+                      style={{ width: 'auto', marginBottom: 0 }}
                       checked={selectedPhases.includes('All')}
                       onChange={(e) => {
                         if (e.target.checked) setSelectedPhases(['All']);
@@ -237,9 +238,10 @@ export default function Directory() {
                   
                   <div style={{ paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 8, opacity: selectedPhases.includes('All') ? 0.5 : 1, pointerEvents: selectedPhases.includes('All') ? 'none' : 'auto' }}>
                     {availablePhases.map(phase => (
-                      <label key={phase} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <label key={phase} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: 0, fontWeight: 400 }}>
                         <input 
                           type="checkbox" 
+                          style={{ width: 'auto', marginBottom: 0 }}
                           checked={selectedPhases.includes(phase)}
                           onChange={(e) => {
                             let updated = [...selectedPhases].filter(p => p !== 'All');
