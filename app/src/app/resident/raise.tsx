@@ -1,5 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, StatusBar, ActivityIndicator, Image, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, StatusBar, ActivityIndicator, Image, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
@@ -593,8 +594,8 @@ const styles = StyleSheet.create({
   label: { fontSize: 13, fontWeight: '600', color: '#4B5563', marginBottom: 6, marginTop: 16 },
   readOnlyInput: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 6, padding: 14 },
   readOnlyText: { fontSize: 15, color: '#111827', fontWeight: '600' },
-  input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 6, padding: 14, fontSize: 15, color: '#111827' },
-  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 6, padding: 14, fontSize: 15, color: '#111827', minHeight: 120 },
+  input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 6, padding: 14, fontSize: 15, color: '#111827', paddingVertical: 0 },
+  textArea: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 6, padding: 14, fontSize: 15, color: '#111827', minHeight: 120, paddingVertical: 0 },
   charCount: { textAlign: 'right', fontSize: 12, color: '#6B7280', marginTop: 4 },
   
   photosContainer: { marginTop: 4, marginBottom: 24 },

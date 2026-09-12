@@ -1,5 +1,6 @@
+import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, SafeAreaView, ScrollView, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard, Image, FlatList, Dimensions, Animated, Modal } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard, Image, FlatList, Dimensions, Animated, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import axios from 'axios';
@@ -34,13 +35,16 @@ export default function RegisterScreen() {
   const getBlockOptions = () => {
     if (phase === 'Sushant Lok 2 Option 1') return ['C, D, E'];
     if (phase === 'Sushant Lok 2 Option 2') return ['F, G'];
-    if (phase === 'Sushant Lok 3') return ['A, B, C, D, E, F, G, H'];
+    if (phase === 'Sushant Lok 3') return ['A, B, B1, C, D, E, F, G, H'];
     return [];
   };
 
   const [relation, setRelation] = useState('');
   const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [termsModalVisible, setTermsModalVisible] = useState(false);
 
   const [banners, setBanners] = React.useState<any[]>([]);
   const flatListRef = React.useRef<FlatList>(null);
@@ -90,6 +94,11 @@ export default function RegisterScreen() {
 
     if (isDuplicateAddress && !relation) {
       Toast.show({ type: 'error', text1: 'Relation Required', text2: 'Please specify your relation to this address' });
+      return;
+    }
+
+    if (!agreedToTerms) {
+      Toast.show({ type: 'error', text1: 'Terms Required', text2: 'Please agree to the Terms and Conditions to register' });
       return;
     }
 
@@ -210,6 +219,7 @@ export default function RegisterScreen() {
             </View>
 
             <View style={[styles.formCard, isDuplicateAddress && { paddingTop: 20, paddingHorizontal: 20 }]}>
+              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 10 }}>
               <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
                 <Ionicons name="person-outline" size={20} color="#555" style={styles.inputIcon} />
                 <TextInput
@@ -308,6 +318,18 @@ export default function RegisterScreen() {
                 </View>
               )}
 
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, paddingHorizontal: 4 }}>
+                <TouchableOpacity onPress={() => setAgreedToTerms(!agreedToTerms)} style={{ marginRight: 8 }}>
+                  <Ionicons name={agreedToTerms ? "checkbox" : "square-outline"} size={24} color={agreedToTerms ? "#1D4ED8" : "#777"} />
+                </TouchableOpacity>
+                <Text style={{ color: '#555', fontSize: 13, flex: 1 }}>
+                  I agree to the {' '}
+                  <Text style={{ color: '#1D4ED8', fontWeight: 'bold' }} onPress={() => setTermsModalVisible(true)}>
+                    Terms and Conditions
+                  </Text>
+                </Text>
+              </View>
+
               <TouchableOpacity 
                 style={[styles.registerBtn, isDuplicateAddress && { height: 50, marginTop: 8, marginBottom: 16 }, loading && styles.registerBtnDisabled]} 
                 onPress={handleRegister}
@@ -322,6 +344,7 @@ export default function RegisterScreen() {
                   <Text style={styles.footerLink}>{t('register.loginHere') || 'Log In Here'}</Text>
                 </TouchableOpacity>
               </View>
+              </ScrollView>
             </View>
             </View>
             </View>
@@ -402,6 +425,44 @@ export default function RegisterScreen() {
             />
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Terms and Conditions Modal */}
+      <Modal animationType="fade" transparent={true} visible={termsModalVisible} onRequestClose={() => setTermsModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Terms and Conditions</Text>
+              <TouchableOpacity onPress={() => setTermsModalVisible(false)}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
+            </View>
+            <ScrollView style={{ paddingRight: 8 }} showsVerticalScrollIndicator={false}>
+              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>1. Introduction</Text>
+              <Text style={{ fontSize: 14, color: '#555', marginBottom: 16, lineHeight: 20 }}>
+                Welcome to Anytime Help. By registering and using our app, you agree to comply with the rules and guidelines set forth for our residential community.
+              </Text>
+              
+              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>2. Account Responsibility</Text>
+              <Text style={{ fontSize: 14, color: '#555', marginBottom: 16, lineHeight: 20 }}>
+                You must provide accurate and complete information during registration. You are responsible for all activities that occur under your account. Do not share your login credentials with non-residents.
+              </Text>
+
+              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>3. Acceptable Use</Text>
+              <Text style={{ fontSize: 14, color: '#555', marginBottom: 16, lineHeight: 20 }}>
+                The Anytime Help platform is intended for raising valid complaints, accessing community announcements, and utilizing the directory. Abuse of the complaint system or posting inappropriate content is strictly prohibited.
+              </Text>
+
+              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>4. Privacy</Text>
+              <Text style={{ fontSize: 14, color: '#555', marginBottom: 16, lineHeight: 20 }}>
+                Your personal details (name, phone number, address) will be securely stored and used solely for community management purposes. It will not be shared with third parties without your consent.
+              </Text>
+
+              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>5. Modifications</Text>
+              <Text style={{ fontSize: 14, color: '#555', marginBottom: 30, lineHeight: 20 }}>
+                We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes.
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
       </Modal>
     </View>
   );
@@ -544,6 +605,7 @@ const styles = StyleSheet.create({
     height: '100%',
     fontSize: 14,
     color: '#333',
+    paddingVertical: 0,
   },
   registerBtn: {
     backgroundColor: '#1D4ED8', // Dark blue button

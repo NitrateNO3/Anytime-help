@@ -22,10 +22,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF",
+        "foregroundImage": "./assets/images/icon.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.aman_mirza.app",
@@ -33,7 +31,7 @@
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyD8k_S6Ak-JvxcPp6ACVzBDPcKFa-doI58"
+          "apiKey": "AIzaSyC4M7WLk14DXExDRldSD4dWZH5pYTWF-44"
         }
       }
     },

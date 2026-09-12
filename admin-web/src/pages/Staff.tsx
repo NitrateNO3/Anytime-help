@@ -54,7 +54,7 @@ export default function Staff() {
   const entityBlocks: any = {
     'Sushant Lok 2 Option 1': ['C, D, E'],
     'Sushant Lok 2 Option 2': ['F, G'],
-    'Sushant Lok 3': ['A, B, C, D, E, F, G, H']
+    'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
   };
 
   useEffect(() => {

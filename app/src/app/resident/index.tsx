@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -46,7 +47,7 @@ export default function ResidentHome() {
         </View>
 
         {/* 2x2 Grid Dashboard (Centered vertically in remaining space) */}
-        <View style={{ flex: 1, justifyContent: 'center' }}>
+        <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 20 }}>
           <View style={styles.dashboardGrid}>
             {/* Card 1: Lodge Grievance */}
             <TouchableOpacity 
