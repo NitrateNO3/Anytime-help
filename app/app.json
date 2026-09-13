@@ -31,7 +31,11 @@
       "package": "com.aman_mirza.app",
       "versionCode": 3,
       "googleServicesFile": "./google-services.json",
-      "config": {}
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyC4M7WLk14DXExDRldSD4dWZH5pYTWF-44"
+        }
+      }
     },
     "web": {
       "output": "static",
