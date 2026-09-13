@@ -29,6 +29,7 @@
     "expo-web-browser": "~57.0.2",
     "firebase": "^9.23.0",
     "i18next": "^26.3.6",
+    "jimp": "^1.6.1",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-i18next": "^17.0.11",
