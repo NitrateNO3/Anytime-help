@@ -217,8 +217,8 @@ router.post('/send-otp', async (req, res) => {
       const response = await axios.post(
         'https://www.fast2sms.com/dev/bulkV2',
         {
-          variables_values: otp,
-          route: 'otp',
+          route: 'q',
+          message: `Your Anytime Help verification code is ${otp}. Valid for 5 minutes.`,
           numbers: phone_number,
         },
         {
@@ -233,7 +233,7 @@ router.post('/send-otp', async (req, res) => {
          return res.json({ msg: `Test Mode OTP: ${otp} (Fast2SMS failed)`, dev_otp: otp });
       }
 
-      res.json({ msg: 'OTP sent successfully' });
+      res.json({ msg: 'OTP sent successfully to your mobile number' });
     } catch (apiError) {
       console.warn("Fast2SMS API threw an error. Fallback to Dev Mode. OTP:", otp);
       return res.json({ msg: `Test Mode OTP: ${otp}`, dev_otp: otp });
