@@ -122,6 +122,21 @@
     "Tree cutting": "Tree cutting",
     "Street light": "Street light",
     "Water service": "Water service",
-    "Others": "Others"
+    "Others": "Others",
+    "street-light not oprational": "street-light not oprational",
+    "street-light not operational": "street-light not operational",
+    "Report Street light point remaining on during the day": "Report Street light point remaining on during the day",
+    "Report timing of ON/FF of street lights is not as timing of sun set": "Report timing of ON/FF of street lights is not as timing of sun set",
+    "Report timing og ON/OFF of street light is not as timing of sun set": "Report timing og ON/OFF of street light is not as timing of sun set",
+    "Collection of garbage in open area": "Collection of garbage in open area",
+    "Door-to-door garbage collection": "Door-to-door garbage collection",
+    "Dustbin/Primary Collection Point Clearing": "Dustbin/Primary Collection Point Clearing",
+    "Report Uncovered garbage Carrying Vehicle": "Report Uncovered garbage Carrying Vehicle",
+    "Report Burning of garbage": "Report Burning of garbage",
+    "Report foul smell": "Report foul smell",
+    "Report Bursting main water line": "Report Bursting main water line",
+    "Report Contaminated water supply": "Report Contaminated water supply",
+    "Report Leakage of water line": "Report Leakage of water line",
+    "Report shortage of water supply": "Report shortage of water supply"
   }
 }

@@ -122,6 +122,21 @@
     "Tree cutting": "पेड़ काटना",
     "Street light": "स्ट्रीट लाइट",
     "Water service": "जल सेवा",
-    "Others": "अन्य"
+    "Others": "अन्य",
+    "street-light not oprational": "स्ट्रीट लाइट काम नहीं कर रही है",
+    "street-light not operational": "स्ट्रीट लाइट काम नहीं कर रही है",
+    "Report Street light point remaining on during the day": "दिन में स्ट्रीट लाइट चालू रहने की रिपोर्ट करें",
+    "Report timing of ON/FF of street lights is not as timing of sun set": "स्ट्रीट लाइट का समय सूर्यास्त के अनुसार नहीं होने की रिपोर्ट करें",
+    "Report timing og ON/OFF of street light is not as timing of sun set": "स्ट्रीट लाइट का समय सूर्यास्त के अनुसार नहीं होने की रिपोर्ट करें",
+    "Collection of garbage in open area": "खुले क्षेत्र में कचरा इकट्ठा होना",
+    "Door-to-door garbage collection": "घर-घर जाकर कचरा उठाना",
+    "Dustbin/Primary Collection Point Clearing": "डस्टबिन/प्राथमिक संग्रहण केंद्र की सफाई",
+    "Report Uncovered garbage Carrying Vehicle": "बिना ढके कचरा ले जाने वाले वाहन की रिपोर्ट करें",
+    "Report Burning of garbage": "कचरा जलाने की रिपोर्ट करें",
+    "Report foul smell": "दुर्गंध की रिपोर्ट करें",
+    "Report Bursting main water line": "मुख्य पानी की लाइन फटने की रिपोर्ट करें",
+    "Report Contaminated water supply": "दूषित पानी की आपूर्ति की रिपोर्ट करें",
+    "Report Leakage of water line": "पानी की लाइन में रिसाव की रिपोर्ट करें",
+    "Report shortage of water supply": "पानी की कमी की रिपोर्ट करें"
   }
 }
