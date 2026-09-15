@@ -347,7 +347,7 @@ export default function MyComplaints() {
                   {/* Top Row: Title + Status Badge */}
                   <View style={styles.cardTopRow}>
                     <View style={{ flex: 1, paddingRight: 8 }}>
-                      <Text style={styles.cardTitle}>{item.title}</Text>
+                      <Text style={styles.cardTitle}>{t(`categories.${item.title}`, { defaultValue: item.title })}</Text>
                     </View>
                     <View style={[styles.statusBadge, statusBadgeStyle]}>
                       <Ionicons name={statusIcon as any} size={12} color={statusTextStyle.color} style={{ marginRight: 4 }} />

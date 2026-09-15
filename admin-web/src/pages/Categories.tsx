@@ -13,14 +13,25 @@ export default function Categories() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   
+  interface SubCategoryDetail {
+    en: string;
+    hi: string;
+    hinglish: string;
+  }
+
   const [formData, setFormData] = useState({
     title: '',
+    title_hi: '',
+    title_hinglish: '',
     image: '',
-    subCategories: [] as string[]
+    subCategories: [] as string[],
+    subCategoriesDetails: [] as SubCategoryDetail[]
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [removeImageFlag, setRemoveImageFlag] = useState(false);
-  const [newSubCategory, setNewSubCategory] = useState('');
+  const [newSubEn, setNewSubEn] = useState('');
+  const [newSubHi, setNewSubHi] = useState('');
+  const [newSubHinglish, setNewSubHinglish] = useState('');
 
   useEffect(() => {
     fetchCategories();
@@ -41,22 +52,38 @@ export default function Categories() {
   const handleOpenModal = (category: any = null) => {
     if (category) {
       setEditingId(category._id);
+      
+      let details: SubCategoryDetail[] = [];
+      if (Array.isArray(category.subCategoriesDetails) && category.subCategoriesDetails.length > 0) {
+        details = category.subCategoriesDetails;
+      } else if (Array.isArray(category.subCategories)) {
+        details = category.subCategories.map((s: string) => ({ en: s, hi: '', hinglish: '' }));
+      }
+
       setFormData({
-        title: category.title,
+        title: category.title || '',
+        title_hi: category.title_hi || '',
+        title_hinglish: category.title_hinglish || '',
         image: category.image || '',
-        subCategories: category.subCategories || []
+        subCategories: category.subCategories || [],
+        subCategoriesDetails: details
       });
     } else {
       setEditingId(null);
       setFormData({
         title: '',
+        title_hi: '',
+        title_hinglish: '',
         image: '',
-        subCategories: []
+        subCategories: [],
+        subCategoriesDetails: []
       });
     }
     setImageFile(null);
     setRemoveImageFlag(false);
-    setNewSubCategory('');
+    setNewSubEn('');
+    setNewSubHi('');
+    setNewSubHinglish('');
     setIsModalOpen(true);
   };
 
@@ -66,18 +93,33 @@ export default function Categories() {
   };
 
   const handleAddSubCategory = () => {
-    if (newSubCategory.trim() === '') return;
+    if (newSubEn.trim() === '') {
+      toast.error('Please enter subcategory English name');
+      return;
+    }
+
+    const newItem: SubCategoryDetail = {
+      en: newSubEn.trim(),
+      hi: newSubHi.trim(),
+      hinglish: newSubHinglish.trim()
+    };
+
     setFormData({
       ...formData,
-      subCategories: [...formData.subCategories, newSubCategory.trim()]
+      subCategories: [...formData.subCategories, newItem.en],
+      subCategoriesDetails: [...formData.subCategoriesDetails, newItem]
     });
-    setNewSubCategory('');
+
+    setNewSubEn('');
+    setNewSubHi('');
+    setNewSubHinglish('');
   };
 
   const handleRemoveSubCategory = (indexToRemove: number) => {
     setFormData({
       ...formData,
-      subCategories: formData.subCategories.filter((_, index) => index !== indexToRemove)
+      subCategories: formData.subCategories.filter((_, index) => index !== indexToRemove),
+      subCategoriesDetails: formData.subCategoriesDetails.filter((_, index) => index !== indexToRemove)
     });
   };
 
@@ -90,12 +132,22 @@ export default function Categories() {
 
     const payload = new FormData();
     payload.append('title', formData.title);
+    payload.append('title_hi', formData.title_hi || '');
+    payload.append('title_hinglish', formData.title_hinglish || '');
     
-    let finalSubCategories = [...formData.subCategories];
-    if (newSubCategory.trim() !== '') {
-      finalSubCategories.push(newSubCategory.trim());
+    let finalDetails = [...formData.subCategoriesDetails];
+    if (newSubEn.trim() !== '') {
+      finalDetails.push({
+        en: newSubEn.trim(),
+        hi: newSubHi.trim(),
+        hinglish: newSubHinglish.trim()
+      });
     }
+
+    const finalSubCategories = finalDetails.map(d => d.en);
     payload.append('subCategories', JSON.stringify(finalSubCategories));
+    payload.append('subCategoriesDetails', JSON.stringify(finalDetails));
+
     if (removeImageFlag) {
       payload.append('removeImage', 'true');
     } else if (imageFile) {
@@ -125,7 +177,9 @@ export default function Categories() {
       }
       
       handleCloseModal();
-      setNewSubCategory('');
+      setNewSubEn('');
+      setNewSubHi('');
+      setNewSubHinglish('');
       fetchCategories();
     } catch (error) {
       console.error(error);
@@ -204,7 +258,19 @@ export default function Categories() {
                       )}
                     </div>
                     <div>
-                      <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--text-primary)' }}>{cat.title}</h3>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--text-primary)' }}>{cat.title}</h3>
+                        {cat.title_hi && (
+                          <span style={{ fontSize: '11px', background: '#FEF3C7', color: '#92400E', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                            {cat.title_hi}
+                          </span>
+                        )}
+                        {cat.title_hinglish && (
+                          <span style={{ fontSize: '11px', background: '#E0E7FF', color: '#3730A3', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                            {cat.title_hinglish}
+                          </span>
+                        )}
+                      </div>
                       <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                         {cat.subCategories?.length || 0} Sub-categories
                       </span>
@@ -220,7 +286,6 @@ export default function Categories() {
                   </div>
                 </div>
 
-
               </div>
             ))
           )}
@@ -230,7 +295,7 @@ export default function Categories() {
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '500px' }}>
+          <div className="modal-content" style={{ maxWidth: '600px' }}>
             <div className="modal-header">
               <h2>{editingId ? 'Edit Category' : 'Add New Category'}</h2>
               <button className="btn btn-icon" onClick={handleCloseModal}>
@@ -239,15 +304,38 @@ export default function Categories() {
             </div>
             <form onSubmit={handleSubmit} className="modal-body">
               <div className="form-group">
-                <label className="form-label">Category Title</label>
+                <label className="form-label">Category Title (English) *</label>
                 <input 
                   type="text" 
                   className="form-input" 
                   value={formData.title} 
                   onChange={(e) => setFormData({...formData, title: e.target.value})} 
-                  placeholder="e.g. ELECTRICITY" 
+                  placeholder="e.g. Electricity" 
                   required 
                 />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '13px' }}>Title in Hindi (हिंदी)</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={formData.title_hi} 
+                    onChange={(e) => setFormData({...formData, title_hi: e.target.value})} 
+                    placeholder="जैसे: बिजली" 
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontSize: '13px' }}>Title in Hinglish</label>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={formData.title_hinglish} 
+                    onChange={(e) => setFormData({...formData, title_hinglish: e.target.value})} 
+                    placeholder="e.g. Bijli" 
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -289,7 +377,6 @@ export default function Categories() {
                         type="button" 
                         onClick={() => {
                           setImageFile(null);
-                          // Reset the file input value so the same file can be selected again if needed
                           const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
                           if (fileInput) fileInput.value = '';
                         }} 
@@ -303,39 +390,71 @@ export default function Categories() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Sub Categories</label>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    value={newSubCategory} 
-                    onChange={(e) => setNewSubCategory(e.target.value)} 
-                    placeholder="Add a sub-category..."
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddSubCategory();
-                      }
-                    }}
-                  />
-                  <button type="button" className="btn btn-secondary" onClick={handleAddSubCategory}>
-                    Add
+                <label className="form-label">Sub Categories (Multi-Language)</label>
+                <div style={{ background: '#F9FAFB', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', marginBottom: '12px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '8px' }}>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newSubEn} 
+                      onChange={(e) => setNewSubEn(e.target.value)} 
+                      placeholder="English (e.g. Power Outage)"
+                    />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newSubHi} 
+                      onChange={(e) => setNewSubHi(e.target.value)} 
+                      placeholder="हिंदी (उदा. बिजली कटौती)"
+                    />
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={newSubHinglish} 
+                      onChange={(e) => setNewSubHinglish(e.target.value)} 
+                      placeholder="Hinglish (e.g. Bijli Chali Gayi)"
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddSubCategory();
+                        }
+                      }}
+                    />
+                  </div>
+                  <button type="button" className="btn btn-secondary" onClick={handleAddSubCategory} style={{ width: '100%', justifyContent: 'center' }}>
+                    <Plus size={16} /> Add Sub-category
                   </button>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '12px' }}>
-                  {formData.subCategories.map((sub, index) => (
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
+                  {formData.subCategoriesDetails.map((detail, index) => (
                     <div key={index} style={{ 
-                      display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 8px', 
-                      backgroundColor: '#EFF6FF', borderRadius: '16px', color: '#1D4ED8', fontSize: '13px' 
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', 
+                      backgroundColor: '#EFF6FF', borderRadius: '8px', border: '1px solid #BFDBFE' 
                     }}>
-                      {sub}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 600, color: '#1E40AF', fontSize: '13px' }}>{detail.en}</span>
+                        {detail.hi && (
+                          <span style={{ background: '#FEF3C7', color: '#92400E', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                            {detail.hi}
+                          </span>
+                        )}
+                        {detail.hinglish && (
+                          <span style={{ background: '#E0E7FF', color: '#3730A3', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
+                            {detail.hinglish}
+                          </span>
+                        )}
+                      </div>
                       <button type="button" onClick={() => handleRemoveSubCategory(index)} style={{ 
-                        background: 'none', border: 'none', color: '#1D4ED8', cursor: 'pointer', display: 'flex' 
+                        background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', display: 'flex' 
                       }}>
-                        <X size={14} />
+                        <X size={16} />
                       </button>
                     </div>
                   ))}
+                  {formData.subCategoriesDetails.length === 0 && (
+                    <p style={{ color: '#9CA3AF', fontSize: '13px', margin: '4px 0' }}>No sub-categories added yet.</p>
+                  )}
                 </div>
               </div>
 

@@ -11,12 +11,13 @@ import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import MapView, { Marker, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { getLocalizedCategoryTitle, getLocalizedSubCategoryTitle } from '../../utils/localization';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function RaiseComplaint() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   const [categoriesData, setCategoriesData] = useState<any[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
@@ -314,7 +315,9 @@ export default function RaiseComplaint() {
                     )}
                   </View>
                   <View style={styles.categoryInfo}>
-                    <Text style={[styles.categoryTitle, { color: cat.color || '#3B82F6' }]}>{t(`categories.${cat.title}`, { defaultValue: cat.title })}</Text>
+                    <Text style={[styles.categoryTitle, { color: cat.color || '#3B82F6' }]}>
+                      {getLocalizedCategoryTitle(cat, i18n.language) || t(`categories.${cat.title}`, { defaultValue: cat.title })}
+                    </Text>
                     <Text style={styles.subCategoryCount}>{t('raise.subCategoriesCount', { count: cat.subCategories?.length || 0 })}</Text>
                   </View>
                 </TouchableOpacity>
@@ -418,12 +421,12 @@ export default function RaiseComplaint() {
               <View style={styles.formSectionContent}>
                 <Text style={styles.label}>{t('raise.grievanceCategory')}</Text>
                 <View style={styles.readOnlyInput}>
-                  <Text style={styles.readOnlyText}>{category}</Text>
+                  <Text style={styles.readOnlyText}>{getLocalizedCategoryTitle(selectedMainCategory, i18n.language) || category}</Text>
                 </View>
 
                 <Text style={styles.label}>{t('raise.subCategoriesTitle')}</Text>
                 <View style={styles.readOnlyInput}>
-                  <Text style={styles.readOnlyText}>{subCategory}</Text>
+                  <Text style={styles.readOnlyText}>{getLocalizedSubCategoryTitle(selectedMainCategory, subCategory, i18n.language) || subCategory}</Text>
                 </View>
 
                 <Text style={styles.label}>{t('raise.grievanceDetails')} (Min 50 Character) <Text style={{color: '#EF4444'}}>*</Text></Text>
@@ -514,7 +517,9 @@ export default function RaiseComplaint() {
                   style={styles.subCategoryItem}
                   onPress={() => selectSubCategory(sub)}
                 >
-                  <Text style={styles.subCategoryText}>{t(`categories.${sub}`, { defaultValue: sub })}</Text>
+                  <Text style={styles.subCategoryText}>
+                    {getLocalizedSubCategoryTitle(selectedMainCategory, sub, i18n.language) || t(`categories.${sub}`, { defaultValue: sub })}
+                  </Text>
                   <Ionicons name="arrow-forward" size={20} color="#111827" />
                 </TouchableOpacity>
               ))}

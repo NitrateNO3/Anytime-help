@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
+import { getNextLanguage, getLanguageBadge } from '../utils/localization';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const bgImage = require('../../assets/images/electrician-review-response-templates-featured.webp');
@@ -81,7 +82,7 @@ export default function RegisterScreen() {
   }, [banners]);
 
   const toggleLanguage = async () => {
-    const newLang = i18n.language === 'en' ? 'hi' : 'en';
+    const newLang = getNextLanguage(i18n.language);
     await i18n.changeLanguage(newLang);
     await AsyncStorage.setItem('user-language', newLang);
   };
@@ -196,7 +197,7 @@ export default function RegisterScreen() {
               <View style={styles.langToggleContainer}>
             <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
               <Ionicons name="language-outline" size={16} color="#FFF" style={{marginRight: 6}} />
-              <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी' : 'EN'}</Text>
+              <Text style={styles.langToggleText}>{getLanguageBadge(i18n.language)}</Text>
             </TouchableOpacity>
           </View>
 

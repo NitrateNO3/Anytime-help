@@ -5,10 +5,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import en from './locales/en.json';
 import hi from './locales/hi.json';
+import hinglish from './locales/hinglish.json';
 
 const resources = {
   en: { translation: en },
   hi: { translation: hi },
+  hinglish: { translation: hinglish },
 };
 
 const locales = Localization.getLocales();

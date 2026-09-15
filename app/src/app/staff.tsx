@@ -13,6 +13,8 @@ import { io } from 'socket.io-client';
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
 
+import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
+
 export default function StaffScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
@@ -21,7 +23,7 @@ export default function StaffScreen() {
   const [activeTab, setActiveTab] = useState<'Tasks' | 'Broadcasts'>('Tasks');
 
   const toggleLanguage = async () => {
-    const newLang = i18n.language === 'en' ? 'hi' : 'en';
+    const newLang = getNextLanguage(i18n.language);
     await i18n.changeLanguage(newLang);
     await AsyncStorage.setItem('user-language', newLang);
   };
@@ -273,7 +275,7 @@ export default function StaffScreen() {
         {/* Header matched with Resident Theme */}
         <View style={styles.header}>
           <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
-            <Text style={styles.langToggleText}>{i18n.language === 'en' ? 'हिंदी में बदलें' : 'English'}</Text>
+            <Text style={styles.langToggleText}>{getLanguageDisplayName(i18n.language)}</Text>
           </TouchableOpacity>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.iconBtn} onPress={handleLogout}>

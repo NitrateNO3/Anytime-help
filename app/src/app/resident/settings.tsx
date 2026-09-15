@@ -7,13 +7,15 @@ import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+import { getNextLanguage, getLanguageDisplayName } from '../../utils/localization';
+
 export default function SettingsScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const [user, setUser] = useState<any>(null);
 
   const toggleLanguage = async () => {
-    const newLang = i18n.language === 'en' ? 'hi' : 'en';
+    const newLang = getNextLanguage(i18n.language);
     await i18n.changeLanguage(newLang);
     await AsyncStorage.setItem('user-language', newLang);
   };
@@ -80,7 +82,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconContainer, { backgroundColor: '#E0E7FF' }]}>
                   <Ionicons name="language-outline" size={20} color="#4338CA" />
                 </View>
-                <Text style={styles.settingText}>{t('settings.language') || 'Language'}: {i18n.language === 'en' ? 'English' : 'हिंदी'}</Text>
+                <Text style={styles.settingText}>{t('settings.language') || 'Language'}: {getLanguageDisplayName(i18n.language)}</Text>
               </View>
               <TouchableOpacity onPress={toggleLanguage} style={styles.changeBtn}>
                 <Text style={styles.changeBtnText}>{t('settings.change') || 'Change'}</Text>
