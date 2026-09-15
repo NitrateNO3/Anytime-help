@@ -38,7 +38,6 @@ export default function RaiseComplaint() {
   const [galleryLoading, setGalleryLoading] = useState(false);
   
   const [showModal, setShowModal] = useState(false);
-  const [subCategoryLang, setSubCategoryLang] = useState<'en' | 'hi'>('en');
   const slideAnim = React.useRef(new Animated.Value(400)).current;
 
   // Location & Map State
@@ -89,7 +88,6 @@ export default function RaiseComplaint() {
 
   const openSubCategories = (cat: any) => {
     setSelectedMainCategory(cat);
-    setSubCategoryLang(cat.activeLanguage === 'hi' || i18n.language === 'hi' ? 'hi' : 'en');
     setShowModal(true);
     Animated.timing(slideAnim, {
       toValue: 0,
@@ -513,32 +511,9 @@ export default function RaiseComplaint() {
               <Text style={styles.bottomSheetTitle}>{t('raise.subCategoriesTitle')}</Text>
             </View>
 
-            {/* Language Switch Buttons: English & Hindi */}
-            <View style={styles.subCategoryLangContainer}>
-              <TouchableOpacity
-                style={[styles.subCategoryLangBtn, subCategoryLang === 'en' && styles.subCategoryLangBtnActive]}
-                onPress={() => setSubCategoryLang('en')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.subCategoryLangBtnText, subCategoryLang === 'en' && styles.subCategoryLangBtnTextActive]}>
-                  🇬🇧 English
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.subCategoryLangBtn, subCategoryLang === 'hi' && styles.subCategoryLangBtnActive]}
-                onPress={() => setSubCategoryLang('hi')}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.subCategoryLangBtnText, subCategoryLang === 'hi' && styles.subCategoryLangBtnTextActive]}>
-                  🇮🇳 हिंदी (Hindi)
-                </Text>
-              </TouchableOpacity>
-            </View>
-
             <ScrollView style={{ maxHeight: 400 }}>
               {selectedMainCategory?.subCategories?.map((sub: string, index: number) => {
-                const localizedTitle = getLocalizedSubCategoryTitle(selectedMainCategory, sub, subCategoryLang) || t(`categories.${sub}`, { defaultValue: sub });
+                const localizedTitle = getLocalizedSubCategoryTitle(selectedMainCategory, sub, i18n.language) || t(`categories.${sub}`, { defaultValue: sub });
                 return (
                   <TouchableOpacity 
                     key={index} 
@@ -651,43 +626,6 @@ const styles = StyleSheet.create({
   bottomSheetContainer: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 30, maxHeight: '80%' },
   bottomSheetHeader: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
   bottomSheetTitle: { fontSize: 18, fontWeight: '700', color: '#1D4ED8' },
-  
-  subCategoryLangContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 12,
-    padding: 4,
-    marginHorizontal: 20,
-    marginTop: 14,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  subCategoryLangBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  subCategoryLangBtnActive: {
-    backgroundColor: '#1D4ED8',
-    elevation: 2,
-    shadowColor: '#1D4ED8',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-  },
-  subCategoryLangBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#64748B',
-  },
-  subCategoryLangBtnTextActive: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-
   subCategoryItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 18, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
   subCategoryText: { fontSize: 15, color: '#1E293B', fontWeight: '500', flex: 1, paddingRight: 16 },
 

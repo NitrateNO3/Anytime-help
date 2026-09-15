@@ -238,17 +238,14 @@ router.put('/:id', [auth, upload.single('image')], async (req, res) => {
     if (title !== undefined) category.title = title;
     if (title_hi !== undefined) category.title_hi = title_hi;
     if (title_hinglish !== undefined) category.title_hinglish = title_hinglish;
-    if (activeLanguage !== undefined) category.activeLanguage = activeLanguage;
+    if (subCategoriesDetails !== undefined) {
+      category.subCategoriesDetails = subCategoriesDetails;
+    }
 
     if (subCategories !== undefined && Array.isArray(subCategories) && subCategories.length > 0) {
       category.subCategories = subCategories;
     } else if (subCategoriesDetails !== undefined) {
-      const lang = category.activeLanguage || 'en';
-      category.subCategories = subCategoriesDetails.map(item => (typeof item === 'object' ? (lang === 'hi' ? item.hi || item.en : item.en || item.title || '') : item)).filter(Boolean);
-    }
-
-    if (subCategoriesDetails !== undefined) {
-      category.subCategoriesDetails = subCategoriesDetails;
+      category.subCategories = subCategoriesDetails.map(item => (typeof item === 'object' ? item.en || item.title || '' : item)).filter(Boolean);
     }
 
     if (req.body.removeImage === 'true') {
