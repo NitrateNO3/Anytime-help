@@ -10,6 +10,8 @@ export default function Residents() {
   const [residents, setResidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
   useEffect(() => {
     fetchResidents();
@@ -103,6 +105,9 @@ export default function Residents() {
         return r.phase === filterPhase;
       });
 
+  const totalPages = Math.ceil(displayedResidents.length / limit) || 1;
+  const paginatedResidents = displayedResidents.slice((page - 1) * limit, page * limit);
+
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -122,7 +127,10 @@ export default function Residents() {
           <h2 style={{ fontSize: '18px', fontWeight: '600' }}>Total Registered: {displayedResidents.length}</h2>
           <select 
             value={filterPhase} 
-            onChange={(e) => setFilterPhase(e.target.value)}
+            onChange={(e) => {
+              setFilterPhase(e.target.value);
+              setPage(1);
+            }}
             style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
           >
             <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
@@ -157,14 +165,14 @@ export default function Residents() {
                     <td style={{ padding: '16px', textAlign: 'center' }}><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8, margin: '0 auto' }}></div></td>
                   </tr>
                 ))
-              ) : displayedResidents.length === 0 ? (
+              ) : paginatedResidents.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                     No residents found for this filter.
                   </td>
                 </tr>
               ) : (
-                displayedResidents.map((r) => (
+                paginatedResidents.map((r) => (
                   <tr key={r._id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
                     <td style={{ padding: '16px', fontWeight: '500' }}>{r.name || 'N/A'}</td>
                     <td style={{ padding: '16px' }}>{r.phone_number}</td>
@@ -194,6 +202,31 @@ export default function Residents() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, padding: '0 10px' }}>
+            <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+              Page {page} of {totalPages}
+            </span>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button 
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === 1 ? '#f3f4f6' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                Previous
+              </button>
+              <button 
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === totalPages ? '#f3f4f6' : 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

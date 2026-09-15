@@ -16,6 +16,8 @@ export default function Staff() {
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterPhase, setFilterPhase] = useState('All');
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
   // Form State
   const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 - C,D,E');
@@ -168,6 +170,9 @@ export default function Staff() {
         return s.phase === filterPhase || s.name.includes(filterPhase);
       });
 
+  const totalPages = Math.ceil(displayedStaff.length / limit) || 1;
+  const paginatedStaff = displayedStaff.slice((page - 1) * limit, page * limit);
+
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <header className="page-header" style={{ marginBottom: 24 }}>
@@ -225,7 +230,10 @@ export default function Staff() {
             <h2 style={{ fontSize: 18, fontWeight: 600 }}>Staff List</h2>
             <select 
               value={filterPhase} 
-              onChange={(e) => setFilterPhase(e.target.value)}
+              onChange={(e) => {
+                setFilterPhase(e.target.value);
+                setPage(1);
+              }}
               style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
             >
               <option value="All">All Groups</option>
@@ -253,7 +261,7 @@ export default function Staff() {
                     <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>
                   </tr>
                 ))
-              ) : displayedStaff.length === 0 ? (
+              ) : paginatedStaff.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
@@ -263,7 +271,7 @@ export default function Staff() {
                     </td>
                   </tr>
                 ) : (
-                  displayedStaff.map(member => {
+                  paginatedStaff.map(member => {
                     const displayName = member.name || 'Unnamed Staff';
                     return (
                       <tr key={member._id}>
@@ -297,6 +305,31 @@ export default function Staff() {
                 )}
             </tbody>
           </table>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, padding: '0 10px' }}>
+              <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+                Page {page} of {totalPages}
+              </span>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button 
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === 1 ? '#f3f4f6' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
+                >
+                  Previous
+                </button>
+                <button 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === totalPages ? '#f3f4f6' : 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
       

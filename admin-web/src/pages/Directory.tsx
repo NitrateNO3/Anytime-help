@@ -17,6 +17,8 @@ export default function Directory() {
   const [formData, setFormData] = useState({ name: '', phone: '', order: 0 });
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
   const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
+  const [page, setPage] = useState(1);
+  const limit = 10;
 
   const availablePhases = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
 
@@ -135,6 +137,9 @@ export default function Directory() {
     return c.phases && c.phases.includes(filterPhase);
   });
 
+  const totalPages = Math.ceil(displayedContacts.length / limit) || 1;
+  const paginatedContacts = displayedContacts.slice((page - 1) * limit, page * limit);
+
   return (
     <div className="page-container fade-in">
       <header className="page-header">
@@ -145,7 +150,10 @@ export default function Directory() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <select 
             value={filterPhase} 
-            onChange={(e) => setFilterPhase(e.target.value)}
+            onChange={(e) => {
+              setFilterPhase(e.target.value);
+              setPage(1);
+            }}
             style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
           >
             <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
@@ -178,12 +186,12 @@ export default function Directory() {
                     <td><div className="skeleton skeleton-row" style={{ width: 60, height: 24, borderRadius: 12 }}></div></td>
                   </tr>
                 ))
-              ) : displayedContacts.length === 0 ? (
+              ) : paginatedContacts.length === 0 ? (
                 <tr>
                   <td colSpan={3} style={{ textAlign: 'center', padding: '30px' }}>No contacts found for this filter. Add your first important number!</td>
                 </tr>
               ) : (
-                displayedContacts.map(contact => (
+                paginatedContacts.map(contact => (
                   <tr key={contact._id}>
                     <td><div style={{ fontWeight: 600 }}>{contact.name}</div></td>
                     <td>
@@ -206,7 +214,33 @@ export default function Directory() {
               )}
             </tbody>
           </table>
-        </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, padding: '0 10px' }}>
+            <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
+              Page {page} of {totalPages}
+            </span>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button 
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === 1 ? '#f3f4f6' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
+              >
+                Previous
+              </button>
+              <button 
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === totalPages ? '#f3f4f6' : 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-content">
