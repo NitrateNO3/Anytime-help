@@ -21,7 +21,31 @@ router.get('/', auth, async (req, res) => {
       if (user && user.phase) {
         query.phases = { $in: [user.phase, 'All'] };
       }
+    } else if (req.user.role === 'Admin') {
+      const { phase } = req.query;
+      if (phase && phase !== 'All Groups (Show Everything)') {
+        if (phase === 'Universal (Sent to Everyone)') {
+          query.$or = [{ phases: 'All' }, { phases: { $size: 0 } }, { phases: { $exists: false } }];
+        } else if (phase === 'Sushant Lok 2 - C,D,E') {
+          query.phases = { $in: ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 Option 1'] };
+        } else if (phase === 'Sushant Lok 2 - F,G') {
+          query.phases = { $in: ['Sushant Lok 2 - F,G', 'Sushant Lok 2 Option 2'] };
+        } else {
+          query.phases = phase;
+        }
+      }
     }
+
+    const { page, limit } = req.query;
+    if (page && limit) {
+      const pageNum = parseInt(page, 10);
+      const limitNum = parseInt(limit, 10);
+      const skip = (pageNum - 1) * limitNum;
+      const directories = await Directory.find(query).sort({ order: 1, createdAt: -1 }).skip(skip).limit(limitNum);
+      const total = await Directory.countDocuments(query);
+      return res.json({ directory: directories, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
+    }
+
     const directories = await Directory.find(query).sort({ order: 1, createdAt: -1 });
     res.json(directories);
   } catch (err) {

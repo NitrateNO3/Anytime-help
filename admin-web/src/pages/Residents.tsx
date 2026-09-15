@@ -11,45 +11,53 @@ export default function Residents() {
   const [loading, setLoading] = useState(true);
   const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
-    fetchResidents();
+    fetchResidents(page, filterPhase);
+  }, [page, filterPhase]);
 
+  useEffect(() => {
     // Socket.io for live updates
     const socketURL = API_URL.replace('/api', '');
     const socket = io(socketURL);
 
     socket.on('user_created', (newUser: any) => {
       if (newUser.role === 'Resident') {
-        setResidents(prev => {
-          // Prevent duplicates
-          if (prev.find(r => r._id === newUser._id || r._id === newUser.id)) return prev;
-          return [newUser, ...prev];
-        });
+        fetchResidents(page, filterPhase, false);
       }
     });
 
-    socket.on('user_deleted', (data: { id: string }) => {
-      setResidents(prev => prev.filter(r => r._id !== data.id));
+    socket.on('user_deleted', () => {
+      fetchResidents(page, filterPhase, false);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [page, filterPhase]);
 
-  const fetchResidents = async () => {
+  const fetchResidents = async (currentPage = page, phaseFilter = filterPhase, showLoading = true) => {
     try {
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`${API_URL}/users/residents`, {
+      const res = await axios.get(`${API_URL}/users/residents?page=${currentPage}&limit=10&phase=${encodeURIComponent(phaseFilter)}`, {
         headers: { 'x-auth-token': token }
       });
-      setResidents(res.data);
+      if (res.data && res.data.residents) {
+        setResidents(res.data.residents);
+        setTotalCount(res.data.total || 0);
+        setTotalPages(res.data.totalPages || 1);
+      } else if (Array.isArray(res.data)) {
+        setResidents(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / 10) || 1);
+      }
     } catch (error) {
       console.error('Error fetching residents:', error);
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -79,7 +87,7 @@ export default function Residents() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Resident deleted successfully', { id: loadingToast });
-                setResidents(residents.filter(r => r._id !== id));
+                fetchResidents(page, filterPhase, false);
               } catch (error: any) {
                 console.error('Error deleting resident:', error);
                 toast.error(error.response?.data?.message || 'Could not delete resident', { id: loadingToast });
@@ -97,17 +105,6 @@ export default function Residents() {
     ), { duration: Infinity, style: { minWidth: '320px', borderRadius: '12px' } });
   };
 
-  const displayedResidents = filterPhase === 'All Groups (Show Everything)' 
-    ? residents 
-    : residents.filter(r => {
-        if (filterPhase === 'Sushant Lok 2 - C,D,E') return r.phase === 'Sushant Lok 2 - C,D,E' || r.phase === 'Sushant Lok 2 Option 1';
-        if (filterPhase === 'Sushant Lok 2 - F,G') return r.phase === 'Sushant Lok 2 - F,G' || r.phase === 'Sushant Lok 2 Option 2';
-        return r.phase === filterPhase;
-      });
-
-  const totalPages = Math.ceil(displayedResidents.length / limit) || 1;
-  const paginatedResidents = displayedResidents.slice((page - 1) * limit, page * limit);
-
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
@@ -124,7 +121,7 @@ export default function Residents() {
 
       <div className="card" style={{ marginTop: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '18px', fontWeight: '600' }}>Total Registered: {displayedResidents.length}</h2>
+          <h2 style={{ fontSize: '18px', fontWeight: '600' }}>Total Registered: {totalCount}</h2>
           <select 
             value={filterPhase} 
             onChange={(e) => {
@@ -165,14 +162,14 @@ export default function Residents() {
                     <td style={{ padding: '16px', textAlign: 'center' }}><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8, margin: '0 auto' }}></div></td>
                   </tr>
                 ))
-              ) : paginatedResidents.length === 0 ? (
+              ) : residents.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
                     No residents found for this filter.
                   </td>
                 </tr>
               ) : (
-                paginatedResidents.map((r) => (
+                residents.map((r) => (
                   <tr key={r._id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
                     <td style={{ padding: '16px', fontWeight: '500' }}>{r.name || 'N/A'}</td>
                     <td style={{ padding: '16px' }}>{r.phone_number}</td>

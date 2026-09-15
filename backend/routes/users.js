@@ -5,14 +5,47 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 
 // @route   GET api/users/staff
-// @desc    Get all staff members
+// @desc    Get all staff members (supports pagination)
 // @access  Admin Private
 router.get('/staff', auth, async (req, res) => {
   try {
     if (req.user.role !== 'Admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const staff = await User.find({ role: 'Staff' }).select('-password');
+    const { page, limit, phase } = req.query;
+    let query = { role: 'Staff' };
+
+    if (phase && phase !== 'All') {
+      if (phase === 'Sushant Lok 2 - C,D,E') {
+        query.$or = [
+          { phase: 'Sushant Lok 2 - C,D,E' },
+          { phase: 'Sushant Lok 2 Option 1' },
+          { name: { $regex: 'Sushant Lok 2 - C,D,E', $options: 'i' } }
+        ];
+      } else if (phase === 'Sushant Lok 2 - F,G') {
+        query.$or = [
+          { phase: 'Sushant Lok 2 - F,G' },
+          { phase: 'Sushant Lok 2 Option 2' },
+          { name: { $regex: 'Sushant Lok 2 - F,G', $options: 'i' } }
+        ];
+      } else {
+        query.$or = [
+          { phase },
+          { name: { $regex: phase, $options: 'i' } }
+        ];
+      }
+    }
+
+    if (page && limit) {
+      const pageNum = parseInt(page, 10);
+      const limitNum = parseInt(limit, 10);
+      const skip = (pageNum - 1) * limitNum;
+      const staff = await User.find(query).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limitNum);
+      const total = await User.countDocuments(query);
+      return res.json({ staff, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
+    }
+
+    const staff = await User.find(query).select('-password').sort({ createdAt: -1 });
     res.json(staff);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -35,14 +68,36 @@ router.get('/paid-staff', auth, async (req, res) => {
 });
 
 // @route   GET api/users/residents
-// @desc    Get all resident members
+// @desc    Get all resident members (supports pagination)
 // @access  Admin Private
 router.get('/residents', auth, async (req, res) => {
   try {
     if (req.user.role !== 'Admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const residents = await User.find({ role: 'Resident' }).select('-password').sort({ createdAt: -1 });
+    const { page, limit, phase } = req.query;
+    let query = { role: 'Resident' };
+
+    if (phase && phase !== 'All Groups (Show Everything)') {
+      if (phase === 'Sushant Lok 2 - C,D,E') {
+        query.$or = [{ phase: 'Sushant Lok 2 - C,D,E' }, { phase: 'Sushant Lok 2 Option 1' }];
+      } else if (phase === 'Sushant Lok 2 - F,G') {
+        query.$or = [{ phase: 'Sushant Lok 2 - F,G' }, { phase: 'Sushant Lok 2 Option 2' }];
+      } else {
+        query.phase = phase;
+      }
+    }
+
+    if (page && limit) {
+      const pageNum = parseInt(page, 10);
+      const limitNum = parseInt(limit, 10);
+      const skip = (pageNum - 1) * limitNum;
+      const residents = await User.find(query).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limitNum);
+      const total = await User.countDocuments(query);
+      return res.json({ residents, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
+    }
+
+    const residents = await User.find(query).select('-password').sort({ createdAt: -1 });
     res.json(residents);
   } catch (error) {
     res.status(500).json({ message: error.message });

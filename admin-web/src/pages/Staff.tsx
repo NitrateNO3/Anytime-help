@@ -17,7 +17,8 @@ export default function Staff() {
   const [loading, setLoading] = useState(true);
   const [filterPhase, setFilterPhase] = useState('All');
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Form State
   const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 - C,D,E');
@@ -68,23 +69,31 @@ export default function Staff() {
 
   useEffect(() => {
     if (activeTab === 'list') {
-      fetchStaff();
+      fetchStaff(page, filterPhase);
     }
-  }, [activeTab]);
+  }, [activeTab, page, filterPhase]);
 
-  const fetchStaff = async () => {
+  const fetchStaff = async (currentPage = page, phaseFilter = filterPhase, showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`${API_URL}/users/staff`, {
+      const res = await axios.get(`${API_URL}/users/staff?page=${currentPage}&limit=10&phase=${encodeURIComponent(phaseFilter)}`, {
         headers: { 'x-auth-token': token }
       });
-      setStaff(res.data);
+      if (res.data && res.data.staff) {
+        setStaff(res.data.staff);
+        setTotalCount(res.data.total || 0);
+        setTotalPages(res.data.totalPages || 1);
+      } else if (Array.isArray(res.data)) {
+        setStaff(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / 10) || 1);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load staff members');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -146,7 +155,7 @@ export default function Staff() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Staff member deleted', { id: loadingToast });
-                fetchStaff();
+                fetchStaff(page, filterPhase, false);
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete staff', { id: loadingToast });
@@ -160,18 +169,6 @@ export default function Staff() {
       </div>
     ), { duration: Infinity, style: { minWidth: '300px' } });
   };
-
-  // Show staff based on selected filter
-  const displayedStaff = filterPhase === 'All' 
-    ? staff 
-    : staff.filter(s => {
-        if (filterPhase === 'Sushant Lok 2 - C,D,E') return s.phase === 'Sushant Lok 2 - C,D,E' || s.phase === 'Sushant Lok 2 Option 1' || s.name.includes(filterPhase);
-        if (filterPhase === 'Sushant Lok 2 - F,G') return s.phase === 'Sushant Lok 2 - F,G' || s.phase === 'Sushant Lok 2 Option 2' || s.name.includes(filterPhase);
-        return s.phase === filterPhase || s.name.includes(filterPhase);
-      });
-
-  const totalPages = Math.ceil(displayedStaff.length / limit) || 1;
-  const paginatedStaff = displayedStaff.slice((page - 1) * limit, page * limit);
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -227,7 +224,7 @@ export default function Staff() {
       {activeTab === 'list' && (
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600 }}>Staff List</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 600 }}>Staff List ({totalCount})</h2>
             <select 
               value={filterPhase} 
               onChange={(e) => {
@@ -261,7 +258,7 @@ export default function Staff() {
                     <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>
                   </tr>
                 ))
-              ) : paginatedStaff.length === 0 ? (
+              ) : staff.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
@@ -271,7 +268,7 @@ export default function Staff() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedStaff.map(member => {
+                  staff.map(member => {
                     const displayName = member.name || 'Unnamed Staff';
                     return (
                       <tr key={member._id}>

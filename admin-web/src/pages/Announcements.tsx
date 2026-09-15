@@ -13,7 +13,8 @@ export default function Announcements() {
   const [loading, setLoading] = useState(true);
   const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   // Form State
   const [title, setTitle] = useState('');
@@ -25,40 +26,40 @@ export default function Announcements() {
 
   useEffect(() => {
     if (activeTab === 'list') {
-      fetchAnnouncements();
+      fetchAnnouncements(page, filterPhase);
     }
     
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
-    socket.on('announcement_changed', (payload) => {
-      if (!payload) {
-        if (activeTab === 'list') fetchAnnouncements();
-        return;
-      }
-      if (payload.action === 'delete') {
-        setAnnouncements(prev => prev.filter(a => a._id !== payload.id));
-      } else if (payload.action === 'create') {
-        setAnnouncements(prev => [payload.data, ...prev]);
-      }
+    socket.on('announcement_changed', () => {
+      if (activeTab === 'list') fetchAnnouncements(page, filterPhase, false);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [activeTab]);
+  }, [activeTab, page, filterPhase]);
 
-  const fetchAnnouncements = async () => {
+  const fetchAnnouncements = async (currentPage = page, phaseFilter = filterPhase, showLoading = true) => {
     try {
-      if (announcements.length === 0) setLoading(true);
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`${API_URL}/announcements`, {
+      const res = await axios.get(`${API_URL}/announcements?page=${currentPage}&limit=10&phase=${encodeURIComponent(phaseFilter)}`, {
         headers: { 'x-auth-token': token }
       });
-      setAnnouncements(res.data);
+      if (res.data && res.data.announcements) {
+        setAnnouncements(res.data.announcements);
+        setTotalCount(res.data.total || 0);
+        setTotalPages(res.data.totalPages || 1);
+      } else if (Array.isArray(res.data)) {
+        setAnnouncements(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / 10) || 1);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to load announcements');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -114,8 +115,7 @@ export default function Announcements() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Announcement deleted', { id: loadingToast });
-                // We don't fetchAnnouncements() here anymore. We can rely on the socket OR do it instantly:
-                setAnnouncements(prev => prev.filter(a => a._id !== id));
+                fetchAnnouncements(page, filterPhase, false);
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete', { id: loadingToast });
@@ -129,17 +129,6 @@ export default function Announcements() {
       </div>
     ), { duration: Infinity, style: { minWidth: '300px' } });
   };
-
-  const displayedAnnouncements = announcements.filter(a => {
-    if (filterPhase === 'All Groups (Show Everything)') return true;
-    if (filterPhase === 'Universal (Sent to Everyone)') return !a.phases || a.phases.length === 0 || a.phases.includes('All');
-    if (filterPhase === 'Sushant Lok 2 - C,D,E') return a.phases && (a.phases.includes('Sushant Lok 2 - C,D,E') || a.phases.includes('Sushant Lok 2 Option 1'));
-    if (filterPhase === 'Sushant Lok 2 - F,G') return a.phases && (a.phases.includes('Sushant Lok 2 - F,G') || a.phases.includes('Sushant Lok 2 Option 2'));
-    return a.phases && a.phases.includes(filterPhase);
-  });
-
-  const totalPages = Math.ceil(displayedAnnouncements.length / limit) || 1;
-  const paginatedAnnouncements = displayedAnnouncements.slice((page - 1) * limit, page * limit);
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -182,7 +171,7 @@ export default function Announcements() {
       {activeTab === 'list' ? (
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600 }}>Past Announcements</h2>
+            <h2 style={{ fontSize: 18, fontWeight: 600 }}>Past Announcements ({totalCount})</h2>
             <select 
               value={filterPhase} 
               onChange={(e) => {
@@ -220,7 +209,7 @@ export default function Announcements() {
                     <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>
                   </tr>
                 ))
-              ) : paginatedAnnouncements.length === 0 ? (
+              ) : announcements.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       <Megaphone size={40} color="var(--border-color)" style={{ margin: '0 auto 16px' }} />
@@ -228,7 +217,7 @@ export default function Announcements() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedAnnouncements.map(announcement => (
+                  announcements.map(announcement => (
                     <tr key={announcement._id}>
                       <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                         {new Date(announcement.date).toLocaleDateString()}

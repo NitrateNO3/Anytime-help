@@ -18,50 +18,45 @@ export default function Directory() {
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
   const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
   const [page, setPage] = useState(1);
-  const limit = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
 
   const availablePhases = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
 
   useEffect(() => {
-    fetchContacts();
+    fetchContacts(page, filterPhase);
 
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
-    
-    socket.on('directory_updated', (payload) => {
-      if (!payload) {
-        fetchContacts();
-        return;
-      }
-      
-      setContacts(prev => {
-        if (payload.action === 'create') {
-          return [...prev, payload.data];
-        } else if (payload.action === 'update') {
-          return prev.map(c => c._id === payload.data._id ? payload.data : c);
-        } else if (payload.action === 'delete') {
-          return prev.filter(c => c._id !== payload.id);
-        }
-        return prev;
-      });
+    socket.on('directory_updated', () => {
+      fetchContacts(page, filterPhase, false);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [page, filterPhase]);
 
-  const fetchContacts = async () => {
+  const fetchContacts = async (currentPage = page, phaseFilter = filterPhase, showLoading = true) => {
     try {
+      if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`${API_URL}/directory`, {
+      const res = await axios.get(`${API_URL}/directory?page=${currentPage}&limit=10&phase=${encodeURIComponent(phaseFilter)}`, {
         headers: { 'x-auth-token': token }
       });
-      setContacts(res.data);
+      if (res.data && res.data.directory) {
+        setContacts(res.data.directory);
+        setTotalCount(res.data.total || 0);
+        setTotalPages(res.data.totalPages || 1);
+      } else if (Array.isArray(res.data)) {
+        setContacts(res.data);
+        setTotalCount(res.data.length);
+        setTotalPages(Math.ceil(res.data.length / 10) || 1);
+      }
     } catch (error) {
       console.error(error);
       toast.error('Failed to fetch directory contacts');
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
@@ -101,7 +96,7 @@ export default function Directory() {
         toast.success('Contact added successfully', { id: loadingToast });
       }
       setIsModalOpen(false);
-      fetchContacts();
+      fetchContacts(page, filterPhase, false);
     } catch (error) {
       console.error(error);
       toast.error('Failed to save contact', { id: loadingToast });
@@ -122,30 +117,19 @@ export default function Directory() {
       await axios.delete(`${API_URL}/directory/${deleteId}`, { headers: { 'x-auth-token': token } });
       toast.success('Contact deleted successfully', { id: loadingToast });
       setDeleteId(null);
-      fetchContacts();
+      fetchContacts(page, filterPhase, false);
     } catch (error) {
       console.error(error);
       toast.error('Failed to delete contact', { id: loadingToast });
     }
   };
 
-  const displayedContacts = contacts.filter(c => {
-    if (filterPhase === 'All Groups (Show Everything)') return true;
-    if (filterPhase === 'Universal (Sent to Everyone)') return !c.phases || c.phases.length === 0 || c.phases.includes('All');
-    if (filterPhase === 'Sushant Lok 2 - C,D,E') return c.phases && (c.phases.includes('Sushant Lok 2 - C,D,E') || c.phases.includes('Sushant Lok 2 Option 1'));
-    if (filterPhase === 'Sushant Lok 2 - F,G') return c.phases && (c.phases.includes('Sushant Lok 2 - F,G') || c.phases.includes('Sushant Lok 2 Option 2'));
-    return c.phases && c.phases.includes(filterPhase);
-  });
-
-  const totalPages = Math.ceil(displayedContacts.length / limit) || 1;
-  const paginatedContacts = displayedContacts.slice((page - 1) * limit, page * limit);
-
   return (
     <div className="page-container fade-in">
       <header className="page-header">
         <div>
           <h1 className="page-title">Directory Management</h1>
-          <p className="page-subtitle">Manage important contacts for residents</p>
+          <p className="page-subtitle">Manage important contacts for residents ({totalCount})</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <select 
@@ -186,12 +170,12 @@ export default function Directory() {
                     <td><div className="skeleton skeleton-row" style={{ width: 60, height: 24, borderRadius: 12 }}></div></td>
                   </tr>
                 ))
-              ) : paginatedContacts.length === 0 ? (
+              ) : contacts.length === 0 ? (
                 <tr>
                   <td colSpan={3} style={{ textAlign: 'center', padding: '30px' }}>No contacts found for this filter. Add your first important number!</td>
                 </tr>
               ) : (
-                paginatedContacts.map(contact => (
+                contacts.map(contact => (
                   <tr key={contact._id}>
                     <td><div style={{ fontWeight: 600 }}>{contact.name}</div></td>
                     <td>
