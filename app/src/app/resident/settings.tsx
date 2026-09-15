@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView, Linking } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView, Linking, BackHandler } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,9 +18,18 @@ export default function SettingsScreen() {
     await AsyncStorage.setItem('user-language', newLang);
   };
 
-  useEffect(() => {
-    loadUser();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadUser();
+
+      const onBackPress = () => {
+        router.replace('/resident');
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [])
+  );
 
   const loadUser = async () => {
     const userData = await SecureStore.getItemAsync('userData');
@@ -38,11 +47,15 @@ export default function SettingsScreen() {
       <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
 
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 30) : 40, paddingBottom: 15, paddingHorizontal: 24, backgroundColor: '#1D4ED8', zIndex: 1 }}>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 16 }}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, paddingBottom: 14, paddingHorizontal: 20, backgroundColor: '#1D4ED8', zIndex: 1, elevation: 4 }}>
+        <TouchableOpacity 
+          onPress={() => router.replace('/resident')} 
+          style={{ width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={{ fontSize: 24, fontWeight: '700', color: '#FFFFFF' }}>{t('settings.settingsTitle') || 'Settings'}</Text>
+        <Text style={{ fontSize: 20, fontWeight: '700', color: '#FFFFFF' }}>{t('settings.settingsTitle') || 'Settings'}</Text>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 120, paddingTop: 20, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>

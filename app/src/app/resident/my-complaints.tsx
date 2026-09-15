@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform, Modal, Animated, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Alert, Platform, Modal, Animated, TextInput, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
@@ -189,6 +189,13 @@ export default function MyComplaints() {
       if (tab === 'Complaints') {
         setActiveTab('Complaints');
       }
+
+      const onBackPress = () => {
+        router.replace('/resident');
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
     }, [tab])
   );
 
@@ -249,160 +256,191 @@ export default function MyComplaints() {
       )}
 
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 30) : 40, paddingBottom: 15, backgroundColor: '#1D4ED8', zIndex: 1 }}>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 16 }}>
-          <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
+      <View style={styles.headerBar}>
+        <TouchableOpacity 
+          onPress={() => router.replace('/resident')} 
+          style={styles.backButton}
+          activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
+          <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={{ fontSize: 24, fontWeight: '700', color: '#FFFFFF' }}>{t('resident.myComplaints')}</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>{t('resident.myComplaints')}</Text>
+        </View>
       </View>
 
       <ScrollView 
         style={[styles.container, { zIndex: 1 }]} 
-        contentContainerStyle={[styles.contentContainer, { paddingTop: 10 }]} 
+        contentContainerStyle={[styles.contentContainer, { paddingTop: 14 }]} 
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
         scrollEventThrottle={400}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <View style={{ marginBottom: 16 }}>
-              <View style={styles.searchBar}>
-                <Ionicons name="search-outline" size={20} color="#9CA3AF" style={{ marginRight: 8 }} />
-                <TextInput
-                  style={{ flex: 1, height: 40, color: '#111827' }}
-                  placeholder={t('resident.searchComplaints')}
-                  placeholderTextColor="#9CA3AF"
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                />
-                {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => { setSearchQuery(''); fetchComplaints(1, false, '', selectedCategory); }}>
-                    <Ionicons name="close-circle" size={20} color="#D1D5DB" />
+        {/* Search & Category Chips */}
+        <View style={{ marginBottom: 14 }}>
+          <View style={styles.searchBar}>
+            <Ionicons name="search-outline" size={18} color="#64748B" style={{ marginRight: 8 }} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder={t('resident.searchComplaints')}
+              placeholderTextColor="#94A3B8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => { setSearchQuery(''); fetchComplaints(1, false, '', selectedCategory); }}>
+                <Ionicons name="close-circle" size={18} color="#CBD5E1" />
+              </TouchableOpacity>
+            )}
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 8 }}>
+            {['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'].map(cat => {
+              const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
+              return (
+                <TouchableOpacity 
+                  key={cat} 
+                  style={[styles.catChip, isActive && styles.catChipActive]}
+                  onPress={() => {
+                    const newCat = cat === 'All' ? '' : cat;
+                    setSelectedCategory(newCat);
+                    fetchComplaints(1, false, searchQuery, newCat);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>
+                    {t(`categories.${cat}`, { defaultValue: cat })}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {loading ? (
+          <View style={{ marginTop: 10 }}>
+            {[1, 2, 3].map(key => <SkeletonCard key={key} />)}
+          </View>
+        ) : complaints.length === 0 ? (
+          <View style={styles.emptyStateContainer}>
+            <Ionicons name="document-text-outline" size={56} color="#CBD5E1" />
+            <Text style={styles.emptyTextLarge}>{t('resident.noComplaints')}</Text>
+          </View>
+        ) : (
+          complaints.map((item) => {
+            const step = (item.status === 'RESOLVED' || item.status === 'DONE') ? 2 : (item.status === 'IN_PROGRESS' ? 1 : 0);
+            const statusBadgeStyle = step === 0 ? styles.badgePending : (step === 1 ? styles.badgeInProgress : styles.badgeResolved);
+            const statusTextStyle = step === 0 ? styles.badgeTextPending : (step === 1 ? styles.badgeTextInProgress : styles.badgeTextResolved);
+            const statusLabel = step === 0 ? t('staff.pending') : (step === 1 ? t('staff.inProgress') : t('staff.resolved'));
+            const statusIcon = step === 0 ? 'time-outline' : (step === 1 ? 'construct-outline' : 'checkmark-circle-outline');
+
+            return (
+              <View key={item._id} style={styles.card}>
+                {item.before_image ? (
+                  <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.before_image)} style={styles.imageContainer}>
+                    <Image source={{ uri: item.before_image }} style={styles.cardImage} />
                   </TouchableOpacity>
-                )}
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 10 }}>
-                {['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'].map(cat => {
-                  const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
-                  return (
-                    <TouchableOpacity 
-                      key={cat} 
-                      style={[styles.catChip, isActive && styles.catChipActive]}
-                      onPress={() => {
-                        const newCat = cat === 'All' ? '' : cat;
-                        setSelectedCategory(newCat);
-                        fetchComplaints(1, false, searchQuery, newCat);
-                      }}
-                    >
-                      <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>{t(`categories.${cat}`, { defaultValue: cat })}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
+                ) : null}
 
-            <Text style={styles.sectionTitle}>{t('resident.myComplaints')}</Text>
-            
-            {loading ? (
-              <View style={{ marginTop: 20 }}>
-                {[1, 2, 3].map(key => <SkeletonCard key={key} />)}
-              </View>
-            ) : complaints.length === 0 ? (
-              <View style={styles.emptyStateContainer}>
-                <Ionicons name="document-text-outline" size={64} color="#D1D5DB" />
-                <Text style={styles.emptyTextLarge}>{t('resident.noComplaints')}</Text>
-              </View>
-            ) : (
-              complaints.map((item) => (
-                <TouchableOpacity key={item._id} style={styles.card} activeOpacity={0.9}>
-                  {item.before_image ? (
-                    <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.before_image)} style={styles.imageContainer}>
-                      <Image source={{ uri: item.before_image }} style={styles.cardImage} />
-                    </TouchableOpacity>
-                  ) : null}
-                  
-                  <View style={styles.cardContent}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.cardTitle}>{item.title}</Text>
-                        <Text style={styles.cardLocation}>{item.location}</Text>
-                        {item.address ? <Text style={[styles.cardLocation, { marginTop: 4, color: '#4B5563', fontWeight: '500' }]}>{item.address}</Text> : null}
-                      </View>
-                      {item.status === 'PENDING' && (
-                        <TouchableOpacity 
-                          style={{ padding: 4, marginLeft: 12 }} 
-                          onPress={() => confirmDelete(item._id)}
-                        >
-                          <Ionicons name="trash-outline" size={22} color="#EF4444" />
-                        </TouchableOpacity>
-                      )}
+                <View style={styles.cardContent}>
+                  {/* Top Row: Title + Status Badge */}
+                  <View style={styles.cardTopRow}>
+                    <View style={{ flex: 1, paddingRight: 8 }}>
+                      <Text style={styles.cardTitle}>{item.title}</Text>
                     </View>
-
-                    <View style={{ marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#F3F4F6' }}>
-                      <Text style={[styles.descText, { marginBottom: 16 }]} numberOfLines={1}>{item.description}</Text>
-                      
-                      <View style={styles.trackerWrapper}>
-                        {/* Background Line */}
-                        <View style={styles.trackerBackgroundLine}>
-                          {/* Inner Shadow for 3D effect */}
-                          <View style={{position: 'absolute', top: 0, left: 0, right: 0, height: 2, backgroundColor: 'rgba(0,0,0,0.1)'}} />
-                          
-                          {/* Fill Line */}
-                          {(() => {
-                            const step = (item.status === 'RESOLVED' || item.status === 'DONE') ? 2 : (item.status === 'IN_PROGRESS' ? 1 : 0);
-                            const fillColors = (step === 0 ? ['#FDE68A', '#F59E0B', '#B45309'] : (step === 1 ? ['#93C5FD', '#2563EB', '#1E3A8A'] : ['#6EE7B7', '#10B981', '#047857'])) as readonly [string, string, ...string[]];
-                            return (
-                              <LinearGradient
-                                colors={fillColors}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 0, y: 1 }}
-                                style={[styles.trackerFillLine, { width: step === 2 ? '100%' : (step === 1 ? '50%' : '0%') }]}
-                              />
-                            );
-                          })()}
-                        </View>
-                        
-                        {/* Dots & Labels */}
-                        <View style={styles.trackerNodes}>
-                          {['PENDING', 'IN_PROGRESS', 'RESOLVED'].map((s, idx) => {
-                            const step = (item.status === 'RESOLVED' || item.status === 'DONE') ? 2 : (item.status === 'IN_PROGRESS' ? 1 : 0);
-                            const isActive = step >= idx;
-                            const isCurrent = step === idx;
-                            
-                            let gradientColors: readonly [string, string, ...string[]] = ['#F3F4F6', '#D1D5DB']; // default inactive
-                            if (isActive) {
-                              gradientColors = (idx === 0 ? ['#FDE68A', '#F59E0B'] : (idx === 1 ? ['#93C5FD', '#2563EB'] : ['#A7F3D0', '#10B981'])) as readonly [string, string, ...string[]];
-                            }
-                            
-                            let textColor = '#9CA3AF';
-                            if (isCurrent) {
-                              textColor = idx === 0 ? '#D97706' : (idx === 1 ? '#1D4ED8' : '#059669');
-                            }
-
-                            return (
-                              <View key={s} style={{ alignItems: 'center' }}>
-                                <LinearGradient
-                                  colors={gradientColors}
-                                  start={{ x: 0, y: 0 }}
-                                  end={{ x: 1, y: 1 }}
-                                  style={[styles.trackerDot, { transform: isCurrent ? [{scale: 1.25}] : [{scale: 1}] }]}
-                                >
-                                  {idx === 0 && <Ionicons name="time" size={14} color={isActive ? '#FFFFFF' : '#9CA3AF'} />}
-                                  {idx === 1 && <Ionicons name="settings" size={14} color={isActive ? '#FFFFFF' : '#9CA3AF'} />}
-                                  {idx === 2 && <Ionicons name="checkmark-circle" size={16} color={isActive ? '#FFFFFF' : '#9CA3AF'} />}
-                                </LinearGradient>
-                                <Text style={[styles.trackerLabel, { color: textColor }]}>
-                                  {s === 'PENDING' ? t('staff.pending') : s === 'IN_PROGRESS' ? t('staff.inProgress') : t('staff.resolved')}
-                                </Text>
-                              </View>
-                            );
-                          })}
-                        </View>
-                      </View>
+                    <View style={[styles.statusBadge, statusBadgeStyle]}>
+                      <Ionicons name={statusIcon as any} size={12} color={statusTextStyle.color} style={{ marginRight: 4 }} />
+                      <Text style={[styles.statusBadgeText, statusTextStyle]}>{statusLabel}</Text>
                     </View>
                   </View>
-                </TouchableOpacity>
-              ))
-            )}
+
+                  {/* Location / Address */}
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-outline" size={14} color="#64748B" style={{ marginRight: 4, marginTop: 1 }} />
+                    <Text style={styles.cardLocation} numberOfLines={2}>
+                      {item.address || item.location}
+                    </Text>
+                  </View>
+
+                  {/* Description */}
+                  {item.description ? (
+                    <Text style={styles.descText} numberOfLines={2}>
+                      {item.description}
+                    </Text>
+                  ) : null}
+
+                  {/* Timeline / Progress Tracker */}
+                  <View style={styles.trackerWrapper}>
+                    {/* Connecting Line */}
+                    <View style={styles.trackerBackgroundLine}>
+                      <View 
+                        style={[
+                          styles.trackerFillLine, 
+                          { 
+                            width: step === 2 ? '100%' : (step === 1 ? '50%' : '10%'),
+                            backgroundColor: step === 0 ? '#F59E0B' : (step === 1 ? '#2563EB' : '#10B981')
+                          }
+                        ]} 
+                      />
+                    </View>
+
+                    {/* 3 Step Nodes with concise labels */}
+                    <View style={styles.trackerNodesRow}>
+                      {[
+                        { key: 'PENDING', label: t('staff.pending'), icon: 'time' },
+                        { key: 'IN_PROGRESS', label: t('staff.inProgress'), icon: 'construct' },
+                        { key: 'RESOLVED', label: t('staff.resolved'), icon: 'checkmark-circle' }
+                      ].map((stepObj, idx) => {
+                        const isNodeActive = step >= idx;
+                        const isCurrentNode = step === idx;
+                        const dotColor = isNodeActive
+                          ? (idx === 0 ? '#F59E0B' : (idx === 1 ? '#2563EB' : '#10B981'))
+                          : '#E2E8F0';
+
+                        return (
+                          <View key={stepObj.key} style={styles.trackerNodeCol}>
+                            <View style={[styles.trackerDot, { backgroundColor: dotColor }, isCurrentNode && styles.trackerDotCurrent]}>
+                              <Ionicons 
+                                name={stepObj.icon as any} 
+                                size={11} 
+                                color={isNodeActive ? '#FFFFFF' : '#94A3B8'} 
+                              />
+                            </View>
+                            <Text 
+                              style={[
+                                styles.trackerLabel,
+                                isCurrentNode && { color: dotColor, fontWeight: '700' },
+                                isNodeActive && !isCurrentNode && { color: '#475569' }
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {stepObj.label}
+                            </Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+
+                  {/* Delete button (if pending) */}
+                  {item.status === 'PENDING' && (
+                    <View style={styles.deleteFooter}>
+                      <TouchableOpacity 
+                        style={styles.deleteLink} 
+                        onPress={() => confirmDelete(item._id)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="trash-outline" size={14} color="#EF4444" style={{ marginRight: 4 }} />
+                        <Text style={styles.deleteLinkText}>{t('resident.deleteBtn')}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                </View>
+              </View>
+            );
+          })
+        )}
             
             {loadingMore && (
               <View style={{ marginTop: 10 }}>
@@ -486,89 +524,106 @@ export default function MyComplaints() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
+  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
   offlineBanner: { backgroundColor: '#EF4444', paddingVertical: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   offlineText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   container: { flex: 1 },
-  contentContainer: { paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60, paddingBottom: 120 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  headerRight: { flexDirection: 'row', alignItems: 'center' },
-  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, marginRight: 12 },
-  badge: { position: 'absolute', top: 10, right: 12, width: 8, height: 8, borderRadius: 4, backgroundColor: '#EF4444' },
-  avatar: { width: 40, height: 40, borderRadius: 20 },
-  titleArea: { marginBottom: 30, marginTop: 10 },
-  greetingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  avatarContainer: { width: 52, height: 52, borderRadius: 26, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', marginLeft: 16, borderWidth: 1, borderColor: '#DBEAFE' },
-  greetingText: { fontSize: 16, color: '#6B7280', marginBottom: 6, fontWeight: '600' },
-  exploreText: { fontSize: 28, fontWeight: '800', color: '#111827', letterSpacing: -0.5 },
-  filterScroll: { marginBottom: 30, overflow: 'visible' },
-  filterContainer: { paddingRight: 40, gap: 12 },
-  filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', overflow: 'visible' },
-  filterChipActive: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
-  filterText: { fontSize: 15, fontWeight: '600', color: '#4B5563' },
-  filterTextActive: { color: '#FFFFFF' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E5E7EB', height: 44 },
-  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
-  catChipActive: { backgroundColor: '#1E3A8A', borderColor: '#1E3A8A' },
-  catChipText: { fontSize: 13, fontWeight: '600', color: '#4B5563' },
+  contentContainer: { paddingHorizontal: 16, paddingBottom: 140 },
+  headerBar: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    paddingHorizontal: 20, 
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, 
+    paddingBottom: 14, 
+    backgroundColor: '#1D4ED8',
+    elevation: 4,
+    shadowColor: '#1E3A8A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  backButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
+  searchBar: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 14, 
+    paddingHorizontal: 12, 
+    marginBottom: 12, 
+    borderWidth: 1, 
+    borderColor: '#E2E8F0', 
+    height: 46,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  searchInput: { flex: 1, height: '100%', color: '#0F172A', fontSize: 14, paddingVertical: 0 },
+  catChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
+  catChipActive: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
+  catChipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
   catChipTextActive: { color: '#FFFFFF' },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 16 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 12, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20, elevation: 4 },
-  imageContainer: { width: '100%', height: 160, borderRadius: 16, overflow: 'hidden', marginBottom: 12, position: 'relative' },
-  cardImage: { width: '100%', height: 180 },
-  tag: { position: 'absolute', top: 12, right: 12, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
-  tagText: { color: '#FFF', fontSize: 12, fontWeight: '700' },
-  cardContent: { padding: 20 },
-  cardTitle: { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 6 },
-  cardLocation: { fontSize: 14, color: '#6B7280', marginBottom: 12, fontWeight: '500' },
-  descText: { fontSize: 14, color: '#4B5563' },
-  trackerWrapper: { position: 'relative', marginVertical: 8, paddingHorizontal: 4 },
+  card: { 
+    backgroundColor: '#FFFFFF', 
+    borderRadius: 20, 
+    marginBottom: 16, 
+    borderWidth: 1, 
+    borderColor: '#F1F5F9', 
+    shadowColor: '#0F172A', 
+    shadowOffset: { width: 0, height: 4 }, 
+    shadowOpacity: 0.05, 
+    shadowRadius: 10, 
+    elevation: 3, 
+    overflow: 'hidden' 
+  },
+  imageContainer: { width: '100%', height: 160, overflow: 'hidden' },
+  cardImage: { width: '100%', height: 160 },
+  cardContent: { padding: 16 },
+  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 },
+  cardTitle: { fontSize: 17, fontWeight: '700', color: '#0F172A', lineHeight: 22 },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10 },
+  badgePending: { backgroundColor: '#FEF3C7' },
+  badgeInProgress: { backgroundColor: '#EFF6FF' },
+  badgeResolved: { backgroundColor: '#ECFDF5' },
+  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+  badgeTextPending: { color: '#D97706' },
+  badgeTextInProgress: { color: '#2563EB' },
+  badgeTextResolved: { color: '#059669' },
+  locationRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
+  cardLocation: { fontSize: 13, color: '#64748B', fontWeight: '500', flex: 1, lineHeight: 18 },
+  descText: { fontSize: 13, color: '#334155', lineHeight: 19, marginBottom: 12 },
+  trackerWrapper: { backgroundColor: '#F8FAFC', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 8, marginTop: 4 },
   trackerBackgroundLine: { 
-    position: 'absolute', top: 10, left: 24, right: 24, height: 8, 
-    backgroundColor: '#E5E7EB', borderRadius: 4, overflow: 'hidden',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2,
-    borderWidth: 1, borderColor: '#D1D5DB'
+    position: 'absolute', top: 20, left: 32, right: 32, height: 3, 
+    backgroundColor: '#E2E8F0', borderRadius: 2 
   },
-  trackerFillLine: { height: '100%', borderRadius: 4 },
-  trackerNodes: { flexDirection: 'row', justifyContent: 'space-between' },
+  trackerFillLine: { height: '100%', borderRadius: 2 },
+  trackerNodesRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  trackerNodeCol: { width: 75, alignItems: 'center' },
   trackerDot: { 
-    width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 5,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)'
+    width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, 
+    shadowOpacity: 0.15, shadowRadius: 2, elevation: 2 
   },
-  trackerDotInner: {
-    width: 8, height: 8, borderRadius: 4, backgroundColor: '#FFFFFF',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.4, shadowRadius: 1, elevation: 2
-  },
-  trackerLabel: { fontSize: 11, fontWeight: '800', marginTop: 10, letterSpacing: 0.2 },
-  emptyText: { textAlign: 'center', color: '#6B7280', fontSize: 16, marginTop: 20 },
+  trackerDotCurrent: { transform: [{ scale: 1.2 }] },
+  trackerLabel: { fontSize: 10, fontWeight: '600', color: '#94A3B8', marginTop: 6, textAlign: 'center' },
+  deleteFooter: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  deleteLink: { flexDirection: 'row', alignItems: 'center', paddingVertical: 2, paddingHorizontal: 6 },
+  deleteLinkText: { fontSize: 12, fontWeight: '600', color: '#EF4444' },
   emptyStateContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60, paddingHorizontal: 40 },
-  emptyTextLarge: { fontSize: 20, fontWeight: '700', color: '#111827', marginTop: 16, textAlign: 'center' },
-  emptyTextSub: { fontSize: 15, color: '#6B7280', textAlign: 'center', marginTop: 8, lineHeight: 22 },
-  
-  // Dashboard Grid Styles
-  dashboardGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginTop: 10, marginBottom: 20 },
-  gridCard: { width: '48%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 16, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.05, shadowRadius: 15, elevation: 3, borderWidth: 2, borderColor: 'transparent' },
-  gridCardActive: { borderColor: '#1D4ED8', shadowOpacity: 0.1, shadowRadius: 20 },
-  gridIconCircle: { width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', marginBottom: 12, position: 'relative' },
-  gridCardTitle: { fontSize: 15, fontWeight: '700', color: '#111827', textAlign: 'center', marginBottom: 4 },
-  gridCardSub: { fontSize: 12, color: '#6B7280', textAlign: 'center', lineHeight: 16 },
-  gridBadge: { position: 'absolute', top: 0, right: -4, backgroundColor: '#EF4444', borderRadius: 12, minWidth: 24, height: 24, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 6, borderWidth: 2, borderColor: '#FCFDF6' },
-  gridBadgeText: { color: '#FFFFFF', fontSize: 11, fontWeight: 'bold' },
-  
-  // Custom Modal Styles
+  emptyTextLarge: { fontSize: 18, fontWeight: '700', color: '#1E293B', marginTop: 12, textAlign: 'center' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
   deleteModalContainer: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
   deleteIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  deleteModalTitle: { fontSize: 22, fontWeight: '800', color: '#111827', marginBottom: 8 },
-  deleteModalText: { fontSize: 15, color: '#6B7280', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
+  deleteModalTitle: { fontSize: 20, fontWeight: '700', color: '#0F172A', marginBottom: 8 },
+  deleteModalText: { fontSize: 14, color: '#64748B', textAlign: 'center', marginBottom: 20, lineHeight: 20 },
   deleteModalActions: { flexDirection: 'row', width: '100%', gap: 12 },
-  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F3F4F6', alignItems: 'center' },
-  cancelBtnText: { fontSize: 16, fontWeight: '700', color: '#4B5563' },
-  deleteBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#EF4444', alignItems: 'center' },
-  deleteBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  
-  // Full screen image styles
+  cancelBtn: { flex: 1, paddingVertical: 12, borderRadius: 14, backgroundColor: '#F1F5F9', alignItems: 'center' },
+  cancelBtnText: { fontSize: 15, fontWeight: '600', color: '#475569' },
+  deleteBtn: { flex: 1, paddingVertical: 12, borderRadius: 14, backgroundColor: '#EF4444', alignItems: 'center' },
+  deleteBtnText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
   fullScreenImageContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
   fullScreenImage: { width: '100%', height: '100%' },
   closeImageBtn: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 60, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },

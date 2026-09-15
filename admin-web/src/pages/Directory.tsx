@@ -18,7 +18,7 @@ export default function Directory() {
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
   const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
 
-  const availablePhases = ['Sushant Lok 2 Option 1', 'Sushant Lok 2 Option 2', 'Sushant Lok 3'];
+  const availablePhases = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
 
   useEffect(() => {
     fetchContacts();
@@ -130,6 +130,8 @@ export default function Directory() {
   const displayedContacts = contacts.filter(c => {
     if (filterPhase === 'All Groups (Show Everything)') return true;
     if (filterPhase === 'Universal (Sent to Everyone)') return !c.phases || c.phases.length === 0 || c.phases.includes('All');
+    if (filterPhase === 'Sushant Lok 2 - C,D,E') return c.phases && (c.phases.includes('Sushant Lok 2 - C,D,E') || c.phases.includes('Sushant Lok 2 Option 1'));
+    if (filterPhase === 'Sushant Lok 2 - F,G') return c.phases && (c.phases.includes('Sushant Lok 2 - F,G') || c.phases.includes('Sushant Lok 2 Option 2'));
     return c.phases && c.phases.includes(filterPhase);
   });
 
@@ -148,8 +150,8 @@ export default function Directory() {
           >
             <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
             <option value="Universal (Sent to Everyone)">Universal (Sent to Everyone)</option>
-            <option value="Sushant Lok 2 Option 1">Sushant Lok 2 Option 1</option>
-            <option value="Sushant Lok 2 Option 2">Sushant Lok 2 Option 2</option>
+            <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
+            <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
             <option value="Sushant Lok 3">Sushant Lok 3</option>
           </select>
           <button className="btn btn-primary" onClick={openAddModal}>

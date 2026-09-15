@@ -18,7 +18,7 @@ export default function Staff() {
   const [filterPhase, setFilterPhase] = useState('All');
 
   // Form State
-  const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 Option 1');
+  const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 - C,D,E');
   const [selectedBlock, setSelectedBlock] = useState('C, D, E');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [category, setCategory] = useState('Electricity');
@@ -52,8 +52,8 @@ export default function Staff() {
 
   // Group blocks together into a single option for each entity
   const entityBlocks: any = {
-    'Sushant Lok 2 Option 1': ['C, D, E'],
-    'Sushant Lok 2 Option 2': ['F, G'],
+    'Sushant Lok 2 - C,D,E': ['C, D, E'],
+    'Sushant Lok 2 - F,G': ['F, G'],
     'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
   };
 
@@ -160,7 +160,13 @@ export default function Staff() {
   };
 
   // Show staff based on selected filter
-  const displayedStaff = filterPhase === 'All' ? staff : staff.filter(s => s.phase === filterPhase || s.name.includes(filterPhase));
+  const displayedStaff = filterPhase === 'All' 
+    ? staff 
+    : staff.filter(s => {
+        if (filterPhase === 'Sushant Lok 2 - C,D,E') return s.phase === 'Sushant Lok 2 - C,D,E' || s.phase === 'Sushant Lok 2 Option 1' || s.name.includes(filterPhase);
+        if (filterPhase === 'Sushant Lok 2 - F,G') return s.phase === 'Sushant Lok 2 - F,G' || s.phase === 'Sushant Lok 2 Option 2' || s.name.includes(filterPhase);
+        return s.phase === filterPhase || s.name.includes(filterPhase);
+      });
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -223,8 +229,8 @@ export default function Staff() {
               style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
             >
               <option value="All">All Groups</option>
-              <option value="Sushant Lok 2 Option 1">Sushant Lok 2 Option 1</option>
-              <option value="Sushant Lok 2 Option 2">Sushant Lok 2 Option 2</option>
+              <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
+              <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
               <option value="Sushant Lok 3">Sushant Lok 3</option>
             </select>
           </div>

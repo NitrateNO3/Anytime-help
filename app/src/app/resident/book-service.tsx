@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Modal, StatusBar, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +29,25 @@ export default function BookServiceScreen() {
     setModalConfig(prev => ({ ...prev, visible: false }));
     if (onConfirm) onConfirm();
   };
+
+  const handleSafeBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/resident');
+    }
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        handleSafeBack();
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
+    }, [])
+  );
 
   useEffect(() => {
     fetchUserData();
@@ -82,7 +101,7 @@ export default function BookServiceScreen() {
         headers: { 'x-auth-token': token }
       });
       
-      showAlert('success', 'Success', 'Your service has been booked successfully! A partner will be assigned shortly.', () => router.back());
+      showAlert('success', 'Success', 'Your service has been booked successfully! A partner will be assigned shortly.', () => handleSafeBack());
     } catch (error: any) {
       console.error(error);
       showAlert('error', 'Error', error.response?.data?.message || 'Failed to book service.');
@@ -101,14 +120,20 @@ export default function BookServiceScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={24} color="#111827" />
+        <View style={styles.headerBar}>
+          <TouchableOpacity 
+            onPress={handleSafeBack} 
+            style={styles.backButton}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Book Service</Text>
-          <View style={{ width: 44 }} />
+          <View style={{ width: 36 }} />
         </View>
 
         <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
@@ -232,21 +257,25 @@ export default function BookServiceScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
+  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
   container: { flex: 1 },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  headerBar: { 
+    flexDirection: 'row', 
+    alignItems: 'center', 
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
+    paddingHorizontal: 20, 
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, 
+    paddingBottom: 14, 
+    backgroundColor: '#1D4ED8',
+    elevation: 4,
+    shadowColor: '#1E3A8A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    zIndex: 1,
   },
-  backBtn: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: '#F3F4F6', 
-    justifyContent: 'center', alignItems: 'center'
-  },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: '#111827' },
+  backButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF', textAlign: 'center', flex: 1 },
   serviceCard: {
     flexDirection: 'row',
     alignItems: 'center',

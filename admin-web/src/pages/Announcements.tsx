@@ -19,7 +19,7 @@ export default function Announcements() {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
 
-  const availablePhases = ['Sushant Lok 2 Option 1', 'Sushant Lok 2 Option 2', 'Sushant Lok 3'];
+  const availablePhases = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
 
   useEffect(() => {
     if (activeTab === 'list') {
@@ -131,6 +131,8 @@ export default function Announcements() {
   const displayedAnnouncements = announcements.filter(a => {
     if (filterPhase === 'All Groups (Show Everything)') return true;
     if (filterPhase === 'Universal (Sent to Everyone)') return !a.phases || a.phases.length === 0 || a.phases.includes('All');
+    if (filterPhase === 'Sushant Lok 2 - C,D,E') return a.phases && (a.phases.includes('Sushant Lok 2 - C,D,E') || a.phases.includes('Sushant Lok 2 Option 1'));
+    if (filterPhase === 'Sushant Lok 2 - F,G') return a.phases && (a.phases.includes('Sushant Lok 2 - F,G') || a.phases.includes('Sushant Lok 2 Option 2'));
     return a.phases && a.phases.includes(filterPhase);
   });
 
@@ -183,8 +185,8 @@ export default function Announcements() {
             >
               <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
               <option value="Universal (Sent to Everyone)">Universal (Sent to Everyone)</option>
-              <option value="Sushant Lok 2 Option 1">Sushant Lok 2 Option 1</option>
-              <option value="Sushant Lok 2 Option 2">Sushant Lok 2 Option 2</option>
+              <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
+              <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
               <option value="Sushant Lok 3">Sushant Lok 3</option>
             </select>
           </div>

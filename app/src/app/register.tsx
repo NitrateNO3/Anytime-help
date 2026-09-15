@@ -27,14 +27,14 @@ export default function RegisterScreen() {
   
   const [phase, setPhase] = useState('');
   const [phaseModalVisible, setPhaseModalVisible] = useState(false);
-  const phasesList = ['Sushant Lok 2 Option 1', 'Sushant Lok 2 Option 2', 'Sushant Lok 3'];
+  const phasesList = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
 
   const [block, setBlock] = useState('');
   const [blockModalVisible, setBlockModalVisible] = useState(false);
   
   const getBlockOptions = () => {
-    if (phase === 'Sushant Lok 2 Option 1') return ['C, D, E'];
-    if (phase === 'Sushant Lok 2 Option 2') return ['F, G'];
+    if (phase === 'Sushant Lok 2 - C,D,E' || phase === 'Sushant Lok 2 Option 1') return ['C, D, E'];
+    if (phase === 'Sushant Lok 2 - F,G' || phase === 'Sushant Lok 2 Option 2') return ['F, G'];
     if (phase === 'Sushant Lok 3') return ['A, B, B1, C, D, E, F, G, H'];
     return [];
   };

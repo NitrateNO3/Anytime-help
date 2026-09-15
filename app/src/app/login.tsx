@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard, Image, FlatList, Dimensions, Animated } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard, Image, FlatList, Dimensions, Animated, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
@@ -65,28 +65,42 @@ export default function LoginScreen() {
     }
   }, [banners]);
 
-  // Auto-login check
-  useEffect(() => {
-    const checkLogin = async () => {
-      try {
-        const token = await SecureStore.getItemAsync('userToken');
-        const userDataStr = await SecureStore.getItemAsync('userData');
-        if (token && userDataStr) {
-          const user = JSON.parse(userDataStr);
-          if (user.role === 'Resident') {
-            router.replace('/resident');
-          } else if (user.role === 'Staff') {
-            router.replace('/staff');
-          } else if (user.role === 'PaidStaff') {
-            router.replace('/paid-staff');
+  // Auto-login check whenever screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      const checkLogin = async () => {
+        try {
+          const token = await SecureStore.getItemAsync('userToken');
+          const userDataStr = await SecureStore.getItemAsync('userData');
+          if (token && userDataStr) {
+            const user = JSON.parse(userDataStr);
+            if (user.role === 'Resident') {
+              router.replace('/resident');
+            } else if (user.role === 'Staff') {
+              router.replace('/staff');
+            } else if (user.role === 'PaidStaff') {
+              router.replace('/paid-staff');
+            }
           }
+        } catch (e) {
+          console.log("No saved session");
         }
-      } catch (e) {
-        console.log("No saved session");
-      }
-    };
-    checkLogin();
-  }, []);
+      };
+      checkLogin();
+
+      // Hardware back press on Login screen
+      const onBackPress = () => {
+        if (step === 'OTP') {
+          setStep('PHONE');
+          return true;
+        }
+        BackHandler.exitApp();
+        return true;
+      };
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [step])
+  );
 
   // OTP Countdown Timer
   useEffect(() => {

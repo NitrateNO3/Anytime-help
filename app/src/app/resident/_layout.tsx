@@ -12,27 +12,29 @@ export default function ResidentLayout() {
   
   return (
     <Tabs
+      backBehavior="initialRoute"
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: '#1D4ED8',
-        tabBarInactiveTintColor: '#6B7280',
+        tabBarActiveTintColor: '#2563EB',
+        tabBarInactiveTintColor: '#64748B',
         tabBarLabelStyle: {
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: '600',
+          marginTop: -2,
         },
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopWidth: 1,
-          borderTopColor: '#E5E7EB',
-          height: Platform.OS === 'ios' ? 95 : 90,
-          paddingBottom: Platform.OS === 'ios' ? 35 : 35,
-          paddingTop: 10,
-          elevation: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.1,
-          shadowRadius: 4,
+          borderTopColor: '#F1F5F9',
+          height: 60 + Math.max(insets.bottom, 12),
+          paddingBottom: Math.max(insets.bottom, 10),
+          paddingTop: 8,
+          elevation: 12,
+          shadowColor: '#0F172A',
+          shadowOffset: { width: 0, height: -4 },
+          shadowOpacity: 0.08,
+          shadowRadius: 8,
         },
       }}
     >

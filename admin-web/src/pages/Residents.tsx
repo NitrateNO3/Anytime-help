@@ -95,7 +95,13 @@ export default function Residents() {
     ), { duration: Infinity, style: { minWidth: '320px', borderRadius: '12px' } });
   };
 
-  const displayedResidents = filterPhase === 'All Groups (Show Everything)' ? residents : residents.filter(r => r.phase === filterPhase);
+  const displayedResidents = filterPhase === 'All Groups (Show Everything)' 
+    ? residents 
+    : residents.filter(r => {
+        if (filterPhase === 'Sushant Lok 2 - C,D,E') return r.phase === 'Sushant Lok 2 - C,D,E' || r.phase === 'Sushant Lok 2 Option 1';
+        if (filterPhase === 'Sushant Lok 2 - F,G') return r.phase === 'Sushant Lok 2 - F,G' || r.phase === 'Sushant Lok 2 Option 2';
+        return r.phase === filterPhase;
+      });
 
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -120,8 +126,8 @@ export default function Residents() {
             style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
           >
             <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
-            <option value="Sushant Lok 2 Option 1">Sushant Lok 2 Option 1</option>
-            <option value="Sushant Lok 2 Option 2">Sushant Lok 2 Option 2</option>
+            <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
+            <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
             <option value="Sushant Lok 3">Sushant Lok 3</option>
           </select>
         </div>
