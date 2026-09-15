@@ -6,11 +6,6 @@ import '../index.css';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
-interface SubCategoryDetail {
-  en: string;
-  hi: string;
-}
-
 export default function Categories() {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -20,15 +15,12 @@ export default function Categories() {
 
   const [formData, setFormData] = useState({
     title: '',
-    title_hi: '',
     image: '',
-    subCategories: [] as string[],
-    subCategoriesDetails: [] as SubCategoryDetail[]
+    subCategories: [] as string[]
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [removeImageFlag, setRemoveImageFlag] = useState(false);
-  const [newSubEn, setNewSubEn] = useState('');
-  const [newSubHi, setNewSubHi] = useState('');
+  const [newSub, setNewSub] = useState('');
 
   useEffect(() => {
     fetchCategories();
@@ -49,38 +41,22 @@ export default function Categories() {
   const handleOpenModal = (category: any = null) => {
     if (category) {
       setEditingId(category._id);
-      
-      let details: SubCategoryDetail[] = [];
-      if (Array.isArray(category.subCategoriesDetails) && category.subCategoriesDetails.length > 0) {
-        details = category.subCategoriesDetails.map((d: any) => ({
-          en: d.en || d.title || '',
-          hi: d.hi || ''
-        }));
-      } else if (Array.isArray(category.subCategories)) {
-        details = category.subCategories.map((s: string) => ({ en: s, hi: '' }));
-      }
-
       setFormData({
         title: category.title || '',
-        title_hi: category.title_hi || '',
         image: category.image || '',
-        subCategories: category.subCategories || [],
-        subCategoriesDetails: details
+        subCategories: category.subCategories || []
       });
     } else {
       setEditingId(null);
       setFormData({
         title: '',
-        title_hi: '',
         image: '',
-        subCategories: [],
-        subCategoriesDetails: []
+        subCategories: []
       });
     }
     setImageFile(null);
     setRemoveImageFlag(false);
-    setNewSubEn('');
-    setNewSubHi('');
+    setNewSub('');
     setIsModalOpen(true);
   };
 
@@ -90,31 +66,28 @@ export default function Categories() {
   };
 
   const handleAddSubCategory = () => {
-    if (newSubEn.trim() === '') {
-      toast.error('Please enter subcategory English name');
+    if (newSub.trim() === '') {
+      toast.error('Please enter subcategory name');
       return;
     }
 
-    const newItem: SubCategoryDetail = {
-      en: newSubEn.trim(),
-      hi: newSubHi.trim()
-    };
+    if (formData.subCategories.includes(newSub.trim())) {
+      toast.error('Subcategory already exists');
+      return;
+    }
 
     setFormData({
       ...formData,
-      subCategories: [...formData.subCategories, newItem.en],
-      subCategoriesDetails: [...formData.subCategoriesDetails, newItem]
+      subCategories: [...formData.subCategories, newSub.trim()]
     });
 
-    setNewSubEn('');
-    setNewSubHi('');
+    setNewSub('');
   };
 
   const handleRemoveSubCategory = (indexToRemove: number) => {
     setFormData({
       ...formData,
-      subCategories: formData.subCategories.filter((_, index) => index !== indexToRemove),
-      subCategoriesDetails: formData.subCategoriesDetails.filter((_, index) => index !== indexToRemove)
+      subCategories: formData.subCategories.filter((_, index) => index !== indexToRemove)
     });
   };
 
@@ -127,19 +100,13 @@ export default function Categories() {
 
     const payload = new FormData();
     payload.append('title', formData.title);
-    payload.append('title_hi', formData.title_hi || '');
     
-    let finalDetails = [...formData.subCategoriesDetails];
-    if (newSubEn.trim() !== '') {
-      finalDetails.push({
-        en: newSubEn.trim(),
-        hi: newSubHi.trim()
-      });
+    let finalSubCategories = [...formData.subCategories];
+    if (newSub.trim() !== '' && !finalSubCategories.includes(newSub.trim())) {
+      finalSubCategories.push(newSub.trim());
     }
 
-    const finalSubCategories = finalDetails.map(d => d.en);
     payload.append('subCategories', JSON.stringify(finalSubCategories));
-    payload.append('subCategoriesDetails', JSON.stringify(finalDetails));
 
     if (imageFile) {
       payload.append('image', imageFile);
@@ -206,15 +173,15 @@ export default function Categories() {
       </div>
 
       {loading ? (
-        <div className="grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {[1, 2, 3, 4].map(idx => (
-            <div key={`skeleton-${idx}`} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+            <div key={`skeleton-${idx}`} className="card" style={{ padding: '16px 20px', borderRadius: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', width: '100%' }}>
                   <div className="skeleton" style={{ width: '48px', height: '48px', borderRadius: '12px' }}></div>
                   <div style={{ width: '100%' }}>
-                    <div className="skeleton skeleton-row" style={{ width: '60%', height: '16px', marginBottom: '8px' }}></div>
-                    <div className="skeleton skeleton-row" style={{ width: '40%', height: '12px' }}></div>
+                    <div className="skeleton skeleton-row" style={{ width: '40%', height: '16px', marginBottom: '8px' }}></div>
+                    <div className="skeleton skeleton-row" style={{ width: '25%', height: '12px' }}></div>
                   </div>
                 </div>
               </div>
@@ -222,17 +189,17 @@ export default function Categories() {
           ))}
         </div>
       ) : (
-        <div className="grid">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {categories.length === 0 ? (
-            <div className="card" style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '40px' }}>
+            <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
               <h3>No categories found</h3>
               <p style={{ color: 'var(--text-secondary)' }}>Add your first category.</p>
             </div>
           ) : (
             categories.map((cat) => (
-              <div key={cat._id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div key={cat._id} className="card" style={{ display: 'flex', flexDirection: 'column', padding: '16px 20px', borderRadius: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
                     <div style={{ 
                       width: '48px', height: '48px', borderRadius: '12px', 
                       backgroundColor: '#F1F5F9', overflow: 'hidden',
@@ -245,25 +212,18 @@ export default function Categories() {
                       )}
                     </div>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <h3 style={{ margin: 0, fontSize: '16px', color: 'var(--text-primary)' }}>{cat.title}</h3>
-                        {cat.title_hi && (
-                          <span style={{ fontSize: '11px', background: '#FEF3C7', color: '#92400E', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>
-                            {cat.title_hi}
-                          </span>
-                        )}
-                      </div>
-                      <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)' }}>{cat.title}</h3>
+                      <span style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', display: 'inline-block' }}>
                         {cat.subCategories?.length || 0} Sub-categories
                       </span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
-                    <button className="btn btn-icon" onClick={() => handleOpenModal(cat)} style={{ color: 'var(--primary)' }}>
-                      <Edit2 size={16} />
+                    <button className="btn btn-icon" onClick={() => handleOpenModal(cat)} style={{ color: 'var(--primary)' }} title="Edit Category">
+                      <Edit2 size={18} />
                     </button>
-                    <button className="btn btn-icon" onClick={() => confirmDelete(cat._id)} style={{ color: 'var(--danger)' }}>
-                      <Trash2 size={16} />
+                    <button className="btn btn-icon" onClick={() => confirmDelete(cat._id)} style={{ color: 'var(--danger)' }} title="Delete Category">
+                      <Trash2 size={18} />
                     </button>
                   </div>
                 </div>
@@ -276,7 +236,7 @@ export default function Categories() {
       {/* Add/Edit Modal */}
       {isModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '600px' }}>
+          <div className="modal-content" style={{ maxWidth: '520px' }}>
             <div className="modal-header">
               <h2>{editingId ? 'Edit Category' : 'Add New Category'}</h2>
               <button className="btn btn-icon" onClick={handleCloseModal}>
@@ -285,7 +245,7 @@ export default function Categories() {
             </div>
             <form onSubmit={handleSubmit} className="modal-body">
               <div className="form-group">
-                <label className="form-label">Category Title (English) *</label>
+                <label className="form-label">Category Title *</label>
                 <input 
                   type="text" 
                   className="form-input" 
@@ -293,17 +253,6 @@ export default function Categories() {
                   onChange={(e) => setFormData({...formData, title: e.target.value})} 
                   placeholder="e.g. Electricity" 
                   required 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Title in Hindi (हिंदी)</label>
-                <input 
-                  type="text" 
-                  className="form-input" 
-                  value={formData.title_hi} 
-                  onChange={(e) => setFormData({...formData, title_hi: e.target.value})} 
-                  placeholder="जैसे: बिजली" 
                 />
               </div>
 
@@ -360,48 +309,32 @@ export default function Categories() {
 
               <div className="form-group">
                 <label className="form-label">Sub Categories</label>
-                <div style={{ background: '#F9FAFB', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', marginBottom: '12px' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '8px' }}>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newSubEn} 
-                      onChange={(e) => setNewSubEn(e.target.value)} 
-                      placeholder="English Name (e.g. Power Outage)"
-                    />
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      value={newSubHi} 
-                      onChange={(e) => setNewSubHi(e.target.value)} 
-                      placeholder="हिंदी नाम (उदा. बिजली कटौती)"
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddSubCategory();
-                        }
-                      }}
-                    />
-                  </div>
-                  <button type="button" className="btn btn-secondary" onClick={handleAddSubCategory} style={{ width: '100%', justifyContent: 'center' }}>
-                    <Plus size={16} /> Add Sub-category
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    value={newSub} 
+                    onChange={(e) => setNewSub(e.target.value)} 
+                    placeholder="e.g. Power Outage"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddSubCategory();
+                      }
+                    }}
+                  />
+                  <button type="button" className="btn btn-primary" onClick={handleAddSubCategory} style={{ whiteSpace: 'nowrap', padding: '0 16px' }}>
+                    <Plus size={16} /> Add
                   </button>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
-                  {formData.subCategoriesDetails.map((detail, index) => (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {formData.subCategories.map((sub, index) => (
                     <div key={index} style={{ 
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', 
-                      backgroundColor: '#EFF6FF', borderRadius: '8px', border: '1px solid #BFDBFE' 
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', 
+                      backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0' 
                     }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 600, color: '#1E40AF', fontSize: '13px' }}>{detail.en}</span>
-                        {detail.hi && (
-                          <span style={{ background: '#FEF3C7', color: '#92400E', padding: '2px 6px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
-                            {detail.hi}
-                          </span>
-                        )}
-                      </div>
+                      <span style={{ fontWeight: 500, color: '#1E293B', fontSize: '14px' }}>{sub}</span>
                       <button type="button" onClick={() => handleRemoveSubCategory(index)} style={{ 
                         background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', display: 'flex' 
                       }}>
@@ -409,7 +342,7 @@ export default function Categories() {
                       </button>
                     </div>
                   ))}
-                  {formData.subCategoriesDetails.length === 0 && (
+                  {formData.subCategories.length === 0 && (
                     <p style={{ color: '#9CA3AF', fontSize: '13px', margin: '4px 0' }}>No sub-categories added yet.</p>
                   )}
                 </div>
