@@ -195,6 +195,7 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
       title,
       title_hi: title_hi || '',
       title_hinglish: title_hinglish || '',
+      activeLanguage: req.body.activeLanguage || 'en',
       image: imageUrl,
       public_id: publicId,
       subCategories: subCategories || [],
@@ -212,7 +213,7 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
 // @route   PUT /api/categories/:id
 // @desc    Update a category
 router.put('/:id', [auth, upload.single('image')], async (req, res) => {
-  let { title, title_hi, title_hinglish, subCategories, subCategoriesDetails } = req.body;
+  let { title, title_hi, title_hinglish, subCategories, subCategoriesDetails, activeLanguage } = req.body;
   
   if (typeof subCategories === 'string') {
     try {
@@ -237,12 +238,17 @@ router.put('/:id', [auth, upload.single('image')], async (req, res) => {
     if (title !== undefined) category.title = title;
     if (title_hi !== undefined) category.title_hi = title_hi;
     if (title_hinglish !== undefined) category.title_hinglish = title_hinglish;
+    if (activeLanguage !== undefined) category.activeLanguage = activeLanguage;
+
+    if (subCategories !== undefined && Array.isArray(subCategories) && subCategories.length > 0) {
+      category.subCategories = subCategories;
+    } else if (subCategoriesDetails !== undefined) {
+      const lang = category.activeLanguage || 'en';
+      category.subCategories = subCategoriesDetails.map(item => (typeof item === 'object' ? (lang === 'hi' ? item.hi || item.en : item.en || item.title || '') : item)).filter(Boolean);
+    }
 
     if (subCategoriesDetails !== undefined) {
       category.subCategoriesDetails = subCategoriesDetails;
-      category.subCategories = subCategoriesDetails.map(item => (typeof item === 'object' ? item.en || item.title || '' : item)).filter(Boolean);
-    } else if (subCategories !== undefined) {
-      category.subCategories = subCategories;
     }
 
     if (req.body.removeImage === 'true') {

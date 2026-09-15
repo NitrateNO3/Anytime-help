@@ -22,10 +22,11 @@ export const getLanguageDisplayName = (lang: string): string => {
 
 export const getLocalizedCategoryTitle = (cat: any, lang: string): string => {
   if (!cat) return '';
-  if (lang === 'hi') {
+  const effectiveLang = (cat.activeLanguage === 'hi' && lang === 'en') ? 'hi' : lang;
+  if (effectiveLang === 'hi') {
     return cat.title_hi || cat.title_hinglish || cat.title || '';
   }
-  if (lang === 'hinglish') {
+  if (effectiveLang === 'hinglish') {
     return cat.title_hinglish || cat.title_hi || cat.title || '';
   }
   return cat.title || '';
@@ -34,13 +35,17 @@ export const getLocalizedCategoryTitle = (cat: any, lang: string): string => {
 export const getLocalizedSubCategoryTitle = (cat: any, sub: string, lang: string): string => {
   if (!cat || !sub) return sub || '';
 
+  const effectiveLang = (cat.activeLanguage === 'hi' && lang === 'en') ? 'hi' : lang;
+
   // Look inside subCategoriesDetails if available
   if (Array.isArray(cat.subCategoriesDetails) && cat.subCategoriesDetails.length > 0) {
-    const found = cat.subCategoriesDetails.find((d: any) => d.en === sub || d.title === sub);
+    const found = cat.subCategoriesDetails.find((d: any) => 
+      d.en === sub || d.hi === sub || d.hinglish === sub || d.title === sub
+    );
     if (found) {
-      if (lang === 'hi') return found.hi || found.hinglish || found.en || sub;
-      if (lang === 'hinglish') return found.hinglish || found.hi || found.en || sub;
-      return found.en || sub;
+      if (effectiveLang === 'hi') return found.hi || found.hinglish || found.en || sub;
+      if (effectiveLang === 'hinglish') return found.hinglish || found.hi || found.en || sub;
+      return found.en || found.hi || sub;
     }
   }
 

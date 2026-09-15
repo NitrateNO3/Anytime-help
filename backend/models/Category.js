@@ -28,6 +28,10 @@ const categorySchema = new mongoose.Schema({
     type: String,
     required: false,
   },
+  activeLanguage: {
+    type: String,
+    default: 'en',
+  },
   subCategories: [{
     type: String,
   }],

@@ -193,6 +193,7 @@ export default function Categories() {
       payload.append('title', cat.title);
       payload.append('title_hi', cat.title_hi || '');
       payload.append('title_hinglish', cat.title_hinglish || '');
+      payload.append('activeLanguage', targetLang);
       payload.append('subCategories', JSON.stringify(newSubs));
       payload.append('subCategoriesDetails', JSON.stringify(details));
 
@@ -234,6 +235,7 @@ export default function Categories() {
         payload.append('title', cat.title);
         payload.append('title_hi', cat.title_hi || '');
         payload.append('title_hinglish', cat.title_hinglish || '');
+        payload.append('activeLanguage', targetLang);
         payload.append('subCategories', JSON.stringify(newSubs));
         payload.append('subCategoriesDetails', JSON.stringify(details));
 
