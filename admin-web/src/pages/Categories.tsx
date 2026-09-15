@@ -115,6 +115,140 @@ export default function Categories() {
     setNewSubHinglish('');
   };
 
+  const translateText = async (text: string, from: 'en' | 'hi', to: 'en' | 'hi'): Promise<string> => {
+    if (!text || !text.trim()) return '';
+    try {
+      const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${from}&tl=${to}&dt=t&q=${encodeURIComponent(text.trim())}`);
+      const data = await res.json();
+      return data?.[0]?.[0]?.[0] || text;
+    } catch (err) {
+      console.error('Translation error:', err);
+      return text;
+    }
+  };
+
+  const handleConvertModalSubsToHindi = async () => {
+    const loadingToast = toast.loading('Converting subcategories to Hindi...');
+    try {
+      const updated = await Promise.all(formData.subCategoriesDetails.map(async (d) => {
+        const hiText = d.hi && d.hi.trim() ? d.hi : await translateText(d.en, 'en', 'hi');
+        return { ...d, hi: hiText };
+      }));
+      setFormData({
+        ...formData,
+        subCategoriesDetails: updated,
+        subCategories: updated.map(d => d.hi || d.en)
+      });
+      if (!formData.title_hi && formData.title) {
+        const hiTitle = await translateText(formData.title, 'en', 'hi');
+        setFormData(prev => ({ ...prev, title_hi: hiTitle }));
+      }
+      toast.success('Subcategories converted to Hindi!', { id: loadingToast });
+    } catch (e) {
+      toast.error('Failed to convert to Hindi', { id: loadingToast });
+    }
+  };
+
+  const handleConvertModalSubsToEnglish = async () => {
+    const loadingToast = toast.loading('Converting subcategories to English...');
+    try {
+      const updated = await Promise.all(formData.subCategoriesDetails.map(async (d) => {
+        const enText = d.en && d.en.trim() ? d.en : (d.hi ? await translateText(d.hi, 'hi', 'en') : '');
+        return { ...d, en: enText };
+      }));
+      setFormData({
+        ...formData,
+        subCategoriesDetails: updated,
+        subCategories: updated.map(d => d.en)
+      });
+      toast.success('Subcategories converted to English!', { id: loadingToast });
+    } catch (e) {
+      toast.error('Failed to convert to English', { id: loadingToast });
+    }
+  };
+
+  const handleSwitchCategorySubLanguage = async (cat: any, targetLang: 'en' | 'hi') => {
+    const loadingToast = toast.loading(`Switching subcategories to ${targetLang === 'hi' ? 'Hindi' : 'English'}...`);
+    try {
+      const token = localStorage.getItem('adminToken');
+      let details = cat.subCategoriesDetails || [];
+
+      if (details.length === 0 && cat.subCategories && cat.subCategories.length > 0) {
+        details = cat.subCategories.map((s: string) => ({ en: s, hi: '', hinglish: '' }));
+      }
+
+      let newSubs: string[] = [];
+      if (targetLang === 'hi') {
+        const updatedDetails = await Promise.all(details.map(async (d: any) => {
+          const hiVal = d.hi && d.hi.trim() ? d.hi : await translateText(d.en, 'en', 'hi');
+          return { ...d, hi: hiVal };
+        }));
+        details = updatedDetails;
+        newSubs = details.map((d: any) => d.hi || d.en);
+      } else {
+        newSubs = details.map((d: any) => d.en || d.hi);
+      }
+
+      const payload = new FormData();
+      payload.append('title', cat.title);
+      payload.append('title_hi', cat.title_hi || '');
+      payload.append('title_hinglish', cat.title_hinglish || '');
+      payload.append('subCategories', JSON.stringify(newSubs));
+      payload.append('subCategoriesDetails', JSON.stringify(details));
+
+      await axios.put(`${API_URL}/categories/${cat._id}`, payload, {
+        headers: { 'x-auth-token': token }
+      });
+
+      toast.success(`"${cat.title}" subcategories switched to ${targetLang === 'hi' ? 'Hindi' : 'English'}!`, { id: loadingToast });
+      fetchCategories();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to switch language', { id: loadingToast });
+    }
+  };
+
+  const handleSwitchAllSubLanguage = async (targetLang: 'en' | 'hi') => {
+    const loadingToast = toast.loading(`Switching all categories to ${targetLang === 'hi' ? 'Hindi' : 'English'}...`);
+    try {
+      const token = localStorage.getItem('adminToken');
+      for (const cat of categories) {
+        let details = cat.subCategoriesDetails || [];
+        if (details.length === 0 && cat.subCategories && cat.subCategories.length > 0) {
+          details = cat.subCategories.map((s: string) => ({ en: s, hi: '', hinglish: '' }));
+        }
+
+        let newSubs: string[] = [];
+        if (targetLang === 'hi') {
+          const updatedDetails = await Promise.all(details.map(async (d: any) => {
+            const hiVal = d.hi && d.hi.trim() ? d.hi : await translateText(d.en, 'en', 'hi');
+            return { ...d, hi: hiVal };
+          }));
+          details = updatedDetails;
+          newSubs = details.map((d: any) => d.hi || d.en);
+        } else {
+          newSubs = details.map((d: any) => d.en || d.hi);
+        }
+
+        const payload = new FormData();
+        payload.append('title', cat.title);
+        payload.append('title_hi', cat.title_hi || '');
+        payload.append('title_hinglish', cat.title_hinglish || '');
+        payload.append('subCategories', JSON.stringify(newSubs));
+        payload.append('subCategoriesDetails', JSON.stringify(details));
+
+        await axios.put(`${API_URL}/categories/${cat._id}`, payload, {
+          headers: { 'x-auth-token': token }
+        });
+      }
+      toast.success(`All categories switched to ${targetLang === 'hi' ? 'Hindi' : 'English'}!`, { id: loadingToast });
+      fetchCategories();
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to switch all languages', { id: loadingToast });
+    }
+  };
+
   const handleRemoveSubCategory = (indexToRemove: number) => {
     setFormData({
       ...formData,
@@ -211,11 +345,46 @@ export default function Categories() {
 
   return (
     <div style={{ marginTop: '40px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
         <h2 style={{ fontSize: 24, fontWeight: 700 }}>Manage Categories & Sub-Categories</h2>
         <button className="btn btn-primary" onClick={() => handleOpenModal()}>
           <Plus size={18} /> Add Category
         </button>
+      </div>
+
+      {/* 1-Click Subcategories Language Switcher Banner */}
+      <div style={{ 
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
+        background: 'linear-gradient(135deg, #EFF6FF 0%, #F5F3FF 100%)', 
+        padding: '16px 20px', borderRadius: '12px', border: '1px solid #BFDBFE', 
+        marginBottom: '24px', flexWrap: 'wrap', gap: '12px'
+      }}>
+        <div>
+          <h3 style={{ fontSize: '15px', fontWeight: 700, margin: 0, color: '#1E3A8A' }}>
+            🌐 Subcategories Language Switcher (1-Click for App)
+          </h3>
+          <p style={{ fontSize: '13px', color: '#475569', margin: '4px 0 0 0' }}>
+            Click <strong>Hindi</strong> or <strong>English</strong> to instantly switch all subcategories across the app.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button
+            type="button"
+            onClick={() => handleSwitchAllSubLanguage('en')}
+            className="btn btn-secondary"
+            style={{ padding: '8px 16px', fontSize: '13px', fontWeight: 700, background: 'white', borderColor: '#CBD5E1', cursor: 'pointer' }}
+          >
+            🇬🇧 All English
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSwitchAllSubLanguage('hi')}
+            className="btn btn-secondary"
+            style={{ padding: '8px 16px', fontSize: '13px', fontWeight: 700, background: '#FEF3C7', color: '#92400E', borderColor: '#FDE68A', cursor: 'pointer' }}
+          >
+            🇮🇳 All हिंदी (Hindi)
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -244,7 +413,7 @@ export default function Categories() {
           ) : (
             categories.map((cat) => (
               <div key={cat._id} className="card" style={{ display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <div style={{ 
                       width: '48px', height: '48px', borderRadius: '12px', 
@@ -284,6 +453,49 @@ export default function Categories() {
                       <Trash2 size={16} />
                     </button>
                   </div>
+                </div>
+
+                {/* Subcategory Language Action Buttons on Card */}
+                <div style={{ marginTop: 'auto', paddingTop: '10px', borderTop: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>Subcategory:</span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleSwitchCategorySubLanguage(cat, 'en')}
+                      style={{
+                        padding: '4px 10px', fontSize: '12px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer',
+                        background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE'
+                      }}
+                      title="Set subcategories to English for this category"
+                    >
+                      🇬🇧 English
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSwitchCategorySubLanguage(cat, 'hi')}
+                      style={{
+                        padding: '4px 10px', fontSize: '12px', borderRadius: '6px', fontWeight: 600, cursor: 'pointer',
+                        background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A'
+                      }}
+                      title="Set subcategories to Hindi for this category"
+                    >
+                      🇮🇳 हिंदी
+                    </button>
+                  </div>
+                </div>
+
+                {/* Subcategories preview tags */}
+                <div style={{ marginTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                  {cat.subCategories?.slice(0, 4).map((s: string, sIdx: number) => (
+                    <span key={sIdx} style={{ fontSize: '11px', background: '#F3F4F6', color: '#4B5563', padding: '2px 8px', borderRadius: '12px' }}>
+                      {s}
+                    </span>
+                  ))}
+                  {(cat.subCategories?.length || 0) > 4 && (
+                    <span style={{ fontSize: '11px', color: '#9CA3AF', padding: '2px 4px' }}>
+                      +{cat.subCategories.length - 4} more
+                    </span>
+                  )}
                 </div>
 
               </div>
@@ -390,7 +602,28 @@ export default function Categories() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Sub Categories (Multi-Language)</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <label className="form-label" style={{ margin: 0 }}>Sub Categories</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      type="button" 
+                      onClick={handleConvertModalSubsToEnglish}
+                      style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', cursor: 'pointer', fontWeight: 600 }}
+                      title="Convert all subcategories to English"
+                    >
+                      🇬🇧 All to English
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={handleConvertModalSubsToHindi}
+                      style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', background: '#FEF3C7', color: '#92400E', border: '1px solid #FDE68A', cursor: 'pointer', fontWeight: 600 }}
+                      title="Convert all subcategories to Hindi"
+                    >
+                      🇮🇳 All to हिंदी
+                    </button>
+                  </div>
+                </div>
+
                 <div style={{ background: '#F9FAFB', padding: '12px', borderRadius: '8px', border: '1px solid #E5E7EB', marginBottom: '12px' }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '8px' }}>
                     <input 
@@ -421,9 +654,31 @@ export default function Categories() {
                       }}
                     />
                   </div>
-                  <button type="button" className="btn btn-secondary" onClick={handleAddSubCategory} style={{ width: '100%', justifyContent: 'center' }}>
-                    <Plus size={16} /> Add Sub-category
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button 
+                      type="button" 
+                      className="btn btn-secondary" 
+                      onClick={async () => {
+                        if (newSubEn && !newSubHi) {
+                          const res = await translateText(newSubEn, 'en', 'hi');
+                          setNewSubHi(res);
+                          toast.success('Translated to Hindi!');
+                        } else if (newSubHi && !newSubEn) {
+                          const res = await translateText(newSubHi, 'hi', 'en');
+                          setNewSubEn(res);
+                          toast.success('Translated to English!');
+                        } else {
+                          toast('Type an English or Hindi word first to auto-translate');
+                        }
+                      }}
+                      style={{ flex: 1, justifyContent: 'center', fontSize: '13px' }}
+                    >
+                      🔄 Auto-Translate
+                    </button>
+                    <button type="button" className="btn btn-primary" onClick={handleAddSubCategory} style={{ flex: 2, justifyContent: 'center', fontSize: '13px' }}>
+                      <Plus size={16} /> Add Sub-category
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' }}>
