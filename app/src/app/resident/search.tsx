@@ -118,7 +118,7 @@ export default function DirectoryScreen() {
           <Ionicons name="search" size={18} color="#94A3B8" style={{ marginRight: 10 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search directory..."
+            placeholder={t('search.placeholder', { defaultValue: 'Search directory...' })}
             placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -144,9 +144,11 @@ export default function DirectoryScreen() {
             <View style={styles.emptyIconCircle}>
               <Ionicons name="people-outline" size={40} color="#94A3B8" />
             </View>
-            <Text style={styles.emptyTitle}>No contacts found</Text>
+            <Text style={styles.emptyTitle}>{t('search.noContacts', { defaultValue: 'No contacts found' })}</Text>
             <Text style={styles.emptySubtitle}>
-              {searchQuery ? 'Try searching with a different name or keyword' : 'Contacts will appear here once added by the administration'}
+              {searchQuery 
+                ? t('search.tryDifferent', { defaultValue: 'Try searching with a different name or keyword' })
+                : t('search.contactsWillAppear', { defaultValue: 'Contacts will appear here once added by the administration' })}
             </Text>
           </View>
         ) : (

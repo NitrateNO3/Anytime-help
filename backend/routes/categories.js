@@ -113,8 +113,52 @@ const defaultCategories = [
   }
 ];
 
+const categoryHiMap = {
+  'tree trimming': 'पेड़ की कटाई',
+  'tree cutting': 'पेड़ काटना',
+  'rainwater drainage': 'वर्षा जल निकासी',
+  'water drainage': 'जल निकासी',
+  'water service': 'जल सेवा',
+  'street light': 'स्ट्रीट लाइट',
+  'garbage': 'कचरा',
+  'sweeping': 'सफाई',
+  'sewage cleaning': 'सीवेज सफाई',
+  'electricity': 'बिजली',
+  'security': 'सुरक्षा',
+  'lift': 'लिफ्ट',
+  'plumbing': 'प्लंबिंग',
+  'park': 'पार्क',
+  'others': 'अन्य',
+  'other': 'अन्य'
+};
+
+const subCategoryHiMap = {
+  'fallen tree': 'गिरा हुआ पेड़',
+  'overgrown branches': 'बढ़ी हुई टहनियाँ',
+  'branches': 'टहनियाँ',
+  'pruning': 'छंटाई',
+  'trimming': 'कटाई',
+  'tree trimming': 'पेड़ की कटाई',
+  'tree cutting': 'पेड़ काटना',
+  'water logging': 'पानी भरना (जलभराव)',
+  'broken drain cover': 'नाली का ढक्कन टूटा',
+  'not working': 'काम नहीं कर रही',
+  'flickering': 'लाइट टिमटिमा रही है',
+  'pole damaged': 'खंभा क्षतिग्रस्त',
+  'no water supply': 'पानी की आपूर्ति नहीं',
+  'contaminated water': 'दूषित पानी',
+  'pipeline leakage': 'पाइपलाइन लीकेज',
+  'waste overflow': 'कचरा फैलना',
+  'bin damaged': 'कूड़ेदान क्षतिग्रस्त',
+  'door to door pending': 'डोर-टू-डोर पेंडिंग',
+  'drain blockage': 'नाली जाम',
+  'manhole open': 'मैनहोल खुला है',
+  'other': 'अन्य',
+  'others': 'अन्य'
+};
+
 // @route   GET /api/categories
-// @desc    Get all categories (seeds default if empty)
+// @desc    Get all categories (seeds default if empty and auto-fills translations)
 router.get('/', async (req, res) => {
   try {
     let categories = await Category.find().sort({ createdAt: -1 });
@@ -123,6 +167,41 @@ router.get('/', async (req, res) => {
     if (categories.length === 0) {
       await Category.insertMany(defaultCategories);
       categories = await Category.find().sort({ createdAt: -1 });
+    } else {
+      // Auto-fill title_hi and subcategory translations for any category missing it
+      for (let cat of categories) {
+        let needsSave = false;
+        const normalized = (cat.title || '').trim().toLowerCase();
+        if ((!cat.title_hi || !cat.title_hi.trim()) && categoryHiMap[normalized]) {
+          cat.title_hi = categoryHiMap[normalized];
+          needsSave = true;
+        }
+        if (Array.isArray(cat.subCategories) && cat.subCategories.length > 0) {
+          if (!cat.subCategoriesDetails || cat.subCategoriesDetails.length === 0) {
+            cat.subCategoriesDetails = cat.subCategories.map(sub => ({
+              en: sub,
+              hi: subCategoryHiMap[sub.trim().toLowerCase()] || sub,
+              hinglish: sub
+            }));
+            needsSave = true;
+          } else {
+            for (let detail of cat.subCategoriesDetails) {
+              if (!detail.hi && detail.en && subCategoryHiMap[detail.en.trim().toLowerCase()]) {
+                detail.hi = subCategoryHiMap[detail.en.trim().toLowerCase()];
+                needsSave = true;
+              }
+            }
+          }
+        }
+        if (needsSave) {
+          await Category.updateOne({ _id: cat._id }, { 
+            $set: { 
+              title_hi: cat.title_hi,
+              subCategoriesDetails: cat.subCategoriesDetails
+            } 
+          });
+        }
+      }
     }
     
     res.json(categories);
@@ -174,11 +253,25 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
     }
   }
 
+  if (!title_hi && title) {
+    const normalized = title.trim().toLowerCase();
+    if (categoryHiMap[normalized]) {
+      title_hi = categoryHiMap[normalized];
+    }
+  }
+
   // Auto-sync subCategories string array if subCategoriesDetails was provided
   if (Array.isArray(subCategoriesDetails) && subCategoriesDetails.length > 0) {
     subCategories = subCategoriesDetails.map(item => (typeof item === 'object' ? item.en || item.title || '' : item)).filter(Boolean);
   } else if (Array.isArray(subCategories) && (!subCategoriesDetails || subCategoriesDetails.length === 0)) {
-    subCategoriesDetails = subCategories.map(s => (typeof s === 'string' ? { en: s, hi: '', hinglish: '' } : s));
+    subCategoriesDetails = subCategories.map(s => {
+      const name = typeof s === 'string' ? s : (s.en || s.title || '');
+      return { 
+        en: name, 
+        hi: subCategoryHiMap[name.trim().toLowerCase()] || name, 
+        hinglish: name 
+      };
+    });
   }
 
   try {
@@ -236,7 +329,11 @@ router.put('/:id', [auth, upload.single('image')], async (req, res) => {
     if (!category) return res.status(404).json({ msg: 'Category not found' });
 
     if (title !== undefined) category.title = title;
-    if (title_hi !== undefined) category.title_hi = title_hi;
+    if (title_hi !== undefined && title_hi.trim()) {
+      category.title_hi = title_hi;
+    } else if (title && categoryHiMap[title.trim().toLowerCase()]) {
+      category.title_hi = categoryHiMap[title.trim().toLowerCase()];
+    }
     if (title_hinglish !== undefined) category.title_hinglish = title_hinglish;
     if (subCategoriesDetails !== undefined) {
       category.subCategoriesDetails = subCategoriesDetails;

@@ -93,7 +93,11 @@
   },
   "search": {
     "title": "Society Directory",
-    "subtitle": "Important Contacts"
+    "subtitle": "Important Contacts",
+    "placeholder": "Search directory...",
+    "noContacts": "No contacts found",
+    "tryDifferent": "Try searching with a different name or keyword",
+    "contactsWillAppear": "Contacts will appear here once added by the administration"
   },
   "community": {
     "title": "Notifications",
@@ -119,7 +123,13 @@
     "Sweeping": "Sweeping",
     "Sewage cleaning": "Sewage cleaning",
     "Rainwater drainage": "Rainwater drainage",
+    "Tree trimming": "Tree trimming",
     "Tree cutting": "Tree cutting",
+    "Fallen Tree": "Fallen Tree",
+    "Overgrown Branches": "Overgrown Branches",
+    "Branches": "Branches",
+    "Pruning": "Pruning",
+    "Trimming": "Trimming",
     "Street light": "Street light",
     "Water service": "Water service",
     "Others": "Others",

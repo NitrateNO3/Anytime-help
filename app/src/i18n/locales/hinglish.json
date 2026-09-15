@@ -93,7 +93,11 @@
   },
   "search": {
     "title": "Society Directory",
-    "subtitle": "Zaroori Contacts"
+    "subtitle": "Zaroori Contacts",
+    "placeholder": "Directory search karein...",
+    "noContacts": "Koi contact nahi mila",
+    "tryDifferent": "Alag naam ya keyword se search karein",
+    "contactsWillAppear": "Admin dwara add karne par contacts yahan dikhenge"
   },
   "community": {
     "title": "Notifications",
@@ -119,7 +123,13 @@
     "Sweeping": "Safai / Jhadu",
     "Sewage cleaning": "Sewage Safai",
     "Rainwater drainage": "Water Drainage",
+    "Tree trimming": "Ped Ki Katai",
     "Tree cutting": "Ped Katna",
+    "Fallen Tree": "Gira Hua Ped",
+    "Overgrown Branches": "Badhi Hui Tehniya",
+    "Branches": "Tehniya",
+    "Pruning": "Chhantai",
+    "Trimming": "Katai",
     "Street light": "Street Light",
     "Water service": "Paani Service",
     "Others": "Dusra Issue"

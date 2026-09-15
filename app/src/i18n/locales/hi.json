@@ -93,7 +93,11 @@
   },
   "search": {
     "title": "सोसाइटी निर्देशिका",
-    "subtitle": "महत्वपूर्ण संपर्क"
+    "subtitle": "महत्वपूर्ण संपर्क",
+    "placeholder": "निर्देशिका में खोजें...",
+    "noContacts": "कोई संपर्क नहीं मिला",
+    "tryDifferent": "अलग नाम या कीवर्ड से खोजने का प्रयास करें",
+    "contactsWillAppear": "प्रशासन द्वारा जोड़े जाने पर संपर्क यहाँ दिखाई देंगे"
   },
   "community": {
     "title": "सूचनाएं",
@@ -119,7 +123,13 @@
     "Sweeping": "सफाई",
     "Sewage cleaning": "सीवेज सफाई",
     "Rainwater drainage": "वर्षा जल निकासी",
+    "Tree trimming": "पेड़ की कटाई",
     "Tree cutting": "पेड़ काटना",
+    "Fallen Tree": "गिरा हुआ पेड़",
+    "Overgrown Branches": "बढ़ी हुई टहनियाँ",
+    "Branches": "टहनियाँ",
+    "Pruning": "छंटाई",
+    "Trimming": "कटाई",
     "Street light": "स्ट्रीट लाइट",
     "Water service": "जल सेवा",
     "Others": "अन्य",
