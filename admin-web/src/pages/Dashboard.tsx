@@ -34,7 +34,6 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [phaseFilter, setPhaseFilter] = useState('ALL');
-  const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [sortOrder, setSortOrder] = useState('desc');
   const [availableCategories, setAvailableCategories] = useState<string[]>(defaultCategoriesList);
 
@@ -66,7 +65,7 @@ export default function Dashboard() {
   // Fetch complaints whenever filters or page change
   useEffect(() => {
     fetchComplaints(page, true);
-  }, [page, debouncedSearch, statusFilter, categoryFilter, phaseFilter, priorityFilter, sortOrder]);
+  }, [page, debouncedSearch, statusFilter, categoryFilter, phaseFilter, sortOrder]);
 
   // Live Socket.io updates
   useEffect(() => {
@@ -78,7 +77,7 @@ export default function Dashboard() {
     return () => {
       socket.disconnect();
     };
-  }, [page, debouncedSearch, statusFilter, categoryFilter, phaseFilter, priorityFilter, sortOrder]);
+  }, [page, debouncedSearch, statusFilter, categoryFilter, phaseFilter, sortOrder]);
 
   const fetchComplaints = async (currentPage: number, showLoading: boolean = true) => {
     if (showLoading) setLoading(true);
@@ -94,7 +93,6 @@ export default function Dashboard() {
       if (statusFilter !== 'ALL') params.append('status', statusFilter);
       if (categoryFilter !== 'ALL') params.append('category', categoryFilter);
       if (phaseFilter !== 'ALL') params.append('phase', phaseFilter);
-      if (priorityFilter !== 'ALL') params.append('priority', priorityFilter);
 
       const res = await axios.get(`${API_URL}/complaints?${params.toString()}`, {
         headers: { 'x-auth-token': token }
@@ -167,27 +165,17 @@ export default function Dashboard() {
     }
   };
 
-  const handleKpiClick = (targetStatus: string) => {
-    if (statusFilter === targetStatus) {
-      setStatusFilter('ALL');
-    } else {
-      setStatusFilter(targetStatus);
-    }
-    setPage(1);
-  };
-
   const resetAllFilters = () => {
     setSearch('');
     setDebouncedSearch('');
     setStatusFilter('ALL');
     setCategoryFilter('ALL');
     setPhaseFilter('ALL');
-    setPriorityFilter('ALL');
     setSortOrder('desc');
     setPage(1);
   };
 
-  const isFiltered = search !== '' || statusFilter !== 'ALL' || categoryFilter !== 'ALL' || phaseFilter !== 'ALL' || priorityFilter !== 'ALL' || sortOrder !== 'desc';
+  const isFiltered = search !== '' || statusFilter !== 'ALL' || categoryFilter !== 'ALL' || phaseFilter !== 'ALL' || sortOrder !== 'desc';
 
   return (
     <div>
@@ -198,26 +186,11 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* KPI Widgets with Click-to-Filter */}
+      {/* KPI Widgets (Display only) */}
       <div className="stats-grid">
-        <div 
-          className="glass stat-card" 
-          onClick={() => handleKpiClick('PENDING')}
-          style={{ 
-            cursor: 'pointer', 
-            transition: 'all 0.2s ease',
-            borderColor: statusFilter === 'PENDING' ? 'var(--warning)' : 'var(--border-color)',
-            boxShadow: statusFilter === 'PENDING' ? '0 0 0 2px rgba(245, 158, 11, 0.4)' : undefined
-          }}
-          title="Click to filter by Pending"
-        >
+        <div className="glass stat-card">
           <div className="stat-info">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <h3>Pending</h3>
-              {statusFilter === 'PENDING' && (
-                <span style={{ fontSize: 11, background: 'rgba(245, 158, 11, 0.15)', color: 'var(--warning)', padding: '2px 6px', borderRadius: 6, fontWeight: 600 }}>Active</span>
-              )}
-            </div>
+            <h3>Pending</h3>
             <p>{stats.pending}</p>
           </div>
           <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.1)' }}>
@@ -225,24 +198,9 @@ export default function Dashboard() {
           </div>
         </div>
         
-        <div 
-          className="glass stat-card"
-          onClick={() => handleKpiClick('IN_PROGRESS')}
-          style={{ 
-            cursor: 'pointer', 
-            transition: 'all 0.2s ease',
-            borderColor: statusFilter === 'IN_PROGRESS' ? '#4F46E5' : 'var(--border-color)',
-            boxShadow: statusFilter === 'IN_PROGRESS' ? '0 0 0 2px rgba(79, 70, 229, 0.4)' : undefined
-          }}
-          title="Click to filter by In Progress"
-        >
+        <div className="glass stat-card">
           <div className="stat-info">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <h3>In Progress</h3>
-              {statusFilter === 'IN_PROGRESS' && (
-                <span style={{ fontSize: 11, background: 'rgba(79, 70, 229, 0.15)', color: '#4F46E5', padding: '2px 6px', borderRadius: 6, fontWeight: 600 }}>Active</span>
-              )}
-            </div>
+            <h3>In Progress</h3>
             <p>{stats.inProgress}</p>
           </div>
           <div className="stat-icon" style={{ background: 'rgba(79, 70, 229, 0.1)' }}>
@@ -250,24 +208,9 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div 
-          className="glass stat-card"
-          onClick={() => handleKpiClick('DONE')}
-          style={{ 
-            cursor: 'pointer', 
-            transition: 'all 0.2s ease',
-            borderColor: statusFilter === 'DONE' ? 'var(--success)' : 'var(--border-color)',
-            boxShadow: statusFilter === 'DONE' ? '0 0 0 2px rgba(16, 185, 129, 0.4)' : undefined
-          }}
-          title="Click to filter by Resolved"
-        >
+        <div className="glass stat-card">
           <div className="stat-info">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <h3>Resolved</h3>
-              {statusFilter === 'DONE' && (
-                <span style={{ fontSize: 11, background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', padding: '2px 6px', borderRadius: 6, fontWeight: 600 }}>Active</span>
-              )}
-            </div>
+            <h3>Resolved</h3>
             <p>{stats.resolved}</p>
           </div>
           <div className="stat-icon" style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
@@ -458,37 +401,6 @@ export default function Dashboard() {
             </select>
           </div>
 
-          {/* Priority Filter */}
-          <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
-              Priority
-            </label>
-            <select
-              value={priorityFilter}
-              onChange={(e) => {
-                setPriorityFilter(e.target.value);
-                setPage(1);
-              }}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--border-color)',
-                background: '#FFFFFF',
-                fontSize: 13,
-                color: 'var(--text-main)',
-                fontWeight: 500,
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="ALL">All Priorities</option>
-              <option value="High">High</option>
-              <option value="Medium">Medium</option>
-              <option value="Low">Low</option>
-            </select>
-          </div>
-
           {/* Sort Order Filter */}
           <div>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
@@ -531,17 +443,16 @@ export default function Dashboard() {
         
         <div className="table-card">
           <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table style={{ width: '100%', minWidth: 1050, tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', minWidth: 1000, tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '22%' }}>Title & Desc</th>
-                  <th style={{ width: '12%' }}>Category</th>
-                  <th style={{ width: '14%' }}>Location / Phase</th>
-                  <th style={{ width: '14%' }}>Address</th>
-                  <th style={{ width: '13%' }}>Resident</th>
-                  <th style={{ width: '9%' }}>Priority</th>
-                  <th style={{ width: '8%' }}>Status</th>
-                  <th style={{ width: '8%' }}>Actions</th>
+                  <th style={{ width: '25%' }}>Title & Desc</th>
+                  <th style={{ width: '14%' }}>Category</th>
+                  <th style={{ width: '16%' }}>Location / Phase</th>
+                  <th style={{ width: '16%' }}>Address</th>
+                  <th style={{ width: '15%' }}>Resident</th>
+                  <th style={{ width: '7%' }}>Status</th>
+                  <th style={{ width: '7%' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -556,14 +467,13 @@ export default function Dashboard() {
                       <td><div className="skeleton skeleton-row" style={{ width: '70%' }}></div></td>
                       <td><div className="skeleton skeleton-row" style={{ width: '90%' }}></div></td>
                       <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
-                      <td><div className="skeleton skeleton-row" style={{ width: 60, borderRadius: 12 }}></div></td>
                       <td><div className="skeleton skeleton-row" style={{ width: 70, borderRadius: 12 }}></div></td>
                       <td><div className="skeleton skeleton-row" style={{ width: 80 }}></div></td>
                     </tr>
                   ))
                 ) : complaints.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)' }}>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)' }}>
                       <AlertCircle size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px', display: 'block', opacity: 0.6 }} />
                       <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
                         No complaints found
@@ -640,20 +550,6 @@ export default function Dashboard() {
                             {item.user.phone}
                           </div>
                         )}
-                      </td>
-                      <td>
-                        <span style={{
-                          padding: '3px 8px',
-                          borderRadius: 6,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          display: 'inline-block',
-                          background: item.priority === 'High' ? 'rgba(239, 68, 68, 0.1)' : item.priority === 'Low' ? 'rgba(100, 116, 139, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                          color: item.priority === 'High' ? 'var(--danger)' : item.priority === 'Low' ? '#64748B' : 'var(--warning)',
-                          border: `1px solid ${item.priority === 'High' ? 'rgba(239, 68, 68, 0.2)' : item.priority === 'Low' ? 'rgba(100, 116, 139, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`
-                        }}>
-                          {item.priority || 'Medium'}
-                        </span>
                       </td>
                       <td>
                         <span className={`badge ${
