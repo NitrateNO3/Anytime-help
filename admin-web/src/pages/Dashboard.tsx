@@ -443,16 +443,16 @@ export default function Dashboard() {
         
         <div className="table-card">
           <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table style={{ width: '100%', minWidth: 1000, tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', minWidth: 1100, tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '25%' }}>Title & Desc</th>
-                  <th style={{ width: '14%' }}>Category</th>
-                  <th style={{ width: '16%' }}>Location / Phase</th>
-                  <th style={{ width: '16%' }}>Address</th>
-                  <th style={{ width: '15%' }}>Resident</th>
-                  <th style={{ width: '7%' }}>Status</th>
-                  <th style={{ width: '7%' }}>Actions</th>
+                  <th style={{ width: '23%' }}>Title & Desc</th>
+                  <th style={{ width: '13%' }}>Category</th>
+                  <th style={{ width: '15%' }}>Location / Phase</th>
+                  <th style={{ width: '15%' }}>Address</th>
+                  <th style={{ width: '13%' }}>Resident</th>
+                  <th style={{ width: '10%', minWidth: 105, whiteSpace: 'nowrap' }}>Status</th>
+                  <th style={{ width: '11%', minWidth: 140, whiteSpace: 'nowrap' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -551,7 +551,7 @@ export default function Dashboard() {
                           </div>
                         )}
                       </td>
-                      <td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
                         <span className={`badge ${
                           item.status === 'PENDING' ? 'pending' : 
                           item.status === 'IN_PROGRESS' ? 'progress' : 'resolved'
@@ -559,8 +559,8 @@ export default function Dashboard() {
                           {item.status.replace('_', ' ')}
                         </span>
                       </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                           <select 
                             value={item.status}
                             onChange={(e) => updateStatus(item._id, e.target.value)}
@@ -573,7 +573,8 @@ export default function Dashboard() {
                               outline: 'none',
                               cursor: 'pointer',
                               fontSize: '12px',
-                              fontWeight: '500'
+                              fontWeight: '500',
+                              minWidth: '95px'
                             }}
                           >
                             <option value="PENDING">Pending</option>
@@ -582,7 +583,7 @@ export default function Dashboard() {
                           </select>
                           <button 
                             onClick={() => deleteComplaint(item._id)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6 }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
                             onMouseOut={(e) => e.currentTarget.style.background = 'none'}
                             title="Delete Complaint"
