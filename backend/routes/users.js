@@ -75,17 +75,38 @@ router.get('/residents', auth, async (req, res) => {
     if (req.user.role !== 'Admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const { page, limit, phase } = req.query;
+    const { page, limit, phase, search, relation } = req.query;
     let query = { role: 'Resident' };
+    const andConditions = [];
 
     if (phase && phase !== 'All Groups (Show Everything)') {
       if (phase === 'Sushant Lok 2 - C,D,E') {
-        query.$or = [{ phase: 'Sushant Lok 2 - C,D,E' }, { phase: 'Sushant Lok 2 Option 1' }];
+        andConditions.push({ $or: [{ phase: 'Sushant Lok 2 - C,D,E' }, { phase: 'Sushant Lok 2 Option 1' }] });
       } else if (phase === 'Sushant Lok 2 - F,G') {
-        query.$or = [{ phase: 'Sushant Lok 2 - F,G' }, { phase: 'Sushant Lok 2 Option 2' }];
+        andConditions.push({ $or: [{ phase: 'Sushant Lok 2 - F,G' }, { phase: 'Sushant Lok 2 Option 2' }] });
       } else {
-        query.phase = phase;
+        andConditions.push({ phase: phase });
       }
+    }
+
+    if (relation && relation !== 'ALL' && relation !== 'All Relations') {
+      andConditions.push({ relation: relation });
+    }
+
+    if (search && search.trim()) {
+      const s = search.trim();
+      andConditions.push({
+        $or: [
+          { name: { $regex: s, $options: 'i' } },
+          { phone_number: { $regex: s, $options: 'i' } },
+          { address: { $regex: s, $options: 'i' } },
+          { phase: { $regex: s, $options: 'i' } }
+        ]
+      });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     if (page && limit) {
