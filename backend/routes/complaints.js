@@ -76,26 +76,56 @@ router.post('/', auth, async (req, res) => {
 // GET /api/complaints
 router.get('/', auth, async (req, res) => {
   try {
-    const { departmentId, page, limit, search, category, status } = req.query;
+    const { departmentId, page, limit, search, category, status, phase, priority, sortOrder } = req.query;
     let query = {};
     if (departmentId) {
       query.department = departmentId;
     }
 
-    if (category) {
+    if (category && category !== 'ALL') {
       query.category = category;
     }
 
-    if (status) {
-      query.status = status;
+    if (status && status !== 'ALL') {
+      if (status === 'DONE' || status === 'RESOLVED') {
+        query.status = { $in: ['DONE', 'RESOLVED'] };
+      } else {
+        query.status = status;
+      }
     }
 
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { location: { $regex: search, $options: 'i' } }
+    if (phase && phase !== 'ALL') {
+      query.phase = { $regex: new RegExp(phase.trim(), 'i') };
+    }
+
+    if (priority && priority !== 'ALL') {
+      query.priority = priority;
+    }
+
+    if (search && search.trim()) {
+      const s = search.trim();
+      const orConditions = [
+        { title: { $regex: s, $options: 'i' } },
+        { description: { $regex: s, $options: 'i' } },
+        { location: { $regex: s, $options: 'i' } },
+        { address: { $regex: s, $options: 'i' } }
       ];
+
+      try {
+        const matchingUsers = await User.find({ 
+          $or: [
+            { name: { $regex: s, $options: 'i' } },
+            { phone: { $regex: s, $options: 'i' } }
+          ]
+        }).select('_id');
+        if (matchingUsers.length > 0) {
+          orConditions.push({ user: { $in: matchingUsers.map(u => u._id) } });
+        }
+      } catch (e) {
+        // Continue if user query fails
+      }
+
+      query.$or = orConditions;
     }
 
     // If Resident, only show their own complaints (duplicates won't show in their list)
@@ -112,7 +142,10 @@ router.get('/', auth, async (req, res) => {
       }
     }
     
-    let complaintsQuery = Complaint.find(query).populate('user', 'name').sort({ created_at: -1 });
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+    let complaintsQuery = Complaint.find(query)
+      .populate('user', 'name phone')
+      .sort({ created_at: sortDirection });
     
     if (page && limit) {
       const pageNum = parseInt(page, 10);
@@ -122,9 +155,13 @@ router.get('/', auth, async (req, res) => {
       complaintsQuery = complaintsQuery.skip(startIndex).limit(limitNum);
       const complaints = await complaintsQuery;
       const total = await Complaint.countDocuments(query);
-      const pending = await Complaint.countDocuments({ ...query, status: 'PENDING' });
-      const inProgress = await Complaint.countDocuments({ ...query, status: 'IN_PROGRESS' });
-      const resolved = await Complaint.countDocuments({ ...query, status: { $in: ['RESOLVED', 'DONE'] } });
+
+      // KPI stats: compute across non-status filters so status counts remain accurate
+      let statsQuery = { ...query };
+      delete statsQuery.status;
+      const pending = await Complaint.countDocuments({ ...statsQuery, status: 'PENDING' });
+      const inProgress = await Complaint.countDocuments({ ...statsQuery, status: 'IN_PROGRESS' });
+      const resolved = await Complaint.countDocuments({ ...statsQuery, status: { $in: ['RESOLVED', 'DONE'] } });
       const hasMore = startIndex + complaints.length < total;
       
       return res.json({ complaints, total, hasMore, stats: { pending, inProgress, resolved } });
