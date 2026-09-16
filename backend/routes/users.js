@@ -90,7 +90,25 @@ router.get('/residents', auth, async (req, res) => {
     }
 
     if (relation && relation !== 'ALL' && relation !== 'All Relations') {
-      andConditions.push({ relation: relation });
+      if (relation.toLowerCase() === 'owner') {
+        andConditions.push({
+          $or: [
+            { relation: { $regex: /^(owner|owned)$/i } },
+            { relation: null },
+            { relation: { $exists: false } },
+            { relation: '' }
+          ]
+        });
+      } else if (relation.toLowerCase() === 'rented') {
+        andConditions.push({
+          $or: [
+            { relation: { $regex: /rent/i } },
+            { relation: { $regex: /tenant/i } }
+          ]
+        });
+      } else {
+        andConditions.push({ relation: { $regex: new RegExp(relation.trim(), 'i') } });
+      }
     }
 
     if (search && search.trim()) {

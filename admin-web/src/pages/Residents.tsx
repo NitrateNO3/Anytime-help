@@ -298,7 +298,7 @@ export default function Residents() {
             >
               <option value="ALL">All Relations</option>
               <option value="Owner">Owner</option>
-              <option value="Rented">Rented / Tenant</option>
+              <option value="Rented">Rented</option>
             </select>
           </div>
         </div>
@@ -385,10 +385,10 @@ export default function Residents() {
                         borderRadius: 12, 
                         fontSize: 12, 
                         fontWeight: 600,
-                        background: r.relation === 'Rented' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                        color: r.relation === 'Rented' ? 'var(--warning)' : 'var(--success)'
+                        background: (r.relation && /rent|tenant/i.test(r.relation)) ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)',
+                        color: (r.relation && /rent|tenant/i.test(r.relation)) ? 'var(--warning)' : 'var(--success)'
                       }}>
-                        {r.relation || 'Owner'}
+                        {(r.relation && /rent|tenant/i.test(r.relation)) ? 'Rented' : 'Owner'}
                       </span>
                     </td>
                     <td style={{ padding: '16px', color: 'var(--text-muted)', fontSize: 13 }}>
