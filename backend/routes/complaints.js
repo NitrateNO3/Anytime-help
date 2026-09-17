@@ -137,8 +137,14 @@ router.get('/', auth, async (req, res) => {
       if (req.user.assigned_category) {
         query.category = req.user.assigned_category;
       }
-      if (user && user.phase) {
-        query.phase = user.phase;
+      if (user && user.phase && user.phase !== 'All' && user.phase !== 'Universal' && user.phase !== 'All Groups' && user.phase !== 'All Phases') {
+        if (user.phase === 'Sushant Lok 2 - C,D,E' || user.phase === 'Sushant Lok 2 Option 1') {
+          query.$or = [{ phase: 'Sushant Lok 2 - C,D,E' }, { phase: 'Sushant Lok 2 Option 1' }];
+        } else if (user.phase === 'Sushant Lok 2 - F,G' || user.phase === 'Sushant Lok 2 Option 2') {
+          query.$or = [{ phase: 'Sushant Lok 2 - F,G' }, { phase: 'Sushant Lok 2 Option 2' }];
+        } else {
+          query.phase = user.phase;
+        }
       }
     }
     

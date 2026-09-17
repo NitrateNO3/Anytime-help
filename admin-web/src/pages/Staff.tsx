@@ -55,6 +55,7 @@ export default function Staff() {
 
   // Group blocks together into a single option for each entity
   const entityBlocks: any = {
+    'All Groups (Universal)': ['All Blocks (Entire Society)'],
     'Sushant Lok 2 - C,D,E': ['C, D, E'],
     'Sushant Lok 2 - F,G': ['F, G'],
     'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
@@ -109,18 +110,20 @@ export default function Staff() {
 
     try {
       const token = localStorage.getItem('adminToken');
-      const staffName = `${selectedEntity}: Block ${selectedBlock}`;
+      const isUniversal = selectedEntity === 'All Groups (Universal)' || selectedEntity === 'Universal';
+      const staffName = isUniversal ? 'Universal: All Groups & Blocks' : `${selectedEntity}: Block ${selectedBlock}`;
+      const staffPhase = isUniversal ? 'Universal' : selectedEntity;
       
       await axios.post(`${API_URL}/users/staff`, {
         name: staffName,
         phone_number: phoneNumber,
         assigned_category: category,
-        phase: selectedEntity
+        phase: staffPhase
       }, {
         headers: { 'x-auth-token': token }
       });
       
-      toast.success('Staff account assigned successfully!', { id: loadingToast });
+      toast.success(isUniversal ? 'Universal staff assigned successfully for all groups!' : 'Staff account assigned successfully!', { id: loadingToast });
       
       // Reset form
       setPhoneNumber('');
@@ -233,7 +236,8 @@ export default function Staff() {
               }}
               style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
             >
-              <option value="All">All Groups</option>
+              <option value="All">All Groups (Show Everything)</option>
+              <option value="Universal">🌐 Universal Staff Only</option>
               <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
               <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
               <option value="Sushant Lok 3">Sushant Lok 3</option>
@@ -270,9 +274,30 @@ export default function Staff() {
                 ) : (
                   staff.map(member => {
                     const displayName = member.name || 'Unnamed Staff';
+                    const isUniversal = member.phase === 'Universal' || member.phase === 'All' || displayName.toLowerCase().includes('universal');
                     return (
                       <tr key={member._id}>
-                        <td style={{ fontWeight: 600 }}>{displayName}</td>
+                        <td style={{ fontWeight: 600 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>{displayName}</span>
+                            {isUniversal && (
+                              <span style={{ 
+                                background: '#10B98115', 
+                                color: '#059669', 
+                                border: '1px solid #10B98140', 
+                                padding: '2px 8px', 
+                                borderRadius: '12px', 
+                                fontSize: '11px', 
+                                fontWeight: 700,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                🌐 UNIVERSAL
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td style={{ color: 'var(--text-muted)' }}>{member.phone_number}</td>
                         <td>
                           <span style={{ 
@@ -337,7 +362,9 @@ export default function Staff() {
               <div style={{ background: 'rgba(255, 99, 71, 0.1)', padding: 12, borderRadius: 12 }}>
                 <UserPlus size={28} color="var(--primary)" />
               </div>
-              <h2 style={{ fontSize: 24, fontWeight: 700 }}>Assign Staff to Group</h2>
+              <h2 style={{ fontSize: 24, fontWeight: 700 }}>
+                {selectedEntity === 'All Groups (Universal)' ? 'Assign Universal Staff' : 'Assign Staff to Group'}
+              </h2>
             </div>
 
             <form onSubmit={handleCreateStaff}>
@@ -359,33 +386,58 @@ export default function Staff() {
                   }}
                 >
                   {Object.keys(entityBlocks).map(entity => (
-                    <option key={entity} value={entity}>{entity}</option>
+                    <option key={entity} value={entity}>
+                      {entity === 'All Groups (Universal)' ? '🌐 All Groups (Universal - Entire Society)' : entity}
+                    </option>
                   ))}
                 </select>
             </div>
 
-            <div className="input-group">
-              <label>Select Block</label>
-              <select 
-                  value={selectedBlock}
-                  onChange={(e) => setSelectedBlock(e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    background: 'white', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    color: 'var(--text-main)',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {entityBlocks[selectedEntity]?.map((blk: string) => (
-                    <option key={blk} value={blk}>Block {blk}</option>
-                  ))}
-                </select>
-            </div>
+            {selectedEntity === 'All Groups (Universal)' ? (
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderRadius: '12px',
+                padding: '16px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '12px'
+              }}>
+                <span style={{ fontSize: '24px', lineHeight: 1 }}>🌐</span>
+                <div>
+                  <strong style={{ color: '#2563EB', display: 'block', fontSize: '14px', marginBottom: '4px' }}>
+                    Universal Society Access
+                  </strong>
+                  <span style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.4 }}>
+                    Yeh staff member ek hi baar me puri society ke liye add ho jayega. Inhe sabhi groups/phases aur blocks ki tickets/complaints milengi.
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="input-group">
+                <label>Select Block</label>
+                <select 
+                    value={selectedBlock}
+                    onChange={(e) => setSelectedBlock(e.target.value)}
+                    style={{ 
+                      width: '100%', 
+                      padding: '14px 16px', 
+                      background: 'white', 
+                      border: '1px solid var(--border-color)', 
+                      borderRadius: '12px',
+                      fontSize: '15px',
+                      color: 'var(--text-main)',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {entityBlocks[selectedEntity]?.map((blk: string) => (
+                      <option key={blk} value={blk}>Block {blk}</option>
+                    ))}
+                  </select>
+              </div>
+            )}
             
             <div className="input-group">
               <label>Phone Number</label>
@@ -432,7 +484,7 @@ export default function Staff() {
             </div>
 
             <button type="submit" className="btn-primary" disabled={isCreating} style={{ marginTop: '16px', height: '52px' }}>
-              {isCreating ? 'Assigning Staff...' : 'Assign Staff'}
+              {isCreating ? 'Assigning Staff...' : (selectedEntity === 'All Groups (Universal)' ? 'Assign Universal Staff (All Groups)' : 'Assign Staff')}
             </button>
           </form>
         </div>

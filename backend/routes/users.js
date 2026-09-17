@@ -15,8 +15,15 @@ router.get('/staff', auth, async (req, res) => {
     const { page, limit, phase } = req.query;
     let query = { role: 'Staff' };
 
-    if (phase && phase !== 'All') {
-      if (phase === 'Sushant Lok 2 - C,D,E') {
+    if (phase && phase !== 'All' && phase !== 'All Groups (Show Everything)') {
+      if (phase === 'Universal' || phase === 'Universal Staff Only') {
+        query.$or = [
+          { phase: 'Universal' },
+          { phase: 'All' },
+          { phase: 'All Groups' },
+          { name: { $regex: 'universal', $options: 'i' } }
+        ];
+      } else if (phase === 'Sushant Lok 2 - C,D,E') {
         query.$or = [
           { phase: 'Sushant Lok 2 - C,D,E' },
           { phase: 'Sushant Lok 2 Option 1' },
