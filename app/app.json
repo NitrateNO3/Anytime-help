@@ -15,9 +15,13 @@
     "ios": {
       "icon": "./assets/images/logo.png",
       "bundleIdentifier": "com.princesani.app",
-      "buildNumber": "3",
+      "buildNumber": "4",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "Anytime Help requires your location while using the app to identify your residential society and accurately pinpoint civic issues (such as street light faults or water leakages) when you report a complaint.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Anytime Help uses your location to identify your residential society and accurately pinpoint civic issues (such as street light faults or water leakages) when you report a complaint.",
+        "NSCameraUsageDescription": "Anytime Help requires camera access so you can take and attach real-time photos of issues (such as broken tiles or electrical repairs) when reporting a complaint.",
+        "NSPhotoLibraryUsageDescription": "Anytime Help requires photo library access to allow you to select and upload photos or evidence related to your civic complaints and maintenance requests."
       }
     },
     "android": {
@@ -60,14 +64,15 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location to mark the complaint location."
+          "locationWhenInUsePermission": "Anytime Help requires your location while using the app to identify your residential society and accurately pinpoint civic issues (such as street light faults or water leakages) when you report a complaint.",
+          "locationAlwaysAndWhenInUsePermission": "Anytime Help uses your location to identify your residential society and accurately pinpoint civic issues (such as street light faults or water leakages) when you report a complaint."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "The app accesses your photos to let you upload complaint images.",
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera to take complaint photos."
+          "photosPermission": "Anytime Help requires photo library access to allow you to select and upload photos or evidence related to your civic complaints and maintenance requests.",
+          "cameraPermission": "Anytime Help requires camera access so you can take and attach real-time photos of issues (such as broken tiles or electrical repairs) when reporting a complaint."
         }
       ]
     ],
