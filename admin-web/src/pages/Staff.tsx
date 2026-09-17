@@ -410,7 +410,7 @@ export default function Staff() {
                     Universal Society Access
                   </strong>
                   <span style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.4 }}>
-                    Yeh staff member ek hi baar me puri society ke liye add ho jayega. Inhe sabhi groups/phases aur blocks ki tickets/complaints milengi.
+                    Staff member will handle service requests and complaints from all blocks and groups across the entire society.
                   </span>
                 </div>
               </div>
