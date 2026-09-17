@@ -217,8 +217,11 @@ router.post('/send-otp', async (req, res) => {
       const response = await axios.post(
         'https://www.fast2sms.com/dev/bulkV2',
         {
-          route: 'q',
-          message: `Your Anytime Help verification code is ${otp}. Valid for 5 minutes.`,
+          route: 'dlt',
+          sender_id: 'ANTHLP',
+          message: '225661',
+          variables_values: String(otp),
+          flash: 0,
           numbers: phone_number,
         },
         {
@@ -229,10 +232,11 @@ router.post('/send-otp', async (req, res) => {
       );
 
       if (response.data.return === false) {
-         console.warn("Fast2SMS API returned false. Fallback to Dev Mode. OTP:", otp);
+         console.warn("Fast2SMS DLT API returned false. Fallback to Dev Mode. OTP:", otp, response.data);
          return res.json({ msg: `Test Mode OTP: ${otp} (Fast2SMS failed)`, dev_otp: otp });
       }
 
+      console.log("Fast2SMS DLT sent successfully:", response.data);
       res.json({ msg: 'OTP sent successfully to your mobile number' });
     } catch (apiError) {
       console.warn("Fast2SMS API threw an error. Fallback to Dev Mode. OTP:", otp);
