@@ -1,11 +1,13 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { useEffect, useState } from 'react';
+import { Modal, View, Text, TouchableOpacity, Linking, StyleSheet } from 'react-native';
 import { Stack, useRouter, Redirect } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import * as SecureStore from 'expo-secure-store';
 import { io } from 'socket.io-client';
 import axios from 'axios';
+import Constants from 'expo-constants';
 import '../i18n';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -17,8 +19,30 @@ export { ErrorBoundary } from 'expo-router';
 
 export default function RootLayout() {
   const router = useRouter();
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [playStoreUrl, setPlayStoreUrl] = useState('');
+
+  const checkVersion = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/api/config`);
+      const { min_version, play_store_url } = res.data;
+      
+      const currentVersion = Constants.expoConfig?.version || '1.0.0';
+      
+      // Simple version compare assuming semantic versioning like 1.0.2
+      const isOutdated = currentVersion.localeCompare(min_version, undefined, { numeric: true, sensitivity: 'base' }) < 0;
+      
+      if (isOutdated) {
+        setPlayStoreUrl(play_store_url);
+        setShowUpdateModal(true);
+      }
+    } catch (e) {
+      console.error('Error checking version:', e);
+    }
+  };
 
   useEffect(() => {
+    checkVersion();
     console.log('Connecting to socket at:', API_URL);
     const socket = io(API_URL, {
       transports: ['websocket'],
@@ -93,6 +117,72 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack screenOptions={{ headerShown: false }} />
       <Toast />
+      
+      {/* Force Update Modal */}
+      <Modal visible={showUpdateModal} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Update Required</Text>
+            <Text style={styles.modalText}>
+              A new version of Anytime Help is available. Please update your app to the latest version to continue.
+            </Text>
+            <TouchableOpacity 
+              style={styles.updateButton} 
+              onPress={() => Linking.openURL(playStoreUrl)}
+            >
+              <Text style={styles.updateButtonText}>Update Now</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1E293B',
+    marginBottom: 12,
+  },
+  modalText: {
+    fontSize: 15,
+    color: '#475569',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  updateButton: {
+    backgroundColor: '#1D4ED8',
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  updateButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  }
+});

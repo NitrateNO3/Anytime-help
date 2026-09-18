@@ -53,6 +53,7 @@ app.use('/api/banners', require('./routes/banners'));
 app.use('/api/paid-services', require('./routes/paidServices'));
 app.use('/api/service-bookings', require('./routes/serviceBookings'));
 app.use('/api/directory', require('./routes/directory'));
+app.use('/api/config', require('./routes/config'));
 
 const PORT = process.env.PORT || 5000;
 
