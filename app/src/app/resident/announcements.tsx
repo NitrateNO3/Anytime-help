@@ -36,6 +36,9 @@ export default function Announcements() {
         headers: { 'x-auth-token': token }
       });
       setAnnouncements(res.data || []);
+      if (res.data) {
+        await SecureStore.setItemAsync('last_announcements_count', res.data.length.toString());
+      }
     } catch (err) {
       console.log('Error fetching announcements:', err);
     } finally {

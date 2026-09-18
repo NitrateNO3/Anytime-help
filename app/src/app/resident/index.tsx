@@ -6,17 +6,43 @@ import * as SecureStore from 'expo-secure-store';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
+import axios from 'axios';
+
+const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function ResidentHome() {
   const router = useRouter();
   const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useFocusEffect(
     React.useCallback(() => {
       SecureStore.getItemAsync('userData').then((data) => {
         if (data) setUser(JSON.parse(data));
       });
+
+      const fetchUnreadCount = async () => {
+        try {
+          const token = await SecureStore.getItemAsync('userToken');
+          if (token) {
+            const res = await axios.get(`${API_URL}/announcements`, {
+              headers: { 'x-auth-token': token }
+            });
+            const announcements = res.data || [];
+            const lastCountStr = await SecureStore.getItemAsync('last_announcements_count');
+            const lastCount = lastCountStr ? parseInt(lastCountStr, 10) : 0;
+            if (announcements.length > lastCount) {
+              setUnreadCount(announcements.length - lastCount);
+            } else {
+              setUnreadCount(0);
+            }
+          }
+        } catch (e) {
+          console.log('Error fetching unread count:', e);
+        }
+      };
+      fetchUnreadCount();
 
       const onBackPress = () => {
         BackHandler.exitApp();
@@ -101,6 +127,11 @@ export default function ResidentHome() {
           >
             <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
               <Ionicons name="notifications" size={30} color="#2563EB" />
+              {unreadCount > 0 && (
+                <View style={styles.badgeContainer}>
+                  <Text style={styles.badgeText}>{unreadCount}</Text>
+                </View>
+              )}
             </View>
             <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
             <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
@@ -216,6 +247,25 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 14,
+  },
+  badgeContainer: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    minWidth: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   gridCardTitle: {
     fontSize: 15,
