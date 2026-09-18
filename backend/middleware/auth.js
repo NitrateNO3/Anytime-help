@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
-module.exports = function (req, res, next) {
+module.exports = async function (req, res, next) {
   const token = req.header('x-auth-token');
   if (!token) {
     return res.status(401).json({ msg: 'No token, authorization denied' });
@@ -8,6 +9,13 @@ module.exports = function (req, res, next) {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // Validate if the user still exists in the database
+    const user = await User.findById(decoded.user.id);
+    if (!user) {
+      return res.status(401).json({ msg: 'User no longer exists, authorization denied' });
+    }
+
     req.user = decoded.user;
     next();
   } catch (err) {

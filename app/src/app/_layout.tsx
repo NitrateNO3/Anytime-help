@@ -5,6 +5,7 @@ import { Stack, useRouter, Redirect } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import * as SecureStore from 'expo-secure-store';
 import { io } from 'socket.io-client';
+import axios from 'axios';
 import '../i18n';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -60,7 +61,30 @@ export default function RootLayout() {
       }
     });
 
+    // Global Axios Interceptor for 401 Unauthorized responses
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (error.response && error.response.status === 401) {
+          console.log('401 Unauthorized caught globally. Logging out...');
+          await SecureStore.deleteItemAsync('userToken');
+          await SecureStore.deleteItemAsync('userData');
+          Toast.show({
+            type: 'error',
+            text1: 'Session Expired',
+            text2: 'Your account was removed or session expired.'
+          });
+          // Avoid multiple redirects
+          setTimeout(() => {
+            router.replace('/login');
+          }, 100);
+        }
+        return Promise.reject(error);
+      }
+    );
+
     return () => {
+      axios.interceptors.response.eject(interceptor);
       socket.disconnect();
     };
   }, []);
