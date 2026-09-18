@@ -6,6 +6,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -20,12 +21,21 @@ export default function Announcements() {
     useCallback(() => {
       fetchAnnouncements();
 
+      const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
+      socket.on('announcement_changed', () => {
+        fetchAnnouncements();
+      });
+
       const onBackPress = () => {
         router.replace('/resident');
         return true;
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => sub.remove();
+      
+      return () => {
+        sub.remove();
+        socket.disconnect();
+      };
     }, [])
   );
 

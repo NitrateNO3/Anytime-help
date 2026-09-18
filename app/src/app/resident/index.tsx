@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -7,6 +7,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -15,6 +16,7 @@ export default function ResidentHome() {
   const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -44,14 +46,47 @@ export default function ResidentHome() {
       };
       fetchUnreadCount();
 
+      const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
+      socket.on('announcement_changed', () => {
+        fetchUnreadCount();
+      });
+
       const onBackPress = () => {
         BackHandler.exitApp();
         return true;
       };
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => subscription.remove();
+      
+      return () => {
+        subscription.remove();
+        socket.disconnect();
+      };
     }, [])
   );
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (token) {
+        const res = await axios.get(`${API_URL}/announcements`, {
+          headers: { 'x-auth-token': token }
+        });
+        const announcements = res.data || [];
+        const lastCountStr = await SecureStore.getItemAsync('last_announcements_count');
+        const lastCount = lastCountStr ? parseInt(lastCountStr, 10) : 0;
+        if (announcements.length > lastCount) {
+          setUnreadCount(announcements.length - lastCount);
+        } else {
+          setUnreadCount(0);
+        }
+      }
+    } catch (e) {
+      console.log('Error refreshing:', e);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
@@ -90,7 +125,9 @@ export default function ResidentHome() {
         style={styles.bodyScroll}
         contentContainerStyle={styles.gridContentContainer}
         showsVerticalScrollIndicator={false}
-        bounces={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1D4ED8']} />
+        }
       >
         <View style={styles.dashboardGrid}>
           {/* Card 1: Lodge Grievance */}
