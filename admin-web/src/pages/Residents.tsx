@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Home, Trash2, Search, Filter, RotateCcw, X, AlertCircle } from 'lucide-react';
+import { Home, Trash2, Search, Filter, RotateCcw, X, AlertCircle, Plus, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://anytime-help.onrender.com/api';
 
 export default function Residents() {
+  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [residents, setResidents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
@@ -16,6 +17,23 @@ export default function Residents() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  // Form State for Add Resident
+  const [name, setName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [propertyType, setPropertyType] = useState('Owned');
+  const [houseNo, setHouseNo] = useState('');
+  const [phase, setPhase] = useState('Sushant Lok 2 - C,D,E');
+  const [block, setBlock] = useState('C, D, E');
+  const [relation, setRelation] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+
+  const getBlockOptions = (selectedPhase: string) => {
+    if (selectedPhase === 'Sushant Lok 2 - C,D,E') return ['C, D, E'];
+    if (selectedPhase === 'Sushant Lok 2 - F,G') return ['F, G'];
+    if (selectedPhase === 'Sushant Lok 3') return ['A, B, B1, C, D, E, F, G, H'];
+    return [];
+  };
 
   // Debounce search query (best practice: 350ms delay)
   useEffect(() => {
@@ -141,6 +159,54 @@ export default function Residents() {
     ), { duration: Infinity, style: { minWidth: '320px', borderRadius: '12px' } });
   };
 
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !phoneNumber || !houseNo || !phase || !block) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    setIsCreating(true);
+    const loadingToast = toast.loading('Adding resident...');
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      
+      let addressParts = [];
+      if (houseNo) addressParts.push(`House/Flat: ${houseNo}`);
+      if (phase) addressParts.push(phase);
+      if (block) addressParts.push(`Block ${block}`);
+      if (propertyType) addressParts.push(`(${propertyType})`);
+      const combinedAddress = addressParts.join(', ');
+
+      await axios.post(`${API_URL}/users/residents`, {
+        name,
+        phone_number: phoneNumber,
+        phase,
+        address: combinedAddress,
+        property_type: propertyType,
+        relation: relation || propertyType
+      }, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      toast.success('Resident added successfully!', { id: loadingToast });
+      
+      // Reset form
+      setName('');
+      setPhoneNumber('');
+      setHouseNo('');
+      setRelation('');
+      
+      // Auto switch back to list
+      setActiveTab('list');
+    } catch (err: any) {
+      toast.error(err.response?.data?.msg || err.response?.data?.message || 'Failed to add resident', { id: loadingToast });
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <div style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -155,7 +221,37 @@ export default function Residents() {
         </div>
       </div>
 
-      {/* Filter Toolbar Card */}
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 16, borderBottom: '1px solid var(--border-color)', paddingBottom: 16, marginBottom: 24 }}>
+        <button 
+          onClick={() => setActiveTab('list')}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+            background: activeTab === 'list' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'list' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'list' ? 'none' : '1px solid var(--border-color)',
+            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+          }}
+        >
+          <Users size={18} /> Directory List
+        </button>
+        <button 
+          onClick={() => { setActiveTab('create'); }}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+            background: activeTab === 'create' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
+            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+          }}
+        >
+          <Plus size={18} /> Add Resident
+        </button>
+      </div>
+
+      {activeTab === 'list' ? (
+        <>
+          {/* Filter Toolbar Card */}
       <div className="card" style={{ padding: '20px 24px', marginBottom: '24px', borderRadius: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -438,6 +534,131 @@ export default function Residents() {
           </div>
         )}
       </div>
+        </>
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+          <div className="card" style={{ padding: '32px', width: '100%', maxWidth: '600px', borderRadius: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '24px' }}>
+              <div style={{ background: 'rgba(29, 78, 216, 0.1)', padding: 12, borderRadius: 12 }}>
+                <Plus size={24} color="var(--primary)" />
+              </div>
+              <div>
+                <h2 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text-main)' }}>Add New Resident</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Add a resident manually so they can login directly.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreate}>
+              <div className="input-group" style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Full Name *</label>
+                <input 
+                  type="text" 
+                  value={name} 
+                  onChange={(e) => setName(e.target.value)} 
+                  required
+                  placeholder="e.g. John Doe"
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
+                />
+              </div>
+
+              <div className="input-group" style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Phone Number *</label>
+                <div style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={{ padding: '12px', background: '#F1F5F9', border: '1px solid var(--border-color)', borderRight: 'none', borderRadius: '8px 0 0 8px', color: 'var(--text-muted)', fontWeight: 600 }}>+91</span>
+                  <input 
+                    type="text" 
+                    value={phoneNumber} 
+                    onChange={(e) => setPhoneNumber(e.target.value)} 
+                    required
+                    placeholder="10-digit number"
+                    maxLength={10}
+                    style={{ flex: 1, padding: '12px', borderRadius: '0 8px 8px 0', border: '1px solid var(--border-color)', outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                <div className="input-group">
+                  <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Property Type *</label>
+                  <select 
+                    value={propertyType} 
+                    onChange={(e) => setPropertyType(e.target.value)}
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
+                  >
+                    <option value="Owned">Owned</option>
+                    <option value="Rented">Rented</option>
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>House / Flat No. *</label>
+                  <input 
+                    type="text" 
+                    value={houseNo} 
+                    onChange={(e) => setHouseNo(e.target.value)} 
+                    required
+                    placeholder="e.g. A-101"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              <div className="input-group" style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Phase (Entity / Group) *</label>
+                <select 
+                  value={phase} 
+                  onChange={(e) => {
+                    const newPhase = e.target.value;
+                    setPhase(newPhase);
+                    const blocks = getBlockOptions(newPhase);
+                    if (blocks.length > 0) setBlock(blocks[0]);
+                  }}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
+                >
+                  <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
+                  <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
+                  <option value="Sushant Lok 3">Sushant Lok 3</option>
+                </select>
+              </div>
+
+              <div className="input-group" style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Block *</label>
+                <select 
+                  value={block} 
+                  onChange={(e) => setBlock(e.target.value)}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
+                >
+                  {getBlockOptions(phase).map(b => (
+                    <option key={b} value={b}>Block {b}</option>
+                  ))}
+                </select>
+              </div>
+
+              {propertyType === 'Rented' && (
+                <div className="input-group" style={{ marginBottom: 16 }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Relation (Tenant / Family) *</label>
+                  <input 
+                    type="text" 
+                    value={relation} 
+                    onChange={(e) => setRelation(e.target.value)} 
+                    required={propertyType === 'Rented'}
+                    placeholder="e.g. Tenant"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
+                  />
+                </div>
+              )}
+              
+              <button 
+                type="submit" 
+                className="btn-primary" 
+                disabled={isCreating} 
+                style={{ width: '100%', marginTop: '16px', padding: '14px', borderRadius: '8px', fontWeight: 600 }}
+              >
+                {isCreating ? 'Adding Resident...' : 'Add Resident'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

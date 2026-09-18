@@ -150,6 +150,48 @@ router.get('/residents', auth, async (req, res) => {
   }
 });
 
+// @route   POST api/users/residents
+// @desc    Create a new resident member
+// @access  Admin Private
+router.post('/residents', auth, async (req, res) => {
+  let { name, phone_number, phase, address, relation, property_type } = req.body;
+
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    if (!phone_number.startsWith('+')) {
+      phone_number = `+91${phone_number}`;
+    }
+
+    let user = await User.findOne({ phone_number });
+    if (user) {
+      return res.status(400).json({ msg: 'User already exists' });
+    }
+
+    user = new User({
+      name,
+      phone_number,
+      role: 'Resident',
+      phase,
+      address,
+      relation: relation || property_type
+    });
+
+    await user.save();
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_created', user);
+    }
+
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   POST api/users/staff
 // @desc    Create a new staff member
 // @access  Admin Private
