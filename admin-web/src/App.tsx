@@ -12,6 +12,7 @@ import PaidStaff from './pages/PaidStaff';
 import ServiceBookings from './pages/ServiceBookings';
 import Directory from './pages/Directory';
 import Members from './pages/Members';
+import SubAdmins from './pages/SubAdmins';
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
             <Route path="service-bookings" element={<ServiceBookings />} />
             <Route path="directory" element={<Directory />} />
             <Route path="members" element={<Members />} />
+            <Route path="subadmins" element={<SubAdmins />} />
           </Route>
         </Routes>
       </BrowserRouter>

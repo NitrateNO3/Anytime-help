@@ -10,6 +10,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loginType, setLoginType] = useState<'Admin' | 'SubAdmin'>('Admin');
   const navigate = useNavigate();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -23,8 +24,8 @@ export default function Login() {
         password
       });
 
-      if (res.data.user.role !== 'Admin') {
-        toast.error('Unauthorized: Admin access only.');
+      if (res.data.user.role !== loginType) {
+        toast.error(`Unauthorized: Please log in using the correct portal.`);
         setLoading(false);
         return;
       }
@@ -32,7 +33,12 @@ export default function Login() {
       localStorage.setItem('adminToken', res.data.token);
       localStorage.setItem('adminUser', JSON.stringify(res.data.user));
       toast.success('Logged in successfully!');
-      navigate('/dashboard');
+      
+      if (loginType === 'SubAdmin') {
+        navigate('/residents');
+      } else {
+        navigate('/dashboard');
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.msg || 'Login failed');
     } finally {
@@ -50,9 +56,24 @@ export default function Login() {
           </div>
 
           <h2 className="login-title" style={{ textAlign: 'left' }}>Welcome Back</h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: '40px', fontSize: '15px' }}>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '30px', fontSize: '15px' }}>
             Enter your credentials to access the admin portal and manage the society.
           </p>
+
+          <div style={{ display: 'flex', gap: 10, marginBottom: 30, background: '#F1F5F9', padding: 6, borderRadius: 12 }}>
+            <button
+              onClick={() => setLoginType('Admin')}
+              style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: loginType === 'Admin' ? 'white' : 'transparent', color: loginType === 'Admin' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 700, cursor: 'pointer', boxShadow: loginType === 'Admin' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+            >
+              Super Admin
+            </button>
+            <button
+              onClick={() => setLoginType('SubAdmin')}
+              style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: loginType === 'SubAdmin' ? 'white' : 'transparent', color: loginType === 'SubAdmin' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 700, cursor: 'pointer', boxShadow: loginType === 'SubAdmin' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+            >
+              Sub-Admin
+            </button>
+          </div>
 
           <form onSubmit={handleLogin}>
             <div className="input-group">

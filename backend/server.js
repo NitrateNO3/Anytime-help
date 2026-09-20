@@ -46,6 +46,7 @@ io.on('connection', (socket) => {
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/departments', require('./routes/departments'));
 app.use('/api/categories', require('./routes/categories'));
+app.use('/api/subadmins', require('./routes/subadmins'));
 app.use('/api/complaints', require('./routes/complaints'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/announcements', require('./routes/announcements'));

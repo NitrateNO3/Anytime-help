@@ -6,7 +6,9 @@ import logoImg from '../assets/logo.png';
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const adminUser = localStorage.getItem('adminUser');
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSuperAdmin = adminUser?.role === 'Admin';
 
   useEffect(() => {
     if (!adminUser) {
@@ -32,10 +34,13 @@ export default function AdminLayout() {
         </div>
 
         <nav style={{ flex: 1 }}>
-          <Link to="/dashboard" className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}>
-            <LayoutDashboard size={20} />
-            Overview
-          </Link>
+          {isSuperAdmin && (
+            <Link to="/dashboard" className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}>
+              <LayoutDashboard size={20} />
+              Overview
+            </Link>
+          )}
+          
           <Link to="/residents" className={`nav-link ${location.pathname === '/residents' ? 'active' : ''}`}>
             <Home size={20} />
             Residents
@@ -44,23 +49,31 @@ export default function AdminLayout() {
             <Users size={20} />
             Staff Team
           </Link>
-          <Link to="/members" className={`nav-link ${location.pathname === '/members' ? 'active' : ''}`}>
-            <Users size={20} />
-            Committee Members
-          </Link>
 
-          <Link to="/announcements" className={`nav-link ${location.pathname === '/announcements' ? 'active' : ''}`}>
-            <Megaphone size={20} />
-            Announcements
-          </Link>
-          <Link to="/banners" className={`nav-link ${location.pathname === '/banners' ? 'active' : ''}`}>
-            <ImageIcon size={20} />
-            Banners
-          </Link>
-          <Link to="/directory" className={`nav-link ${location.pathname === '/directory' ? 'active' : ''}`}>
-            <BookOpen size={20} />
-            Directory
-          </Link>
+          {isSuperAdmin && (
+            <>
+              <Link to="/members" className={`nav-link ${location.pathname === '/members' ? 'active' : ''}`}>
+                <Users size={20} />
+                Committee Members
+              </Link>
+              <Link to="/subadmins" className={`nav-link ${location.pathname === '/subadmins' ? 'active' : ''}`}>
+                <Users size={20} />
+                Sub-Admins
+              </Link>
+              <Link to="/announcements" className={`nav-link ${location.pathname === '/announcements' ? 'active' : ''}`}>
+                <Megaphone size={20} />
+                Announcements
+              </Link>
+              <Link to="/banners" className={`nav-link ${location.pathname === '/banners' ? 'active' : ''}`}>
+                <ImageIcon size={20} />
+                Banners
+              </Link>
+              <Link to="/directory" className={`nav-link ${location.pathname === '/directory' ? 'active' : ''}`}>
+                <BookOpen size={20} />
+                Directory
+              </Link>
+            </>
+          )}
         </nav>
 
         <div className="nav-link" onClick={handleLogout} style={{ color: 'var(--danger)', marginTop: 'auto' }}>
