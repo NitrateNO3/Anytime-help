@@ -9,7 +9,7 @@ const auth = require('../middleware/auth');
 // @access  Admin Private
 router.get('/staff', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
+    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     const { page, limit, phase } = req.query;
@@ -79,7 +79,7 @@ router.get('/paid-staff', auth, async (req, res) => {
 // @access  Admin Private
 router.get('/residents', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
+    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     const { page, limit, phase, search, relation } = req.query;
@@ -201,7 +201,7 @@ router.post('/residents', auth, async (req, res) => {
   let { name, phone_number, phase, address, relation, property_type } = req.body;
 
   try {
-    if (req.user.role !== 'Admin') {
+    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -284,7 +284,7 @@ router.post('/staff', auth, async (req, res) => {
   let { name, phone_number, assigned_category, phase } = req.body;
 
   try {
-    if (req.user.role !== 'Admin') {
+    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -375,14 +375,20 @@ router.post('/paid-staff', auth, async (req, res) => {
 // @access  Admin Private
 router.delete('/:id', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
+    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     
-    const user = await User.findByIdAndDelete(req.params.id);
+    const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    if (req.user.role === 'SubAdmin' && (user.role === 'Admin' || user.role === 'SubAdmin' || user.role === 'PaidStaff')) {
+      return res.status(403).json({ message: 'Sub-Admins cannot delete this user type' });
+    }
+
+    await User.findByIdAndDelete(req.params.id);
     
     // Emit live event for remote logout and realtime update
     const io = req.app.get('io');
