@@ -14,7 +14,7 @@ export default function Directory() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', phone: '', order: 0 });
+  const [formData, setFormData] = useState({ name: '', phone: '', role: '', order: 100 });
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
   const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
   const [page, setPage] = useState(1);
@@ -60,20 +60,20 @@ export default function Directory() {
     }
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const openAddModal = () => {
     setEditingId(null);
-    setFormData({ name: '', phone: '', order: 0 });
+    setFormData({ name: '', phone: '', role: '', order: 100 });
     setSelectedPhases(['All']);
     setIsModalOpen(true);
   };
 
   const openEditModal = (contact: any) => {
     setEditingId(contact._id);
-    setFormData({ name: contact.name, phone: contact.phone, order: contact.order || 0 });
+    setFormData({ name: contact.name, phone: contact.phone, role: contact.role || '', order: contact.order || 100 });
     setSelectedPhases(contact.phases && contact.phases.length > 0 ? contact.phases : ['All']);
     setIsModalOpen(true);
   };
@@ -86,7 +86,15 @@ export default function Directory() {
     const config = { headers: { 'x-auth-token': token } };
 
     try {
-      const payload = { ...formData, phases: selectedPhases };
+      let calculatedOrder = 100;
+      if (formData.role === 'President') calculatedOrder = 1;
+      else if (formData.role === 'VP') calculatedOrder = 2;
+      else if (formData.role === 'G.Secretary') calculatedOrder = 3;
+      else if (formData.role === 'Asst. Secretary') calculatedOrder = 4;
+      else if (formData.role === 'Treasurer') calculatedOrder = 5;
+      else if (formData.role === 'Executive') calculatedOrder = 6;
+
+      const payload = { ...formData, order: calculatedOrder, phases: selectedPhases };
 
       if (editingId) {
         await axios.put(`${API_URL}/directory/${editingId}`, payload, config);
@@ -157,6 +165,7 @@ export default function Directory() {
           <thead>
             <tr>
               <th>Name</th>
+              <th>Role / Designation</th>
               <th>Phone</th>
               <th>Actions</th>
             </tr>
@@ -166,18 +175,20 @@ export default function Directory() {
                 [1, 2, 3].map(idx => (
                   <tr key={`skeleton-${idx}`}>
                     <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: '50%' }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: '60%' }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: 60, height: 24, borderRadius: 12 }}></div></td>
                   </tr>
                 ))
               ) : contacts.length === 0 ? (
                 <tr>
-                  <td colSpan={3} style={{ textAlign: 'center', padding: '30px' }}>No contacts found for this filter. Add your first important number!</td>
+                  <td colSpan={4} style={{ textAlign: 'center', padding: '30px' }}>No contacts found for this filter. Add your first important number!</td>
                 </tr>
               ) : (
                 contacts.map(contact => (
                   <tr key={contact._id}>
                     <td><div style={{ fontWeight: 600 }}>{contact.name}</div></td>
+                    <td><div style={{ color: '#6B7280', fontSize: 14 }}>{contact.role || '-'}</div></td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <Phone size={14} color="#6B7280" /> {contact.phone}
@@ -236,7 +247,20 @@ export default function Directory() {
             <form onSubmit={handleSubmit} className="modal-body">
               <div className="form-group">
                 <label className="form-label">Contact Name</label>
-                <input type="text" className="form-control" name="name" value={formData.name} onChange={handleInputChange} required placeholder="e.g., Police, Ambulance" />
+                <input type="text" className="form-control" name="name" value={formData.name} onChange={handleInputChange} required placeholder="e.g., Police, Ambulance, John Doe" />
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">Role / Designation (Optional)</label>
+                <select className="form-control" name="role" value={formData.role} onChange={handleInputChange} style={{ padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', backgroundColor: '#F8FAFC' }}>
+                  <option value="">None (e.g. Police, Ambulance)</option>
+                  <option value="President">President</option>
+                  <option value="VP">VP</option>
+                  <option value="G.Secretary">G.Secretary</option>
+                  <option value="Asst. Secretary">Asst. Secretary</option>
+                  <option value="Treasurer">Treasurer</option>
+                  <option value="Executive">Executive</option>
+                </select>
               </div>
               
               <div className="form-group">
