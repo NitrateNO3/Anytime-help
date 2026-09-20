@@ -174,7 +174,7 @@ export default function ResidentHome() {
                   {t('resident.societyName')}
                 </Text>
               </View>
-              <CopilotStep text="Yahan se aap apna profile, settings manage kar sakte hain aur tutorials dekh sakte hain." order={5} name="profile_avatar">
+              <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल, सेटिंग्स मैनेज कर सकते हैं और ट्यूटोरियल देख सकते हैं।" order={5} name="profile_avatar">
                 <WalkthroughableTouchableOpacity 
                   style={[styles.avatarContainer, { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' }]} 
                   onPress={() => router.push('/member/settings' as any)}
@@ -199,7 +199,7 @@ export default function ResidentHome() {
       >
         <View style={styles.dashboardGrid}>
           {/* Card 1: Lodge Grievance */}
-          <CopilotStep text="Yahan se kisi resident ke liye ek nayi complaint darj karein." order={1} name="raise_complaint">
+          <CopilotStep text="यहाँ से किसी भी निवासी (resident) के लिए एक नई शिकायत दर्ज करें।" order={1} name="raise_complaint">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => router.push('/member/raise' as any)}
@@ -214,7 +214,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 2: All Complaints */}
-          <CopilotStep text="Sabhi resident complaints yahan dekhein aur unhe efficiently resolve karein." order={2} name="all_complaints" active={!user?.permissions || user?.permissions?.includes('All Complaints')}>
+          <CopilotStep text="सभी निवासियों की शिकायतें यहाँ देखें और उनका समाधान करें।" order={2} name="all_complaints" active={!user?.permissions || user?.permissions?.includes('All Complaints')}>
             <WalkthroughableTouchableOpacity 
               style={[styles.gridCard, (!user?.permissions || user?.permissions?.includes('All Complaints')) ? {} : { display: 'none' }]}
               onPress={() => router.push('/member/my-complaints' as any)}
@@ -229,7 +229,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 3: Announcements */}
-          <CopilotStep text="Yahan se naye broadcasts post karein ya important announcements dekhein." order={3} name="announcements" active={!user?.permissions || user?.permissions?.some((p: string) => p.startsWith('Announcements'))}>
+          <CopilotStep text="यहाँ से नई सूचनाएँ पोस्ट करें या ज़रूरी घोषणाएँ देखें।" order={3} name="announcements" active={!user?.permissions || user?.permissions?.some((p: string) => p.startsWith('Announcements'))}>
             <WalkthroughableTouchableOpacity 
               style={[styles.gridCard, (!user?.permissions || user?.permissions?.some((p: string) => p.startsWith('Announcements'))) ? {} : { display: 'none' }]}
               onPress={() => router.push('/member/announcements' as any)}
@@ -249,7 +249,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 4: Resident */}
-          <CopilotStep text="Residents ko dhoondhne aur unse contact karne ke liye community directory use karein." order={4} name="directory" active={!user?.permissions || user?.permissions?.includes('Resident')}>
+          <CopilotStep text="निवासियों को खोजने और उनसे संपर्क करने के लिए कम्युनिटी डायरेक्टरी का उपयोग करें।" order={4} name="directory" active={!user?.permissions || user?.permissions?.includes('Resident')}>
             <WalkthroughableTouchableOpacity 
               style={[styles.gridCard, (!user?.permissions || user?.permissions?.includes('Resident')) ? {} : { display: 'none' }]}
               onPress={() => router.push('/member/search' as any)}

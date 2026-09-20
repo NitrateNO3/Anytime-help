@@ -51,7 +51,7 @@ export default function ResidentLayout() {
             <Ionicons name="home" size={24} color={color} />
           ),
           tabBarButton: (props: any) => (
-            <CopilotStep text="Yeh aapka Home tab hai. Yahan se aap wapas apne dashboard par ja sakte hain." order={6} name="home_tab">
+            <CopilotStep text="यह आपका होम टैब है। यहाँ से आप वापस अपने डैशबोर्ड पर जा सकते हैं।" order={6} name="home_tab">
               <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
             </CopilotStep>
           ),
@@ -66,7 +66,7 @@ export default function ResidentLayout() {
             <Ionicons name="list" size={24} color={color} />
           ),
           tabBarButton: (props: any) => (
-            <CopilotStep text="Is tab se aap apni sabhi complaints jaldi se check kar sakte hain." order={7} name="complaints_tab">
+            <CopilotStep text="इस टैब से आप अपनी सभी शिकायतें (complaints) जल्दी से चेक कर सकते हैं।" order={7} name="complaints_tab">
               <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
             </CopilotStep>
           ),
@@ -81,7 +81,7 @@ export default function ResidentLayout() {
             <Ionicons name="person" size={24} color={color} />
           ),
           tabBarButton: (props: any) => (
-            <CopilotStep text="Yahan se aap apni profile aur settings manage kar sakte hain." order={8} name="profile_tab">
+            <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल और सेटिंग्स मैनेज कर सकते हैं।" order={8} name="profile_tab">
               <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
             </CopilotStep>
           ),
