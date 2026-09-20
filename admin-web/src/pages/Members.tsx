@@ -53,7 +53,7 @@ export default function Members() {
 
   const handleCreateMember = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !phoneNumber || !designation) {
+    if (!name || !phoneNumber || !designation || !memberId) {
       toast.error('Please fill in all required fields');
       return;
     }
@@ -306,13 +306,14 @@ export default function Members() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Member ID (Optional)</label>
+              <label className="form-label">Member ID *</label>
               <input 
                 type="text" 
                 className="form-input" 
                 value={memberId}
                 onChange={e => setMemberId(e.target.value)}
                 placeholder="e.g. SLERWA-101"
+                required
               />
             </div>
 
@@ -377,7 +378,7 @@ export default function Members() {
               <button 
                 type="submit" 
                 className="btn btn-primary"
-                disabled={isCreating || !name || !phoneNumber || phoneNumber.length < 10}
+                disabled={isCreating || !name || !phoneNumber || phoneNumber.length < 10 || !memberId}
                 style={{ flex: 2, display: 'flex', justifyContent: 'center', gap: 8 }}
               >
                 {isCreating ? (

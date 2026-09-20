@@ -248,6 +248,10 @@ router.post('/residents', auth, async (req, res) => {
 router.post('/members', auth, async (req, res) => {
   let { name, phone_number, designation, address, member_id } = req.body;
 
+  if (!member_id) {
+    return res.status(400).json({ message: 'Member ID is required' });
+  }
+
   try {
     if (!checkAccess(req.user, 'Committee Members')) {
       return res.status(403).json({ message: 'Unauthorized' });
