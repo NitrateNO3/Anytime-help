@@ -99,7 +99,7 @@ export default function Announcements() {
       await axios.post(`${API_URL}/announcements`, {
         title: newTitle.trim(),
         message: newDesc.trim(),
-        phases: ['All Groups (Show Everything)'] // Members broadcast to all for now
+        phases: ['All'] // Members broadcast to all
       }, {
         headers: { 'x-auth-token': token }
       });
