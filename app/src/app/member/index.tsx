@@ -204,8 +204,8 @@ export default function ResidentHome() {
             </TouchableOpacity>
           )}
 
-          {/* Card 4: Directory */}
-          {(!user?.permissions || user?.permissions?.includes('Directory')) && (
+          {/* Card 4: Resident */}
+          {(!user?.permissions || user?.permissions?.includes('Resident')) && (
             <TouchableOpacity 
               style={styles.gridCard}
               onPress={() => router.push('/member/search' as any)}
@@ -214,8 +214,8 @@ export default function ResidentHome() {
               <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
                 <Ionicons name="people" size={30} color="#7C3AED" />
               </View>
-              <Text style={styles.gridCardTitle}>{t('resident.directory')}</Text>
-              <Text style={styles.gridCardSub}>{t('resident.directorySub')}</Text>
+              <Text style={styles.gridCardTitle}>Residents</Text>
+              <Text style={styles.gridCardSub}>View community residents</Text>
             </TouchableOpacity>
           )}
         </View>

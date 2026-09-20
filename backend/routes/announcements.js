@@ -13,10 +13,10 @@ router.get('/', auth, async (req, res) => {
     if (req.user.role === 'Resident') {
       const user = await User.findById(req.user.id);
       if (user && user.phase) {
-        query.phases = { $in: [user.phase, 'All'] };
+        query.phases = { $in: [user.phase, 'All', 'Resident'] };
       } else {
-        // If user has no phase, maybe fallback to 'All' or empty
-        query.$or = [{ phases: 'All' }, { phases: { $size: 0 } }];
+        // If user has no phase, fallback to 'All', 'Resident', or empty
+        query.$or = [{ phases: 'All' }, { phases: 'Resident' }, { phases: { $size: 0 } }];
       }
     } else if (req.user.role === 'Staff') {
       const user = await User.findById(req.user.id);
