@@ -172,9 +172,25 @@ export default function Members() {
           </div>
           
           {loading ? (
-            <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <div style={{ width: 40, height: 40, border: '3px solid #f3f3f3', borderTop: '3px solid var(--primary)', borderRadius: '50%', margin: '0 auto 16px', animation: 'spin 1s linear infinite' }}></div>
-              Loading members...
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minHeight: '50vh', justifyContent: 'center', alignItems: 'center' }}>
+              <style>{`
+                @keyframes pulse {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0.5; }
+                }
+                .skeleton-row {
+                  width: 100%;
+                  height: 64px;
+                  background-color: #E2E8F0;
+                  border-radius: 12px;
+                  animation: pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+                }
+              `}</style>
+              <div style={{ width: '100%', maxWidth: '900px', display: 'flex', flexDirection: 'column', gap: 12, padding: '20px 0' }}>
+                {[1, 2, 3, 4, 5].map((item) => (
+                  <div key={item} className="skeleton-row"></div>
+                ))}
+              </div>
             </div>
           ) : members.length === 0 ? (
             <div style={{ padding: '60px 0', textAlign: 'center' }}>
