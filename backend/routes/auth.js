@@ -139,11 +139,11 @@ router.post('/firebase-login', async (req, res) => {
       }
     }
 
-    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category } };
+    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, member_id: user.member_id } };
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category } });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, member_id: user.member_id } });
     });
   } catch (err) {
     console.error(err.message);

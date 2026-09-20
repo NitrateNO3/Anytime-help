@@ -64,7 +64,7 @@ export default function AdminLayout() {
           {hasAccess('Committee Members') && (
             <Link to="/members" className={`nav-link ${location.pathname === '/members' ? 'active' : ''}`}>
               <Users size={20} />
-              Committee Members
+              Members
             </Link>
           )}
           

@@ -18,6 +18,7 @@ export default function Members() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [designation, setDesignation] = useState('Member');
   const [address, setAddress] = useState('');
+  const [memberId, setMemberId] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
@@ -67,7 +68,8 @@ export default function Members() {
         name,
         phone_number: phoneNumber,
         designation,
-        address
+        address,
+        member_id: memberId
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -79,6 +81,7 @@ export default function Members() {
       setPhoneNumber('');
       setDesignation('Member');
       setAddress('');
+      setMemberId('');
       
       // Auto switch back to list
       setActiveTab('list');
@@ -129,8 +132,8 @@ export default function Members() {
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <header className="page-header" style={{ marginBottom: 24 }}>
         <div>
-          <h1 className="page-title">Committee Members</h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>Manage RWA / Committee members for the society.</p>
+          <h1 className="page-title">Members</h1>
+          <p style={{ color: 'var(--text-muted)', marginTop: 8 }}>Manage RWA / society members.</p>
         </div>
       </header>
 
@@ -198,7 +201,7 @@ export default function Members() {
                 <Users size={32} color="var(--text-muted)" />
               </div>
               <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-main)', marginBottom: 8 }}>No Members Found</h3>
-              <p style={{ color: 'var(--text-muted)', maxWidth: 400, margin: '0 auto' }}>You haven't added any committee members yet.</p>
+              <p style={{ color: 'var(--text-muted)', maxWidth: 400, margin: '0 auto' }}>You haven't added any members yet.</p>
               <button 
                 onClick={() => setActiveTab('create')}
                 style={{ marginTop: 24, padding: '10px 20px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}
@@ -213,6 +216,7 @@ export default function Members() {
                   <thead>
                     <tr>
                       <th>Name</th>
+                      <th>Member ID</th>
                       <th>Phone</th>
                       <th>Designation</th>
                       <th>Address</th>
@@ -225,6 +229,7 @@ export default function Members() {
                         <td>
                           <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{member.name}</div>
                         </td>
+                        <td>{member.member_id || '-'}</td>
                         <td>{member.phone_number}</td>
                         <td>
                           <span style={{ background: 'var(--primary-light)', color: 'var(--primary)', padding: '4px 10px', borderRadius: 12, fontSize: 13, fontWeight: 600 }}>
@@ -284,7 +289,7 @@ export default function Members() {
               <UserPlus size={20} color="var(--primary)" />
               Add New Member
             </h2>
-            <p style={{ color: 'var(--text-muted)', marginTop: 4, fontSize: 14 }}>Create an account for an RWA or committee member to login to the app.</p>
+            <p style={{ color: 'var(--text-muted)', marginTop: 4, fontSize: 14 }}>Create an account for a member to login to the app.</p>
           </div>
           
           <form onSubmit={handleCreateMember}>
@@ -297,6 +302,17 @@ export default function Members() {
                 onChange={e => setName(e.target.value)}
                 placeholder="e.g. Rahul Sharma"
                 required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Member ID (Optional)</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                value={memberId}
+                onChange={e => setMemberId(e.target.value)}
+                placeholder="e.g. SLERWA-101"
               />
             </div>
 

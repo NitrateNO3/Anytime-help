@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
   address: { type: String, required: false }, // For Resident/Member
   relation: { type: String, required: false }, // e.g., 'Tenant', 'Family Member'
   designation: { type: String, required: false }, // For Member (e.g. 'President', 'Secretary')
+  member_id: { type: String, required: false }, // For Members
   permissions: { type: [String], default: [] } // For SubAdmin granular access
 }, { timestamps: true });
 

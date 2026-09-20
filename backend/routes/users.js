@@ -246,7 +246,7 @@ router.post('/residents', auth, async (req, res) => {
 // @desc    Create a new member (Committee)
 // @access  Admin Private
 router.post('/members', auth, async (req, res) => {
-  let { name, phone_number, designation, address } = req.body;
+  let { name, phone_number, designation, address, member_id } = req.body;
 
   try {
     if (!checkAccess(req.user, 'Committee Members')) {
@@ -258,17 +258,22 @@ router.post('/members', auth, async (req, res) => {
     }
 
     let user = await User.findOne({ phone_number });
-    if (user) {
-      return res.status(400).json({ msg: 'User already exists' });
+    if (!user) {
+      user = new User({
+        name,
+        phone_number,
+        role: 'Member',
+        designation,
+        address,
+        member_id
+      });
+    } else {
+      user.name = name;
+      user.role = 'Member';
+      user.designation = designation;
+      user.address = address;
+      user.member_id = member_id;
     }
-
-    user = new User({
-      name,
-      phone_number,
-      role: 'Member',
-      designation,
-      address
-    });
 
     await user.save();
     
