@@ -9,9 +9,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
+import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
+
 const API_URL = 'https://anytime-help.onrender.com/api';
 
+const WalkthroughableTouchableOpacity = walkthroughable(TouchableOpacity);
+
 export default function ResidentHome() {
+  const { start } = useCopilot();
   const router = useRouter();
   const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
@@ -22,6 +27,16 @@ export default function ResidentHome() {
     React.useCallback(() => {
       SecureStore.getItemAsync('userData').then((data) => {
         if (data) setUser(JSON.parse(data));
+      });
+
+      SecureStore.getItemAsync('hasViewedResidentTour').then((data) => {
+        if (!data && start) {
+          // Delay starting slightly so UI has time to mount
+          setTimeout(() => {
+            start();
+            SecureStore.setItemAsync('hasViewedResidentTour', 'true');
+          }, 500);
+        }
       });
 
       const fetchUnreadCount = async () => {
@@ -131,17 +146,19 @@ export default function ResidentHome() {
       >
         <View style={styles.dashboardGrid}>
           {/* Card 1: Lodge Grievance */}
-          <TouchableOpacity 
-            style={styles.gridCard}
-            onPress={() => router.push('/resident/raise')}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconCircle, { backgroundColor: '#FEE2E2' }]}>
-              <Ionicons name="megaphone" size={30} color="#EF4444" />
-            </View>
-            <Text style={styles.gridCardTitle}>{t('resident.lodgeGrievance')}</Text>
-            <Text style={styles.gridCardSub}>{t('resident.lodgeGrievanceSub')}</Text>
-          </TouchableOpacity>
+          <CopilotStep text="Face an issue? Lodge complaints seamlessly here." order={1} name="lodge_grievance">
+            <WalkthroughableTouchableOpacity 
+              style={styles.gridCard}
+              onPress={() => router.push('/resident/raise')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons name="megaphone" size={30} color="#EF4444" />
+              </View>
+              <Text style={styles.gridCardTitle}>{t('resident.lodgeGrievance')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.lodgeGrievanceSub')}</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
 
           {/* Card 2: My Complaints */}
           <TouchableOpacity 
@@ -157,35 +174,39 @@ export default function ResidentHome() {
           </TouchableOpacity>
 
           {/* Card 3: Announcements */}
-          <TouchableOpacity 
-            style={styles.gridCard}
-            onPress={() => router.push('/resident/announcements')}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
-              <Ionicons name="notifications" size={30} color="#2563EB" />
-              {unreadCount > 0 && (
-                <View style={styles.badgeContainer}>
-                  <Text style={styles.badgeText}>{unreadCount}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
-            <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
-          </TouchableOpacity>
+          <CopilotStep text="Never miss out! Get instant announcements and important broadcasts directly from the admin." order={2} name="announcements">
+            <WalkthroughableTouchableOpacity 
+              style={styles.gridCard}
+              onPress={() => router.push('/resident/announcements')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="notifications" size={30} color="#2563EB" />
+                {unreadCount > 0 && (
+                  <View style={styles.badgeContainer}>
+                    <Text style={styles.badgeText}>{unreadCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
 
           {/* Card 4: Directory */}
-          <TouchableOpacity 
-            style={styles.gridCard}
-            onPress={() => router.push('/resident/search')}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
-              <Ionicons name="people" size={30} color="#7C3AED" />
-            </View>
-            <Text style={styles.gridCardTitle}>{t('resident.directory')}</Text>
-            <Text style={styles.gridCardSub}>{t('resident.directorySub')}</Text>
-          </TouchableOpacity>
+          <CopilotStep text="Connect with other residents easily and securely through our integrated society directory." order={3} name="directory">
+            <WalkthroughableTouchableOpacity 
+              style={styles.gridCard}
+              onPress={() => router.push('/resident/search')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
+                <Ionicons name="people" size={30} color="#7C3AED" />
+              </View>
+              <Text style={styles.gridCardTitle}>{t('resident.directory')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.directorySub')}</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
         </View>
       </ScrollView>
     </SafeAreaView>

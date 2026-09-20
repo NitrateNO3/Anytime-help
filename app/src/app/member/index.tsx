@@ -9,9 +9,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
+import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
+
 const API_URL = 'https://anytime-help.onrender.com/api';
 
+const WalkthroughableTouchableOpacity = walkthroughable(TouchableOpacity);
+
 export default function ResidentHome() {
+  const { start } = useCopilot();
   const router = useRouter();
   const { t } = useTranslation();
   const [user, setUser] = useState<any>(null);
@@ -22,6 +27,15 @@ export default function ResidentHome() {
     React.useCallback(() => {
       SecureStore.getItemAsync('userData').then((data) => {
         if (data) setUser(JSON.parse(data));
+      });
+
+      SecureStore.getItemAsync('hasViewedMemberTour').then((data) => {
+        if (!data && start) {
+          setTimeout(() => {
+            start();
+            SecureStore.setItemAsync('hasViewedMemberTour', 'true');
+          }, 500);
+        }
       });
 
       const fetchUnreadCount = async () => {
@@ -157,66 +171,74 @@ export default function ResidentHome() {
       >
         <View style={styles.dashboardGrid}>
           {/* Card 1: Lodge Grievance */}
-          <TouchableOpacity 
-            style={styles.gridCard}
-            onPress={() => router.push('/member/raise' as any)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
-              <Ionicons name="add-circle" size={30} color="#2563EB" />
-            </View>
-            <Text style={styles.gridCardTitle}>Raise Complaint</Text>
-            <Text style={styles.gridCardSub}>{t('resident.lodgeGrievanceSub')}</Text>
-          </TouchableOpacity>
+          <CopilotStep text="Raise a new complaint on behalf of a resident here." order={1} name="raise_complaint">
+            <WalkthroughableTouchableOpacity 
+              style={styles.gridCard}
+              onPress={() => router.push('/member/raise' as any)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="add-circle" size={30} color="#2563EB" />
+              </View>
+              <Text style={styles.gridCardTitle}>Raise Complaint</Text>
+              <Text style={styles.gridCardSub}>{t('resident.lodgeGrievanceSub')}</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
 
           {/* Card 2: All Complaints */}
           {(!user?.permissions || user?.permissions?.includes('All Complaints')) && (
-            <TouchableOpacity 
-              style={styles.gridCard}
-              onPress={() => router.push('/member/my-complaints' as any)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.gridIconCircle, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="list" size={30} color="#D97706" />
-              </View>
-              <Text style={styles.gridCardTitle}>All Complaints</Text>
-              <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub')}</Text>
-            </TouchableOpacity>
+            <CopilotStep text="View and track all resident complaints to resolve them efficiently." order={2} name="all_complaints">
+              <WalkthroughableTouchableOpacity 
+                style={styles.gridCard}
+                onPress={() => router.push('/member/my-complaints' as any)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.gridIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                  <Ionicons name="list" size={30} color="#D97706" />
+                </View>
+                <Text style={styles.gridCardTitle}>All Complaints</Text>
+                <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub')}</Text>
+              </WalkthroughableTouchableOpacity>
+            </CopilotStep>
           )}
 
           {/* Card 3: Announcements */}
           {(!user?.permissions || user?.permissions?.some((p: string) => p.startsWith('Announcements'))) && (
-            <TouchableOpacity 
-              style={styles.gridCard}
-              onPress={() => router.push('/member/announcements' as any)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
-                <Ionicons name="notifications" size={30} color="#2563EB" />
-                {unreadCount > 0 && (
-                  <View style={styles.badgeContainer}>
-                    <Text style={styles.badgeText}>{unreadCount}</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
-              <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
-            </TouchableOpacity>
+            <CopilotStep text="Post new broadcasts or view important announcements here." order={3} name="announcements">
+              <WalkthroughableTouchableOpacity 
+                style={styles.gridCard}
+                onPress={() => router.push('/member/announcements' as any)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="notifications" size={30} color="#2563EB" />
+                  {unreadCount > 0 && (
+                    <View style={styles.badgeContainer}>
+                      <Text style={styles.badgeText}>{unreadCount}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
+                <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
+              </WalkthroughableTouchableOpacity>
+            </CopilotStep>
           )}
 
           {/* Card 4: Resident */}
           {(!user?.permissions || user?.permissions?.includes('Resident')) && (
-            <TouchableOpacity 
-              style={styles.gridCard}
-              onPress={() => router.push('/member/search' as any)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
-                <Ionicons name="people" size={30} color="#7C3AED" />
-              </View>
-              <Text style={styles.gridCardTitle}>Residents</Text>
-              <Text style={styles.gridCardSub}>View community residents</Text>
-            </TouchableOpacity>
+            <CopilotStep text="Access the community directory to find and contact residents." order={4} name="directory">
+              <WalkthroughableTouchableOpacity 
+                style={styles.gridCard}
+                onPress={() => router.push('/member/search' as any)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
+                  <Ionicons name="people" size={30} color="#7C3AED" />
+                </View>
+                <Text style={styles.gridCardTitle}>Residents</Text>
+                <Text style={styles.gridCardSub}>View community residents</Text>
+              </WalkthroughableTouchableOpacity>
+            </CopilotStep>
           )}
         </View>
       </ScrollView>

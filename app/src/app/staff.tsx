@@ -14,8 +14,12 @@ const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
+import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
+
+const WalkthroughableTouchableOpacity = walkthroughable(TouchableOpacity);
 
 export default function StaffScreen() {
+  const { start } = useCopilot();
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const [complaints, setComplaints] = useState<any[]>([]);
@@ -39,6 +43,15 @@ export default function StaffScreen() {
         return true;
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      SecureStore.getItemAsync('hasViewedStaffTour').then((data) => {
+        if (!data && start) {
+          setTimeout(() => {
+            start();
+            SecureStore.setItemAsync('hasViewedStaffTour', 'true');
+          }, 500);
+        }
+      });
+      
       return () => sub.remove();
     }, [])
   );
@@ -292,18 +305,22 @@ export default function StaffScreen() {
 
         {/* Filters */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterContainer}>
-          <TouchableOpacity 
-            style={[styles.filterChip, activeTab === 'Tasks' && styles.filterChipActive]}
-            onPress={() => setActiveTab('Tasks')}
-          >
-            <Text style={[styles.filterText, activeTab === 'Tasks' && styles.filterTextActive]}>{t('staff.assignedTasks')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.filterChip, activeTab === 'Broadcasts' && styles.filterChipActive]}
-            onPress={() => setActiveTab('Broadcasts')}
-          >
-            <Text style={[styles.filterText, activeTab === 'Broadcasts' && styles.filterTextActive]}>My Broadcasts</Text>
-          </TouchableOpacity>
+          <CopilotStep text="View and manage all tasks assigned to you here." order={1} name="tasks_tab">
+            <WalkthroughableTouchableOpacity 
+              style={[styles.filterChip, activeTab === 'Tasks' && styles.filterChipActive]}
+              onPress={() => setActiveTab('Tasks')}
+            >
+              <Text style={[styles.filterText, activeTab === 'Tasks' && styles.filterTextActive]}>{t('staff.assignedTasks')}</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
+          <CopilotStep text="Send important updates or announcements to residents." order={2} name="broadcasts_tab">
+            <WalkthroughableTouchableOpacity 
+              style={[styles.filterChip, activeTab === 'Broadcasts' && styles.filterChipActive]}
+              onPress={() => setActiveTab('Broadcasts')}
+            >
+              <Text style={[styles.filterText, activeTab === 'Broadcasts' && styles.filterTextActive]}>My Broadcasts</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
         </ScrollView>
 
         {activeTab === 'Tasks' ? (

@@ -96,7 +96,10 @@ export default function SettingsScreen() {
         <View style={styles.settingsGroup}>
           <Text style={styles.groupTitle}>SUPPORT & ABOUT</Text>
           <View style={styles.cardGroup}>
-            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/tutorial' as any)}>
+            <TouchableOpacity style={styles.settingRow} onPress={async () => {
+              await SecureStore.deleteItemAsync('hasViewedResidentTour');
+              router.replace('/resident');
+            }}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>
                   <Ionicons name="play-circle-outline" size={20} color="#4B5563" />
