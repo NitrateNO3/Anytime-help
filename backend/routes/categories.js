@@ -296,6 +296,9 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
     });
 
     await category.save();
+    if (req.app.get('io')) {
+      req.app.get('io').emit('categories_updated');
+    }
     res.json(category);
   } catch (err) {
     console.error(err.message);
@@ -363,6 +366,9 @@ router.put('/:id', [auth, upload.single('image')], async (req, res) => {
     }
 
     await category.save();
+    if (req.app.get('io')) {
+      req.app.get('io').emit('categories_updated');
+    }
     res.json(category);
   } catch (err) {
     console.error(err.message);
@@ -382,6 +388,9 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     await Category.findByIdAndDelete(req.params.id);
+    if (req.app.get('io')) {
+      req.app.get('io').emit('categories_updated');
+    }
     res.json({ msg: 'Category removed' });
   } catch (err) {
     console.error(err.message);
@@ -407,6 +416,9 @@ router.post('/reorder', auth, async (req, res) => {
 
     if (bulkOps.length > 0) {
       await Category.bulkWrite(bulkOps);
+    }
+    if (req.app.get('io')) {
+      req.app.get('io').emit('categories_updated');
     }
 
     res.json({ msg: 'Categories reordered successfully' });

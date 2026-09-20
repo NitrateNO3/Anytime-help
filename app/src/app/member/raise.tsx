@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import MapView, { Marker, Circle } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { getLocalizedCategoryTitle, getLocalizedSubCategoryTitle } from '../../utils/localization';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -73,6 +74,16 @@ export default function RaiseComplaint() {
       return () => sub.remove();
     }, [step])
   );
+
+  useEffect(() => {
+    const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
+    socket.on('categories_updated', () => {
+      fetchCategories();
+    });
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const fetchCategories = async () => {
     try {
