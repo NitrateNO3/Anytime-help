@@ -96,6 +96,16 @@ export default function SettingsScreen() {
         <View style={styles.settingsGroup}>
           <Text style={styles.groupTitle}>SUPPORT & ABOUT</Text>
           <View style={styles.cardGroup}>
+            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/tutorial' as any)}>
+              <View style={styles.settingRowLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>
+                  <Ionicons name="play-circle-outline" size={20} color="#4B5563" />
+                </View>
+                <Text style={styles.settingText}>App Tutorial</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/resident/privacy')}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>

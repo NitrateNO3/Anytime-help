@@ -13,6 +13,13 @@ export default function Index() {
 
   const checkToken = async () => {
     try {
+      const hasViewedTutorial = await SecureStore.getItemAsync('hasViewedTutorial');
+      
+      if (!hasViewedTutorial) {
+        router.replace('/tutorial' as any);
+        return;
+      }
+
       const token = await SecureStore.getItemAsync('userToken');
       const userData = await SecureStore.getItemAsync('userData');
       
