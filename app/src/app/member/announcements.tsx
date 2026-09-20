@@ -196,7 +196,7 @@ export default function Announcements() {
       <Modal
         visible={createModalVisible}
         transparent={true}
-        animationType="slide"
+        animationType="fade"
         onRequestClose={() => setCreateModalVisible(false)}
       >
         <KeyboardAvoidingView 
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   creatorBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
   creatorText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
   
-  fab: { position: 'absolute', bottom: 24, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: '#1D4ED8', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  fab: { position: 'absolute', bottom: 90, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: '#1D4ED8', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, minHeight: 400 },

@@ -148,7 +148,7 @@ export default function ResidentHome() {
                   {t('resident.societyName')}
                 </Text>
               </View>
-              <CopilotStep text="Manage your profile, settings, and view tutorials from here." order={5} name="profile_avatar">
+              <CopilotStep text="Yahan se aap apna profile, settings manage kar sakte hain aur tutorials dekh sakte hain." order={5} name="profile_avatar">
                 <WalkthroughableTouchableOpacity 
                   style={styles.avatarContainer} 
                   onPress={() => router.push('/resident/settings')}
@@ -173,7 +173,7 @@ export default function ResidentHome() {
       >
         <View style={styles.dashboardGrid}>
           {/* Card 1: Lodge Grievance */}
-          <CopilotStep text="Face an issue? Lodge complaints seamlessly here." order={1} name="lodge_grievance">
+          <CopilotStep text="Koi problem hai? Yahan se asani se complaint darj karein." order={1} name="lodge_grievance">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => router.push('/resident/raise')}
@@ -188,7 +188,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 2: My Complaints */}
-          <CopilotStep text="Track the status of your lodged complaints in real-time." order={2} name="my_complaints">
+          <CopilotStep text="Apni darj ki gayi complaints ka status real-time mein track karein." order={2} name="my_complaints">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => router.push('/resident/my-complaints')}
@@ -203,7 +203,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 3: Announcements */}
-          <CopilotStep text="Never miss out! Get instant announcements and important broadcasts directly from the admin." order={3} name="announcements">
+          <CopilotStep text="Admin se seedhe important announcements aur broadcasts turant payein." order={3} name="announcements">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => router.push('/resident/announcements')}
@@ -223,7 +223,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 4: Directory */}
-          <CopilotStep text="Connect with other residents easily and securely through our integrated society directory." order={4} name="directory">
+          <CopilotStep text="Hamari society directory ke zariye doosre residents se asani se judhein." order={4} name="directory">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => router.push('/resident/search')}

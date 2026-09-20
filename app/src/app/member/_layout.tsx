@@ -51,7 +51,7 @@ export default function MemberLayout() {
             <Ionicons name="home" size={24} color={color} />
           ),
           tabBarButton: (props: any) => (
-            <CopilotStep text="This is your Home tab. Return to your dashboard from here." order={6} name="home_tab">
+            <CopilotStep text="Yeh aapka Home tab hai. Yahan se aap wapas apne dashboard par ja sakte hain." order={6} name="home_tab">
               <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
             </CopilotStep>
           ),
@@ -66,7 +66,7 @@ export default function MemberLayout() {
             <Ionicons name="list" size={24} color={color} />
           ),
           tabBarButton: (props: any) => (
-            <CopilotStep text="Quickly check all society complaints from this tab." order={7} name="complaints_tab">
+            <CopilotStep text="Is tab se aap poori society ki sabhi complaints check kar sakte hain." order={7} name="complaints_tab">
               <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
             </CopilotStep>
           ),
@@ -81,7 +81,7 @@ export default function MemberLayout() {
             <Ionicons name="person" size={24} color={color} />
           ),
           tabBarButton: (props: any) => (
-            <CopilotStep text="Manage your profile and settings here." order={8} name="profile_tab">
+            <CopilotStep text="Yahan se aap apni profile aur settings manage kar sakte hain." order={8} name="profile_tab">
               <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
             </CopilotStep>
           ),

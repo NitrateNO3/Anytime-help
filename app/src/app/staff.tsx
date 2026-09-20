@@ -287,7 +287,7 @@ export default function StaffScreen() {
             <Text style={styles.langToggleText}>{getLanguageDisplayName(i18n.language)}</Text>
           </TouchableOpacity>
           <View style={styles.headerRight}>
-            <CopilotStep text="Manage your profile, language, and tutorial settings here." order={3} name="staff_settings">
+            <CopilotStep text="Yahan se aap apna profile, bhasha, aur tutorial settings manage kar sakte hain." order={3} name="staff_settings">
               <WalkthroughableTouchableOpacity style={styles.iconBtn} onPress={() => router.push('/staff-settings')}>
                 <Ionicons name="settings-outline" size={24} color="#2563EB" />
               </WalkthroughableTouchableOpacity>
@@ -303,7 +303,7 @@ export default function StaffScreen() {
 
         {/* Filters */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterContainer}>
-          <CopilotStep text="View and manage all tasks assigned to you here." order={1} name="tasks_tab">
+          <CopilotStep text="Yahan aap apne sabhi assigned tasks dekh aur manage kar sakte hain." order={1} name="tasks_tab">
             <WalkthroughableTouchableOpacity 
               style={[styles.filterChip, activeTab === 'Tasks' && styles.filterChipActive]}
               onPress={() => setActiveTab('Tasks')}
@@ -311,7 +311,7 @@ export default function StaffScreen() {
               <Text style={[styles.filterText, activeTab === 'Tasks' && styles.filterTextActive]}>{t('staff.assignedTasks')}</Text>
             </WalkthroughableTouchableOpacity>
           </CopilotStep>
-          <CopilotStep text="Send important updates or announcements to residents." order={2} name="broadcasts_tab">
+          <CopilotStep text="Residents ko zaroori updates ya announcements bhejne ke liye iska use karein." order={2} name="broadcasts_tab">
             <WalkthroughableTouchableOpacity 
               style={[styles.filterChip, activeTab === 'Broadcasts' && styles.filterChipActive]}
               onPress={() => setActiveTab('Broadcasts')}
