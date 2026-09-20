@@ -139,7 +139,7 @@ export default function ResidentHome() {
             <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
               <Ionicons name="add-circle" size={30} color="#2563EB" />
             </View>
-            <Text style={styles.gridCardTitle}>{t('resident.raiseComplaint')}</Text>
+            <Text style={styles.gridCardTitle}>Raise Complaint</Text>
             <Text style={styles.gridCardSub}>{t('resident.lodgeGrievanceSub')}</Text>
           </TouchableOpacity>
 

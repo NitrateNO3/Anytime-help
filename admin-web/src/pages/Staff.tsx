@@ -23,6 +23,7 @@ export default function Staff() {
   // Form State
   const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 - C,D,E');
   const [selectedBlock, setSelectedBlock] = useState('C, D, E');
+  const [staffPersonalName, setStaffPersonalName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [category, setCategory] = useState('Electricity');
   const [isCreating, setIsCreating] = useState(false);
@@ -111,11 +112,12 @@ export default function Staff() {
     try {
       const token = localStorage.getItem('adminToken');
       const isUniversal = selectedEntity === 'All Groups (Universal)' || selectedEntity === 'Universal';
-      const staffName = isUniversal ? 'Universal: All Groups & Blocks' : `${selectedEntity}: Block ${selectedBlock}`;
+      const defaultStaffName = isUniversal ? 'Universal: All Groups & Blocks' : `${selectedEntity}: Block ${selectedBlock}`;
       const staffPhase = isUniversal ? 'Universal' : selectedEntity;
+      const finalName = staffPersonalName ? `${staffPersonalName} (${defaultStaffName})` : defaultStaffName;
       
       await axios.post(`${API_URL}/users/staff`, {
-        name: staffName,
+        name: finalName,
         phone_number: phoneNumber,
         assigned_category: category,
         phase: staffPhase
@@ -126,6 +128,7 @@ export default function Staff() {
       toast.success(isUniversal ? 'Universal staff assigned successfully for all groups!' : 'Staff account assigned successfully!', { id: loadingToast });
       
       // Reset form
+      setStaffPersonalName('');
       setPhoneNumber('');
       
       // Auto switch back to list
@@ -368,6 +371,16 @@ export default function Staff() {
             </div>
 
             <form onSubmit={handleCreateStaff}>
+            <div className="input-group">
+              <label>Staff Name (Optional)</label>
+              <input 
+                type="text" 
+                value={staffPersonalName} 
+                onChange={(e) => setStaffPersonalName(e.target.value)} 
+                placeholder="e.g. Ramesh Kumar"
+              />
+            </div>
+            
             <div className="input-group">
               <label>Select Entity (Group)</label>
               <select 
