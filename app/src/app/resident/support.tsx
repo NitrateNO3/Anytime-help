@@ -27,7 +27,7 @@ export default function HelpSupport() {
   );
 
   const handleCall = () => {
-    Linking.openURL('tel:+919876543210');
+    Linking.openURL('tel:+918882004800');
   };
 
   const handleEmail = () => {
@@ -67,7 +67,7 @@ export default function HelpSupport() {
           </View>
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle}>Phone Support</Text>
-            <Text style={styles.cardSub}>+91 98765 43210</Text>
+            <Text style={styles.cardSub}>+91 88820 04800</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
         </TouchableOpacity>
@@ -89,7 +89,7 @@ export default function HelpSupport() {
           </View>
           <View style={styles.cardContent}>
             <Text style={styles.cardTitle}>Office Address</Text>
-            <Text style={styles.cardSub}>Anytime Help HQ, Sector 12, Delhi</Text>
+            <Text style={styles.cardSub}>G-564, Block G, Sushant Lok 2, Sector 57, Gurugram, Haryana 122011</Text>
           </View>
         </View>
 

@@ -11,6 +11,7 @@ import Constants from 'expo-constants';
 import '../i18n';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { CopilotProvider } from 'react-native-copilot';
+import { Ionicons } from '@expo/vector-icons';
 
 const API_URL = 'https://anytime-help.onrender.com';
 
@@ -138,6 +139,26 @@ export default function RootLayout() {
           </View>
         </View>
       </Modal>
+
+      {/* Global WhatsApp FAB */}
+      <TouchableOpacity 
+        style={styles.globalFab}
+        activeOpacity={0.8}
+        onPress={() => {
+          const msg = 'Hello Anytime Help Support, I need some assistance. Could you please help me?';
+          const encodedMsg = encodeURIComponent(msg);
+          const url = `whatsapp://send?phone=918882004800&text=${encodedMsg}`;
+          Linking.canOpenURL(url).then(supported => {
+            if (supported) {
+              Linking.openURL(url);
+            } else {
+              Linking.openURL(`https://wa.me/918882004800?text=${encodedMsg}`);
+            }
+          }).catch(err => console.error('An error occurred', err));
+        }}
+      >
+        <Ionicons name="logo-whatsapp" size={30} color="#FFFFFF" />
+      </TouchableOpacity>
     </GestureHandlerRootView>
   );
 }
@@ -187,5 +208,22 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  globalFab: {
+    position: 'absolute',
+    bottom: 100, // Positioned high enough to avoid bottom tab bars
+    right: 20,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: '#25D366',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#128C7E',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 8,
+    zIndex: 99999,
   }
 });

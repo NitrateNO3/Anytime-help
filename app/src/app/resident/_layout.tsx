@@ -5,6 +5,10 @@ import { View, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
+import { TouchableOpacity } from 'react-native';
+import { walkthroughable, CopilotStep } from 'react-native-copilot';
+
+const WalkthroughableTouchableOpacity = walkthroughable(TouchableOpacity);
 
 export default function ResidentLayout() {
   const insets = useSafeAreaInsets();
@@ -46,6 +50,11 @@ export default function ResidentLayout() {
           tabBarIcon: ({ color }) => (
             <Ionicons name="home" size={24} color={color} />
           ),
+          tabBarButton: (props: any) => (
+            <CopilotStep text="This is your Home tab. Return to your dashboard from here." order={6} name="home_tab">
+              <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
+            </CopilotStep>
+          ),
         }}
       />
       <Tabs.Screen
@@ -56,6 +65,11 @@ export default function ResidentLayout() {
           tabBarIcon: ({ color }) => (
             <Ionicons name="list" size={24} color={color} />
           ),
+          tabBarButton: (props: any) => (
+            <CopilotStep text="Quickly check your complaints from this tab." order={7} name="complaints_tab">
+              <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
+            </CopilotStep>
+          ),
         }}
       />
       <Tabs.Screen
@@ -65,6 +79,11 @@ export default function ResidentLayout() {
           title: t('resident.tabProfile'),
           tabBarIcon: ({ color }) => (
             <Ionicons name="person" size={24} color={color} />
+          ),
+          tabBarButton: (props: any) => (
+            <CopilotStep text="Manage your profile and settings here." order={8} name="profile_tab">
+              <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
+            </CopilotStep>
           ),
         }}
       />

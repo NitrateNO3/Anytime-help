@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
@@ -23,25 +23,48 @@ export default function ResidentHome() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
+  const { startTour } = useLocalSearchParams();
+  const tourStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (startTour === 'true') {
+      if (start && !tourStartedRef.current) {
+        tourStartedRef.current = true;
+        setTimeout(() => {
+          try {
+            start();
+            SecureStore.setItemAsync('hasViewedResidentTour', 'true');
+          } catch (e) {
+            console.log('Copilot start error:', e);
+          }
+        }, 1000);
+      }
+    } else {
+      tourStartedRef.current = false;
+    }
+  }, [startTour, start]);
+
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       SecureStore.getItemAsync('userData').then((data) => {
         if (data) setUser(JSON.parse(data));
       });
 
-      SecureStore.getItemAsync('hasViewedResidentTour').then((data) => {
-        if (!data && start) {
-          // Delay starting slightly so UI has time to mount
-          setTimeout(() => {
-            try {
-              start();
-              SecureStore.setItemAsync('hasViewedResidentTour', 'true');
-            } catch (e) {
-              console.log('Copilot start error:', e);
-            }
-          }, 1000); // increased delay to 1000ms
-        }
-      });
+      if (startTour !== 'true') {
+        SecureStore.getItemAsync('hasViewedResidentTour').then((data) => {
+          if (!data && start) {
+            // Delay starting slightly so UI has time to mount
+            setTimeout(() => {
+              try {
+                start();
+                SecureStore.setItemAsync('hasViewedResidentTour', 'true');
+              } catch (e) {
+                console.log('Copilot start error:', e);
+              }
+            }, 1000); // increased delay to 1000ms
+          }
+        });
+      }
 
       const fetchUnreadCount = async () => {
         try {
@@ -126,9 +149,6 @@ export default function ResidentHome() {
                 <Text style={styles.exploreText} numberOfLines={1} adjustsFontSizeToFit>
                   {t('resident.societyName')}
                 </Text>
-                <TouchableOpacity onPress={() => start()} style={{ marginTop: 8, backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start' }}>
-                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: 'bold' }}>Start Tour</Text>
-                </TouchableOpacity>
               </View>
               <CopilotStep text="Manage your profile, settings, and view tutorials from here." order={5} name="profile_avatar">
                 <WalkthroughableTouchableOpacity 

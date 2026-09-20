@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
@@ -23,20 +23,47 @@ export default function ResidentHome() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
 
+  const { startTour } = useLocalSearchParams();
+  const tourStartedRef = useRef(false);
+
+  useEffect(() => {
+    if (startTour === 'true') {
+      if (start && !tourStartedRef.current) {
+        tourStartedRef.current = true;
+        setTimeout(() => {
+          try {
+            start();
+            SecureStore.setItemAsync('hasViewedMemberTour', 'true');
+          } catch (e) {
+            console.log('Copilot start error:', e);
+          }
+        }, 1000);
+      }
+    } else {
+      tourStartedRef.current = false;
+    }
+  }, [startTour, start]);
+
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       SecureStore.getItemAsync('userData').then((data) => {
         if (data) setUser(JSON.parse(data));
       });
 
-      SecureStore.getItemAsync('hasViewedMemberTour').then((data) => {
-        if (!data && start) {
-          setTimeout(() => {
-            start();
-            SecureStore.setItemAsync('hasViewedMemberTour', 'true');
-          }, 500);
-        }
-      });
+      if (startTour !== 'true') {
+        SecureStore.getItemAsync('hasViewedMemberTour').then((data) => {
+          if (!data && start) {
+            setTimeout(() => {
+              try {
+                start();
+                SecureStore.setItemAsync('hasViewedMemberTour', 'true');
+              } catch (e) {
+                console.log('Copilot start error:', e);
+              }
+            }, 1000);
+          }
+        });
+      }
 
       const fetchUnreadCount = async () => {
         try {
@@ -75,7 +102,7 @@ export default function ResidentHome() {
         subscription.remove();
         socket.disconnect();
       };
-    }, [])
+    }, [start, startTour])
   );
 
   const onRefresh = React.useCallback(async () => {
@@ -188,60 +215,54 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 2: All Complaints */}
-          {(!user?.permissions || user?.permissions?.includes('All Complaints')) && (
-            <CopilotStep text="View and track all resident complaints to resolve them efficiently." order={2} name="all_complaints">
-              <WalkthroughableTouchableOpacity 
-                style={styles.gridCard}
-                onPress={() => router.push('/member/my-complaints' as any)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.gridIconCircle, { backgroundColor: '#FEF3C7' }]}>
-                  <Ionicons name="list" size={30} color="#D97706" />
-                </View>
-                <Text style={styles.gridCardTitle}>All Complaints</Text>
-                <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub')}</Text>
-              </WalkthroughableTouchableOpacity>
-            </CopilotStep>
-          )}
+          <CopilotStep text="View and track all resident complaints to resolve them efficiently." order={2} name="all_complaints" active={!user?.permissions || user?.permissions?.includes('All Complaints')}>
+            <WalkthroughableTouchableOpacity 
+              style={[styles.gridCard, (!user?.permissions || user?.permissions?.includes('All Complaints')) ? {} : { display: 'none' }]}
+              onPress={() => router.push('/member/my-complaints' as any)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="list" size={30} color="#D97706" />
+              </View>
+              <Text style={styles.gridCardTitle}>All Complaints</Text>
+              <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub')}</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
 
           {/* Card 3: Announcements */}
-          {(!user?.permissions || user?.permissions?.some((p: string) => p.startsWith('Announcements'))) && (
-            <CopilotStep text="Post new broadcasts or view important announcements here." order={3} name="announcements">
-              <WalkthroughableTouchableOpacity 
-                style={styles.gridCard}
-                onPress={() => router.push('/member/announcements' as any)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="notifications" size={30} color="#2563EB" />
-                  {unreadCount > 0 && (
-                    <View style={styles.badgeContainer}>
-                      <Text style={styles.badgeText}>{unreadCount}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
-                <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
-              </WalkthroughableTouchableOpacity>
-            </CopilotStep>
-          )}
+          <CopilotStep text="Post new broadcasts or view important announcements here." order={3} name="announcements" active={!user?.permissions || user?.permissions?.some((p: string) => p.startsWith('Announcements'))}>
+            <WalkthroughableTouchableOpacity 
+              style={[styles.gridCard, (!user?.permissions || user?.permissions?.some((p: string) => p.startsWith('Announcements'))) ? {} : { display: 'none' }]}
+              onPress={() => router.push('/member/announcements' as any)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="notifications" size={30} color="#2563EB" />
+                {unreadCount > 0 && (
+                  <View style={styles.badgeContainer}>
+                    <Text style={styles.badgeText}>{unreadCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
 
           {/* Card 4: Resident */}
-          {(!user?.permissions || user?.permissions?.includes('Resident')) && (
-            <CopilotStep text="Access the community directory to find and contact residents." order={4} name="directory">
-              <WalkthroughableTouchableOpacity 
-                style={styles.gridCard}
-                onPress={() => router.push('/member/search' as any)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
-                  <Ionicons name="people" size={30} color="#7C3AED" />
-                </View>
-                <Text style={styles.gridCardTitle}>Residents</Text>
-                <Text style={styles.gridCardSub}>View community residents</Text>
-              </WalkthroughableTouchableOpacity>
-            </CopilotStep>
-          )}
+          <CopilotStep text="Access the community directory to find and contact residents." order={4} name="directory" active={!user?.permissions || user?.permissions?.includes('Resident')}>
+            <WalkthroughableTouchableOpacity 
+              style={[styles.gridCard, (!user?.permissions || user?.permissions?.includes('Resident')) ? {} : { display: 'none' }]}
+              onPress={() => router.push('/member/search' as any)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
+                <Ionicons name="people" size={30} color="#7C3AED" />
+              </View>
+              <Text style={styles.gridCardTitle}>Residents</Text>
+              <Text style={styles.gridCardSub}>View community residents</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
         </View>
       </ScrollView>
     </SafeAreaView>

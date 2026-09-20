@@ -79,9 +79,34 @@ export default function DirectoryScreen() {
     setRefreshing(false);
   };
 
-  const handleCall = (phone: string) => {
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    // Remove titles like Mr., Mrs., Dr.
+    const cleanName = name.replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.)\s*/i, '');
+    const parts = cleanName.split(' ').filter(p => p.length > 0);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return cleanName.substring(0, 2).toUpperCase();
+  };
+
+  const handleWhatsApp = (phone: string) => {
     if (phone) {
-      Linking.openURL(`tel:${phone}`);
+      // Remove all non-numeric characters
+      let cleaned = phone.replace(/\D/g, '');
+      // If it's exactly 10 digits, assume it's an Indian number and prepend 91
+      if (cleaned.length === 10) {
+        cleaned = '91' + cleaned;
+      }
+      // Try to open WhatsApp app directly, fallback to wa.me web link
+      const url = `whatsapp://send?phone=${cleaned}`;
+      Linking.canOpenURL(url).then(supported => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          Linking.openURL(`https://wa.me/${cleaned}`);
+        }
+      }).catch(err => console.error('An error occurred', err));
     }
   };
 
@@ -155,7 +180,7 @@ export default function DirectoryScreen() {
           filteredContacts.map((contact) => (
             <View key={contact._id || contact.id} style={styles.card}>
               <View style={styles.iconBox}>
-                <Ionicons name={(contact.icon as any) || 'person'} size={22} color="#1D4ED8" />
+                <Text style={styles.initialsText}>{getInitials(contact.name)}</Text>
               </View>
               <View style={styles.info}>
                 <Text style={styles.name}>{contact.name}</Text>
@@ -167,11 +192,11 @@ export default function DirectoryScreen() {
                 )}
               </View>
               <TouchableOpacity 
-                style={styles.callBtn} 
-                onPress={() => handleCall(contact.phone)}
+                style={styles.whatsappBtn} 
+                onPress={() => handleWhatsApp(contact.phone)}
                 activeOpacity={0.7}
               >
-                <Ionicons name="call" size={18} color="#FFFFFF" />
+                <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           ))
@@ -250,27 +275,33 @@ const styles = StyleSheet.create({
   iconBox: { 
     width: 46, 
     height: 46, 
-    borderRadius: 14, 
+    borderRadius: 23, 
     backgroundColor: '#EFF6FF', 
     justifyContent: 'center', 
     alignItems: 'center', 
     marginRight: 14 
   },
+  initialsText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1D4ED8',
+    letterSpacing: 0.5,
+  },
   info: { flex: 1 },
   name: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 2 },
   role: { fontSize: 13, color: '#2563EB', fontWeight: '500', marginBottom: 2 },
   phone: { fontSize: 13, color: '#64748B' },
-  callBtn: { 
-    width: 40, 
-    height: 40, 
+  whatsappBtn: { 
+    width: 42, 
+    height: 42, 
     borderRadius: 12, 
-    backgroundColor: '#10B981', 
+    backgroundColor: '#25D366', 
     justifyContent: 'center', 
     alignItems: 'center',
-    shadowColor: '#10B981',
+    shadowColor: '#25D366',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
     elevation: 3,
   },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 24 },
