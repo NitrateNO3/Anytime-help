@@ -24,6 +24,8 @@ export default function Index() {
           router.replace('/staff');
         } else if (user.role === 'PaidStaff') {
           router.replace('/paid-staff');
+        } else if (user.role === 'Member') {
+          router.replace('/member' as any);
         } else {
           // If somehow admin tries to login to mobile app
           router.replace('/login' as any);

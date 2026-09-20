@@ -180,6 +180,19 @@ router.get('/', auth, async (req, res) => {
   }
 });
 
+// GET /api/complaints/:id
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id).populate('user', 'name phone');
+    if (!complaint) {
+      return res.status(404).json({ message: 'Complaint not found' });
+    }
+    res.json(complaint);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // PATCH /api/complaints/:id
 router.patch('/:id', auth, async (req, res) => {
   try {

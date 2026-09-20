@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 
-export default function ResidentLayout() {
+export default function MemberLayout() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   
@@ -51,8 +51,8 @@ export default function ResidentLayout() {
       <Tabs.Screen
         name="my-complaints"
         options={{
-          tabBarLabel: t('resident.myComplaints'),
-          title: t('resident.myComplaints'),
+          tabBarLabel: 'All Complaints',
+          title: 'All Complaints',
           tabBarIcon: ({ color }) => (
             <Ionicons name="list" size={24} color={color} />
           ),

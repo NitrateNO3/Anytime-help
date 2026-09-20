@@ -193,7 +193,7 @@ export default function MyComplaints() {
       }
 
       const onBackPress = () => {
-        router.replace('/resident');
+        router.replace('/member' as any);
         return true;
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -270,7 +270,7 @@ export default function MyComplaints() {
       {/* Header */}
       <View style={styles.headerBar}>
         <TouchableOpacity 
-          onPress={() => router.replace('/resident')} 
+          onPress={() => router.replace('/member' as any)} 
           style={styles.backButton}
           activeOpacity={0.7}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -278,7 +278,7 @@ export default function MyComplaints() {
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>{t('resident.myComplaints')}</Text>
+          <Text style={styles.headerTitle}>All Complaints</Text>
         </View>
       </View>
 
@@ -352,7 +352,7 @@ export default function MyComplaints() {
                 key={item._id} 
                 style={styles.card} 
                 activeOpacity={0.8}
-                onPress={() => router.push(`/resident/complaint-details?id=${item._id}`)}
+                onPress={() => router.push(`/member/complaint-details?id=${item._id}` as any)}
               >
                 {item.before_image ? (
                   <View style={styles.imageContainer}>

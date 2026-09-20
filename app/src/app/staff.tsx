@@ -354,7 +354,12 @@ export default function StaffScreen() {
               </View>
             ) : (
               complaints.map((item) => (
-                <View key={item._id} style={styles.card}>
+                <TouchableOpacity 
+                  key={item._id} 
+                  style={styles.card}
+                  activeOpacity={0.8}
+                  onPress={() => router.push(`/task-details?id=${item._id}`)}
+                >
                   <View style={styles.cardHeader}>
                     <View style={styles.badge}>
                       <Text style={styles.badgeText}>{item.priority}</Text>
@@ -391,7 +396,7 @@ export default function StaffScreen() {
                     <Text style={styles.dropdownBtnText}>{t('staff.updateStatus')}</Text>
                     <Ionicons name="chevron-down" size={20} color="#111827" />
                   </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
               ))
             )}
           </>

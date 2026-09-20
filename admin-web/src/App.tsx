@@ -11,6 +11,7 @@ import PaidServices from './pages/PaidServices';
 import PaidStaff from './pages/PaidStaff';
 import ServiceBookings from './pages/ServiceBookings';
 import Directory from './pages/Directory';
+import Members from './pages/Members';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
             <Route path="paid-staff" element={<PaidStaff />} />
             <Route path="service-bookings" element={<ServiceBookings />} />
             <Route path="directory" element={<Directory />} />
+            <Route path="members" element={<Members />} />
           </Route>
         </Routes>
       </BrowserRouter>

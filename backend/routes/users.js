@@ -150,6 +150,50 @@ router.get('/residents', auth, async (req, res) => {
   }
 });
 
+// @route   GET api/users/members
+// @desc    Get all member members (supports pagination)
+// @access  Admin Private
+router.get('/members', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    const { page, limit, search } = req.query;
+    let query = { role: 'Member' };
+    const andConditions = [];
+
+    if (search && search.trim()) {
+      const s = search.trim();
+      andConditions.push({
+        $or: [
+          { name: { $regex: s, $options: 'i' } },
+          { phone_number: { $regex: s, $options: 'i' } },
+          { address: { $regex: s, $options: 'i' } },
+          { designation: { $regex: s, $options: 'i' } }
+        ]
+      });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
+    }
+
+    if (page && limit) {
+      const pageNum = parseInt(page, 10);
+      const limitNum = parseInt(limit, 10);
+      const skip = (pageNum - 1) * limitNum;
+      const members = await User.find(query).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limitNum);
+      const total = await User.countDocuments(query);
+      return res.json({ members, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
+    }
+
+    const members = await User.find(query).select('-password').sort({ createdAt: -1 });
+    res.json(members);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   POST api/users/residents
 // @desc    Create a new resident member
 // @access  Admin Private
@@ -177,6 +221,47 @@ router.post('/residents', auth, async (req, res) => {
       phase,
       address,
       relation: relation || property_type
+    });
+
+    await user.save();
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_created', user);
+    }
+
+    res.status(201).json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   POST api/users/members
+// @desc    Create a new member (Committee)
+// @access  Admin Private
+router.post('/members', auth, async (req, res) => {
+  let { name, phone_number, designation, address } = req.body;
+
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    if (!phone_number.startsWith('+')) {
+      phone_number = `+91${phone_number}`;
+    }
+
+    let user = await User.findOne({ phone_number });
+    if (user) {
+      return res.status(400).json({ msg: 'User already exists' });
+    }
+
+    user = new User({
+      name,
+      phone_number,
+      role: 'Member',
+      designation,
+      address
     });
 
     await user.save();

@@ -6,11 +6,12 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: false },
   phone_number: { type: String, required: false, unique: true, sparse: true },
   firebase_uid: { type: String, required: false },
-  role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'PaidStaff'], default: 'Resident' },
+  role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'PaidStaff', 'Member'], default: 'Resident' },
   assigned_category: { type: String, required: false }, // Only for Staff (e.g., 'Plumbing')
   phase: { type: String, required: false }, // For phase/entity-based routing
-  address: { type: String, required: false }, // For Resident
+  address: { type: String, required: false }, // For Resident/Member
   relation: { type: String, required: false }, // e.g., 'Tenant', 'Family Member'
+  designation: { type: String, required: false }, // For Member (e.g. 'President', 'Secretary')
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

@@ -44,6 +44,10 @@ export default function AdminLayout() {
             <Users size={20} />
             Staff Team
           </Link>
+          <Link to="/members" className={`nav-link ${location.pathname === '/members' ? 'active' : ''}`}>
+            <Users size={20} />
+            Committee Members
+          </Link>
 
           <Link to="/announcements" className={`nav-link ${location.pathname === '/announcements' ? 'active' : ''}`}>
             <Megaphone size={20} />

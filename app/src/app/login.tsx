@@ -82,6 +82,8 @@ export default function LoginScreen() {
               router.replace('/staff');
             } else if (user.role === 'PaidStaff') {
               router.replace('/paid-staff');
+            } else if (user.role === 'Member') {
+              router.replace('/member' as any);
             }
           }
         } catch (e) {
@@ -168,6 +170,9 @@ export default function LoginScreen() {
       } else if (user.role === 'PaidStaff') {
         Toast.show({ type: 'success', text1: 'Welcome', text2: 'Logged in successfully' });
         router.replace('/paid-staff');
+      } else if (user.role === 'Member') {
+        Toast.show({ type: 'success', text1: 'Welcome', text2: 'Logged in successfully' });
+        router.replace('/member' as any);
       }
     } catch (err: any) {
       Toast.show({ type: 'error', text1: 'Login Failed', text2: err.response?.data?.msg || err.message || 'Invalid OTP' });
@@ -259,6 +264,14 @@ export default function LoginScreen() {
                 >
                   <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>
                     Resident
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={[styles.roleBtn, role === 'Member' && styles.roleBtnActive]}
+                  onPress={() => setRole('Member')}
+                >
+                  <Text style={[styles.roleBtnText, role === 'Member' && styles.roleBtnTextActive]}>
+                    Member
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
