@@ -18,6 +18,7 @@ router.get('/', auth, async (req, res) => {
         // If user has no phase, fallback to 'All', 'Resident', or empty
         query.$or = [{ phases: 'All' }, { phases: 'Resident' }, { phases: { $size: 0 } }];
       }
+      query.targetAudience = { $ne: 'Members' }; // Residents cannot see 'Members' only announcements
     } else if (req.user.role === 'Staff') {
       const user = await User.findById(req.user.id);
       if (user && user.phase) {
@@ -66,7 +67,7 @@ router.post('/', auth, async (req, res) => {
     return res.status(403).json({ msg: 'Authorization denied' });
   }
 
-  const { title, message, phases } = req.body;
+  const { title, message, phases, targetAudience } = req.body;
 
   try {
     let creatorName = req.user.name;
@@ -85,7 +86,8 @@ router.post('/', auth, async (req, res) => {
       createdBy: req.user.id,
       creatorName: creatorName || req.user.role,
       creatorId: creatorId || '',
-      phases: phases || []
+      phases: phases || [],
+      targetAudience: targetAudience || 'All'
     });
 
     const announcement = await newAnnouncement.save();

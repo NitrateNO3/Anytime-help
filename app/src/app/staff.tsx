@@ -64,6 +64,7 @@ export default function StaffScreen() {
   const [broadcastModalVisible, setBroadcastModalVisible] = useState(false);
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastTarget, setBroadcastTarget] = useState<'All' | 'Members'>('All');
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
   // Delete Modal State
@@ -218,13 +219,15 @@ export default function StaffScreen() {
       setSendingBroadcast(true);
       const token = await SecureStore.getItemAsync('userToken');
       await axios.post(`${API_URL}/announcements`, 
-        { title: broadcastTitle, message: broadcastMessage },
+        { title: broadcastTitle, message: broadcastMessage, targetAudience: broadcastTarget },
         { headers: { 'x-auth-token': token } }
       );
       setBroadcastModalVisible(false);
       setBroadcastTitle('');
       setBroadcastMessage('');
-      Toast.show({ type: 'success', text1: 'Broadcast Sent', text2: 'Your message has been sent to all residents' });
+      setBroadcastTarget('All');
+      const targetMsg = broadcastTarget === 'Members' ? 'RWA (Members)' : 'All Residents';
+      Toast.show({ type: 'success', text1: 'Broadcast Sent', text2: `Your message has been sent to ${targetMsg}` });
       fetchAnnouncements(); // Refresh the broadcasts list
     } catch (err) {
       console.error('Broadcast error:', err);
@@ -504,12 +507,27 @@ export default function StaffScreen() {
         >
           <View style={styles.broadcastModalContent}>
             <View style={styles.broadcastHeader}>
-              <Text style={styles.modalTitle}>New Broadcast</Text>
+              <Text style={styles.modalTitle}>New Announcement</Text>
               <TouchableOpacity onPress={() => setBroadcastModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.broadcastHelpText}>This message will be sent to all residents as an announcement.</Text>
+            <Text style={styles.broadcastHelpText}>Choose who should receive this announcement.</Text>
+            
+            <View style={{ flexDirection: 'row', marginBottom: 16, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 4 }}>
+              <TouchableOpacity 
+                style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: broadcastTarget === 'All' ? '#FFFFFF' : 'transparent', borderRadius: 6, shadowColor: broadcastTarget === 'All' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: broadcastTarget === 'All' ? 2 : 0 }}
+                onPress={() => setBroadcastTarget('All')}
+              >
+                <Text style={{ fontWeight: broadcastTarget === 'All' ? '600' : '500', color: broadcastTarget === 'All' ? '#111827' : '#6B7280' }}>Resident (All)</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: broadcastTarget === 'Members' ? '#FFFFFF' : 'transparent', borderRadius: 6, shadowColor: broadcastTarget === 'Members' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: broadcastTarget === 'Members' ? 2 : 0 }}
+                onPress={() => setBroadcastTarget('Members')}
+              >
+                <Text style={{ fontWeight: broadcastTarget === 'Members' ? '600' : '500', color: broadcastTarget === 'Members' ? '#111827' : '#6B7280' }}>RWA (Members)</Text>
+              </TouchableOpacity>
+            </View>
             
             <TextInput
               style={styles.input}
@@ -539,7 +557,7 @@ export default function StaffScreen() {
               ) : (
                 <>
                   <Ionicons name="megaphone" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.broadcastBtnText}>Send Broadcast</Text>
+                  <Text style={styles.broadcastBtnText}>Send Announcement</Text>
                 </>
               )}
             </TouchableOpacity>

@@ -24,12 +24,12 @@ export default function ResidentHome() {
   const [refreshing, setRefreshing] = useState(false);
 
   const { startTour } = useLocalSearchParams();
-  const tourStartedRef = useRef(false);
+  const [lastStartTour, setLastStartTour] = useState<string | null>(null);
 
   useEffect(() => {
-    if (startTour === 'true') {
-      if (start && !tourStartedRef.current) {
-        tourStartedRef.current = true;
+    if (startTour && startTour !== lastStartTour) {
+      if (start) {
+        setLastStartTour(startTour as string);
         setTimeout(() => {
           try {
             start();
@@ -39,10 +39,8 @@ export default function ResidentHome() {
           }
         }, 1000);
       }
-    } else {
-      tourStartedRef.current = false;
     }
-  }, [startTour, start]);
+  }, [startTour, start, lastStartTour]);
 
   useFocusEffect(
     useCallback(() => {
@@ -50,7 +48,7 @@ export default function ResidentHome() {
         if (data) setUser(JSON.parse(data));
       });
 
-      if (startTour !== 'true') {
+      if (!startTour) {
         SecureStore.getItemAsync('hasViewedResidentTour').then((data) => {
           if (!data && start) {
             // Delay starting slightly so UI has time to mount

@@ -97,7 +97,7 @@ export default function SettingsScreen() {
           <View style={styles.cardGroup}>
             <TouchableOpacity style={styles.settingRow} onPress={async () => {
               await SecureStore.deleteItemAsync('hasViewedMemberTour');
-              router.push({ pathname: '/member', params: { startTour: 'true' } });
+              router.push({ pathname: '/member', params: { startTour: Date.now().toString() } });
             }}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>

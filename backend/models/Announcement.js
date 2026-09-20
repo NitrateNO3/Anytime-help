@@ -32,6 +32,11 @@ const AnnouncementSchema = new mongoose.Schema({
   phases: {
     type: [String],
     default: []
+  },
+  targetAudience: {
+    type: String,
+    enum: ['All', 'Members'],
+    default: 'All'
   }
 });
 
