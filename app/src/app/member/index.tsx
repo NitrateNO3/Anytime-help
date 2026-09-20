@@ -90,12 +90,12 @@ export default function ResidentHome() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" translucent={true} />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" translucent={true} />
 
-      {/* Curved Blue Header Section */}
+      {/* Curved Premium Header Section */}
       <View style={styles.headerWrapper}>
         <LinearGradient
-          colors={['#1D4ED8', '#1E3A8A']}
+          colors={['#0F172A', '#1E1B4B']}
           style={styles.headerGradient}
         >
           <View style={styles.headerContent}>
@@ -104,21 +104,42 @@ export default function ResidentHome() {
                 <Text style={styles.greetingText}>
                   {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Member'} 👋
                 </Text>
-                <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 6 }}>
-                  <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>
-                    ID: {user?.member_id ? user.member_id : 'Pending/Not Set'}
-                  </Text>
+                
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                  <LinearGradient 
+                    colors={['#F59E0B', '#D97706']} 
+                    start={{ x: 0, y: 0 }} 
+                    end={{ x: 1, y: 1 }}
+                    style={{ 
+                      flexDirection: 'row', 
+                      alignItems: 'center', 
+                      paddingHorizontal: 12, 
+                      paddingVertical: 5, 
+                      borderRadius: 20, 
+                      shadowColor: '#F59E0B', 
+                      shadowOffset: { width: 0, height: 4 }, 
+                      shadowOpacity: 0.3, 
+                      shadowRadius: 6,
+                      elevation: 6
+                    }}
+                  >
+                    <Ionicons name="star" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
+                    <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>
+                      MEMBER ID: {user?.member_id ? user.member_id : 'PENDING'}
+                    </Text>
+                  </LinearGradient>
                 </View>
+
                 <Text style={styles.exploreText} numberOfLines={1} adjustsFontSizeToFit>
                   {t('resident.societyName')}
                 </Text>
               </View>
               <TouchableOpacity 
-                style={styles.avatarContainer} 
+                style={[styles.avatarContainer, { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' }]} 
                 onPress={() => router.push('/member/settings' as any)}
                 activeOpacity={0.8}
               >
-                <Ionicons name="person" size={24} color="#1D4ED8" />
+                <Ionicons name="person" size={24} color="#1E1B4B" />
               </TouchableOpacity>
             </View>
           </View>
