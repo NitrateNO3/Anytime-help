@@ -161,12 +161,12 @@ const subCategoryHiMap = {
 // @desc    Get all categories (seeds default if empty and auto-fills translations)
 router.get('/', async (req, res) => {
   try {
-    let categories = await Category.find().sort({ createdAt: -1 });
+    let categories = await Category.find().sort({ order: 1, createdAt: 1 });
     
     // Seed default categories if DB is completely empty
     if (categories.length === 0) {
       await Category.insertMany(defaultCategories);
-      categories = await Category.find().sort({ createdAt: -1 });
+      categories = await Category.find().sort({ order: 1, createdAt: 1 });
     } else {
       // Auto-fill title_hi and subcategory translations for any category missing it
       for (let cat of categories) {
@@ -383,6 +383,33 @@ router.delete('/:id', auth, async (req, res) => {
 
     await Category.findByIdAndDelete(req.params.id);
     res.json({ msg: 'Category removed' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   POST /api/categories/reorder
+// @desc    Reorder categories in bulk
+router.post('/reorder', auth, async (req, res) => {
+  const { orderedIds } = req.body;
+  if (!orderedIds || !Array.isArray(orderedIds)) {
+    return res.status(400).json({ msg: 'orderedIds must be an array' });
+  }
+
+  try {
+    const bulkOps = orderedIds.map((id, index) => ({
+      updateOne: {
+        filter: { _id: id },
+        update: { $set: { order: index } }
+      }
+    }));
+
+    if (bulkOps.length > 0) {
+      await Category.bulkWrite(bulkOps);
+    }
+
+    res.json({ msg: 'Categories reordered successfully' });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

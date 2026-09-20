@@ -36,6 +36,10 @@ const categorySchema = new mongoose.Schema({
     type: String,
   }],
   subCategoriesDetails: [subCategoryItemSchema],
+  order: {
+    type: Number,
+    default: 0,
+  }
 }, { timestamps: true });
 
 module.exports = mongoose.model('Category', categorySchema);

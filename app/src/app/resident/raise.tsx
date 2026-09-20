@@ -41,6 +41,10 @@ export default function RaiseComplaint() {
   const [showModal, setShowModal] = useState(false);
   const slideAnim = React.useRef(new Animated.Value(400)).current;
 
+  const [showNoticeModal, setShowNoticeModal] = useState(false);
+  const [noticeAccepted, setNoticeAccepted] = useState(false);
+  const [pendingSubCategory, setPendingSubCategory] = useState<any>(null);
+
   // Location & Map State
   const [locationObj, setLocationObj] = useState<{latitude: number, longitude: number} | null>(null);
   const [locationAddress, setLocationAddress] = useState<string>('');
@@ -107,9 +111,9 @@ export default function RaiseComplaint() {
     });
   };
 
-  const selectSubCategory = async (sub: string, localizedTitle?: string) => {
-    setCategory(selectedMainCategory.title);
-    setSubCategory(localizedTitle || sub);
+  const proceedToStep2 = async (catTitle: string, subCatTitle: string) => {
+    setCategory(catTitle);
+    setSubCategory(subCatTitle);
     closeBottomSheet();
     setStep(2);
     
@@ -142,6 +146,23 @@ export default function RaiseComplaint() {
     } catch (e) {
       console.log('Error getting location:', e);
     }
+  };
+
+  const selectSubCategory = (sub: string, localizedTitle?: string) => {
+    const mainTitle = selectedMainCategory?.title;
+    const finalSubTitle = localizedTitle || sub;
+
+    if (mainTitle === 'Street light') {
+      setPendingSubCategory({ catTitle: mainTitle, subCatTitle: finalSubTitle });
+      setNoticeAccepted(false);
+      closeBottomSheet();
+      setTimeout(() => {
+        setShowNoticeModal(true);
+      }, 400); // Wait for the first modal to close
+      return;
+    }
+
+    proceedToStep2(mainTitle, finalSubTitle);
   };
 
   const fetchReadableAddress = async (lat: number, lon: number) => {
@@ -621,6 +642,57 @@ export default function RaiseComplaint() {
             >
               <Text style={[styles.doneBtnText, { color: '#4B5563' }]}>Close</Text>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Category Notice Modal */}
+      <Modal animationType="fade" transparent={true} visible={showNoticeModal}>
+        <View style={styles.successModalOverlay}>
+          <View style={styles.successModalContainer}>
+            <View style={[styles.successIconCircle, { backgroundColor: '#EFF6FF' }]}>
+              <Ionicons name="information-circle" size={40} color="#3B82F6" />
+            </View>
+            <Text style={[styles.successModalTitle, { fontSize: 18, textAlign: 'center', marginBottom: 12 }]}>
+              स्ट्रीट लाइट सूचना
+            </Text>
+            <ScrollView style={{ maxHeight: 250, marginBottom: 16 }}>
+              <Text style={[styles.successModalText, { textAlign: 'left', fontSize: 14, lineHeight: 22 }]}>
+                RWA पहले भी अनुरोध कर चुकी है कि स्ट्रीट लाइट से संबंधित किसी भी समस्या के लिए कृपया MCG की साइट पर जाकर शिकायत दर्ज करें और टिकट नंबर प्राप्त करें।{'\n\n'}
+                उसके बाद जब आप टिकट नंबर ग्रुप में साझा करेंगे, तो RWA MCG के माध्यम से उस समस्या को ठीक करवाने के लिए आवश्यक कार्रवाई करेगी।{'\n\n'}
+                कृपया सहयोग करें और शिकायत पहले MCG में दर्ज करवाएँ। धन्यवाद।
+              </Text>
+            </ScrollView>
+            
+            <TouchableOpacity 
+              style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 20, width: '100%' }}
+              onPress={() => setNoticeAccepted(!noticeAccepted)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name={noticeAccepted ? "checkbox" : "square-outline"} size={24} color={noticeAccepted ? "#3B82F6" : "#94A3B8"} />
+              <Text style={{ marginLeft: 10, fontSize: 15, color: '#1E293B', flex: 1 }}>मैंने पढ़ लिया है और सहमत हूँ</Text>
+            </TouchableOpacity>
+
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', width: '100%', gap: 12 }}>
+              <TouchableOpacity 
+                style={[styles.doneBtn, { backgroundColor: '#F1F5F9', flex: 1 }]} 
+                onPress={() => setShowNoticeModal(false)}
+              >
+                <Text style={[styles.doneBtnText, { color: '#64748B' }]}>रद्द करें</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.doneBtn, { backgroundColor: noticeAccepted ? '#3B82F6' : '#94A3B8', flex: 1 }]} 
+                disabled={!noticeAccepted}
+                onPress={() => {
+                  setShowNoticeModal(false);
+                  if (pendingSubCategory) {
+                    proceedToStep2(pendingSubCategory.catTitle, pendingSubCategory.subCatTitle);
+                  }
+                }}
+              >
+                <Text style={styles.doneBtnText}>आगे बढ़ें</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>

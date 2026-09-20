@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Plus, Trash2, Edit2, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, X, ArrowUp, ArrowDown } from 'lucide-react';
 import '../index.css';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -30,11 +30,37 @@ export default function Categories() {
     try {
       const res = await axios.get(`${API_URL}/categories`);
       setCategories(res.data);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
       toast.error('Failed to fetch categories');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReorder = async (currentIndex: number, newIndex: number) => {
+    if (newIndex < 0 || newIndex >= categories.length) return;
+    
+    // Create a new array and swap the elements locally for instant UI update
+    const newCategories = [...categories];
+    const temp = newCategories[currentIndex];
+    newCategories[currentIndex] = newCategories[newIndex];
+    newCategories[newIndex] = temp;
+    
+    setCategories(newCategories);
+
+    // Call API to save new order
+    try {
+      const token = localStorage.getItem('token');
+      const orderedIds = newCategories.map(cat => cat._id);
+      
+      await axios.post(`${API_URL}/categories/reorder`, { orderedIds }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch (err) {
+      console.error('Failed to update order', err);
+      toast.error('Failed to update order');
+      fetchCategories(); // Revert to server state on error
     }
   };
 
@@ -196,7 +222,7 @@ export default function Categories() {
               <p style={{ color: 'var(--text-secondary)' }}>Add your first category.</p>
             </div>
           ) : (
-            categories.map((cat) => (
+            categories.map((cat, index) => (
               <div key={cat._id} className="card" style={{ display: 'flex', flexDirection: 'column', padding: '16px 20px', borderRadius: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
@@ -218,7 +244,26 @@ export default function Categories() {
                       </span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button 
+                      className="btn btn-icon" 
+                      onClick={() => handleReorder(index, index - 1)} 
+                      style={{ color: index === 0 ? '#CBD5E1' : '#64748B' }} 
+                      disabled={index === 0}
+                      title="Move Up"
+                    >
+                      <ArrowUp size={18} />
+                    </button>
+                    <button 
+                      className="btn btn-icon" 
+                      onClick={() => handleReorder(index, index + 1)} 
+                      style={{ color: index === categories.length - 1 ? '#CBD5E1' : '#64748B' }} 
+                      disabled={index === categories.length - 1}
+                      title="Move Down"
+                    >
+                      <ArrowDown size={18} />
+                    </button>
+                    <div style={{ width: '1px', height: '24px', backgroundColor: '#E2E8F0', margin: '0 4px' }}></div>
                     <button className="btn btn-icon" onClick={() => handleOpenModal(cat)} style={{ color: 'var(--primary)' }} title="Edit Category">
                       <Edit2 size={18} />
                     </button>
