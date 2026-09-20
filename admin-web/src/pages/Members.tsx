@@ -19,7 +19,10 @@ export default function Members() {
   const [designation, setDesignation] = useState('Member');
   const [address, setAddress] = useState('');
   const [memberId, setMemberId] = useState('');
+  const [permissions, setPermissions] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  
+  const availablePermissions = ['All Complaints', 'Announcements', 'Directory'];
 
   useEffect(() => {
     if (activeTab === 'list') {
@@ -69,7 +72,8 @@ export default function Members() {
         phone_number: phoneNumber,
         designation,
         address,
-        member_id: memberId
+        member_id: memberId,
+        permissions
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -82,6 +86,7 @@ export default function Members() {
       setDesignation('Member');
       setAddress('');
       setMemberId('');
+      setPermissions([]);
       
       // Auto switch back to list
       setActiveTab('list');
@@ -219,6 +224,7 @@ export default function Members() {
                       <th>Member ID</th>
                       <th>Phone</th>
                       <th>Designation</th>
+                      <th>Permissions</th>
                       <th>Address</th>
                       <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
                     </tr>
@@ -235,6 +241,17 @@ export default function Members() {
                           <span style={{ background: 'var(--primary-light)', color: 'var(--primary)', padding: '4px 10px', borderRadius: 12, fontSize: 13, fontWeight: 600 }}>
                             {member.designation || 'Member'}
                           </span>
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                            {member.permissions && member.permissions.length > 0 ? member.permissions.map((p: string) => (
+                              <span key={p} style={{ background: 'var(--bg-light)', padding: '2px 8px', borderRadius: 4, fontSize: 12, color: 'var(--text-main)', border: '1px solid var(--border-color)' }}>
+                                {p}
+                              </span>
+                            )) : (
+                              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>None</span>
+                            )}
+                          </div>
                         </td>
                         <td>{member.address || '-'}</td>
                         <td>
@@ -364,6 +381,27 @@ export default function Members() {
                 onChange={e => setAddress(e.target.value)}
                 placeholder="e.g. Block C, Flat 104"
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">App Access Permissions</label>
+              <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>Select which sections this member can access in the mobile app.</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {availablePermissions.map(p => (
+                  <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '12px 16px', border: '1px solid ' + (permissions.includes(p) ? 'var(--primary)' : 'var(--border-color)'), borderRadius: 8, background: permissions.includes(p) ? 'rgba(79, 70, 229, 0.05)' : 'white' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={permissions.includes(p)}
+                      onChange={(e) => {
+                        if (e.target.checked) setPermissions([...permissions, p]);
+                        else setPermissions(permissions.filter(perm => perm !== p));
+                      }}
+                      style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontWeight: permissions.includes(p) ? 600 : 500, color: permissions.includes(p) ? 'var(--primary)' : 'var(--text-main)' }}>{p}</span>
+                  </label>
+                ))}
+              </div>
             </div>
             
             <div style={{ marginTop: 32, display: 'flex', gap: 12 }}>

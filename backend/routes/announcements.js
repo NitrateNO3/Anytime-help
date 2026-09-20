@@ -60,7 +60,8 @@ router.get('/', auth, async (req, res) => {
 // @desc    Create an announcement (Admin only)
 // @access  Private
 router.post('/', auth, async (req, res) => {
-  const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || (req.user.role === 'SubAdmin' && req.user.permissions && req.user.permissions.includes('Announcements'));
+  const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || 
+    ((req.user.role === 'SubAdmin' || req.user.role === 'Member') && req.user.permissions && req.user.permissions.includes('Announcements'));
   if (!hasAccess) {
     return res.status(403).json({ msg: 'Authorization denied' });
   }
@@ -68,10 +69,22 @@ router.post('/', auth, async (req, res) => {
   const { title, message, phases } = req.body;
 
   try {
+    let creatorName = req.user.name;
+    let creatorId = req.user.member_id;
+
+    // Optional: if name is missing from token, fetch from db
+    if (!creatorName && req.user.role === 'Member') {
+      const userObj = await User.findById(req.user.id);
+      creatorName = userObj?.name || 'Member';
+      creatorId = userObj?.member_id || '';
+    }
+
     const newAnnouncement = new Announcement({
       title,
       message,
       createdBy: req.user.id,
+      creatorName: creatorName || req.user.role,
+      creatorId: creatorId || '',
       phases: phases || []
     });
 
@@ -93,7 +106,8 @@ router.post('/', auth, async (req, res) => {
 // @desc    Delete (or deactivate) an announcement
 // @access  Private
 router.delete('/:id', auth, async (req, res) => {
-  const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || (req.user.role === 'SubAdmin' && req.user.permissions && req.user.permissions.includes('Announcements'));
+  const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || 
+    ((req.user.role === 'SubAdmin' || req.user.role === 'Member') && req.user.permissions && req.user.permissions.includes('Announcements'));
   if (!hasAccess) {
     return res.status(403).json({ msg: 'Authorization denied' });
   }

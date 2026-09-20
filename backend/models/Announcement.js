@@ -21,6 +21,14 @@ const AnnouncementSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   },
+  creatorName: {
+    type: String,
+    required: false
+  },
+  creatorId: {
+    type: String,
+    required: false
+  },
   phases: {
     type: [String],
     default: []

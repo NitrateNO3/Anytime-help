@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler, Modal, TextInput, Alert, KeyboardAvoidingView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
@@ -16,6 +16,18 @@ export default function Announcements() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [user, setUser] = useState<any>(null);
+  
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+
+  useEffect(() => {
+    SecureStore.getItemAsync('userData').then((data) => {
+      if (data) setUser(JSON.parse(data));
+    });
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,6 +87,36 @@ export default function Announcements() {
     }
   };
 
+  const handleCreateAnnouncement = async () => {
+    if (!newTitle.trim() || !newDesc.trim()) {
+      Alert.alert('Validation Error', 'Title and description are required.');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      await axios.post(`${API_URL}/announcements`, {
+        title: newTitle.trim(),
+        message: newDesc.trim(),
+        phases: ['All Groups (Show Everything)'] // Members broadcast to all for now
+      }, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      Alert.alert('Success', 'Announcement posted successfully');
+      setCreateModalVisible(false);
+      setNewTitle('');
+      setNewDesc('');
+      fetchAnnouncements();
+    } catch (err: any) {
+      console.log('Error creating announcement:', err);
+      Alert.alert('Error', err.response?.data?.msg || 'Failed to create announcement');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
@@ -100,35 +142,104 @@ export default function Announcements() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1D4ED8']} />}
       >
         {loadingAnnouncements ? (
-          <View style={styles.loadingContainer}>
+          <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color="#1D4ED8" />
-            <Text style={styles.loadingText}>Fetching updates...</Text>
           </View>
         ) : announcements.length === 0 ? (
-          <View style={styles.emptyStateContainer}>
-            <View style={styles.emptyIconCircle}>
-              <Ionicons name="megaphone-outline" size={40} color="#94A3B8" />
-            </View>
-            <Text style={styles.emptyTextLarge}>{t('resident.noAnnouncements')}</Text>
-            <Text style={styles.emptyTextSub}>{t('resident.noAnnouncementsSub')}</Text>
+          <View style={styles.centerContainer}>
+            <Ionicons name="notifications-off-outline" size={60} color="#CBD5E1" />
+            <Text style={styles.emptyText}>{t('resident.noAnnouncements')}</Text>
           </View>
         ) : (
-          announcements.map((item) => (
-            <View key={item._id || item.id} style={styles.card}>
+          announcements.map((item, index) => (
+            <View key={item._id || index} style={styles.card}>
               <View style={styles.cardHeader}>
-                <View style={styles.announcementTag}>
-                  <Ionicons name="notifications" size={14} color="#2563EB" style={{ marginRight: 4 }} />
-                  <Text style={styles.tagText}>Notice</Text>
+                <View style={styles.titleContainer}>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
                 </View>
-                <Text style={styles.dateText}>{formatDate(item.date || item.createdAt)}</Text>
               </View>
-              <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardMessage}>{item.message}</Text>
+              
+              <View style={styles.cardFooter}>
+                <Text style={styles.dateText}>{formatDate(item.date)}</Text>
+                {item.creatorName && (
+                  <View style={styles.creatorBadge}>
+                    <Text style={styles.creatorText}>By: {item.creatorName} {item.creatorId ? `(ID: ${item.creatorId})` : ''}</Text>
+                  </View>
+                )}
+              </View>
             </View>
           ))
         )}
-        <View style={{ height: 60 }} />
       </ScrollView>
+
+      {(!user?.permissions || user?.permissions?.includes('Announcements')) && (
+        <TouchableOpacity 
+          style={styles.fab} 
+          onPress={() => setCreateModalVisible(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="add" size={28} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
+
+      {/* Create Announcement Modal */}
+      <Modal
+        visible={createModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setCreateModalVisible(false)}
+      >
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>New Announcement</Text>
+              <TouchableOpacity onPress={() => setCreateModalVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close" size={24} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Title *</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Announcement Title"
+                value={newTitle}
+                onChangeText={setNewTitle}
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Description *</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Enter details..."
+                value={newDesc}
+                onChangeText={setNewDesc}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={styles.submitButton}
+              onPress={handleCreateAnnouncement}
+              disabled={isCreating}
+            >
+              {isCreating ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>Post Announcement</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -212,4 +323,25 @@ const styles = StyleSheet.create({
   emptyIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   emptyTextLarge: { fontSize: 17, fontWeight: '700', color: '#1E293B', marginBottom: 6, textAlign: 'center' },
   emptyTextSub: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20 },
+
+  centerContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 100 },
+  emptyText: { marginTop: 16, fontSize: 16, color: '#64748B' },
+  
+  titleContainer: { flex: 1 },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  creatorBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  creatorText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
+  
+  fab: { position: 'absolute', bottom: 24, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: '#1D4ED8', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, minHeight: 400 },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: '#0F172A' },
+  formGroup: { marginBottom: 16 },
+  label: { fontSize: 14, fontWeight: '600', color: '#334155', marginBottom: 8 },
+  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 14, fontSize: 15, color: '#0F172A' },
+  textArea: { minHeight: 100 },
+  submitButton: { backgroundColor: '#1D4ED8', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
+  submitButtonText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });

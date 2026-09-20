@@ -170,48 +170,54 @@ export default function ResidentHome() {
           </TouchableOpacity>
 
           {/* Card 2: All Complaints */}
-          <TouchableOpacity 
-            style={styles.gridCard}
-            onPress={() => router.push('/member/my-complaints' as any)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconCircle, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="list" size={30} color="#D97706" />
-            </View>
-            <Text style={styles.gridCardTitle}>All Complaints</Text>
-            <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub')}</Text>
-          </TouchableOpacity>
+          {(!user?.permissions || user?.permissions?.includes('All Complaints')) && (
+            <TouchableOpacity 
+              style={styles.gridCard}
+              onPress={() => router.push('/member/my-complaints' as any)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="list" size={30} color="#D97706" />
+              </View>
+              <Text style={styles.gridCardTitle}>All Complaints</Text>
+              <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub')}</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Card 3: Announcements */}
-          <TouchableOpacity 
-            style={styles.gridCard}
-            onPress={() => router.push('/member/announcements' as any)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
-              <Ionicons name="notifications" size={30} color="#2563EB" />
-              {unreadCount > 0 && (
-                <View style={styles.badgeContainer}>
-                  <Text style={styles.badgeText}>{unreadCount}</Text>
-                </View>
-              )}
-            </View>
-            <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
-            <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
-          </TouchableOpacity>
+          {(!user?.permissions || user?.permissions?.includes('Announcements')) && (
+            <TouchableOpacity 
+              style={styles.gridCard}
+              onPress={() => router.push('/member/announcements' as any)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="notifications" size={30} color="#2563EB" />
+                {unreadCount > 0 && (
+                  <View style={styles.badgeContainer}>
+                    <Text style={styles.badgeText}>{unreadCount}</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Card 4: Directory */}
-          <TouchableOpacity 
-            style={styles.gridCard}
-            onPress={() => router.push('/member/search' as any)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
-              <Ionicons name="people" size={30} color="#7C3AED" />
-            </View>
-            <Text style={styles.gridCardTitle}>{t('resident.directory')}</Text>
-            <Text style={styles.gridCardSub}>{t('resident.directorySub')}</Text>
-          </TouchableOpacity>
+          {(!user?.permissions || user?.permissions?.includes('Directory')) && (
+            <TouchableOpacity 
+              style={styles.gridCard}
+              onPress={() => router.push('/member/search' as any)}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
+                <Ionicons name="people" size={30} color="#7C3AED" />
+              </View>
+              <Text style={styles.gridCardTitle}>{t('resident.directory')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.directorySub')}</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

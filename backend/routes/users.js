@@ -246,7 +246,7 @@ router.post('/residents', auth, async (req, res) => {
 // @desc    Create a new member (Committee)
 // @access  Admin Private
 router.post('/members', auth, async (req, res) => {
-  let { name, phone_number, designation, address, member_id } = req.body;
+  let { name, phone_number, designation, address, member_id, permissions } = req.body;
 
   if (!member_id) {
     return res.status(400).json({ message: 'Member ID is required' });
@@ -269,7 +269,8 @@ router.post('/members', auth, async (req, res) => {
         role: 'Member',
         designation,
         address,
-        member_id
+        member_id,
+        permissions: permissions || []
       });
     } else {
       user.name = name;
@@ -277,6 +278,7 @@ router.post('/members', auth, async (req, res) => {
       user.designation = designation;
       user.address = address;
       user.member_id = member_id;
+      user.permissions = permissions || [];
     }
 
     await user.save();

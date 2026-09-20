@@ -289,11 +289,11 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(403).json({ msg: `Access Denied. You are registered as ${user.role}, not ${role}.` });
     }
 
-    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, member_id: user.member_id } };
+    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, member_id: user.member_id, permissions: user.permissions || [] } };
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, member_id: user.member_id } });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, member_id: user.member_id, permissions: user.permissions || [] } });
     });
   } catch (err) {
     console.error(err.message);

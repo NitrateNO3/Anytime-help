@@ -124,6 +124,14 @@ export default function Announcements() {
               </View>
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardMessage}>{item.message}</Text>
+              
+              {item.creatorName && (
+                <View style={styles.cardFooter}>
+                  <View style={styles.creatorBadge}>
+                    <Text style={styles.creatorText}>By: {item.creatorName} {item.creatorId ? `(ID: ${item.creatorId})` : ''}</Text>
+                  </View>
+                </View>
+              )}
             </View>
           ))
         )}
@@ -208,6 +216,9 @@ const styles = StyleSheet.create({
     color: '#475569', 
     lineHeight: 22 
   },
+  cardFooter: { flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  creatorBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  creatorText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
   emptyStateContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 24 },
   emptyIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   emptyTextLarge: { fontSize: 17, fontWeight: '700', color: '#1E293B', marginBottom: 6, textAlign: 'center' },
