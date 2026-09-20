@@ -148,13 +148,15 @@ export default function ResidentHome() {
                   {t('resident.societyName')}
                 </Text>
               </View>
-              <TouchableOpacity 
-                style={[styles.avatarContainer, { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' }]} 
-                onPress={() => router.push('/member/settings' as any)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="person" size={24} color="#1E1B4B" />
-              </TouchableOpacity>
+              <CopilotStep text="Manage your profile, settings, and view tutorials from here." order={5} name="profile_avatar">
+                <WalkthroughableTouchableOpacity 
+                  style={[styles.avatarContainer, { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' }]} 
+                  onPress={() => router.push('/member/settings' as any)}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="person" size={24} color="#1E1B4B" />
+                </WalkthroughableTouchableOpacity>
+              </CopilotStep>
             </View>
           </View>
         </LinearGradient>

@@ -41,7 +41,6 @@ export default function SettingsScreen() {
   const handleLogout = async () => {
     await SecureStore.deleteItemAsync('userToken');
     await SecureStore.deleteItemAsync('userData');
-    await SecureStore.deleteItemAsync('last_announcements_count');
     router.replace('/' as any);
   };
 

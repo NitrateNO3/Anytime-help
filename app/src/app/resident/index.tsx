@@ -33,9 +33,13 @@ export default function ResidentHome() {
         if (!data && start) {
           // Delay starting slightly so UI has time to mount
           setTimeout(() => {
-            start();
-            SecureStore.setItemAsync('hasViewedResidentTour', 'true');
-          }, 500);
+            try {
+              start();
+              SecureStore.setItemAsync('hasViewedResidentTour', 'true');
+            } catch (e) {
+              console.log('Copilot start error:', e);
+            }
+          }, 1000); // increased delay to 1000ms
         }
       });
 
@@ -122,14 +126,19 @@ export default function ResidentHome() {
                 <Text style={styles.exploreText} numberOfLines={1} adjustsFontSizeToFit>
                   {t('resident.societyName')}
                 </Text>
+                <TouchableOpacity onPress={() => start()} style={{ marginTop: 8, backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start' }}>
+                  <Text style={{ color: '#FFF', fontSize: 12, fontWeight: 'bold' }}>Start Tour</Text>
+                </TouchableOpacity>
               </View>
-              <TouchableOpacity 
-                style={styles.avatarContainer} 
-                onPress={() => router.push('/resident/settings')}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="person" size={24} color="#1D4ED8" />
-              </TouchableOpacity>
+              <CopilotStep text="Manage your profile, settings, and view tutorials from here." order={5} name="profile_avatar">
+                <WalkthroughableTouchableOpacity 
+                  style={styles.avatarContainer} 
+                  onPress={() => router.push('/resident/settings')}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="person" size={24} color="#1D4ED8" />
+                </WalkthroughableTouchableOpacity>
+              </CopilotStep>
             </View>
           </View>
         </LinearGradient>
@@ -161,20 +170,22 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 2: My Complaints */}
-          <TouchableOpacity 
-            style={styles.gridCard}
-            onPress={() => router.push('/resident/my-complaints')}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.gridIconCircle, { backgroundColor: '#D1FAE5' }]}>
-              <Ionicons name="list" size={30} color="#10B981" />
-            </View>
-            <Text style={styles.gridCardTitle}>{t('resident.myComplaints')}</Text>
-            <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub')}</Text>
-          </TouchableOpacity>
+          <CopilotStep text="Track the status of your lodged complaints in real-time." order={2} name="my_complaints">
+            <WalkthroughableTouchableOpacity 
+              style={styles.gridCard}
+              onPress={() => router.push('/resident/my-complaints')}
+              activeOpacity={0.8}
+            >
+              <View style={[styles.gridIconCircle, { backgroundColor: '#D1FAE5' }]}>
+                <Ionicons name="list" size={30} color="#10B981" />
+              </View>
+              <Text style={styles.gridCardTitle}>{t('resident.myComplaints')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub')}</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
 
           {/* Card 3: Announcements */}
-          <CopilotStep text="Never miss out! Get instant announcements and important broadcasts directly from the admin." order={2} name="announcements">
+          <CopilotStep text="Never miss out! Get instant announcements and important broadcasts directly from the admin." order={3} name="announcements">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => router.push('/resident/announcements')}
@@ -194,7 +205,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 4: Directory */}
-          <CopilotStep text="Connect with other residents easily and securely through our integrated society directory." order={3} name="directory">
+          <CopilotStep text="Connect with other residents easily and securely through our integrated society directory." order={4} name="directory">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => router.push('/resident/search')}

@@ -173,13 +173,6 @@ export default function StaffScreen() {
     fetchAnnouncements();
   };
 
-  const handleLogout = async () => {
-    await SecureStore.deleteItemAsync('userToken');
-    await SecureStore.deleteItemAsync('userData');
-    Toast.show({ type: 'success', text1: 'Logged out successfully' });
-    router.replace('/login' as any);
-  };
-
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
 
   const updateStatus = async (newStatus: string) => {
@@ -291,9 +284,11 @@ export default function StaffScreen() {
             <Text style={styles.langToggleText}>{getLanguageDisplayName(i18n.language)}</Text>
           </TouchableOpacity>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.iconBtn} onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={24} color="#EF4444" />
-            </TouchableOpacity>
+            <CopilotStep text="Manage your profile, language, and tutorial settings here." order={3} name="staff_settings">
+              <WalkthroughableTouchableOpacity style={styles.iconBtn} onPress={() => router.push('/staff-settings')}>
+                <Ionicons name="settings-outline" size={24} color="#2563EB" />
+              </WalkthroughableTouchableOpacity>
+            </CopilotStep>
           </View>
         </View>
 

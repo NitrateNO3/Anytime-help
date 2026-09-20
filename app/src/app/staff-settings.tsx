@@ -7,7 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { getNextLanguage, getLanguageDisplayName } from '../../utils/localization';
+import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -25,7 +25,7 @@ export default function SettingsScreen() {
       loadUser();
 
       const onBackPress = () => {
-        router.replace('/member' as any);
+        router.replace('/staff');
         return true;
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -51,7 +51,7 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, paddingBottom: 14, paddingHorizontal: 20, backgroundColor: '#1D4ED8', zIndex: 1, elevation: 4 }}>
         <TouchableOpacity 
-          onPress={() => router.replace('/member' as any)} 
+          onPress={() => router.replace('/staff')} 
           style={{ width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
@@ -68,8 +68,8 @@ export default function SettingsScreen() {
             <Ionicons name="person" size={36} color="#1D4ED8" />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{user?.name || 'Resident'}</Text>
-            <Text style={styles.profileEmail}>{user?.email || 'resident@society.com'}</Text>
+            <Text style={styles.profileName}>{user?.name || 'Staff Member'}</Text>
+            <Text style={styles.profileEmail}>{user?.email || 'staff@society.com'}</Text>
           </View>
         </View>
 
@@ -96,8 +96,8 @@ export default function SettingsScreen() {
           <Text style={styles.groupTitle}>SUPPORT & ABOUT</Text>
           <View style={styles.cardGroup}>
             <TouchableOpacity style={styles.settingRow} onPress={async () => {
-              await SecureStore.deleteItemAsync('hasViewedMemberTour');
-              router.replace('/member');
+              await SecureStore.deleteItemAsync('hasViewedStaffTour');
+              router.replace('/staff');
             }}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>
@@ -108,7 +108,7 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/member/privacy' as any)}>
+            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/resident/privacy')}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>
                   <Ionicons name="shield-checkmark-outline" size={20} color="#4B5563" />
@@ -118,7 +118,7 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/member/about' as any)}>
+            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/resident/about')}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>
                   <Ionicons name="information-circle-outline" size={20} color="#4B5563" />
@@ -128,7 +128,7 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/member/support' as any)}>
+            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/resident/support')}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
                   <Ionicons name="help-buoy-outline" size={20} color="#D97706" />
