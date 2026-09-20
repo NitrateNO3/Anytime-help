@@ -22,7 +22,7 @@ export default function Members() {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   
-  const availablePermissions = ['All Complaints', 'Announcements', 'Resident'];
+  const availablePermissions = ['All Complaints', 'Resident', 'Announcements (All)', 'Announcements (Residents)', 'Announcements (Members)'];
 
   useEffect(() => {
     if (activeTab === 'list') {

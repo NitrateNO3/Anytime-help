@@ -22,7 +22,6 @@ export default function Announcements() {
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [isCreating, setIsCreating] = useState(false);
-
   useEffect(() => {
     SecureStore.getItemAsync('userData').then((data) => {
       if (data) setUser(JSON.parse(data));
@@ -31,6 +30,9 @@ export default function Announcements() {
 
   useFocusEffect(
     useCallback(() => {
+      SecureStore.getItemAsync('userData').then((data) => {
+        if (data) setUser(JSON.parse(data));
+      });
       fetchAnnouncements();
 
       const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
@@ -96,10 +98,17 @@ export default function Announcements() {
     setIsCreating(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
+      let targetPhase = 'All';
+      if (user?.permissions) {
+        if (user.permissions.includes('Announcements (All)')) targetPhase = 'All';
+        else if (user.permissions.includes('Announcements (Residents)')) targetPhase = 'Resident';
+        else if (user.permissions.includes('Announcements (Members)')) targetPhase = 'Members';
+      }
+
       await axios.post(`${API_URL}/announcements`, {
         title: newTitle.trim(),
         message: newDesc.trim(),
-        phases: ['All']
+        phases: [targetPhase]
       }, {
         headers: { 'x-auth-token': token }
       });

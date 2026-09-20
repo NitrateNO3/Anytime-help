@@ -185,7 +185,7 @@ export default function ResidentHome() {
           )}
 
           {/* Card 3: Announcements */}
-          {(!user?.permissions || user?.permissions?.includes('Announcements')) && (
+          {(!user?.permissions || user?.permissions?.some((p: string) => p.startsWith('Announcements'))) && (
             <TouchableOpacity 
               style={styles.gridCard}
               onPress={() => router.push('/member/announcements' as any)}
