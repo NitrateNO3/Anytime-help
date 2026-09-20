@@ -21,7 +21,6 @@ export default function Announcements() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
-  const [selectedPhase, setSelectedPhase] = useState('All');
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
@@ -100,7 +99,7 @@ export default function Announcements() {
       await axios.post(`${API_URL}/announcements`, {
         title: newTitle.trim(),
         message: newDesc.trim(),
-        phases: [selectedPhase]
+        phases: ['All']
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -109,7 +108,6 @@ export default function Announcements() {
       setCreateModalVisible(false);
       setNewTitle('');
       setNewDesc('');
-      setSelectedPhase('All');
       fetchAnnouncements();
     } catch (err: any) {
       console.log('Error creating announcement:', err);
@@ -225,23 +223,6 @@ export default function Announcements() {
                 numberOfLines={4}
                 textAlignVertical="top"
               />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Send To</Text>
-              <View style={styles.segmentedControl}>
-                {['All', 'Resident', 'Members'].map((phase) => (
-                  <TouchableOpacity
-                    key={phase}
-                    style={[styles.segmentButton, selectedPhase === phase && styles.segmentButtonActive]}
-                    onPress={() => setSelectedPhase(phase)}
-                  >
-                    <Text style={[styles.segmentText, selectedPhase === phase && styles.segmentTextActive]}>
-                      {phase === 'Resident' ? 'Residents' : phase}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
             </View>
 
             <TouchableOpacity 
@@ -361,11 +342,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: '#334155', marginBottom: 8 },
   input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 14, fontSize: 15, color: '#0F172A' },
   textArea: { minHeight: 100 },
-  segmentedControl: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4 },
-  segmentButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-  segmentButtonActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  segmentText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
-  segmentTextActive: { color: '#0F172A' },
   submitButton: { backgroundColor: '#1D4ED8', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
   submitButtonText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });

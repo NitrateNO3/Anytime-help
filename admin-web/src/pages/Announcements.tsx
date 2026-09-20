@@ -22,7 +22,7 @@ export default function Announcements() {
   const [isCreating, setIsCreating] = useState(false);
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
 
-  const availablePhases = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
+  const availablePhases = ['Resident', 'Members'];
 
   useEffect(() => {
     if (activeTab === 'list') {
@@ -182,9 +182,8 @@ export default function Announcements() {
             >
               <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
               <option value="Universal (Sent to Everyone)">Universal (Sent to Everyone)</option>
-              <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
-              <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
-              <option value="Sushant Lok 3">Sushant Lok 3</option>
+              <option value="Resident">Resident</option>
+              <option value="Members">Members</option>
             </select>
           </div>
           <table>
