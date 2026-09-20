@@ -60,8 +60,9 @@ router.get('/', auth, async (req, res) => {
 // @desc    Create an announcement (Admin only)
 // @access  Private
 router.post('/', auth, async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
-    return res.status(403).json({ msg: 'Authorization denied, admin or staff only' });
+  const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || (req.user.role === 'SubAdmin' && req.user.permissions && req.user.permissions.includes('Announcements'));
+  if (!hasAccess) {
+    return res.status(403).json({ msg: 'Authorization denied' });
   }
 
   const { title, message, phases } = req.body;
@@ -92,8 +93,9 @@ router.post('/', auth, async (req, res) => {
 // @desc    Delete (or deactivate) an announcement
 // @access  Private
 router.delete('/:id', auth, async (req, res) => {
-  if (req.user.role !== 'Admin' && req.user.role !== 'Staff') {
-    return res.status(403).json({ msg: 'Authorization denied, admin or staff only' });
+  const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || (req.user.role === 'SubAdmin' && req.user.permissions && req.user.permissions.includes('Announcements'));
+  if (!hasAccess) {
+    return res.status(403).json({ msg: 'Authorization denied' });
   }
 
   try {

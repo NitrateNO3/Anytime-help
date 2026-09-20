@@ -35,7 +35,14 @@ export default function Login() {
       toast.success('Logged in successfully!');
       
       if (loginType === 'SubAdmin') {
-        navigate('/residents');
+        const perms = res.data.user.permissions || [];
+        if (perms.includes('Residents')) navigate('/residents');
+        else if (perms.includes('Staff Team')) navigate('/staff');
+        else if (perms.includes('Committee Members')) navigate('/members');
+        else if (perms.includes('Announcements')) navigate('/announcements');
+        else if (perms.includes('Banners')) navigate('/banners');
+        else if (perms.includes('Directory')) navigate('/directory');
+        else navigate('/residents'); // fallback
       } else {
         navigate('/dashboard');
       }

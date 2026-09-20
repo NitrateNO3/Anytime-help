@@ -4,12 +4,18 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 
+const checkAccess = (user, section) => {
+  if (user.role === 'Admin') return true;
+  if (user.role === 'SubAdmin' && user.permissions && user.permissions.includes(section)) return true;
+  return false;
+};
+
 // @route   GET api/users/staff
 // @desc    Get all staff members (supports pagination)
 // @access  Admin Private
 router.get('/staff', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
+    if (!checkAccess(req.user, 'Staff Team')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     const { page, limit, phase } = req.query;
@@ -79,7 +85,7 @@ router.get('/paid-staff', auth, async (req, res) => {
 // @access  Admin Private
 router.get('/residents', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
+    if (!checkAccess(req.user, 'Residents')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     const { page, limit, phase, search, relation } = req.query;
@@ -155,7 +161,7 @@ router.get('/residents', auth, async (req, res) => {
 // @access  Admin Private
 router.get('/members', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'Admin') {
+    if (!checkAccess(req.user, 'Committee Members')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     const { page, limit, search } = req.query;
@@ -201,7 +207,7 @@ router.post('/residents', auth, async (req, res) => {
   let { name, phone_number, phase, address, relation, property_type } = req.body;
 
   try {
-    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
+    if (!checkAccess(req.user, 'Residents')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -243,7 +249,7 @@ router.post('/members', auth, async (req, res) => {
   let { name, phone_number, designation, address } = req.body;
 
   try {
-    if (req.user.role !== 'Admin') {
+    if (!checkAccess(req.user, 'Committee Members')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -284,7 +290,7 @@ router.post('/staff', auth, async (req, res) => {
   let { name, phone_number, assigned_category, phase } = req.body;
 
   try {
-    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
+    if (!checkAccess(req.user, 'Staff Team')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -375,6 +381,7 @@ router.post('/paid-staff', auth, async (req, res) => {
 // @access  Admin Private
 router.delete('/:id', auth, async (req, res) => {
   try {
+    // For DELETE, we will check if they have permission for the specific user type they are deleting later.
     if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
@@ -384,8 +391,19 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (req.user.role === 'SubAdmin' && (user.role === 'Admin' || user.role === 'SubAdmin' || user.role === 'PaidStaff')) {
-      return res.status(403).json({ message: 'Sub-Admins cannot delete this user type' });
+    if (req.user.role === 'SubAdmin') {
+      if (user.role === 'Admin' || user.role === 'SubAdmin' || user.role === 'PaidStaff') {
+        return res.status(403).json({ message: 'Sub-Admins cannot delete this user type' });
+      }
+      if (user.role === 'Resident' && !checkAccess(req.user, 'Residents')) {
+        return res.status(403).json({ message: 'Sub-Admins cannot delete Residents' });
+      }
+      if (user.role === 'Staff' && !checkAccess(req.user, 'Staff Team')) {
+        return res.status(403).json({ message: 'Sub-Admins cannot delete Staff' });
+      }
+      if (user.role === 'Member' && !checkAccess(req.user, 'Committee Members')) {
+        return res.status(403).json({ message: 'Sub-Admins cannot delete Committee Members' });
+      }
     }
 
     await User.findByIdAndDelete(req.params.id);

@@ -9,6 +9,12 @@ export default function AdminLayout() {
   const adminUserStr = localStorage.getItem('adminUser');
   const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
   const isSuperAdmin = adminUser?.role === 'Admin';
+  
+  const hasAccess = (section: string) => {
+    if (isSuperAdmin) return true;
+    if (adminUser?.role === 'SubAdmin' && adminUser?.permissions?.includes(section)) return true;
+    return false;
+  };
 
   useEffect(() => {
     if (!adminUser) {
@@ -41,38 +47,53 @@ export default function AdminLayout() {
             </Link>
           )}
           
-          <Link to="/residents" className={`nav-link ${location.pathname === '/residents' ? 'active' : ''}`}>
-            <Home size={20} />
-            Residents
-          </Link>
-          <Link to="/staff" className={`nav-link ${location.pathname === '/staff' ? 'active' : ''}`}>
-            <Users size={20} />
-            Staff Team
-          </Link>
+          {hasAccess('Residents') && (
+            <Link to="/residents" className={`nav-link ${location.pathname === '/residents' ? 'active' : ''}`}>
+              <Home size={20} />
+              Residents
+            </Link>
+          )}
+          
+          {hasAccess('Staff Team') && (
+            <Link to="/staff" className={`nav-link ${location.pathname === '/staff' ? 'active' : ''}`}>
+              <Users size={20} />
+              Staff Team
+            </Link>
+          )}
 
+          {hasAccess('Committee Members') && (
+            <Link to="/members" className={`nav-link ${location.pathname === '/members' ? 'active' : ''}`}>
+              <Users size={20} />
+              Committee Members
+            </Link>
+          )}
+          
           {isSuperAdmin && (
-            <>
-              <Link to="/members" className={`nav-link ${location.pathname === '/members' ? 'active' : ''}`}>
-                <Users size={20} />
-                Committee Members
-              </Link>
-              <Link to="/subadmins" className={`nav-link ${location.pathname === '/subadmins' ? 'active' : ''}`}>
-                <Users size={20} />
-                Sub-Admins
-              </Link>
-              <Link to="/announcements" className={`nav-link ${location.pathname === '/announcements' ? 'active' : ''}`}>
-                <Megaphone size={20} />
-                Announcements
-              </Link>
-              <Link to="/banners" className={`nav-link ${location.pathname === '/banners' ? 'active' : ''}`}>
-                <ImageIcon size={20} />
-                Banners
-              </Link>
-              <Link to="/directory" className={`nav-link ${location.pathname === '/directory' ? 'active' : ''}`}>
-                <BookOpen size={20} />
-                Directory
-              </Link>
-            </>
+            <Link to="/subadmins" className={`nav-link ${location.pathname === '/subadmins' ? 'active' : ''}`}>
+              <Users size={20} />
+              Sub-Admins
+            </Link>
+          )}
+          
+          {hasAccess('Announcements') && (
+            <Link to="/announcements" className={`nav-link ${location.pathname === '/announcements' ? 'active' : ''}`}>
+              <Megaphone size={20} />
+              Announcements
+            </Link>
+          )}
+          
+          {hasAccess('Banners') && (
+            <Link to="/banners" className={`nav-link ${location.pathname === '/banners' ? 'active' : ''}`}>
+              <ImageIcon size={20} />
+              Banners
+            </Link>
+          )}
+          
+          {hasAccess('Directory') && (
+            <Link to="/directory" className={`nav-link ${location.pathname === '/directory' ? 'active' : ''}`}>
+              <BookOpen size={20} />
+              Directory
+            </Link>
           )}
         </nav>
 

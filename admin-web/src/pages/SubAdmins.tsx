@@ -14,7 +14,10 @@ export default function SubAdmins() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [permissions, setPermissions] = useState<string[]>(['Residents', 'Staff Team']);
   const [isCreating, setIsCreating] = useState(false);
+  
+  const availablePermissions = ['Residents', 'Staff Team', 'Committee Members', 'Announcements', 'Banners', 'Directory'];
 
   useEffect(() => {
     if (activeTab === 'list') {
@@ -54,7 +57,8 @@ export default function SubAdmins() {
       await axios.post(`${API_URL}/subadmins`, {
         name,
         email,
-        password
+        password,
+        permissions
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -65,6 +69,7 @@ export default function SubAdmins() {
       setName('');
       setEmail('');
       setPassword('');
+      setPermissions(['Residents', 'Staff Team']);
       
       // Auto switch back to list
       setActiveTab('list');
@@ -183,6 +188,7 @@ export default function SubAdmins() {
                   <tr>
                     <th>Name</th>
                     <th>Email</th>
+                    <th>Permissions</th>
                     <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
@@ -191,6 +197,17 @@ export default function SubAdmins() {
                     <tr key={user._id}>
                       <td style={{ fontWeight: 600 }}>{user.name}</td>
                       <td style={{ color: 'var(--text-muted)' }}>{user.email}</td>
+                      <td>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {user.permissions && user.permissions.length > 0 ? user.permissions.map((p: string) => (
+                            <span key={p} style={{ background: 'var(--bg-light)', padding: '2px 8px', borderRadius: 4, fontSize: 12, color: 'var(--text-main)', border: '1px solid var(--border-color)' }}>
+                              {p}
+                            </span>
+                          )) : (
+                            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>None</span>
+                          )}
+                        </div>
+                      </td>
                       <td style={{ textAlign: 'center' }}>
                         <button 
                           onClick={() => handleDelete(user._id)}
@@ -247,6 +264,27 @@ export default function SubAdmins() {
                   required
                   placeholder="Set a password"
                 />
+              </div>
+
+              <div className="input-group" style={{ marginBottom: 24 }}>
+                <label>Access Permissions</label>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>Select the sections this Sub-Admin should have access to.</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  {availablePermissions.map(p => (
+                    <label key={p} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '12px 16px', border: '1px solid ' + (permissions.includes(p) ? 'var(--primary)' : 'var(--border-color)'), borderRadius: 8, background: permissions.includes(p) ? 'rgba(79, 70, 229, 0.05)' : 'white' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={permissions.includes(p)}
+                        onChange={(e) => {
+                          if (e.target.checked) setPermissions([...permissions, p]);
+                          else setPermissions(permissions.filter(perm => perm !== p));
+                        }}
+                        style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontWeight: permissions.includes(p) ? 600 : 500, color: permissions.includes(p) ? 'var(--primary)' : 'var(--text-main)' }}>{p}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <button type="submit" className="btn-primary" disabled={isCreating} style={{ marginTop: '16px', height: '52px' }}>

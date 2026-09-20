@@ -127,8 +127,8 @@ export default function MyComplaints() {
       setHasMore(hasMoreData);
       setPage(pageNum);
       setIsOffline(false);
-    } catch (err) {
-      console.error('Fetch complaints error:', err);
+    } catch (err: any) {
+      console.log('Fetch complaints error:', err.message);
       if (!append) {
         const cachedStr = await AsyncStorage.getItem('cached_resident_complaints');
         if (cachedStr) {
@@ -155,8 +155,8 @@ export default function MyComplaints() {
       setAnnouncements(res.data);
       AsyncStorage.setItem('cached_announcements', JSON.stringify(res.data));
       setIsOffline(false);
-    } catch (err) {
-      console.error('Fetch announcements error:', err);
+    } catch (err: any) {
+      console.log('Fetch announcements error:', err.message);
       const cachedStr = await AsyncStorage.getItem('cached_announcements');
       if (cachedStr) {
         setAnnouncements(JSON.parse(cachedStr));

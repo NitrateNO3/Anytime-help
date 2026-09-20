@@ -13,7 +13,7 @@ router.post('/', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied: Only Super Admin can create Sub-Admins' });
     }
 
-    const { email, password, name } = req.body;
+    const { email, password, name, permissions } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
@@ -28,14 +28,15 @@ router.post('/', auth, async (req, res) => {
       name: name || 'Sub-Admin',
       email,
       password,
-      role: 'SubAdmin'
+      role: 'SubAdmin',
+      permissions: permissions || []
     });
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
 
     await user.save();
-    res.json({ message: 'Sub-Admin created successfully', user: { _id: user._id, email: user.email, name: user.name, role: user.role } });
+    res.json({ message: 'Sub-Admin created successfully', user: { _id: user._id, email: user.email, name: user.name, role: user.role, permissions: user.permissions } });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');

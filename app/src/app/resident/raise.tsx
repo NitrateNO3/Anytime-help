@@ -1,6 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, StatusBar, ActivityIndicator, Image, Animated, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, StatusBar, ActivityIndicator, Image, Animated, BackHandler, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useCallback } from 'react';
@@ -34,6 +34,7 @@ export default function RaiseComplaint() {
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [otherModalVisible, setOtherModalVisible] = useState(false);
   const [cameraLoading, setCameraLoading] = useState(false);
   const [galleryLoading, setGalleryLoading] = useState(false);
   
@@ -238,7 +239,11 @@ export default function RaiseComplaint() {
         { headers: { 'x-auth-token': token } }
       );
       
-      setSuccessModalVisible(true);
+      if (category.toLowerCase() === 'other' || category.toLowerCase() === 'others' || subCategory.toLowerCase() === 'other' || subCategory.toLowerCase() === 'others') {
+        setOtherModalVisible(true);
+      } else {
+        setSuccessModalVisible(true);
+      }
     } catch (err: any) {
       console.log('Submission info:', err.message);
       const errorCode = err.response?.data?.error_code;
@@ -571,6 +576,50 @@ export default function RaiseComplaint() {
               onPress={() => setErrorModalVisible(false)}
             >
               <Text style={styles.doneBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Other Category MCG Modal */}
+      <Modal animationType="fade" transparent={true} visible={otherModalVisible}>
+        <View style={styles.successModalOverlay}>
+          <View style={styles.successModalContainer}>
+            <View style={[styles.successIconCircle, { backgroundColor: '#FEF3C7' }]}>
+              <Ionicons name="information-circle" size={40} color="#D97706" />
+            </View>
+            <Text style={[styles.successModalTitle, { fontSize: 20 }]}>Information</Text>
+            <Text style={[styles.successModalText, { textAlign: 'left', marginBottom: 12 }]}>
+              SLERWA is committed to addressing residents’ concerns; however, we currently do not have the necessary infrastructure to undertake this work directly.
+            </Text>
+            <Text style={[styles.successModalText, { textAlign: 'left', marginBottom: 28 }]}>
+              Please raise the request with MCG for the required action. If the matter remains unresolved, SLERWA will take it up with the appropriate higher authorities within MCG to help ensure the work is addressed.
+            </Text>
+            
+            <TouchableOpacity 
+              style={[styles.doneBtn, { backgroundColor: '#F59E0B', marginBottom: 12 }]} 
+              onPress={() => {
+                setOtherModalVisible(false);
+                setStep(1);
+                setDescription('');
+                setImage(null);
+                Linking.openURL('https://www.slerwa.in/');
+              }}
+            >
+              <Text style={styles.doneBtnText}>Proceed to MCG Website</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.doneBtn, { backgroundColor: '#F3F4F6' }]} 
+              onPress={() => {
+                setOtherModalVisible(false);
+                setStep(1);
+                setDescription('');
+                setImage(null);
+                router.replace('/resident/my-complaints');
+              }}
+            >
+              <Text style={[styles.doneBtnText, { color: '#4B5563' }]}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>

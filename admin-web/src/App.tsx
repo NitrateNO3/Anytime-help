@@ -14,6 +14,24 @@ import Directory from './pages/Directory';
 import Members from './pages/Members';
 import SubAdmins from './pages/SubAdmins';
 
+function IndexRedirect() {
+  const adminUserStr = localStorage.getItem('adminUser');
+  const user = adminUserStr ? JSON.parse(adminUserStr) : null;
+  
+  if (user?.role === 'Admin') return <Navigate to="/dashboard" replace />;
+  if (user?.role === 'SubAdmin') {
+    const perms = user.permissions || [];
+    if (perms.includes('Residents')) return <Navigate to="/residents" replace />;
+    if (perms.includes('Staff Team')) return <Navigate to="/staff" replace />;
+    if (perms.includes('Committee Members')) return <Navigate to="/members" replace />;
+    if (perms.includes('Announcements')) return <Navigate to="/announcements" replace />;
+    if (perms.includes('Banners')) return <Navigate to="/banners" replace />;
+    if (perms.includes('Directory')) return <Navigate to="/directory" replace />;
+    return <Navigate to="/residents" replace />;
+  }
+  return <Navigate to="/login" replace />;
+}
+
 function App() {
   return (
     <>
@@ -23,7 +41,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           
           <Route path="/" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route index element={<IndexRedirect />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="staff" element={<Staff />} />
             <Route path="residents" element={<Residents />} />
