@@ -63,7 +63,7 @@ const SkeletonCard = () => {
 export default function MyComplaints() {
   const router = useRouter();
   const { t } = useTranslation();
-  const [complaints, setComplaints] = useState<any[]>([]);
+  const [allFetchedComplaints, setAllFetchedComplaints] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
@@ -82,6 +82,7 @@ export default function MyComplaints() {
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [viewMode, setViewMode] = useState<'all' | 'mine'>('all');
   const [isOffline, setIsOffline] = useState(false);
   
   const mounted = React.useRef(false);
@@ -92,12 +93,12 @@ export default function MyComplaints() {
       return;
     }
     const delayDebounceFn = setTimeout(() => {
-      fetchComplaints(1, false, searchQuery, selectedCategory);
+      fetchComplaints(1, false, searchQuery, selectedCategory, viewMode);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  const fetchComplaints = async (pageNum = 1, append = false, currentSearch = searchQuery, currentCategory = selectedCategory, silent = false) => {
+  const fetchComplaints = async (pageNum = 1, append = false, currentSearch = searchQuery, currentCategory = selectedCategory, currentViewMode = viewMode, silent = false) => {
     try {
       if (!append && !silent) setLoading(true);
       else if (append) setLoadingMore(true);
@@ -106,7 +107,7 @@ export default function MyComplaints() {
       const userData = await SecureStore.getItemAsync('userData');
       if (userData) setUser(JSON.parse(userData));
 
-      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=5${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}`, {
+      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=5${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${currentViewMode === 'mine' ? '&mine=true' : ''}`, {
         headers: { 'x-auth-token': token }
       });
       
@@ -114,13 +115,13 @@ export default function MyComplaints() {
       const hasMoreData = res.data.hasMore !== undefined ? res.data.hasMore : false;
 
       if (append) {
-        setComplaints(prev => {
+        setAllFetchedComplaints(prev => {
           const existingIds = new Set(prev.map(c => c._id));
           const filteredNew = newComplaints.filter((c: any) => !existingIds.has(c._id));
           return [...prev, ...filteredNew];
         });
       } else {
-        setComplaints(newComplaints);
+        setAllFetchedComplaints(newComplaints);
         AsyncStorage.setItem('cached_resident_complaints', JSON.stringify(newComplaints));
       }
       
@@ -132,10 +133,10 @@ export default function MyComplaints() {
       if (!append) {
         const cachedStr = await AsyncStorage.getItem('cached_resident_complaints');
         if (cachedStr) {
-          setComplaints(JSON.parse(cachedStr));
+          setAllFetchedComplaints(JSON.parse(cachedStr));
           setIsOffline(true);
         } else {
-          setComplaints([]);
+          setAllFetchedComplaints([]);
         }
       }
     } finally {
@@ -186,7 +187,7 @@ export default function MyComplaints() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchComplaints(1, false, searchQuery, selectedCategory, true);
+      fetchComplaints(1, false, searchQuery, selectedCategory, viewMode, true);
       fetchAnnouncements(true);
       if (tab === 'Complaints') {
         setActiveTab('Complaints');
@@ -227,7 +228,7 @@ export default function MyComplaints() {
       await axios.delete(`${API_URL}/complaints/${complaintToDelete}`, {
         headers: { 'x-auth-token': token }
       });
-      setComplaints(prev => prev.filter(c => c._id !== complaintToDelete));
+      setAllFetchedComplaints(prev => prev.filter(c => c._id !== complaintToDelete));
       setDeleteModalVisible(false);
       setComplaintToDelete(null);
     } catch (error) {
@@ -256,6 +257,10 @@ export default function MyComplaints() {
     }
   };
 
+  const displayedComplaints = viewMode === 'mine' && user 
+    ? allFetchedComplaints.filter(c => c.user?._id === user._id || c.user === user._id)
+    : allFetchedComplaints;
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
@@ -278,8 +283,28 @@ export default function MyComplaints() {
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>All Complaints</Text>
+          <Text style={styles.headerTitle}>Complaints</Text>
         </View>
+      </View>
+
+      {/* View Mode Toggle */}
+      <View style={{ flexDirection: 'row', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+        <TouchableOpacity 
+          style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: viewMode === 'all' ? '#1D4ED8' : 'transparent' }}
+          onPress={() => setViewMode('all')}
+        >
+          <Text style={{ fontSize: 15, fontWeight: viewMode === 'all' ? '700' : '500', color: viewMode === 'all' ? '#1D4ED8' : '#64748B' }}>
+            All Complaints
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: viewMode === 'mine' ? '#1D4ED8' : 'transparent' }}
+          onPress={() => setViewMode('mine')}
+        >
+          <Text style={{ fontSize: 15, fontWeight: viewMode === 'mine' ? '700' : '500', color: viewMode === 'mine' ? '#1D4ED8' : '#64748B' }}>
+            My Complaints
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView 
@@ -334,13 +359,13 @@ export default function MyComplaints() {
           <View style={{ marginTop: 10 }}>
             {[1, 2, 3].map(key => <SkeletonCard key={key} />)}
           </View>
-        ) : complaints.length === 0 ? (
+        ) : displayedComplaints.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <Ionicons name="document-text-outline" size={56} color="#CBD5E1" />
-            <Text style={styles.emptyTextLarge}>{t('resident.noComplaints')}</Text>
+            <Text style={styles.emptyTextLarge}>{viewMode === 'mine' ? 'You have no complaints' : t('resident.noComplaints')}</Text>
           </View>
         ) : (
-          complaints.map((item) => {
+          displayedComplaints.map((item) => {
             const step = (item.status === 'RESOLVED' || item.status === 'DONE') ? 2 : (item.status === 'IN_PROGRESS' ? 1 : 0);
             const statusBadgeStyle = step === 0 ? styles.badgePending : (step === 1 ? styles.badgeInProgress : styles.badgeResolved);
             const statusTextStyle = step === 0 ? styles.badgeTextPending : (step === 1 ? styles.badgeTextInProgress : styles.badgeTextResolved);

@@ -129,7 +129,8 @@ router.get('/', auth, async (req, res) => {
     }
 
     // If Resident, only show their own complaints (duplicates won't show in their list)
-    if (req.user.role === 'Resident') {
+    // If Member passes mine=true, only show their own complaints
+    if (req.user.role === 'Resident' || req.query.mine === 'true') {
       query.user = req.user.id; 
     } else if (req.user.role === 'Staff') {
       // Staff only sees complaints for their assigned category and phase
@@ -151,6 +152,7 @@ router.get('/', auth, async (req, res) => {
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     let complaintsQuery = Complaint.find(query)
       .populate('user', 'name phone')
+      .populate('assigned_staff', 'name phone')
       .sort({ created_at: sortDirection });
     
     if (page && limit) {
@@ -183,7 +185,9 @@ router.get('/', auth, async (req, res) => {
 // GET /api/complaints/:id
 router.get('/:id', auth, async (req, res) => {
   try {
-    const complaint = await Complaint.findById(req.params.id).populate('user', 'name phone');
+    const complaint = await Complaint.findById(req.params.id)
+      .populate('user', 'name phone')
+      .populate('assigned_staff', 'name phone');
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
     }
@@ -203,7 +207,13 @@ router.patch('/:id', auth, async (req, res) => {
       return res.status(404).json({ message: 'Complaint not found' });
     }
 
-    if (status) complaint.status = status;
+    if (status) {
+      complaint.status = status;
+      // If staff updates the status, mark them as the assigned staff
+      if (req.user.role === 'Staff' || req.user.role === 'PaidStaff') {
+        complaint.assigned_staff = req.user.id;
+      }
+    }
     if (after_image) complaint.after_image = after_image;
 
     const updatedComplaint = await complaint.save();

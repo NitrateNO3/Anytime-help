@@ -181,6 +181,15 @@ export default function ComplaintDetails() {
           <Ionicons name="location" size={20} color="#1D4ED8" />
           <Text style={styles.locationText}>{complaint.location || complaint.address}</Text>
         </View>
+        
+        {complaint.assigned_staff ? (
+          <View style={[styles.locationContainer, { marginTop: 8, backgroundColor: '#F0FDF4' }]}>
+            <Ionicons name="person-circle" size={22} color="#16A34A" />
+            <Text style={[styles.locationText, { color: '#16A34A', fontWeight: '600', marginLeft: 6 }]}>
+              Handled by: {complaint.assigned_staff.name}
+            </Text>
+          </View>
+        ) : null}
 
         {/* Description */}
         {complaint.description ? (
