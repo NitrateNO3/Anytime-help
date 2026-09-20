@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Staff from './pages/Staff';
+import Categories from './pages/Categories';
 import Announcements from './pages/Announcements';
 import AdminLayout from './layouts/AdminLayout';
 import Banners from './pages/Banners';
@@ -44,6 +45,7 @@ function App() {
             <Route index element={<IndexRedirect />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="staff" element={<Staff />} />
+            <Route path="categories" element={<Categories />} />
             <Route path="residents" element={<Residents />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="banners" element={<Banners />} />

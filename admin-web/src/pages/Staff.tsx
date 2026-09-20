@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { UserPlus, Users, ListPlus, Trash2, Wrench } from 'lucide-react';
+import { UserPlus, Users, Trash2, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
-import Categories from './Categories';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -12,7 +11,7 @@ const defaultCategories = [
 ];
 
 export default function Staff() {
-  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'categories'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterPhase, setFilterPhase] = useState('All');
@@ -210,19 +209,6 @@ export default function Staff() {
           }}
         >
           <UserPlus size={18} /> <span>Create Account</span>
-        </button>
-        <button 
-          onClick={() => { setActiveTab('categories'); }}
-          style={{ 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 20px', 
-            background: activeTab === 'categories' ? 'var(--primary)' : 'white', 
-            color: activeTab === 'categories' ? 'white' : 'var(--text-muted)',
-            border: activeTab === 'categories' ? 'none' : '1px solid var(--border-color)',
-            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s',
-            marginLeft: 'auto'
-          }}
-        >
-          <ListPlus size={18} /> <span>Manage Categories</span>
         </button>
       </div>
 
@@ -502,10 +488,6 @@ export default function Staff() {
           </form>
         </div>
         </div>
-      )}
-
-      {activeTab === 'categories' && (
-        <Categories />
       )}
     </div>
   );

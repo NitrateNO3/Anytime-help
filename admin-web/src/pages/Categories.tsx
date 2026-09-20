@@ -51,11 +51,11 @@ export default function Categories() {
 
     // Call API to save new order
     try {
-      const token = localStorage.getItem('token');
+      const token = localStorage.getItem('adminToken');
       const orderedIds = newCategories.map(cat => cat._id);
       
       await axios.post(`${API_URL}/categories/reorder`, { orderedIds }, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { 'x-auth-token': token }
       });
     } catch (err) {
       console.error('Failed to update order', err);

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export default function AdminLayout() {
@@ -55,10 +55,16 @@ export default function AdminLayout() {
           )}
           
           {hasAccess('Staff Team') && (
-            <Link to="/staff" className={`nav-link ${location.pathname === '/staff' ? 'active' : ''}`}>
-              <Users size={20} />
-              Staff Team
-            </Link>
+            <>
+              <Link to="/staff" className={`nav-link ${location.pathname === '/staff' ? 'active' : ''}`}>
+                <Users size={20} />
+                Staff Team
+              </Link>
+              <Link to="/categories" className={`nav-link ${location.pathname === '/categories' ? 'active' : ''}`}>
+                <ListPlus size={20} />
+                Categories
+              </Link>
+            </>
           )}
 
           {hasAccess('Committee Members') && (
