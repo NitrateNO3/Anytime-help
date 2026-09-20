@@ -104,13 +104,11 @@ export default function ResidentHome() {
                 <Text style={styles.greetingText}>
                   {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Member'} 👋
                 </Text>
-                {user?.member_id && (
-                  <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 6 }}>
-                    <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>
-                      ID: {user.member_id}
-                    </Text>
-                  </View>
-                )}
+                <View style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, alignSelf: 'flex-start', marginBottom: 6 }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '700' }}>
+                    ID: {user?.member_id ? user.member_id : 'Pending/Not Set'}
+                  </Text>
+                </View>
                 <Text style={styles.exploreText} numberOfLines={1} adjustsFontSizeToFit>
                   {t('resident.societyName')}
                 </Text>
