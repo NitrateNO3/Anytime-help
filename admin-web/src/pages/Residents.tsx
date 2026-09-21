@@ -659,7 +659,8 @@ export default function Residents() {
 
               <div className="input-group" style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Phase (Entity / Group) *</label>
-                <select 
+                <input 
+                  list="resident-phase-options"
                   value={phase} 
                   onChange={(e) => {
                     const newPhase = e.target.value;
@@ -667,25 +668,30 @@ export default function Residents() {
                     const blocks = getBlockOptions(newPhase);
                     if (blocks.length > 0) setBlock(blocks[0]);
                   }}
+                  placeholder="e.g. Sushant Lok 2 - C,D,E or type a new phase"
                   style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
-                >
-                  <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
-                  <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
-                  <option value="Sushant Lok 3">Sushant Lok 3</option>
-                </select>
+                />
+                <datalist id="resident-phase-options">
+                  <option value="Sushant Lok 2 - C,D,E" />
+                  <option value="Sushant Lok 2 - F,G" />
+                  <option value="Sushant Lok 3" />
+                </datalist>
               </div>
 
               <div className="input-group" style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Block *</label>
-                <select 
+                <input 
+                  list="resident-block-options"
                   value={block} 
                   onChange={(e) => setBlock(e.target.value)}
+                  placeholder="e.g. C, D, E or type a new block"
                   style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
-                >
+                />
+                <datalist id="resident-block-options">
                   {getBlockOptions(phase).map(b => (
-                    <option key={b} value={b}>Block {b}</option>
+                    <option key={b} value={b} />
                   ))}
-                </select>
+                </datalist>
               </div>
 
               {propertyType === 'Rented' && (

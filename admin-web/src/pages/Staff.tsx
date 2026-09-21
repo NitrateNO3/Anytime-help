@@ -500,10 +500,12 @@ export default function Staff() {
             </div>
             
             <div className="input-group">
-              <label>Select Entity (Group)</label>
-              <select 
+              <label>Select or Enter Entity (Group)</label>
+              <input 
+                  list="staff-entity-options"
                   value={selectedEntity}
                   onChange={(e) => setSelectedEntity(e.target.value)}
+                  placeholder="e.g. Sushant Lok 2 - C,D,E or type a new one"
                   style={{ 
                     width: '100%', 
                     padding: '14px 16px', 
@@ -512,16 +514,16 @@ export default function Staff() {
                     borderRadius: '12px',
                     fontSize: '15px',
                     color: 'var(--text-main)',
-                    outline: 'none',
-                    cursor: 'pointer'
+                    outline: 'none'
                   }}
-                >
+                />
+                <datalist id="staff-entity-options">
                   {Object.keys(entityBlocks).map(entity => (
                     <option key={entity} value={entity}>
                       {entity === 'All Groups (Universal)' ? '🌐 All Groups (Universal - Entire Society)' : entity}
                     </option>
                   ))}
-                </select>
+                </datalist>
             </div>
 
             {selectedEntity === 'All Groups (Universal)' ? (
