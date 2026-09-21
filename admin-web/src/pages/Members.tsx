@@ -3,6 +3,7 @@ import { Pagination } from '../components/Pagination';
 import axios from 'axios';
 import { UserPlus, Users, Trash2, Edit2, Search, Filter, RotateCcw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ExportButtons } from '../components/ExportButtons';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -233,8 +234,21 @@ export default function Members() {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 className="card-title">Members List</h2>
-            <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
-              Total: {totalCount}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <ExportButtons 
+                data={members}
+                columns={[
+                  { header: 'Name', key: 'name' },
+                  { header: 'Designation', key: 'designation' },
+                  { header: 'Phone Number', key: 'phone_number' },
+                  { header: 'Address', key: 'address' },
+                  { header: 'Created At', key: (r: any) => new Date(r.createdAt).toLocaleString() }
+                ]}
+                filename="Committee_Members"
+              />
+              <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+                Total: {totalCount}
+              </div>
             </div>
           </div>
 

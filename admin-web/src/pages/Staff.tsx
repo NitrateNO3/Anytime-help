@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { UserPlus, Users, Trash2, Wrench, Edit2, Search, Filter, RotateCcw, X } from 'lucide-react';
+import { UserPlus, Users, Edit2, Trash2, Search, Filter, RotateCcw, X, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ExportButtons } from '../components/ExportButtons';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -280,8 +281,22 @@ export default function Staff() {
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 className="card-title">Staff Members</h2>
-            <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
-              Total: {totalCount}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <ExportButtons 
+                data={staff}
+                columns={[
+                  { header: 'Name', key: 'name' },
+                  { header: 'Phone Number', key: 'phone_number' },
+                  { header: 'Category', key: 'assigned_category' },
+                  { header: 'Phase', key: 'phase' },
+                  { header: 'Block', key: 'block' },
+                  { header: 'Created At', key: (r: any) => new Date(r.createdAt).toLocaleString() }
+                ]}
+                filename="Staff_Members"
+              />
+              <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+                Total: {totalCount}
+              </div>
             </div>
           </div>
 

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { Home, Trash2, Search, Filter, RotateCcw, X, AlertCircle, Plus, Users } from 'lucide-react';
+import { Home, Users, Plus, Trash2, X, AlertCircle, Filter, RotateCcw, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ExportButtons } from '../components/ExportButtons';
 import { io } from 'socket.io-client';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://anytime-help.onrender.com/api';
@@ -465,9 +466,23 @@ export default function Residents() {
       <div className="card" style={{ marginTop: '20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ fontSize: '18px', fontWeight: '600' }}>Registered Residents List</h2>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            Page {page} of {totalPages}
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <ExportButtons 
+              data={residents}
+              columns={[
+                { header: 'Name', key: 'name' },
+                { header: 'Phone', key: 'phoneNumber' },
+                { header: 'Address', key: (r: any) => `${r.houseNo} - ${r.block}` },
+                { header: 'Phase', key: 'phase' },
+                { header: 'Relation', key: 'relation' },
+                { header: 'Joined Date', key: (r: any) => new Date(r.createdAt).toLocaleDateString() }
+              ]}
+              filename="Residents_Directory"
+            />
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              Page {page} of {totalPages}
+            </span>
+          </div>
         </div>
         <div style={{ overflowX: 'auto' }}>
           <table className="data-table" style={{ width: '100%', minWidth: 950, textAlign: 'left', borderCollapse: 'collapse' }}>

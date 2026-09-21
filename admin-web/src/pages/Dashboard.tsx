@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Activity, CheckCircle, Clock, Trash2, Search, Filter, RotateCcw, X, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
+import { ExportButtons } from '../components/ExportButtons';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -436,9 +437,25 @@ export default function Dashboard() {
       <div className="glass table-container">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h2 style={{ fontSize: 18, fontWeight: 600 }}>Complaints List</h2>
-          <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            Page {page} of {totalPages} ({totalCount} total)
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <ExportButtons 
+              data={complaints}
+              columns={[
+                { header: 'Title', key: 'title' },
+                { header: 'Category', key: (c: any) => c.category?.name || 'N/A' },
+                { header: 'Phase', key: (c: any) => c.phase || 'N/A' },
+                { header: 'Location', key: (c: any) => c.location || 'N/A' },
+                { header: 'Resident', key: (c: any) => c.createdBy?.name || 'N/A' },
+                { header: 'Phone', key: (c: any) => c.createdBy?.phoneNumber || 'N/A' },
+                { header: 'Status', key: 'status' },
+                { header: 'Created At', key: (c: any) => new Date(c.createdAt).toLocaleString() }
+              ]}
+              filename="Complaints_Export"
+            />
+            <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+              Page {page} of {totalPages} ({totalCount} total)
+            </span>
+          </div>
         </div>
         
         <div className="table-card">

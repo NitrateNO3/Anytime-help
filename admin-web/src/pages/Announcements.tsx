@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { Trash2, Megaphone, Plus, Bell, Edit2, Search, Filter, RotateCcw, X } from 'lucide-react';
+import { Bell, Plus, Trash2, Edit2, Search, Filter, RotateCcw, X, Megaphone } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ExportButtons } from '../components/ExportButtons';
 import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -243,8 +244,21 @@ export default function Announcements() {
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 className="card-title">Recent Announcements</h2>
-            <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
-              Total: {totalCount}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <ExportButtons 
+                data={announcements}
+                columns={[
+                  { header: 'Title', key: 'title' },
+                  { header: 'Message', key: 'message' },
+                  { header: 'Target Phase', key: 'targetPhase' },
+                  { header: 'Is Global', key: (r: any) => r.isGlobal ? 'Yes' : 'No' },
+                  { header: 'Created At', key: (r: any) => new Date(r.createdAt).toLocaleString() }
+                ]}
+                filename="Announcements"
+              />
+              <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+                Total: {totalCount}
+              </div>
             </div>
           </div>
 

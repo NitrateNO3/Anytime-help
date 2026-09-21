@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import { SkeletonTable } from '../components/SkeletonTable';
 import axios from 'axios';
-import { UserPlus, Users, Trash2, Edit2, Search, Filter, RotateCcw, X } from 'lucide-react';
+import { UserPlus, Trash2, Edit2, Search, Filter, RotateCcw, X, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { ExportButtons } from '../components/ExportButtons';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -211,8 +212,20 @@ export default function SubAdmins() {
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 className="card-title">Sub-Admins List</h2>
-            <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
-              Total: {filteredSubAdmins.length}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <ExportButtons 
+                data={filteredSubAdmins}
+                columns={[
+                  { header: 'Name', key: 'name' },
+                  { header: 'Email', key: 'email' },
+                  { header: 'Role', key: 'role' },
+                  { header: 'Created At', key: (r: any) => new Date(r.createdAt).toLocaleString() }
+                ]}
+                filename="Sub_Admins"
+              />
+              <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+                Total: {filteredSubAdmins.length}
+              </div>
             </div>
           </div>
 
