@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import { SkeletonTable } from '../components/SkeletonTable';
 import axios from 'axios';
-import { UserPlus, Users, Trash2, Edit, Search, Filter, RotateCcw, X } from 'lucide-react';
+import { UserPlus, Users, Trash2, Edit2, Search, Filter, RotateCcw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -16,8 +16,6 @@ export default function SubAdmins() {
   
   // Filter States
   const [search, setSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
 
   const filteredSubAdmins = subadmins.filter(admin => {
     let match = true;
@@ -26,14 +24,6 @@ export default function SubAdmins() {
       const n = admin.name?.toLowerCase() || '';
       const e = admin.email?.toLowerCase() || '';
       if (!n.includes(s) && !e.includes(s)) match = false;
-    }
-    if (dateFrom) {
-      if (new Date(admin.createdAt) < new Date(dateFrom)) match = false;
-    }
-    if (dateTo) {
-      const end = new Date(dateTo);
-      end.setHours(23, 59, 59, 999);
-      if (new Date(admin.createdAt) > end) match = false;
     }
     return match;
   });
@@ -173,12 +163,10 @@ export default function SubAdmins() {
     }
   };
 
-  const isFiltered = search !== '' || dateFrom !== '' || dateTo !== '';
+  const isFiltered = search !== '';
 
   const resetFilters = () => {
     setSearch('');
-    setDateFrom('');
-    setDateTo('');
     setPage(1);
   };
 
@@ -281,24 +269,6 @@ export default function SubAdmins() {
                 </button>
               )}
             </div>
-
-            {/* Date Filters Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>From Date</label>
-                <input 
-                  type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>To Date</label>
-                <input 
-                  type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
-                />
-              </div>
-            </div>
           </div>
           
           {loading ? (
@@ -325,7 +295,7 @@ export default function SubAdmins() {
                     <th>Name</th>
                     <th>Email</th>
                     <th>Permissions</th>
-                    <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
+                    <th style={{ width: 100, textAlign: 'center' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -345,23 +315,26 @@ export default function SubAdmins() {
                         </div>
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <button 
-                          onClick={() => setEditingUser({ ...user, password: '' })}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, marginRight: 4 }}
-                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
-                          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                          title="Edit"
-                        >
-                          <Edit size={18} color="var(--primary)" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(user._id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                        >
-                          <Trash2 size={18} color="var(--danger)" />
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button 
+                            onClick={() => setEditingUser({ ...user, password: '' })}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                            title="Edit"
+                          >
+                            <Edit2 size={18} color="var(--primary)" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(user._id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                            title="Delete"
+                          >
+                            <Trash2 size={18} color="var(--danger)" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}

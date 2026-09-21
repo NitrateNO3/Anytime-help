@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { UserPlus, Users, Trash2, Wrench, Edit, Search, Filter, RotateCcw, X } from 'lucide-react';
+import { UserPlus, Users, Trash2, Wrench, Edit2, Search, Filter, RotateCcw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -22,8 +22,6 @@ export default function Staff() {
   const [filterPhase, setFilterPhase] = useState('All');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -90,16 +88,14 @@ export default function Staff() {
 
   useEffect(() => {
     if (activeTab === 'list') {
-      fetchStaff(page, filterPhase, debouncedSearch, dateFrom, dateTo);
+      fetchStaff(page, filterPhase, debouncedSearch);
     }
-  }, [activeTab, page, filterPhase, debouncedSearch, dateFrom, dateTo]);
+  }, [activeTab, page, filterPhase, debouncedSearch]);
 
   const fetchStaff = async (
     currentPage = page, 
     phase = filterPhase,
     searchFilter = debouncedSearch,
-    from = dateFrom,
-    to = dateTo,
     showLoading = true
   ) => {
     try {
@@ -112,8 +108,6 @@ export default function Staff() {
         phase
       });
       if (searchFilter.trim()) params.append('search', searchFilter.trim());
-      if (from) params.append('dateFrom', from);
-      if (to) params.append('dateTo', to);
 
       const res = await axios.get(`${API_URL}/users/staff?${params.toString()}`, {
         headers: { 'x-auth-token': token }
@@ -193,19 +187,17 @@ export default function Staff() {
       
       toast.success('Staff updated successfully!', { id: loadingToast });
       setEditingUser(null);
-      fetchStaff(page, filterPhase, debouncedSearch, dateFrom, dateTo, false);
+      fetchStaff(page, filterPhase, debouncedSearch, false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update staff', { id: loadingToast });
     }
   };
 
-  const isFiltered = search !== '' || dateFrom !== '' || dateTo !== '' || filterPhase !== 'All';
+  const isFiltered = search !== '' || filterPhase !== 'All';
 
   const resetFilters = () => {
     setSearch('');
     setDebouncedSearch('');
-    setDateFrom('');
-    setDateTo('');
     setFilterPhase('All');
     setPage(1);
   };
@@ -231,7 +223,7 @@ export default function Staff() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Staff member deleted', { id: loadingToast });
-                fetchStaff(page, filterPhase, debouncedSearch, dateFrom, dateTo, false);
+                fetchStaff(page, filterPhase, debouncedSearch, false);
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete staff', { id: loadingToast });
@@ -361,20 +353,6 @@ export default function Staff() {
                   ))}
                 </select>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>From Date</label>
-                <input 
-                  type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>To Date</label>
-                <input 
-                  type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
-                />
-              </div>
             </div>
           </div>
           <table>
@@ -383,7 +361,7 @@ export default function Staff() {
                 <th>Group / Block / Name</th>
                 <th>Phone Number</th>
                 <th>Category</th>
-                <th style={{ width: 80 }}>Actions</th>
+                <th style={{ width: 100 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -446,23 +424,30 @@ export default function Staff() {
                           </span>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <button 
-                            onClick={() => setEditingUser(member)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, marginRight: 4 }}
-                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                            title="Edit"
-                          >
-                            <Edit size={20} color="var(--primary)" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(member._id)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                          >
-                            <Trash2 size={20} color="var(--danger)" />
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                            <button 
+                              onClick={() => {
+                                setEditingUser({ ...member, password: '' });
+                                setSelectedEntity(member.phase);
+                                setSelectedBlock(member.block);
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                              title="Edit"
+                            >
+                              <Edit2 size={18} color="var(--primary)" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(member._id)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                              title="Delete"
+                            >
+                              <Trash2 size={20} color="var(--danger)" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

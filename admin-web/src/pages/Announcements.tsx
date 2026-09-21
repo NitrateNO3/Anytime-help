@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { Trash2, Megaphone, Plus, Bell, Edit, Search, Filter, RotateCcw, X } from 'lucide-react';
+import { Trash2, Megaphone, Plus, Bell, Edit2, Search, Filter, RotateCcw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 
@@ -339,7 +339,7 @@ export default function Announcements() {
                 <th>Date</th>
                 <th>Title</th>
                 <th>Message</th>
-                <th style={{ width: 80 }}>Actions</th>
+                <th style={{ width: 100 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -371,23 +371,28 @@ export default function Announcements() {
                       <td style={{ fontWeight: 600 }}>{announcement.title}</td>
                       <td style={{ color: 'var(--text-muted)' }}>{announcement.message}</td>
                       <td style={{ textAlign: 'center' }}>
-                        <button 
-                          onClick={() => setEditingAnnouncement(announcement)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, marginRight: 4 }}
-                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
-                          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                          title="Edit"
-                        >
-                          <Edit size={20} color="var(--primary)" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(announcement._id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                        >
-                          <Trash2 size={20} color="var(--danger)" />
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button 
+                            onClick={() => {
+                              setEditingAnnouncement(announcement);
+                            }}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                            title="Edit"
+                          >
+                            <Edit2 size={18} color="var(--primary)" />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(announcement._id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                            title="Delete"
+                          >
+                            <Trash2 size={20} color="var(--danger)" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

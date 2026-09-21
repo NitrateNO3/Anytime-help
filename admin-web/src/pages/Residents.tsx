@@ -552,16 +552,17 @@ export default function Residents() {
                       {new Date(r.createdAt || r.updatedAt || Date.now()).toLocaleDateString()}
                     </td>
                     <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <button 
-                        onClick={() => requestDelete(r._id)}
-                        className="btn-icon" 
-                        style={{ color: 'var(--danger)', background: 'transparent', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6 }}
-                        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                        title="Remove Resident"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                        <button 
+                          onClick={() => requestDelete(r._id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                          title="Delete"
+                        >
+                          <Trash2 size={18} color="var(--danger)" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

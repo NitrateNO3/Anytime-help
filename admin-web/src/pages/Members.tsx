@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { UserPlus, Users, Trash2, Edit, Search, Filter, RotateCcw, X } from 'lucide-react';
+import { UserPlus, Users, Trash2, Edit2, Search, Filter, RotateCcw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -17,8 +17,6 @@ export default function Members() {
   // Filter States
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
 
   // Debounce search
   useEffect(() => {
@@ -43,15 +41,13 @@ export default function Members() {
 
   useEffect(() => {
     if (activeTab === 'list') {
-      fetchMembers(page, debouncedSearch, dateFrom, dateTo);
+      fetchMembers(page, debouncedSearch);
     }
-  }, [activeTab, page, debouncedSearch, dateFrom, dateTo]);
+  }, [activeTab, page, debouncedSearch]);
 
   const fetchMembers = async (
     currentPage = page, 
     searchFilter = debouncedSearch,
-    from = dateFrom,
-    to = dateTo,
     showLoading = true
   ) => {
     try {
@@ -63,8 +59,6 @@ export default function Members() {
         limit: '10'
       });
       if (searchFilter.trim()) params.append('search', searchFilter.trim());
-      if (from) params.append('dateFrom', from);
-      if (to) params.append('dateTo', to);
 
       const res = await axios.get(`${API_URL}/users/members?${params.toString()}`, {
         headers: { 'x-auth-token': token }
@@ -150,7 +144,7 @@ export default function Members() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Member deleted', { id: loadingToast });
-                fetchMembers(page, debouncedSearch, dateFrom, dateTo, false);
+                fetchMembers(page, debouncedSearch, false);
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete member', { id: loadingToast });
@@ -165,13 +159,11 @@ export default function Members() {
     ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
-  const isFiltered = search !== '' || dateFrom !== '' || dateTo !== '';
+  const isFiltered = search !== '';
 
   const resetFilters = () => {
     setSearch('');
     setDebouncedSearch('');
-    setDateFrom('');
-    setDateTo('');
     setPage(1);
   };
 
@@ -194,7 +186,7 @@ export default function Members() {
       
       toast.success('Member updated successfully!', { id: loadingToast });
       setEditingUser(null);
-      fetchMembers(page, debouncedSearch, dateFrom, dateTo, false);
+      fetchMembers(page, debouncedSearch, false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update member', { id: loadingToast });
     }
@@ -299,24 +291,6 @@ export default function Members() {
                 </button>
               )}
             </div>
-
-            {/* Date Filters Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>From Date</label>
-                <input 
-                  type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>To Date</label>
-                <input 
-                  type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
-                />
-              </div>
-            </div>
           </div>
           
           {loading ? (
@@ -366,7 +340,7 @@ export default function Members() {
                       <th>Designation</th>
                       <th>Permissions</th>
                       <th>Address</th>
-                      <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
+                      <th style={{ width: 100, textAlign: 'center' }}>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -394,23 +368,25 @@ export default function Members() {
                           </div>
                         </td>
                         <td>{member.address || '-'}</td>
-                        <td>
-                          <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                             <button 
-                              className="icon-btn" 
-                              style={{ color: 'var(--primary)' }}
                               onClick={() => setEditingUser(member)}
-                              title="Edit Member"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                              title="Edit"
                             >
-                              <Edit size={18} />
+                              <Edit2 size={18} color="var(--primary)" />
                             </button>
                             <button 
-                              className="icon-btn" 
-                              style={{ color: 'var(--danger)' }}
                               onClick={() => handleDelete(member._id)}
-                              title="Delete Member"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                              title="Delete"
                             >
-                              <Trash2 size={18} />
+                              <Trash2 size={18} color="var(--danger)" />
                             </button>
                           </div>
                         </td>
