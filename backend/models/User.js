@@ -14,7 +14,12 @@ const userSchema = new mongoose.Schema({
   relation: { type: String, required: false }, // e.g., 'Tenant', 'Family Member'
   designation: { type: String, required: false }, // For Member (e.g. 'President', 'Secretary')
   member_id: { type: String, required: false }, // For Members
-  permissions: { type: [String], default: [] } // For SubAdmin granular access
+  permissions: { type: [String], default: [] }, // For SubAdmin granular access
+  family_members: [{
+    relation: { type: String },
+    name: { type: String },
+    phone_number: { type: String }
+  }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

@@ -13,7 +13,7 @@ const otpStore = new Map();
 // @desc    Register user (Resident or Staff)
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, phone_number, firebase_uid, role, department, address, relation, phase } = req.body;
+  const { name, phone_number, firebase_uid, role, department, address, relation, phase, family_members } = req.body;
 
   try {
     let user = await User.findOne({ phone_number });
@@ -57,7 +57,7 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    user = new User({ name, phone_number, firebase_uid, role, department, address, relation, phase });
+    user = new User({ name, phone_number, firebase_uid, role, department, address, relation, phase, family_members: family_members || [] });
 
     await user.save();
 
@@ -167,9 +167,19 @@ router.post('/send-otp', async (req, res) => {
       return res.status(400).json({ msg: 'Invalid phone number format' });
     }
 
-    // Check if user is registered before sending OTP
+    // Check if user is registered (as primary or family member) before sending OTP
     const dbPhoneNumber = `+91${phone_number}`;
-    let userExists = await User.findOne({ phone_number: dbPhoneNumber });
+    let userExists = await User.findOne({
+      $or: [
+        { phone_number: dbPhoneNumber },
+        { "family_members.phone_number": phone_number } // check without +91 as well just in case, or with +91. Best to check both.
+      ]
+    });
+    
+    // Also check if family member phone number has +91
+    if (!userExists) {
+      userExists = await User.findOne({ "family_members.phone_number": dbPhoneNumber });
+    }
     
     if (!userExists) {
       // Auto-register Reviewer test accounts
@@ -277,9 +287,15 @@ router.post('/verify-otp', async (req, res) => {
     // OTP verified successfully, remove from store
     otpStore.delete(phone_number);
 
-    // Find user
+    // Find user (primary or family member)
     const dbPhoneNumber = `+91${phone_number}`;
-    let user = await User.findOne({ phone_number: dbPhoneNumber });
+    let user = await User.findOne({
+      $or: [
+        { phone_number: dbPhoneNumber },
+        { "family_members.phone_number": phone_number },
+        { "family_members.phone_number": dbPhoneNumber }
+      ]
+    });
     
     if (!user) {
       return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });

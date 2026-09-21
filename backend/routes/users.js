@@ -458,4 +458,29 @@ router.put('/push-token', auth, async (req, res) => {
   }
 });
 
+// @route   PUT api/users/profile/family
+// @desc    Update user's family members
+// @access  Private
+router.put('/profile/family', auth, async (req, res) => {
+  try {
+    const { family_members } = req.body;
+    
+    if (!Array.isArray(family_members)) {
+      return res.status(400).json({ message: 'family_members must be an array' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.family_members = family_members;
+    await user.save();
+
+    res.json({ message: 'Family members updated successfully', family_members: user.family_members });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 module.exports = router;
