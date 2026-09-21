@@ -34,11 +34,15 @@ export default function Residents() {
   const [showCustomPhase, setShowCustomPhase] = useState(false);
   const [showCustomBlock, setShowCustomBlock] = useState(false);
 
+  const [phases, setPhases] = useState<string[]>(['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3']);
+  const [dynamicEntityBlocks, setDynamicEntityBlocks] = useState<Record<string, string[]>>({
+    'Sushant Lok 2 - C,D,E': ['C, D, E'],
+    'Sushant Lok 2 - F,G': ['F, G'],
+    'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
+  });
+
   const getBlockOptions = (selectedPhase: string) => {
-    if (selectedPhase === 'Sushant Lok 2 - C,D,E') return ['C, D, E'];
-    if (selectedPhase === 'Sushant Lok 2 - F,G') return ['F, G'];
-    if (selectedPhase === 'Sushant Lok 3') return ['A, B, B1, C, D, E, F, G, H'];
-    return [];
+    return dynamicEntityBlocks[selectedPhase] || [];
   };
 
   // Debounce search query (best practice: 350ms delay)
@@ -53,6 +57,33 @@ export default function Residents() {
   useEffect(() => {
     fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo);
   }, [page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo]);
+
+  useEffect(() => {
+    // Fetch dynamic phases
+    const token = localStorage.getItem('adminToken');
+    axios.get(`${API_URL}/users/phases`, { headers: { 'x-auth-token': token } })
+      .then(res => {
+        if (res.data && Array.isArray(res.data)) {
+          const defaultPhases = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
+          // Remove Universal/All from residents list if it sneaked in
+          const fetchedPhases = res.data.filter(p => p !== 'Universal' && p !== 'All' && p !== 'All Groups (Universal)');
+          setPhases([...new Set([...defaultPhases, ...fetchedPhases])]);
+          
+          const newEntityBlocks: Record<string, string[]> = {
+            'Sushant Lok 2 - C,D,E': ['C, D, E'],
+            'Sushant Lok 2 - F,G': ['F, G'],
+            'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
+          };
+          fetchedPhases.forEach((p: string) => {
+            if (!newEntityBlocks[p]) {
+              newEntityBlocks[p] = [];
+            }
+          });
+          setDynamicEntityBlocks(newEntityBlocks);
+        }
+      })
+      .catch(err => console.error('Error fetching phases:', err));
+  }, []);
 
   useEffect(() => {
     // Socket.io for live updates
@@ -352,7 +383,7 @@ export default function Residents() {
           {/* Phase Filter */}
           <div>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
-              Phase / Group
+              Phase / Location
             </label>
             <select 
               value={filterPhase} 
@@ -680,9 +711,9 @@ export default function Residents() {
                   }}
                   style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
                 >
-                  <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
-                  <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
-                  <option value="Sushant Lok 3">Sushant Lok 3</option>
+                  {phases.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
                   <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>+ Add New Custom Phase...</option>
                 </select>
                 

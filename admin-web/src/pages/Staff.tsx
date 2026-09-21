@@ -12,7 +12,7 @@ const defaultCategories = [
   'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'
 ];
 
-const phases = ['All', 'Universal', 'Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
+const defaultPhases = ['All', 'Universal', 'Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
 
 export default function Staff() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
@@ -48,6 +48,13 @@ export default function Staff() {
   
   // Custom Category State
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [phases, setPhases] = useState<string[]>(defaultPhases);
+  const [dynamicEntityBlocks, setDynamicEntityBlocks] = useState<Record<string, string[]>>({
+    'All Groups (Universal)': ['All Blocks (Entire Society)'],
+    'Sushant Lok 2 - C,D,E': ['C, D, E'],
+    'Sushant Lok 2 - F,G': ['F, G'],
+    'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
+  });
   
   // Custom Phase/Block State
   const [showCustomEntity, setShowCustomEntity] = useState(false);
@@ -74,22 +81,46 @@ export default function Staff() {
           if (!category) setCategory(defaultCategories[0]);
         });
     }
+
+    // Fetch dynamic phases
+    const token = localStorage.getItem('adminToken');
+    axios.get(`${API_URL}/users/phases`, { headers: { 'x-auth-token': token } })
+      .then(res => {
+        if (res.data && Array.isArray(res.data)) {
+          const newPhases = [...new Set([...defaultPhases, ...res.data])];
+          setPhases(newPhases);
+          
+          // Build dynamic entityBlocks mapping
+          const newEntityBlocks: Record<string, string[]> = {
+            'All Groups (Universal)': ['All Blocks (Entire Society)'],
+            'Sushant Lok 2 - C,D,E': ['C, D, E'],
+            'Sushant Lok 2 - F,G': ['F, G'],
+            'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
+          };
+          res.data.forEach((p: string) => {
+            if (!newEntityBlocks[p]) {
+              newEntityBlocks[p] = [];
+            }
+          });
+          setDynamicEntityBlocks(newEntityBlocks);
+        }
+      })
+      .catch(err => {
+        console.error('Error fetching phases:', err);
+      });
   }, [activeTab]);
 
   // Group blocks together into a single option for each entity
-  const entityBlocks: any = {
-    'All Groups (Universal)': ['All Blocks (Entire Society)'],
-    'Sushant Lok 2 - C,D,E': ['C, D, E'],
-    'Sushant Lok 2 - F,G': ['F, G'],
-    'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
-  };
+  // (We use dynamicEntityBlocks state now)
 
   useEffect(() => {
     // Whenever entity changes, reset block to the single grouped option
-    if (entityBlocks[selectedEntity]) {
-      setSelectedBlock(entityBlocks[selectedEntity][0]);
+    if (dynamicEntityBlocks[selectedEntity] && dynamicEntityBlocks[selectedEntity].length > 0) {
+      setSelectedBlock(dynamicEntityBlocks[selectedEntity][0]);
+    } else {
+      setSelectedBlock('');
     }
-  }, [selectedEntity]);
+  }, [selectedEntity, dynamicEntityBlocks]);
 
   useEffect(() => {
     if (activeTab === 'list') {
@@ -531,7 +562,7 @@ export default function Staff() {
                     cursor: 'pointer'
                   }}
                 >
-                  {Object.keys(entityBlocks).map(entity => (
+                  {Object.keys(dynamicEntityBlocks).map(entity => (
                     <option key={entity} value={entity}>
                       {entity === 'All Groups (Universal)' ? '🌐 All Groups (Universal - Entire Society)' : entity}
                     </option>
@@ -601,7 +632,7 @@ export default function Staff() {
                         cursor: 'pointer'
                       }}
                     >
-                      {!showCustomEntity && entityBlocks[selectedEntity] && entityBlocks[selectedEntity].map((blk: string) => (
+                      {!showCustomEntity && dynamicEntityBlocks[selectedEntity] && dynamicEntityBlocks[selectedEntity].map((blk: string) => (
                         <option key={blk} value={blk}>Block {blk}</option>
                       ))}
                       <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>+ Add New Custom Block...</option>

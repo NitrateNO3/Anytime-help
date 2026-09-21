@@ -10,6 +10,19 @@ const checkAccess = (user, section) => {
   return false;
 };
 
+// @route   GET api/users/phases
+// @desc    Get all distinct phases
+// @access  Admin Private
+router.get('/phases', auth, async (req, res) => {
+  try {
+    const phases = await User.distinct('phase', { phase: { $exists: true, $ne: null } });
+    const validPhases = phases.filter(p => typeof p === 'string' && p.trim() !== '');
+    res.json(validPhases);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   GET api/users/staff
 // @desc    Get all staff members (supports pagination)
 // @access  Admin Private
