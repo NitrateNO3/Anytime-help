@@ -48,6 +48,10 @@ export default function Staff() {
   
   // Custom Category State
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  
+  // Custom Phase/Block State
+  const [showCustomEntity, setShowCustomEntity] = useState(false);
+  const [showCustomBlock, setShowCustomBlock] = useState(false);
 
   useEffect(() => {
     // Fetch categories for the dropdown when tab changes
@@ -500,12 +504,21 @@ export default function Staff() {
             </div>
             
             <div className="input-group">
-              <label>Select or Enter Entity (Group)</label>
-              <input 
-                  list="staff-entity-options"
-                  value={selectedEntity}
-                  onChange={(e) => setSelectedEntity(e.target.value)}
-                  placeholder="e.g. Sushant Lok 2 - C,D,E or type a new one"
+              <label>Select Entity (Group)</label>
+              <select 
+                  value={showCustomEntity ? 'ADD_NEW' : selectedEntity}
+                  onChange={(e) => {
+                    if (e.target.value === 'ADD_NEW') {
+                      setShowCustomEntity(true);
+                      setSelectedEntity('');
+                      setShowCustomBlock(true); // Auto show custom block since it's a new group
+                      setSelectedBlock('');
+                    } else {
+                      setShowCustomEntity(false);
+                      setSelectedEntity(e.target.value);
+                      setShowCustomBlock(false);
+                    }
+                  }}
                   style={{ 
                     width: '100%', 
                     padding: '14px 16px', 
@@ -514,17 +527,31 @@ export default function Staff() {
                     borderRadius: '12px',
                     fontSize: '15px',
                     color: 'var(--text-main)',
-                    outline: 'none'
+                    outline: 'none',
+                    cursor: 'pointer'
                   }}
-                />
-                <datalist id="staff-entity-options">
+                >
                   {Object.keys(entityBlocks).map(entity => (
                     <option key={entity} value={entity}>
                       {entity === 'All Groups (Universal)' ? '🌐 All Groups (Universal - Entire Society)' : entity}
                     </option>
                   ))}
-                </datalist>
+                  <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>+ Add New Custom Group...</option>
+                </select>
             </div>
+
+            {showCustomEntity && (
+              <div className="input-group" style={{ marginTop: '-12px' }}>
+                <input 
+                  type="text"
+                  placeholder="Enter your new custom group name"
+                  value={selectedEntity}
+                  onChange={(e) => setSelectedEntity(e.target.value)}
+                  style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px dashed var(--primary)', outline: 'none', background: 'rgba(59, 130, 246, 0.03)' }}
+                  autoFocus
+                />
+              </div>
+            )}
 
             {selectedEntity === 'All Groups (Universal)' ? (
               <div style={{
@@ -548,28 +575,52 @@ export default function Staff() {
                 </div>
               </div>
             ) : (
-              <div className="input-group">
-                <label>Select Block</label>
-                <select 
-                    value={selectedBlock}
-                    onChange={(e) => setSelectedBlock(e.target.value)}
-                    style={{ 
-                      width: '100%', 
-                      padding: '14px 16px', 
-                      background: 'white', 
-                      border: '1px solid var(--border-color)', 
-                      borderRadius: '12px',
-                      fontSize: '15px',
-                      color: 'var(--text-main)',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    {entityBlocks[selectedEntity]?.map((blk: string) => (
-                      <option key={blk} value={blk}>Block {blk}</option>
-                    ))}
-                  </select>
-              </div>
+              <>
+                <div className="input-group">
+                  <label>Select Block</label>
+                  <select 
+                      value={showCustomBlock ? 'ADD_NEW' : selectedBlock}
+                      onChange={(e) => {
+                        if (e.target.value === 'ADD_NEW') {
+                          setShowCustomBlock(true);
+                          setSelectedBlock('');
+                        } else {
+                          setShowCustomBlock(false);
+                          setSelectedBlock(e.target.value);
+                        }
+                      }}
+                      style={{ 
+                        width: '100%', 
+                        padding: '14px 16px', 
+                        background: 'white', 
+                        border: '1px solid var(--border-color)', 
+                        borderRadius: '12px',
+                        fontSize: '15px',
+                        color: 'var(--text-main)',
+                        outline: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {!showCustomEntity && entityBlocks[selectedEntity] && entityBlocks[selectedEntity].map((blk: string) => (
+                        <option key={blk} value={blk}>Block {blk}</option>
+                      ))}
+                      <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>+ Add New Custom Block...</option>
+                    </select>
+                </div>
+
+                {showCustomBlock && (
+                  <div className="input-group" style={{ marginTop: '-12px' }}>
+                    <input 
+                      type="text"
+                      placeholder="Enter custom block name (e.g. Block Z)"
+                      value={selectedBlock}
+                      onChange={(e) => setSelectedBlock(e.target.value)}
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px dashed var(--primary)', outline: 'none', background: 'rgba(59, 130, 246, 0.03)' }}
+                      autoFocus
+                    />
+                  </div>
+                )}
+              </>
             )}
             
             <div className="input-group">

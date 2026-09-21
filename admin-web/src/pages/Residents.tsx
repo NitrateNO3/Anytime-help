@@ -22,7 +22,7 @@ export default function Residents() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Form State for Add Resident
+  // Form State for  // Form State
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [propertyType, setPropertyType] = useState('Owned');
@@ -31,6 +31,8 @@ export default function Residents() {
   const [block, setBlock] = useState('C, D, E');
   const [relation, setRelation] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [showCustomPhase, setShowCustomPhase] = useState(false);
+  const [showCustomBlock, setShowCustomBlock] = useState(false);
 
   const getBlockOptions = (selectedPhase: string) => {
     if (selectedPhase === 'Sushant Lok 2 - C,D,E') return ['C, D, E'];
@@ -659,39 +661,74 @@ export default function Residents() {
 
               <div className="input-group" style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Phase (Entity / Group) *</label>
-                <input 
-                  list="resident-phase-options"
-                  value={phase} 
+                <select 
+                  value={showCustomPhase ? 'ADD_NEW' : phase} 
                   onChange={(e) => {
                     const newPhase = e.target.value;
-                    setPhase(newPhase);
-                    const blocks = getBlockOptions(newPhase);
-                    if (blocks.length > 0) setBlock(blocks[0]);
+                    if (newPhase === 'ADD_NEW') {
+                      setShowCustomPhase(true);
+                      setPhase('');
+                      setShowCustomBlock(true);
+                      setBlock('');
+                    } else {
+                      setShowCustomPhase(false);
+                      setPhase(newPhase);
+                      setShowCustomBlock(false);
+                      const blocks = getBlockOptions(newPhase);
+                      if (blocks.length > 0) setBlock(blocks[0]);
+                    }
                   }}
-                  placeholder="e.g. Sushant Lok 2 - C,D,E or type a new phase"
                   style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
-                />
-                <datalist id="resident-phase-options">
-                  <option value="Sushant Lok 2 - C,D,E" />
-                  <option value="Sushant Lok 2 - F,G" />
-                  <option value="Sushant Lok 3" />
-                </datalist>
+                >
+                  <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
+                  <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
+                  <option value="Sushant Lok 3">Sushant Lok 3</option>
+                  <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>+ Add New Custom Phase...</option>
+                </select>
+                
+                {showCustomPhase && (
+                  <input 
+                    type="text" 
+                    value={phase}
+                    onChange={(e) => setPhase(e.target.value)}
+                    placeholder="Enter your new custom phase"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px dashed var(--primary)', outline: 'none', background: 'rgba(59, 130, 246, 0.03)', marginTop: '8px' }}
+                    autoFocus
+                  />
+                )}
               </div>
 
               <div className="input-group" style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Block *</label>
-                <input 
-                  list="resident-block-options"
-                  value={block} 
-                  onChange={(e) => setBlock(e.target.value)}
-                  placeholder="e.g. C, D, E or type a new block"
+                <select 
+                  value={showCustomBlock ? 'ADD_NEW' : block} 
+                  onChange={(e) => {
+                    if (e.target.value === 'ADD_NEW') {
+                      setShowCustomBlock(true);
+                      setBlock('');
+                    } else {
+                      setShowCustomBlock(false);
+                      setBlock(e.target.value);
+                    }
+                  }}
                   style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none', background: 'white' }}
-                />
-                <datalist id="resident-block-options">
-                  {getBlockOptions(phase).map(b => (
-                    <option key={b} value={b} />
+                >
+                  {!showCustomPhase && getBlockOptions(phase).map(b => (
+                    <option key={b} value={b}>Block {b}</option>
                   ))}
-                </datalist>
+                  <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>+ Add New Custom Block...</option>
+                </select>
+                
+                {showCustomBlock && (
+                  <input 
+                    type="text" 
+                    value={block}
+                    onChange={(e) => setBlock(e.target.value)}
+                    placeholder="Enter custom block name"
+                    style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px dashed var(--primary)', outline: 'none', background: 'rgba(59, 130, 246, 0.03)', marginTop: '8px' }}
+                    autoFocus
+                  />
+                )}
               </div>
 
               {propertyType === 'Rented' && (
