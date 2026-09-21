@@ -290,22 +290,41 @@ export default function Staff() {
     }
   };
 
-  const handleDeleteGroup = async (phaseName: string) => {
-    if (!window.confirm(`Are you sure you want to delete the group "${phaseName}"?\nAll Staff and Residents in this group will be moved to "Unassigned". This cannot be undone.`)) {
-      return;
-    }
-    const token = localStorage.getItem('adminToken');
-    const loadId = toast.loading('Deleting group...');
-    try {
-      await axios.delete(`${API_URL}/users/phases/${encodeURIComponent(phaseName)}`, {
-        headers: { 'x-auth-token': token }
-      });
-      toast.success('Group deleted successfully!', { id: loadId });
-      fetchDynamicPhases();
-      fetchStaff(page, filterPhase, debouncedSearch, false);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to delete group', { id: loadId });
-    }
+  const handleDeleteGroup = (phaseName: string) => {
+    toast((t) => (
+      <div>
+        <p style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-main)' }}>Delete group "{phaseName}"?</p>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>All Staff and Residents in this group will be moved to "Unassigned". This cannot be undone.</p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontWeight: 500, color: 'var(--text-main)' }}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const loadId = toast.loading('Deleting group...');
+              try {
+                const token = localStorage.getItem('adminToken');
+                await axios.delete(`${API_URL}/users/phases/${encodeURIComponent(phaseName)}`, {
+                  headers: { 'x-auth-token': token }
+                });
+                toast.success('Group deleted successfully!', { id: loadId });
+                fetchDynamicPhases();
+                fetchStaff(page, filterPhase, debouncedSearch, false);
+              } catch (err: any) {
+                toast.error(err.response?.data?.message || 'Failed to delete group', { id: loadId });
+              }
+            }}
+            style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: 'var(--danger)', color: 'white', cursor: 'pointer', fontWeight: 500 }}
+          >
+            Delete Group
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
   const handleDelete = (id: string) => {
