@@ -30,6 +30,7 @@ export default function RegisterScreen() {
   
   const [step, setStep] = useState(0);
   const [maxStep, setMaxStep] = useState(5); // Becomes 6 if duplicate address
+  const isCompleteRef = useRef(false);
 
   // Form State
   const [name, setName] = useState('');
@@ -122,7 +123,7 @@ export default function RegisterScreen() {
   // Router Back Swipe/Header Intercept
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e) => {
-      if (step > 0) {
+      if (step > 0 && !isCompleteRef.current) {
         // Prevent default behavior of leaving the screen
         e.preventDefault();
         // Go back 1 step
@@ -230,6 +231,7 @@ export default function RegisterScreen() {
       await SecureStore.setItemAsync('userData', JSON.stringify(user));
       await AsyncStorage.removeItem('register_draft'); // Clear draft
 
+      isCompleteRef.current = true;
       Toast.show({ type: 'success', text1: 'Welcome', text2: 'Account created successfully!' });
       router.replace('/login');
     } catch (err: any) {
