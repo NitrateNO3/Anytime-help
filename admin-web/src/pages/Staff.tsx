@@ -858,7 +858,7 @@ export default function Staff() {
       {/* Manage Groups Modal */}
       {showManageGroupsModal && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '500px', width: '90%' }}>
+          <div className="modal-content" style={{ maxWidth: '500px', width: '90%', padding: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
               <h2 style={{ margin: 0, fontSize: 20, color: 'var(--text-main)' }}>Manage Custom Groups</h2>
               <button onClick={() => setShowManageGroupsModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
