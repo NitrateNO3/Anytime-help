@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "211437749131",
+    "project_id": "anytimehelp-a9a46",
+    "storage_bucket": "anytimehelp-a9a46.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211437749131:android:3d3b2e261f46427d8b658e",
+        "android_client_info": {
+          "package_name": "com.anytimehelp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkGfTNcsrSYuQu6D6FCp8sVyBEb7a0pV8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

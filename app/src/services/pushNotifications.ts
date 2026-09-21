@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
@@ -12,6 +13,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -46,8 +49,12 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
 
     try {
       // Get the token that uniquely identifies this device
+      const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
+      if (!projectId) {
+        console.error('EAS project ID not found in app.json!');
+      }
       const tokenResponse = await Notifications.getExpoPushTokenAsync({
-        projectId: 'b567d4cc-ea73-4f9e-a609-b68425d99616', // Add project ID if required by Expo
+        projectId: projectId,
       });
       token = tokenResponse.data;
       console.log('Expo Push Token:', token);

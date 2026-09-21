@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView, Linking, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView, Linking, BackHandler, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -13,6 +13,13 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const [user, setUser] = useState<any>(null);
+  const [token, setToken] = useState<string>('');
+  
+  // Family Management State
+  const [familyMembers, setFamilyMembers] = useState<any[]>([]);
+  const [loadingFamily, setLoadingFamily] = useState(false);
+  const [editingFamily, setEditingFamily] = useState<any>(null); // holds the member being edited
+  const [editPhone, setEditPhone] = useState('');
 
   const toggleLanguage = async () => {
     const newLang = getNextLanguage(i18n.language);
@@ -35,7 +42,71 @@ export default function SettingsScreen() {
 
   const loadUser = async () => {
     const userData = await SecureStore.getItemAsync('userData');
+    const storedToken = await SecureStore.getItemAsync('userToken');
     if (userData) setUser(JSON.parse(userData));
+    if (storedToken) {
+      setToken(storedToken);
+      fetchFamilyMembers(storedToken);
+    }
+  };
+
+  const fetchFamilyMembers = async (authToken: string) => {
+    try {
+      setLoadingFamily(true);
+      const res = await fetch('https://anytime-help.onrender.com/api/users/profile/family', {
+        headers: { 'x-auth-token': authToken }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setFamilyMembers(data);
+      }
+    } catch (e) {
+      console.log('Failed to fetch family members', e);
+    } finally {
+      setLoadingFamily(false);
+    }
+  };
+
+  const saveFamilyMember = async () => {
+    if (!editingFamily) return;
+    try {
+      const formattedPhone = editPhone.startsWith('+') ? editPhone : `+91${editPhone}`;
+      const updatedMembers = familyMembers.map(m => 
+        m._id === editingFamily._id ? { ...m, phone_number: formattedPhone } : m
+      );
+      
+      const res = await fetch('https://anytime-help.onrender.com/api/users/profile/family', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ family_members: updatedMembers })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setFamilyMembers(data.family_members);
+        setEditingFamily(null);
+      }
+    } catch (e) {
+      console.log('Failed to update family member', e);
+    }
+  };
+
+  const removeFamilyMember = async (memberId: string) => {
+    try {
+      const updatedMembers = familyMembers.filter(m => m._id !== memberId);
+      const res = await fetch('https://anytime-help.onrender.com/api/users/profile/family', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ family_members: updatedMembers })
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setFamilyMembers(data.family_members);
+      }
+    } catch (e) {
+      console.log('Failed to remove family member', e);
+    }
   };
 
   const handleLogout = async () => {
@@ -88,6 +159,33 @@ export default function SettingsScreen() {
                 <Text style={styles.changeBtnText}>{t('settings.change') || 'Change'}</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+
+        {/* Account Sharing (Family) */}
+        <View style={styles.settingsGroup}>
+          <Text style={styles.groupTitle}>ACCOUNT SHARING (FAMILY)</Text>
+          <View style={styles.cardGroup}>
+            {loadingFamily ? (
+              <Text style={{padding: 16, color: '#64748B'}}>Loading family members...</Text>
+            ) : familyMembers.length === 0 ? (
+              <Text style={{padding: 16, color: '#64748B'}}>No family members added. You can add them when creating a new account.</Text>
+            ) : (
+              familyMembers.map((member, index) => (
+                <View key={member._id || index} style={[styles.settingRow, index === familyMembers.length - 1 ? { borderBottomWidth: 0 } : {}]}>
+                  <View style={{flex: 1}}>
+                    <Text style={{fontSize: 16, fontWeight: '600', color: '#1E293B'}}>{member.name} ({member.relation})</Text>
+                    <Text style={{fontSize: 14, color: '#64748B', marginTop: 4}}>{member.phone_number}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => { setEditingFamily(member); setEditPhone(member.phone_number.replace('+91', '')); }} style={{marginRight: 12}}>
+                    <Ionicons name="pencil" size={20} color="#3B82F6" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => removeFamilyMember(member._id)}>
+                    <Ionicons name="trash" size={20} color="#EF4444" />
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
           </View>
         </View>
 
@@ -168,6 +266,34 @@ export default function SettingsScreen() {
         </View>
 
       </ScrollView>
+
+      {/* Edit Family Member Modal */}
+      {editingFamily && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', zIndex: 100 }]}>
+          <View style={{ backgroundColor: '#FFF', width: '85%', borderRadius: 16, padding: 24 }}>
+            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 16 }}>Edit {editingFamily.name}'s Number</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 12, height: 48, marginBottom: 24 }}>
+              <Text style={{ fontSize: 16, color: '#64748B', marginRight: 8 }}>+91</Text>
+              <TextInput 
+                style={{ flex: 1, fontSize: 16 }}
+                keyboardType="phone-pad"
+                maxLength={10}
+                value={editPhone}
+                onChangeText={setEditPhone}
+              />
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 12 }}>
+              <TouchableOpacity onPress={() => setEditingFamily(null)} style={{ paddingVertical: 10, paddingHorizontal: 16 }}>
+                <Text style={{ color: '#64748B', fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={saveFamilyMember} style={{ backgroundColor: '#3B82F6', paddingVertical: 10, paddingHorizontal: 20, borderRadius: 8 }}>
+                <Text style={{ color: '#FFF', fontWeight: '600' }}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
+
     </SafeAreaView>
   );
 }

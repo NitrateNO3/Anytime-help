@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
-import { useEffect, useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, Linking, StyleSheet } from 'react-native';
+import { useEffect, useState, useRef } from 'react';
+import { Modal, View, Text, TouchableOpacity, Linking, StyleSheet, Animated, PanResponder, Dimensions } from 'react-native';
 import { Stack, useRouter, Redirect } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import * as SecureStore from 'expo-secure-store';
@@ -22,6 +22,35 @@ export { ErrorBoundary } from 'expo-router';
 export default function RootLayout() {
   const router = useRouter();
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [isReady, setIsReady] = useState(false);
+  
+  // PanResponder logic for Draggable WhatsApp Button
+  const pan = useRef(new Animated.ValueXY()).current;
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (evt, gestureState) => {
+        // Only claim the gesture if the user drags significantly
+        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
+      },
+      onPanResponderGrant: () => {
+        pan.setOffset({
+          x: (pan.x as any)._value,
+          y: (pan.y as any)._value
+        });
+        pan.setValue({ x: 0, y: 0 });
+      },
+      onPanResponderMove: Animated.event(
+        [
+          null,
+          { dx: pan.x, dy: pan.y }
+        ],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: () => {
+        pan.flattenOffset();
+      }
+    })
+  ).current;
   const [playStoreUrl, setPlayStoreUrl] = useState('');
 
   const checkVersion = async () => {
@@ -159,24 +188,29 @@ export default function RootLayout() {
       </Modal>
 
       {/* Global WhatsApp FAB */}
-      <TouchableOpacity 
-        style={styles.globalFab}
-        activeOpacity={0.8}
-        onPress={() => {
-          const msg = 'Hello Anytime Help Support, I need some assistance. Could you please help me?';
-          const encodedMsg = encodeURIComponent(msg);
-          const url = `whatsapp://send?phone=918882004800&text=${encodedMsg}`;
-          Linking.canOpenURL(url).then(supported => {
-            if (supported) {
-              Linking.openURL(url);
-            } else {
-              Linking.openURL(`https://wa.me/918882004800?text=${encodedMsg}`);
-            }
-          }).catch(err => console.error('An error occurred', err));
-        }}
+      <Animated.View 
+        {...panResponder.panHandlers}
+        style={[styles.globalFab, { transform: [{ translateX: pan.x }, { translateY: pan.y }] }]}
       >
-        <Ionicons name="logo-whatsapp" size={30} color="#FFFFFF" />
-      </TouchableOpacity>
+        <TouchableOpacity 
+          style={{ flex: 1, width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
+          activeOpacity={0.8}
+          onPress={() => {
+            const msg = 'Hello Anytime Help Support, I need some assistance. Could you please help me?';
+            const encodedMsg = encodeURIComponent(msg);
+            const url = `whatsapp://send?phone=918882004800&text=${encodedMsg}`;
+            Linking.canOpenURL(url).then(supported => {
+              if (supported) {
+                Linking.openURL(url);
+              } else {
+                Linking.openURL(`https://wa.me/918882004800?text=${encodedMsg}`);
+              }
+            }).catch(err => console.error('An error occurred', err));
+          }}
+        >
+          <Ionicons name="logo-whatsapp" size={30} color="#FFFFFF" />
+        </TouchableOpacity>
+      </Animated.View>
     </GestureHandlerRootView>
   );
 }

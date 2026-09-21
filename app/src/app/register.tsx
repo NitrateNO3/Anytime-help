@@ -1,8 +1,8 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard, Image, FlatList, Dimensions, Animated, Modal } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Keyboard, Dimensions, Animated, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useNavigation, Stack } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
@@ -12,26 +12,48 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { getNextLanguage, getLanguageBadge } from '../utils/localization';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
-const bgImage = require('../../assets/images/electrician-review-response-templates-featured.webp');
 const { width } = Dimensions.get('window');
+
+const TOTAL_STEPS = 6; 
+// 0: Name & Phone
+// 1: Property Type
+// 2: Phase & Block
+// 3: House No
+// 4: Add Family Member
+// 5: Terms & Sign Up
+// 6: Duplicate Address Relation (Conditional)
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const { t, i18n } = useTranslation();
+  
+  const [step, setStep] = useState(0);
+  const [maxStep, setMaxStep] = useState(5); // Becomes 6 if duplicate address
+
+  // Form State
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [propertyType, setPropertyType] = useState('');
-  const [propertyTypeModalVisible, setPropertyTypeModalVisible] = useState(false);
-  const propertyTypes = ['Owned', 'Rented'];
-  
+  const [phase, setPhase] = useState('');
+  const [block, setBlock] = useState('');
   const [houseNo, setHouseNo] = useState('');
   
-  const [phase, setPhase] = useState('');
-  const [phaseModalVisible, setPhaseModalVisible] = useState(false);
-  const phasesList = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
+  // Family Member State
+  const [addFamily, setAddFamily] = useState(false);
+  const [familyRelation, setFamilyRelation] = useState('');
+  const [familyName, setFamilyName] = useState('');
+  const [familyPhone, setFamilyPhone] = useState('');
 
-  const [block, setBlock] = useState('');
-  const [blockModalVisible, setBlockModalVisible] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  
+  const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
+  const [relation, setRelation] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Constants
+  const propertyTypes = ['Owned', 'Rented'];
+  const phasesList = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
   
   const getBlockOptions = () => {
     if (phase === 'Sushant Lok 2 - C,D,E' || phase === 'Sushant Lok 2 Option 1') return ['C, D, E'];
@@ -40,71 +62,134 @@ export default function RegisterScreen() {
     return [];
   };
 
-  const [relation, setRelation] = useState('');
-  const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
-  const [loading, setLoading] = useState(false);
+  // Animations
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [termsModalVisible, setTermsModalVisible] = useState(false);
-
-  const [banners, setBanners] = React.useState<any[]>([]);
-  const flatListRef = React.useRef<FlatList>(null);
-  const [currentIndex, setCurrentIndex] = React.useState(0);
-  const [loadingBanners, setLoadingBanners] = React.useState(true);
-
-  // Fetch Banners
-  React.useEffect(() => {
-    const fetchBanners = async () => {
+  // Persist & Load Draft
+  useEffect(() => {
+    const loadDraft = async () => {
       try {
-        const res = await axios.get(`${API_URL}/banners`);
-        setBanners(res.data);
-      } catch (err) {
-        console.error('Error fetching banners', err);
-      } finally {
-        setLoadingBanners(false);
-      }
+        const draft = await AsyncStorage.getItem('register_draft');
+        if (draft) {
+          const parsed = JSON.parse(draft);
+          if (parsed.name) setName(parsed.name);
+          if (parsed.phoneNumber) setPhoneNumber(parsed.phoneNumber);
+          if (parsed.propertyType) setPropertyType(parsed.propertyType);
+          if (parsed.phase) setPhase(parsed.phase);
+          if (parsed.block) setBlock(parsed.block);
+          if (parsed.houseNo) setHouseNo(parsed.houseNo);
+        }
+      } catch (e) {}
     };
-    fetchBanners();
+    loadDraft();
   }, []);
 
-  // Auto-scroll Banners
-  React.useEffect(() => {
-    if (banners.length > 1) {
-      const interval = setInterval(() => {
-        setCurrentIndex((prevIndex) => {
-          const nextIndex = prevIndex === banners.length - 1 ? 0 : prevIndex + 1;
-          flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-          return nextIndex;
-        });
-      }, 3000);
-      return () => clearInterval(interval);
-    }
-  }, [banners]);
+  useEffect(() => {
+    const saveDraft = async () => {
+      const draft = { name, phoneNumber, propertyType, phase, block, houseNo };
+      await AsyncStorage.setItem('register_draft', JSON.stringify(draft));
+    };
+    saveDraft();
+  }, [name, phoneNumber, propertyType, phase, block, houseNo]);
 
-  const toggleLanguage = async () => {
-    const newLang = getNextLanguage(i18n.language);
-    await i18n.changeLanguage(newLang);
-    await AsyncStorage.setItem('user-language', newLang);
+  // Update progress bar
+  useEffect(() => {
+    Animated.timing(progressAnim, {
+      toValue: (step / maxStep) * 100,
+      duration: 300,
+      useNativeDriver: false
+    }).start();
+  }, [step, maxStep]);
+
+  // Back Button Handler (Android)
+  useEffect(() => {
+    const backAction = () => {
+      if (step > 0) {
+        handleBack();
+        return true;
+      }
+      return false;
+    };
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', backAction);
+    return () => backHandler.remove();
+  }, [step]);
+
+  // Router Back Swipe/Header Intercept
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (step > 0) {
+        // Prevent default behavior of leaving the screen
+        e.preventDefault();
+        // Go back 1 step
+        handleBack();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, step]);
+
+  const goToStep = (nextStep: number) => {
+    Keyboard.dismiss();
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: nextStep > step ? -30 : 30, duration: 150, useNativeDriver: true })
+    ]).start(() => {
+      setStep(nextStep);
+      slideAnim.setValue(nextStep > step ? 30 : -30);
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 250, useNativeDriver: true })
+      ]).start();
+    });
+  };
+
+  const handleNext = () => {
+    if (step === 0) {
+      if (!name || !phoneNumber || phoneNumber.length < 10) {
+        Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a valid name and phone number' });
+        return;
+      }
+    } else if (step === 1) {
+      if (!propertyType) return;
+    } else if (step === 2) {
+      if (!phase || !block) {
+        Toast.show({ type: 'error', text1: 'Selection Required', text2: 'Please select phase and block' });
+        return;
+      }
+    } else if (step === 3) {
+      if (!houseNo) {
+        Toast.show({ type: 'error', text1: 'Required', text2: 'Please enter house/flat number' });
+        return;
+      }
+    } else if (step === 4) {
+      if (addFamily) {
+        if (!familyRelation || !familyName || !familyPhone || familyPhone.length < 10) {
+          Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please fill in all family member details correctly' });
+          return;
+        }
+      }
+    }
+    
+    if (step < maxStep) goToStep(step + 1);
+  };
+
+  const handleBack = () => {
+    if (step > 0) goToStep(step - 1);
   };
 
   const handleRegister = async () => {
-    if (!name || !phoneNumber || phoneNumber.length < 10 || !propertyType || !houseNo || !phase || !block) {
-      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please fill all required fields' });
-      return;
-    }
-
-    if (isDuplicateAddress && !relation) {
-      Toast.show({ type: 'error', text1: 'Relation Required', text2: 'Please specify your relation to this address' });
-      return;
-    }
-
     if (!agreedToTerms) {
-      Toast.show({ type: 'error', text1: 'Terms Required', text2: 'Please agree to the Terms and Conditions to register' });
+      Toast.show({ type: 'error', text1: 'Terms Required', text2: 'Please agree to the terms to continue' });
+      return;
+    }
+
+    if (isDuplicateAddress && !relation && step === 6) {
+      Toast.show({ type: 'error', text1: 'Relation Required', text2: 'Please specify your relation' });
       return;
     }
 
     setLoading(true);
-
     try {
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
       let addressParts = [];
@@ -114,6 +199,15 @@ export default function RegisterScreen() {
       if (propertyType) addressParts.push(`(${propertyType})`);
       const combinedAddress = addressParts.join(', ');
 
+      const family_members = [];
+      if (addFamily && familyRelation && familyName && familyPhone) {
+        family_members.push({
+          relation: familyRelation,
+          name: familyName,
+          phone_number: familyPhone.startsWith('+') ? familyPhone : `+91${familyPhone}`
+        });
+      }
+
       const payload: any = { 
         name, 
         phone_number: formattedPhone, 
@@ -121,15 +215,16 @@ export default function RegisterScreen() {
         address: combinedAddress,
         property_type: propertyType,
         relation: isDuplicateAddress ? relation : propertyType,
-        phase
+        phase,
+        family_members
       };
 
       const res = await axios.post(`${API_URL}/auth/register`, payload);
       const { token, user } = res.data;
       
-      // Save token securely
       await SecureStore.setItemAsync('userToken', token);
       await SecureStore.setItemAsync('userData', JSON.stringify(user));
+      await AsyncStorage.removeItem('register_draft'); // Clear draft
 
       Toast.show({ type: 'success', text1: 'Welcome', text2: 'Account created successfully!' });
       router.replace('/resident');
@@ -137,516 +232,429 @@ export default function RegisterScreen() {
       const errorCode = err.response?.data?.error_code;
       if (errorCode === 'DUPLICATE_ADDRESS') {
         setIsDuplicateAddress(true);
-        Toast.show({ type: 'info', text1: 'Address Already Registered', text2: 'Please specify your relation to this address.' });
+        setMaxStep(6);
+        Toast.show({ type: 'info', text1: 'Address Taken', text2: 'Please specify your relation.' });
+        goToStep(6);
       } else {
-        Toast.show({ type: 'error', text1: 'Registration Failed', text2: err.response?.data?.msg || err.message || 'Please try again.' });
+        Toast.show({ type: 'error', text1: 'Registration Failed', text2: err.response?.data?.msg || 'Please try again.' });
       }
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+  const toggleLanguage = async () => {
+    const newLang = getNextLanguage(i18n.language);
+    await i18n.changeLanguage(newLang);
+    await AsyncStorage.setItem('user-language', newLang);
+  };
+
+  // Renders
+  const renderStep0 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Let's start with your details</Text>
+      <Text style={styles.stepSubtitle}>We use this to verify you in the society.</Text>
       
-      <View style={styles.imageContainer}>
-        {loadingBanners ? (
-          <View style={[styles.bgImage, { backgroundColor: '#1E40AF' }]}>
-            <LinearGradient
-              colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
-              style={styles.gradient}
-            />
-          </View>
-        ) : banners.length > 0 ? (
-          <FlatList
-            ref={flatListRef}
-            data={banners}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item._id}
-            renderItem={({ item }) => (
-              <View style={{ width, height: '100%' }}>
-                <Image source={{ uri: item.url }} style={StyleSheet.absoluteFill} resizeMode="cover" blurRadius={15} />
-                <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%', transform: [{ translateY: -30 }] }} resizeMode="contain" />
-                <LinearGradient
-                  colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
-                  style={[StyleSheet.absoluteFill]}
-                />
-              </View>
-            )}
+      <View style={styles.inputWrapper}>
+        <Text style={styles.label}>Full Name</Text>
+        <View style={styles.inputBox}>
+          <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="John Doe"
+            placeholderTextColor="#94A3B8"
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
           />
-        ) : (
-          <ImageBackground source={bgImage} style={styles.bgImage} resizeMode="cover">
-            <LinearGradient
-              colors={['rgba(0, 0, 0, 0.5)', 'rgba(30, 64, 175, 0.5)', 'rgba(30, 64, 175, 0.85)', '#1E40AF']}
-              style={styles.gradient}
-            />
-          </ImageBackground>
+        </View>
+      </View>
+
+      <View style={styles.inputWrapper}>
+        <Text style={styles.label}>Phone Number</Text>
+        <View style={styles.inputBox}>
+          <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
+          <Text style={{fontSize: 16, color: '#334155', marginRight: 8, fontWeight: '500'}}>+91</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="9876543210"
+            placeholderTextColor="#94A3B8"
+            keyboardType="phone-pad"
+            maxLength={10}
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
+          />
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderStep1 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Do you own or rent?</Text>
+      <Text style={styles.stepSubtitle}>Select your property status in the society.</Text>
+      
+      <View style={styles.chipsContainer}>
+        {propertyTypes.map((type) => (
+          <TouchableOpacity 
+            key={type}
+            style={[styles.chip, propertyType === type && styles.chipActive]}
+            onPress={() => {
+              setPropertyType(type);
+              setTimeout(() => {
+                goToStep(2);
+              }, 350);
+            }}
+          >
+            <Ionicons name={type === 'Owned' ? 'home' : 'key'} size={24} color={propertyType === type ? '#FFF' : '#3B82F6'} style={{marginBottom: 8}} />
+            <Text style={[styles.chipText, propertyType === type && styles.chipTextActive]}>{type}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderStep2 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Where is your property?</Text>
+      <Text style={styles.stepSubtitle}>Select your phase and block.</Text>
+      
+      <Text style={styles.label}>Phase</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 20}}>
+        {phasesList.map((p) => (
+          <TouchableOpacity 
+            key={p}
+            style={[styles.smallChip, phase === p && styles.smallChipActive]}
+            onPress={() => {
+              setPhase(p);
+              setBlock(''); // reset block
+            }}
+          >
+            <Text style={[styles.smallChipText, phase === p && styles.smallChipTextActive]}>{p}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {phase ? (
+        <>
+          <Text style={styles.label}>Block</Text>
+          <View style={styles.gridContainer}>
+            {getBlockOptions().map((b) => (
+              <TouchableOpacity 
+                key={b}
+                style={[styles.gridItem, block === b && styles.gridItemActive]}
+                onPress={() => {
+                  setBlock(b);
+                  setTimeout(() => {
+                    goToStep(3);
+                  }, 350);
+                }}
+              >
+                <Text style={[styles.gridItemText, block === b && styles.gridItemTextActive]}>{b}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      ) : null}
+    </View>
+  );
+
+  const renderStep3 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Almost there!</Text>
+      <Text style={styles.stepSubtitle}>What is your house or flat number?</Text>
+      
+      <View style={styles.inputWrapper}>
+        <Text style={styles.label}>House / Flat No.</Text>
+        <View style={styles.inputBox}>
+          <Ionicons name="business-outline" size={20} color="#64748B" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. 102A, 45-B"
+            placeholderTextColor="#94A3B8"
+            value={houseNo}
+            onChangeText={setHouseNo}
+            autoCapitalize="characters"
+          />
+        </View>
+      </View>
+    </View>
+  );
+
+  const renderStep4 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Share Account?</Text>
+      <Text style={styles.stepSubtitle}>Want to give access to a family member? (Optional)</Text>
+      
+      <View style={styles.chipsContainer}>
+        <TouchableOpacity style={[styles.chip, !addFamily && styles.chipActive]} onPress={() => setAddFamily(false)}>
+          <Text style={[styles.chipText, !addFamily && styles.chipTextActive]}>No</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.chip, addFamily && styles.chipActive]} onPress={() => setAddFamily(true)}>
+          <Text style={[styles.chipText, addFamily && styles.chipTextActive]}>Yes</Text>
+        </TouchableOpacity>
+      </View>
+
+      {addFamily && (
+        <View style={{marginTop: 24}}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 16}}>
+            {['Brother', 'Sister', 'Spouse', 'Parent', 'Other'].map((rel) => (
+              <TouchableOpacity 
+                key={rel}
+                style={[styles.smallChip, familyRelation === rel && styles.smallChipActive]}
+                onPress={() => setFamilyRelation(rel)}
+              >
+                <Text style={[styles.smallChipText, familyRelation === rel && styles.smallChipTextActive]}>{rel}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <View style={styles.inputWrapper}>
+            <Text style={styles.label}>Name</Text>
+            <View style={styles.inputBox}>
+              <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
+              <TextInput style={styles.input} placeholder="Their Name" placeholderTextColor="#94A3B8" value={familyName} onChangeText={setFamilyName} />
+            </View>
+          </View>
+          
+          <View style={styles.inputWrapper}>
+            <Text style={styles.label}>Phone Number</Text>
+            <View style={styles.inputBox}>
+              <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
+              <Text style={{fontSize: 16, color: '#334155', marginRight: 8, fontWeight: '500'}}>+91</Text>
+              <TextInput style={styles.input} placeholder="9876543210" placeholderTextColor="#94A3B8" keyboardType="phone-pad" maxLength={10} value={familyPhone} onChangeText={setFamilyPhone} />
+            </View>
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
+  const renderStep5 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Review & Terms</Text>
+      <Text style={styles.stepSubtitle}>Review your info and agree to the rules.</Text>
+      
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Name:</Text>
+          <Text style={styles.summaryValue}>{name}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Phone:</Text>
+          <Text style={styles.summaryValue}>+91 {phoneNumber}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text style={styles.summaryLabel}>Address:</Text>
+          <Text style={styles.summaryValue}>{houseNo}, Block {block}, {phase} ({propertyType})</Text>
+        </View>
+        {addFamily && (
+          <View style={styles.summaryRow}>
+            <Text style={styles.summaryLabel}>Family:</Text>
+            <Text style={styles.summaryValue}>{familyName} ({familyRelation})</Text>
+          </View>
         )}
       </View>
 
-      <SafeAreaView style={styles.safeArea}>
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <KeyboardAvoidingView 
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.keyboardView}
+      <TouchableOpacity 
+        style={styles.termsBox}
+        onPress={() => setAgreedToTerms(!agreedToTerms)}
+        activeOpacity={0.7}
+      >
+        <Ionicons name={agreedToTerms ? "checkbox" : "square-outline"} size={26} color={agreedToTerms ? "#3B82F6" : "#64748B"} />
+        <Text style={styles.termsText}>
+          I agree to the Anytime Help Community Rules and Terms & Conditions.
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderStep6 = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.warningBox}>
+        <Ionicons name="alert-circle" size={24} color="#D97706" />
+        <Text style={styles.warningTitle}>Address Already Exists</Text>
+      </View>
+      <Text style={styles.stepTitle}>What's your relation?</Text>
+      <Text style={styles.stepSubtitle}>Someone else is already registered at this house. Please specify your relation to them (e.g., Tenant, Son, Daughter).</Text>
+      
+      <View style={styles.inputWrapper}>
+        <Text style={styles.label}>Your Relation</Text>
+        <View style={styles.inputBox}>
+          <Ionicons name="people-outline" size={20} color="#64748B" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="e.g. Family Member, Tenant"
+            placeholderTextColor="#94A3B8"
+            value={relation}
+            onChangeText={setRelation}
+          />
+        </View>
+      </View>
+    </View>
+  );
+
+  const getStepContent = () => {
+    switch (step) {
+      case 0: return renderStep0();
+      case 1: return renderStep1();
+      case 2: return renderStep2();
+      case 3: return renderStep3();
+      case 4: return renderStep4();
+      case 5: return renderStep5();
+      case 6: return renderStep6();
+      default: return renderStep0();
+    }
+  };
+
+  const isNextDisabled = () => {
+    if (step === 0) return !name || phoneNumber.length < 10;
+    if (step === 1) return !propertyType;
+    if (step === 2) return !phase || !block;
+    if (step === 3) return !houseNo;
+    if (step === 4) return addFamily && (!familyRelation || !familyName || familyPhone.length < 10);
+    if (step === 5) return !agreedToTerms;
+    if (step === 6) return !relation;
+    return false;
+  };
+
+  return (
+    <LinearGradient colors={['#F0F9FF', '#FFFFFF']} style={styles.container}>
+      <Stack.Screen options={{ gestureEnabled: false }} />
+      <SafeAreaView style={{ flex: 1 }}>
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        {step > 0 ? (
+          <TouchableOpacity onPress={handleBack} style={styles.iconBtn}>
+            <Ionicons name="arrow-back" size={24} color="#1E293B" />
+          </TouchableOpacity>
+        ) : (
+          <View style={{width: 40}} />
+        )}
+        
+        <TouchableOpacity onPress={toggleLanguage} style={styles.langBtn}>
+          <Ionicons name="language" size={16} color="#3B82F6" />
+          <Text style={styles.langText}>{getLanguageBadge(i18n.language)}</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Progress Bar */}
+      <View style={styles.progressContainer}>
+        <Animated.View style={[styles.progressBar, {
+          width: progressAnim.interpolate({
+            inputRange: [0, 100],
+            outputRange: ['0%', '100%']
+          })
+        }]} />
+      </View>
+      <Text style={styles.progressText}>Step {step + 1} of {maxStep + 1}</Text>
+
+      {/* Main Content Area */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+        <ScrollView contentContainerStyle={{flexGrow: 1}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Animated.View style={[styles.contentArea, {
+            opacity: fadeAnim,
+            transform: [{ translateX: slideAnim }]
+          }]}>
+            {getStepContent()}
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Footer Controls */}
+      <View style={styles.footer}>
+        {step === maxStep ? (
+          <TouchableOpacity 
+            style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]} 
+            onPress={handleRegister}
+            disabled={isNextDisabled() || loading}
           >
-            <View style={{ flex: 1 }}>
-              <View style={styles.langToggleContainer}>
-            <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
-              <Ionicons name="language-outline" size={16} color="#FFF" style={{marginRight: 6}} />
-              <Text style={styles.langToggleText}>{getLanguageBadge(i18n.language)}</Text>
+            <Text style={styles.primaryBtnText}>{loading ? 'Please wait...' : 'Complete Registration'}</Text>
+            {!loading && <Ionicons name="checkmark" size={20} color="#FFF" style={{marginLeft: 8}} />}
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]} 
+            onPress={handleNext}
+            disabled={isNextDisabled()}
+          >
+            <Text style={styles.primaryBtnText}>Continue</Text>
+            <Ionicons name="arrow-forward" size={20} color="#FFF" style={{marginLeft: 8}} />
+          </TouchableOpacity>
+        )}
+        
+        {step === 0 && (
+          <View style={styles.loginLinkRow}>
+            <Text style={styles.loginHintText}>Already have an account? </Text>
+            <TouchableOpacity onPress={() => router.push('/login' as any)}>
+              <Text style={styles.loginLink}>Log in</Text>
             </TouchableOpacity>
           </View>
-
-          <View style={[styles.mainContent, isDuplicateAddress && { paddingTop: 60 }]}>
-            {/* Header / Hero */}
-            <View style={[styles.heroSection, isDuplicateAddress && { marginBottom: 15, marginTop: 10 }]}>
-              <View style={styles.badgeContainer}>
-                <Ionicons name="shield-checkmark" size={14} color="#F59E0B" />
-                <Text style={styles.badgeText}>RWA APPROVED</Text>
-              </View>
-              <View style={[styles.iconCircle, isDuplicateAddress && { width: 90, height: 90, marginBottom: 20 }]}>
-                <Image 
-                  source={require('../../assets/images/logo.png')} 
-                  style={{width: isDuplicateAddress ? 80 : 100, height: isDuplicateAddress ? 80 : 100, transform: [{ translateY: isDuplicateAddress ? 5 : 15 }]}} 
-                  resizeMode="cover" 
-                />
-              </View>
-              <Text style={[styles.title, isDuplicateAddress && { fontSize: 24, marginBottom: 4 }]}>{t('register.title') || 'Create Account'}</Text>
-              <Text style={[styles.subtitle, isDuplicateAddress && { fontSize: 14 }]}>{t('register.subtitle') || 'Join Anytime Help Community'}</Text>
-            </View>
-
-            <View style={[styles.formCard, isDuplicateAddress && { paddingTop: 20, paddingHorizontal: 20 }]}>
-              <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 10 }}>
-              <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
-                <Ionicons name="person-outline" size={20} color="#555" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('register.fullName') || 'Full Name'}
-                  placeholderTextColor="#777"
-                  value={name}
-                  onChangeText={setName}
-                />
-              </View>
-
-              <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
-                <Ionicons name="call-outline" size={20} color="#555" style={styles.inputIcon} />
-                <Text style={{fontSize: 16, color: '#333', marginRight: 8}}>+91</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('register.phonePlaceholder') || 'Phone Number'}
-                  placeholderTextColor="#777"
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  editable={!isDuplicateAddress}
-                />
-              </View>
-
-              {/* Property Type Dropdown */}
-              <TouchableOpacity 
-                style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]} 
-                onPress={() => !isDuplicateAddress && setPropertyTypeModalVisible(true)}
-              >
-                <Ionicons name="home-outline" size={20} color="#555" style={styles.inputIcon} />
-                <Text style={{ flex: 1, fontSize: 14, color: propertyType ? '#333' : '#777', alignSelf: 'center' }}>
-                  {propertyType || 'Property Type (Owned/Rented)*'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#777" />
-              </TouchableOpacity>
-
-              <View style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]}>
-                <Ionicons name="business-outline" size={20} color="#555" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="House / Flat No.*"
-                  placeholderTextColor="#777"
-                  value={houseNo}
-                  onChangeText={(text) => {
-                    setHouseNo(text);
-                    if (isDuplicateAddress) setIsDuplicateAddress(false);
-                  }}
-                  editable={!isDuplicateAddress}
-                />
-              </View>
-
-              {/* Phase Dropdown */}
-              <TouchableOpacity 
-                style={[styles.inputContainer, isDuplicateAddress && { height: 50, marginBottom: 12 }]} 
-                onPress={() => !isDuplicateAddress && setPhaseModalVisible(true)}
-              >
-                <Ionicons name="map-outline" size={20} color="#555" style={styles.inputIcon} />
-                <Text style={{ flex: 1, fontSize: 14, color: phase ? '#333' : '#777', alignSelf: 'center' }}>
-                  {phase || 'Phase (Entity / Group)*'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#777" />
-              </TouchableOpacity>
-
-              {/* Block Dropdown */}
-              <TouchableOpacity 
-                style={[styles.inputContainer, { marginBottom: 12 }, isDuplicateAddress && { height: 45, marginBottom: 8 }]} 
-                onPress={() => {
-                  if (!isDuplicateAddress) {
-                    if (!phase) {
-                      Toast.show({ type: 'info', text1: 'Select Phase', text2: 'Please select a phase first' });
-                      return;
-                    }
-                    setBlockModalVisible(true);
-                  }
-                }}
-              >
-                <Ionicons name="location-outline" size={20} color="#555" style={styles.inputIcon} />
-                <Text style={{ flex: 1, fontSize: 14, color: block ? '#333' : '#777', alignSelf: 'center' }}>
-                  {block || 'Block*'}
-                </Text>
-                <Ionicons name="chevron-down" size={20} color="#777" />
-              </TouchableOpacity>
-
-              {isDuplicateAddress && (
-                <View style={[styles.inputContainer, { height: 50, marginBottom: 12 }]}>
-                  <Ionicons name="people-outline" size={20} color="#555" style={styles.inputIcon} />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Your Relation (e.g., Tenant, Family)"
-                    placeholderTextColor="#777"
-                    value={relation}
-                    onChangeText={setRelation}
-                  />
-                </View>
-              )}
-
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12, paddingHorizontal: 4 }}>
-                <TouchableOpacity onPress={() => setAgreedToTerms(!agreedToTerms)} style={{ marginRight: 8 }}>
-                  <Ionicons name={agreedToTerms ? "checkbox" : "square-outline"} size={24} color={agreedToTerms ? "#1D4ED8" : "#777"} />
-                </TouchableOpacity>
-                <Text style={{ color: '#555', fontSize: 13, flex: 1 }}>
-                  I agree to the {' '}
-                  <Text style={{ color: '#1D4ED8', fontWeight: 'bold' }} onPress={() => setTermsModalVisible(true)}>
-                    Terms and Conditions
-                  </Text>
-                </Text>
-              </View>
-
-              <TouchableOpacity 
-                style={[styles.registerBtn, isDuplicateAddress && { height: 50, marginTop: 8, marginBottom: 16 }, loading && styles.registerBtnDisabled]} 
-                onPress={handleRegister}
-                disabled={loading}
-              >
-                <Text style={styles.registerBtnText}>{loading ? (t('register.creating') || 'Creating...') : (t('register.signup') || 'Sign Up')}</Text>
-              </TouchableOpacity>
-
-              <View style={styles.footer}>
-                <Text style={styles.footerText}>{t('register.alreadyHave') || 'Already have an account? '}</Text>
-                <TouchableOpacity onPress={() => router.push('/login' as any)}>
-                  <Text style={styles.footerLink}>{t('register.loginHere') || 'Log In Here'}</Text>
-                </TouchableOpacity>
-              </View>
-              </ScrollView>
-            </View>
-            </View>
-            </View>
-          </KeyboardAvoidingView>
-        </TouchableWithoutFeedback>
+        )}
+      </View>
       </SafeAreaView>
-
-      {/* Property Type Modal */}
-      <Modal animationType="fade" transparent={true} visible={propertyTypeModalVisible} onRequestClose={() => setPropertyTypeModalVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPropertyTypeModalVisible(false)}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Property Type</Text>
-              <TouchableOpacity onPress={() => setPropertyTypeModalVisible(false)}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
-            </View>
-            <FlatList
-              data={propertyTypes}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={[styles.categoryOption, propertyType === item && styles.categoryOptionSelected]}
-                  onPress={() => { setPropertyType(item); setPropertyTypeModalVisible(false); }}
-                >
-                  <Text style={[styles.categoryOptionText, propertyType === item && styles.categoryOptionTextSelected]}>{item}</Text>
-                  {propertyType === item && <Ionicons name="checkmark-circle" size={20} color="#1D4ED8" />}
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Phase Modal */}
-      <Modal animationType="fade" transparent={true} visible={phaseModalVisible} onRequestClose={() => setPhaseModalVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setPhaseModalVisible(false)}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Phase</Text>
-              <TouchableOpacity onPress={() => setPhaseModalVisible(false)}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
-            </View>
-            <FlatList
-              data={phasesList}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={[styles.categoryOption, phase === item && styles.categoryOptionSelected]}
-                  onPress={() => { setPhase(item); setBlock(''); setPhaseModalVisible(false); }}
-                >
-                  <Text style={[styles.categoryOptionText, phase === item && styles.categoryOptionTextSelected]}>{item}</Text>
-                  {phase === item && <Ionicons name="checkmark-circle" size={20} color="#1D4ED8" />}
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Block Modal */}
-      <Modal animationType="fade" transparent={true} visible={blockModalVisible} onRequestClose={() => setBlockModalVisible(false)}>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setBlockModalVisible(false)}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Block</Text>
-              <TouchableOpacity onPress={() => setBlockModalVisible(false)}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
-            </View>
-            <FlatList
-              data={getBlockOptions()}
-              keyExtractor={(item) => item}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={[styles.categoryOption, block === item && styles.categoryOptionSelected]}
-                  onPress={() => { setBlock(item); setBlockModalVisible(false); }}
-                >
-                  <Text style={[styles.categoryOptionText, block === item && styles.categoryOptionTextSelected]}>Block {item}</Text>
-                  {block === item && <Ionicons name="checkmark-circle" size={20} color="#1D4ED8" />}
-                </TouchableOpacity>
-              )}
-            />
-          </View>
-        </TouchableOpacity>
-      </Modal>
-
-      {/* Terms and Conditions Modal */}
-      <Modal animationType="fade" transparent={true} visible={termsModalVisible} onRequestClose={() => setTermsModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Terms and Conditions</Text>
-              <TouchableOpacity onPress={() => setTermsModalVisible(false)}><Ionicons name="close" size={24} color="#6B7280" /></TouchableOpacity>
-            </View>
-            <ScrollView style={{ paddingRight: 8 }} showsVerticalScrollIndicator={false}>
-              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>1. Introduction</Text>
-              <Text style={{ fontSize: 14, color: '#555', marginBottom: 16, lineHeight: 20 }}>
-                Welcome to Anytime Help. By registering and using our app, you agree to comply with the rules and guidelines set forth for our residential community.
-              </Text>
-              
-              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>2. Account Responsibility</Text>
-              <Text style={{ fontSize: 14, color: '#555', marginBottom: 16, lineHeight: 20 }}>
-                You must provide accurate and complete information during registration. You are responsible for all activities that occur under your account. Do not share your login credentials with non-residents.
-              </Text>
-
-              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>3. Acceptable Use</Text>
-              <Text style={{ fontSize: 14, color: '#555', marginBottom: 16, lineHeight: 20 }}>
-                The Anytime Help platform is intended for raising valid complaints, accessing community announcements, and utilizing the directory. Abuse of the complaint system or posting inappropriate content is strictly prohibited.
-              </Text>
-
-              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>4. Privacy</Text>
-              <Text style={{ fontSize: 14, color: '#555', marginBottom: 16, lineHeight: 20 }}>
-                Your personal details (name, phone number, address) will be securely stored and used solely for community management purposes. It will not be shared with third parties without your consent.
-              </Text>
-
-              <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 8, color: '#333' }}>5. Modifications</Text>
-              <Text style={{ fontSize: 14, color: '#555', marginBottom: 30, lineHeight: 20 }}>
-                We reserve the right to modify these terms at any time. Continued use of the app constitutes acceptance of any changes.
-              </Text>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#1E40AF', // Blue theme
-  },
-  imageContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '55%',
-  },
-  bgImage: {
-    width: '100%',
-    height: '100%',
-  },
-  gradient: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  mainContent: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    paddingTop: Platform.OS === 'ios' ? 40 : 20, 
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 20 : 10,
-  },
-  langToggleContainer: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 65 : (StatusBar.currentHeight ? StatusBar.currentHeight + 15 : 45),
-    right: 20,
-    zIndex: 10,
-  },
-  langToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1E40AF', // Solid blue
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#3B82F6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  langToggleText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFF',
-  },
-  heroSection: {
-    alignItems: 'center',
-    marginBottom: 10,
-    marginTop: 5, 
-  },
-  badgeContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7', // Soft gold background
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    marginBottom: 8, // Reduced gap between badge and logo
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  badgeText: {
-    color: '#D97706', // Darker gold text
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
-    marginLeft: 6,
-  },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 4, 
-    marginBottom: 15,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    overflow: 'hidden',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#EFF6FF',
-    fontWeight: '500',
-  },
-  formCard: {
-    backgroundColor: '#DBEAFE', // Light blue card
-    borderRadius: 30, // Rounded all corners
-    padding: 20,
-    paddingTop: 20,
-    flex: 1,
-    minHeight: 350,
-    marginBottom: 10,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FBF9', // Almost white
-    borderRadius: 30, // Changed from 12 to 30 for pill shape
-    marginBottom: 10,
-    paddingHorizontal: 16, // Increased padding slightly
-    height: 48,
-  },
-  inputIcon: {
-    marginRight: 10,
-  },
-  eyeIcon: {
-    padding: 8,
-  },
-  input: {
-    flex: 1,
-    height: '100%',
-    fontSize: 14,
-    color: '#333',
-    paddingVertical: 0,
-  },
-  registerBtn: {
-    backgroundColor: '#1D4ED8', // Dark blue button
-    borderRadius: 30, // Changed from 12 to 30 for pill shape
-    height: 50,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 5,
-    marginBottom: 10,
-  },
-  registerBtnDisabled: {
-    opacity: 0.7,
-  },
-  registerBtnText: {
-    color: '#FFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  footer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 'auto',
-    paddingBottom: 5,
-  },
-  footerText: {
-    color: '#555',
-    fontSize: 14,
-  },
-  footerLink: {
-    color: '#1D4ED8',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: Platform.OS === 'ios' ? 40 : 24, maxHeight: '50%' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  categoryOption: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#F3F4F6' },
-  categoryOptionSelected: { backgroundColor: 'rgba(29, 78, 216, 0.1)', paddingHorizontal: 12, borderRadius: 12, borderBottomWidth: 0 },
-  categoryOptionText: { fontSize: 16, color: '#4B5563', fontWeight: '500' },
-  categoryOptionTextSelected: { color: '#1D4ED8', fontWeight: '700' }
+  container: { flex: 1 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingTop: 10, paddingBottom: 16 },
+  iconBtn: { padding: 8, borderRadius: 20, backgroundColor: '#F1F5F9' },
+  langBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1, borderColor: '#DBEAFE' },
+  langText: { color: '#1E3A8A', fontWeight: '600', fontSize: 13, marginLeft: 4 },
+  
+  progressContainer: { height: 4, backgroundColor: '#F1F5F9', marginHorizontal: 24, borderRadius: 2, overflow: 'hidden', marginBottom: 8 },
+  progressBar: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 2 },
+  progressText: { fontSize: 12, color: '#94A3B8', fontWeight: '600', textAlign: 'right', marginRight: 24, marginBottom: 20 },
+  
+  contentArea: { flex: 1, paddingHorizontal: 24 },
+  stepContainer: { flex: 1, paddingTop: 20 },
+  stepTitle: { fontSize: 28, fontWeight: '800', color: '#0F172A', marginBottom: 8, letterSpacing: -0.5 },
+  stepSubtitle: { fontSize: 16, color: '#64748B', marginBottom: 40, lineHeight: 24 },
+  
+  label: { fontSize: 14, fontWeight: '600', color: '#334155', marginBottom: 8, marginLeft: 4 },
+  inputWrapper: { marginBottom: 24 },
+  inputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, height: 60, paddingHorizontal: 16 },
+  inputIcon: { marginRight: 12 },
+  input: { flex: 1, height: '100%', fontSize: 16, color: '#0F172A', fontWeight: '500' },
+  
+  chipsContainer: { flexDirection: 'row', gap: 16 },
+  chip: { flex: 1, backgroundColor: '#F8FAFC', borderWidth: 2, borderColor: '#E2E8F0', borderRadius: 20, padding: 24, alignItems: 'center', justifyContent: 'center' },
+  chipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 6 },
+  chipText: { fontSize: 16, fontWeight: '600', color: '#475569' },
+  chipTextActive: { color: '#FFFFFF' },
+
+  smallChip: { paddingHorizontal: 20, paddingVertical: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 20, marginRight: 12 },
+  smallChipActive: { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' },
+  smallChipText: { fontSize: 14, fontWeight: '600', color: '#475569' },
+  smallChipTextActive: { color: '#2563EB' },
+
+  gridContainer: { flexDirection: 'column', gap: 12 },
+  gridItem: { width: '100%', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
+  gridItemActive: { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' },
+  gridItemText: { fontSize: 16, fontWeight: '600', color: '#475569' },
+  gridItemTextActive: { color: '#2563EB' },
+
+  summaryCard: { backgroundColor: '#F8FAFC', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24 },
+  summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  summaryLabel: { fontSize: 15, color: '#64748B', fontWeight: '500' },
+  summaryValue: { fontSize: 15, color: '#0F172A', fontWeight: '600', maxWidth: '70%', textAlign: 'right' },
+  
+  termsBox: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' },
+  termsText: { flex: 1, fontSize: 14, color: '#475569', marginLeft: 12, lineHeight: 20 },
+
+  warningBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', padding: 12, borderRadius: 12, marginBottom: 20 },
+  warningTitle: { fontSize: 14, fontWeight: '700', color: '#92400E', marginLeft: 8 },
+
+  footer: { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 10 : 24, paddingTop: 16, backgroundColor: '#FFF' },
+  primaryBtn: { backgroundColor: '#0F172A', height: 56, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
+  disabledBtn: { backgroundColor: '#CBD5E1', shadowOpacity: 0, elevation: 0 },
+  primaryBtnText: { color: '#FFF', fontSize: 17, fontWeight: '700' },
+  
+  loginLinkRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 16 },
+  loginHintText: { color: '#64748B', fontSize: 14 },
+  loginLink: { color: '#0F172A', fontSize: 14, fontWeight: '700' }
 });
