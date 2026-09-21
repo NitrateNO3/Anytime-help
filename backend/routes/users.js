@@ -458,6 +458,19 @@ router.put('/push-token', auth, async (req, res) => {
   }
 });
 
+// @route   GET api/users/profile/family
+// @desc    Get user's family members
+// @access  Private
+router.get('/profile/family', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user.family_members || []);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   PUT api/users/profile/family
 // @desc    Update user's family members
 // @access  Private
