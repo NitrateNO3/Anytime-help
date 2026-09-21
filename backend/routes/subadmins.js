@@ -86,4 +86,41 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+// @route   PUT api/subadmins/:id
+// @desc    Update a Sub-Admin
+// @access  Private (Super Admin only)
+router.put('/:id', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const { name, email, password, permissions } = req.body;
+    let user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.role !== 'SubAdmin') {
+      return res.status(400).json({ message: 'Cannot edit non-SubAdmin users from this route' });
+    }
+
+    user.name = name || user.name;
+    user.email = email || user.email;
+    user.permissions = permissions || user.permissions;
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(password, salt);
+    }
+
+    await user.save();
+    res.json({ message: 'Sub-Admin updated successfully', user: { _id: user._id, email: user.email, name: user.name, role: user.role, permissions: user.permissions } });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
 module.exports = router;

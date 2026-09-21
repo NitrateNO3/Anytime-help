@@ -18,35 +18,62 @@ router.get('/staff', auth, async (req, res) => {
     if (!checkAccess(req.user, 'Staff Team')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const { page, limit, phase } = req.query;
+    const { page, limit, phase, search, dateFrom, dateTo } = req.query;
     let query = { role: 'Staff' };
+    const andConditions = [];
 
     if (phase && phase !== 'All' && phase !== 'All Groups (Show Everything)') {
       if (phase === 'Universal' || phase === 'Universal Staff Only') {
-        query.$or = [
+        andConditions.push({ $or: [
           { phase: 'Universal' },
           { phase: 'All' },
           { phase: 'All Groups' },
           { name: { $regex: 'universal', $options: 'i' } }
-        ];
+        ]});
       } else if (phase === 'Sushant Lok 2 - C,D,E') {
-        query.$or = [
+        andConditions.push({ $or: [
           { phase: 'Sushant Lok 2 - C,D,E' },
           { phase: 'Sushant Lok 2 Option 1' },
           { name: { $regex: 'Sushant Lok 2 - C,D,E', $options: 'i' } }
-        ];
+        ]});
       } else if (phase === 'Sushant Lok 2 - F,G') {
-        query.$or = [
+        andConditions.push({ $or: [
           { phase: 'Sushant Lok 2 - F,G' },
           { phase: 'Sushant Lok 2 Option 2' },
           { name: { $regex: 'Sushant Lok 2 - F,G', $options: 'i' } }
-        ];
+        ]});
       } else {
-        query.$or = [
+        andConditions.push({ $or: [
           { phase },
           { name: { $regex: phase, $options: 'i' } }
-        ];
+        ]});
       }
+    }
+
+    if (search && search.trim()) {
+      const s = search.trim();
+      andConditions.push({
+        $or: [
+          { name: { $regex: s, $options: 'i' } },
+          { phone_number: { $regex: s, $options: 'i' } },
+          { assigned_category: { $regex: s, $options: 'i' } }
+        ]
+      });
+    }
+
+    if (dateFrom || dateTo) {
+      const dateFilter = {};
+      if (dateFrom) dateFilter.$gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.$lte = end;
+      }
+      andConditions.push({ createdAt: dateFilter });
+    }
+
+    if (andConditions.length > 0) {
+      query.$and = andConditions;
     }
 
     if (page && limit) {
@@ -88,7 +115,7 @@ router.get('/residents', auth, async (req, res) => {
     if (!checkAccess(req.user, 'Residents')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const { page, limit, phase, search, relation } = req.query;
+    const { page, limit, phase, search, relation, dateFrom, dateTo } = req.query;
     let query = { role: 'Resident' };
     const andConditions = [];
 
@@ -136,6 +163,17 @@ router.get('/residents', auth, async (req, res) => {
       });
     }
 
+    if (dateFrom || dateTo) {
+      const dateFilter = {};
+      if (dateFrom) dateFilter.$gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.$lte = end;
+      }
+      andConditions.push({ createdAt: dateFilter });
+    }
+
     if (andConditions.length > 0) {
       query.$and = andConditions;
     }
@@ -164,7 +202,7 @@ router.get('/members', auth, async (req, res) => {
     if (!checkAccess(req.user, 'Committee Members')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const { page, limit, search } = req.query;
+    const { page, limit, search, dateFrom, dateTo } = req.query;
     let query = { role: 'Member' };
     const andConditions = [];
 
@@ -178,6 +216,17 @@ router.get('/members', auth, async (req, res) => {
           { designation: { $regex: s, $options: 'i' } }
         ]
       });
+    }
+
+    if (dateFrom || dateTo) {
+      const dateFilter = {};
+      if (dateFrom) dateFilter.$gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.$lte = end;
+      }
+      andConditions.push({ createdAt: dateFilter });
     }
 
     if (andConditions.length > 0) {
@@ -493,6 +542,47 @@ router.put('/profile/family', auth, async (req, res) => {
     res.json({ message: 'Family members updated successfully', family_members: user.family_members });
   } catch (error) {
     res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   PUT api/users/:id
+// @desc    Update a User (Staff, Member, Resident)
+// @access  Admin Private
+router.put('/:id', auth, async (req, res) => {
+  try {
+    if (req.user.role !== 'Admin') {
+      // Allow SubAdmins with proper permissions? For now, keep it simple or check permissions
+      // If we want SubAdmins to edit users, we should check `checkAccess`
+      const targetUser = await User.findById(req.params.id);
+      if (!targetUser) return res.status(404).json({ message: 'User not found' });
+      
+      let hasAccess = false;
+      if (targetUser.role === 'Staff' && checkAccess(req.user, 'Staff Team')) hasAccess = true;
+      if (targetUser.role === 'Member' && checkAccess(req.user, 'Committee Members')) hasAccess = true;
+      if (targetUser.role === 'Resident' && checkAccess(req.user, 'Residents')) hasAccess = true;
+      
+      if (!hasAccess) return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    const { name, phone_number, designation, category, phase } = req.body;
+    let user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Only allow specific fields to be updated based on role to prevent escalation
+    if (name) user.name = name;
+    if (phone_number) user.phone_number = phone_number;
+    if (designation && user.role === 'Member') user.designation = designation;
+    if (category && user.role === 'Staff') user.category = category;
+    if (phase && user.role === 'Staff') user.phase = phase; // For assigned block
+
+    await user.save();
+    res.json({ message: 'User updated successfully', user });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

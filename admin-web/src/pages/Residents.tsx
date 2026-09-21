@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Pagination } from '../components/Pagination';
 import axios from 'axios';
 import { Home, Trash2, Search, Filter, RotateCcw, X, AlertCircle, Plus, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -14,6 +15,8 @@ export default function Residents() {
   const [filterRelation, setFilterRelation] = useState('ALL');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -45,8 +48,8 @@ export default function Residents() {
   }, [search]);
 
   useEffect(() => {
-    fetchResidents(page, filterPhase, debouncedSearch, filterRelation);
-  }, [page, filterPhase, debouncedSearch, filterRelation]);
+    fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo);
+  }, [page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo]);
 
   useEffect(() => {
     // Socket.io for live updates
@@ -55,24 +58,26 @@ export default function Residents() {
 
     socket.on('user_created', (newUser: any) => {
       if (newUser.role === 'Resident') {
-        fetchResidents(page, filterPhase, debouncedSearch, filterRelation, false);
+        fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, false);
       }
     });
 
     socket.on('user_deleted', () => {
-      fetchResidents(page, filterPhase, debouncedSearch, filterRelation, false);
+      fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, false);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [page, filterPhase, debouncedSearch, filterRelation]);
+  }, [page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo]);
 
   const fetchResidents = async (
     currentPage = page, 
     phaseFilter = filterPhase, 
     searchFilter = debouncedSearch, 
     relationFilter = filterRelation, 
+    from = dateFrom,
+    to = dateTo,
     showLoading = true
   ) => {
     try {
@@ -85,6 +90,8 @@ export default function Residents() {
       });
       if (searchFilter.trim()) params.append('search', searchFilter.trim());
       if (relationFilter !== 'ALL') params.append('relation', relationFilter);
+      if (from) params.append('dateFrom', from);
+      if (to) params.append('dateTo', to);
 
       const res = await axios.get(`${API_URL}/users/residents?${params.toString()}`, {
         headers: { 'x-auth-token': token }
@@ -105,15 +112,17 @@ export default function Residents() {
     }
   };
 
+  const isFiltered = filterPhase !== 'All Groups (Show Everything)' || filterRelation !== 'ALL' || search !== '' || dateFrom !== '' || dateTo !== '';
+
   const resetFilters = () => {
-    setSearch('');
-    setDebouncedSearch('');
     setFilterPhase('All Groups (Show Everything)');
     setFilterRelation('ALL');
+    setSearch('');
+    setDebouncedSearch('');
+    setDateFrom('');
+    setDateTo('');
     setPage(1);
   };
-
-  const isFiltered = search.trim() !== '' || filterPhase !== 'All Groups (Show Everything)' || filterRelation !== 'ALL';
 
   const requestDelete = (id: string) => {
     toast((t) => (
@@ -141,7 +150,7 @@ export default function Residents() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Resident deleted successfully', { id: loadingToast });
-                fetchResidents(page, filterPhase, debouncedSearch, filterRelation, false);
+                fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, false);
               } catch (error: any) {
                 console.error('Error deleting resident:', error);
                 toast.error(error.response?.data?.message || 'Could not delete resident', { id: loadingToast });
@@ -397,6 +406,58 @@ export default function Residents() {
               <option value="Rented">Rented</option>
             </select>
           </div>
+
+          {/* Date From Filter */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+              From Date
+            </label>
+            <input 
+              type="date" 
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setPage(1);
+              }}
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px', 
+                borderRadius: '8px', 
+                border: '1px solid var(--border-color)', 
+                background: '#FFFFFF',
+                fontSize: 13,
+                color: 'var(--text-main)',
+                fontWeight: 500,
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          {/* Date To Filter */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+              To Date
+            </label>
+            <input 
+              type="date" 
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setPage(1);
+              }}
+              style={{ 
+                width: '100%', 
+                padding: '8px 12px', 
+                borderRadius: '8px', 
+                border: '1px solid var(--border-color)', 
+                background: '#FFFFFF',
+                fontSize: 13,
+                color: 'var(--text-main)',
+                fontWeight: 500,
+                outline: 'none'
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -510,29 +571,7 @@ export default function Residents() {
         </div>
 
         {/* Pagination Controls */}
-        {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, padding: '0 10px' }}>
-            <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-              Showing page {page} of {totalPages}
-            </span>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button 
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1}
-                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === 1 ? '#f3f4f6' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
-              >
-                Previous
-              </button>
-              <button 
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === totalPages ? '#f3f4f6' : 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
+        <Pagination page={page} totalPages={totalPages} setPage={setPage} />
       </div>
         </>
       ) : (

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { UserPlus, Users, Trash2 } from 'lucide-react';
+import { UserPlus, Users, Trash2, Edit, Search, Filter, RotateCcw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -13,6 +14,21 @@ export default function Members() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Filter States
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Form State
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -21,20 +37,36 @@ export default function Members() {
   const [memberId, setMemberId] = useState('');
   const [permissions, setPermissions] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
   
   const availablePermissions = ['All Complaints', 'Resident', 'Announcements (All)', 'Announcements (Residents)', 'Announcements (Members)'];
 
   useEffect(() => {
     if (activeTab === 'list') {
-      fetchMembers(page);
+      fetchMembers(page, debouncedSearch, dateFrom, dateTo);
     }
-  }, [activeTab, page]);
+  }, [activeTab, page, debouncedSearch, dateFrom, dateTo]);
 
-  const fetchMembers = async (currentPage = page, showLoading = true) => {
+  const fetchMembers = async (
+    currentPage = page, 
+    searchFilter = debouncedSearch,
+    from = dateFrom,
+    to = dateTo,
+    showLoading = true
+  ) => {
     try {
       if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`${API_URL}/users/members?page=${currentPage}&limit=10`, {
+      
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '10'
+      });
+      if (searchFilter.trim()) params.append('search', searchFilter.trim());
+      if (from) params.append('dateFrom', from);
+      if (to) params.append('dateTo', to);
+
+      const res = await axios.get(`${API_URL}/users/members?${params.toString()}`, {
         headers: { 'x-auth-token': token }
       });
       if (res.data && res.data.members) {
@@ -118,7 +150,7 @@ export default function Members() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Member deleted', { id: loadingToast });
-                fetchMembers(page, false);
+                fetchMembers(page, debouncedSearch, dateFrom, dateTo, false);
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete member', { id: loadingToast });
@@ -131,6 +163,41 @@ export default function Members() {
         </div>
       </div>
     ), { duration: Infinity, style: { minWidth: '300px' } });
+  };
+
+  const isFiltered = search !== '' || dateFrom !== '' || dateTo !== '';
+
+  const resetFilters = () => {
+    setSearch('');
+    setDebouncedSearch('');
+    setDateFrom('');
+    setDateTo('');
+    setPage(1);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const loadingToast = toast.loading('Updating member...');
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(`${API_URL}/users/${editingUser._id}`, {
+        name: editingUser.name,
+        phone_number: editingUser.phone_number,
+        designation: editingUser.designation,
+        permissions: editingUser.permissions,
+        member_id: editingUser.member_id,
+        address: editingUser.address
+      }, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      toast.success('Member updated successfully!', { id: loadingToast });
+      setEditingUser(null);
+      fetchMembers(page, debouncedSearch, dateFrom, dateTo, false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update member', { id: loadingToast });
+    }
   };
 
   return (
@@ -176,6 +243,79 @@ export default function Members() {
             <h2 className="card-title">Members List</h2>
             <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
               Total: {totalCount}
+            </div>
+          </div>
+
+          {/* Filter Toolbar */}
+          <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Filter size={20} color="var(--primary)" />
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-main)' }}>Filter Members</h3>
+                {isFiltered && (
+                  <span style={{ fontSize: 12, background: 'rgba(29, 78, 216, 0.1)', color: 'var(--primary)', padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>
+                    Filters Applied
+                  </span>
+                )}
+              </div>
+
+              {isFiltered && (
+                <button
+                  onClick={resetFilters}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
+                    border: '1px solid var(--border-color)', background: '#FFFFFF', color: 'var(--danger)',
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = '#FFFFFF'}
+                >
+                  <RotateCcw size={14} /> Reset Filters
+                </button>
+              )}
+            </div>
+
+            {/* Search Input Bar */}
+            <div style={{ position: 'relative' }}>
+              <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                placeholder="Search by name, phone number, address, or designation..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  width: '100%', padding: '11px 40px 11px 42px', borderRadius: 10,
+                  border: '1px solid var(--border-color)', background: '#F8FAFC',
+                  fontSize: 14, color: 'var(--text-main)', outline: 'none', boxSizing: 'border-box'
+                }}
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  title="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Date Filters Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>From Date</label>
+                <input 
+                  type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>To Date</label>
+                <input 
+                  type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
+                />
+              </div>
             </div>
           </div>
           
@@ -255,7 +395,15 @@ export default function Members() {
                         </td>
                         <td>{member.address || '-'}</td>
                         <td>
-                          <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
+                            <button 
+                              className="icon-btn" 
+                              style={{ color: 'var(--primary)' }}
+                              onClick={() => setEditingUser(member)}
+                              title="Edit Member"
+                            >
+                              <Edit size={18} />
+                            </button>
                             <button 
                               className="icon-btn" 
                               style={{ color: 'var(--danger)' }}
@@ -273,27 +421,7 @@ export default function Members() {
               </div>
               
               {/* Pagination */}
-              {totalPages > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 16, marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border-color)' }}>
-                  <button 
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === 1 ? 'var(--bg-light)' : 'white', color: page === 1 ? 'var(--text-muted)' : 'var(--text-main)', cursor: page === 1 ? 'not-allowed' : 'pointer', fontWeight: 600 }}
-                  >
-                    Previous
-                  </button>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)' }}>
-                    Page <span style={{ color: 'var(--text-main)' }}>{page}</span> of {totalPages}
-                  </span>
-                  <button 
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                    style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === totalPages ? 'var(--bg-light)' : 'white', color: page === totalPages ? 'var(--text-muted)' : 'var(--text-main)', cursor: page === totalPages ? 'not-allowed' : 'pointer', fontWeight: 600 }}
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
+              <Pagination page={page} totalPages={totalPages} setPage={setPage} />
             </>
           )}
         </div>
@@ -432,6 +560,94 @@ export default function Members() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+      {/* Edit Modal */}
+      {editingUser && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 className="card-title" style={{ marginBottom: 20 }}>Edit Member</h2>
+            <form onSubmit={handleEditSubmit}>
+              <div className="input-group">
+                <label>Name</label>
+                <input 
+                  type="text" 
+                  value={editingUser.name} 
+                  onChange={(e) => setEditingUser({...editingUser, name: e.target.value})} 
+                  required
+                />
+              </div>
+              
+              <div className="input-group">
+                <label>Phone Number</label>
+                <input 
+                  type="text" 
+                  value={editingUser.phone_number} 
+                  onChange={(e) => setEditingUser({...editingUser, phone_number: e.target.value})} 
+                  required
+                />
+              </div>
+
+              <div className="input-group">
+                <label>Designation</label>
+                <input 
+                  type="text" 
+                  value={editingUser.designation} 
+                  onChange={(e) => setEditingUser({...editingUser, designation: e.target.value})} 
+                />
+              </div>
+
+              <div className="input-group">
+                <label>Address</label>
+                <input 
+                  type="text" 
+                  value={editingUser.address || ''} 
+                  onChange={(e) => setEditingUser({...editingUser, address: e.target.value})} 
+                />
+              </div>
+
+              <div className="input-group">
+                <label>Member ID</label>
+                <input 
+                  type="text" 
+                  value={editingUser.member_id || ''} 
+                  onChange={(e) => setEditingUser({...editingUser, member_id: e.target.value})} 
+                />
+              </div>
+              
+              <div className="input-group">
+                <label>Permissions</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
+                  {availablePermissions.map(perm => (
+                    <label key={perm} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                      <input 
+                        type="checkbox"
+                        checked={(editingUser.permissions || []).includes(perm)}
+                        onChange={(e) => {
+                          const currentPerms = editingUser.permissions || [];
+                          if (e.target.checked) {
+                            setEditingUser({...editingUser, permissions: [...currentPerms, perm]});
+                          } else {
+                            setEditingUser({...editingUser, permissions: currentPerms.filter((p: string) => p !== perm)});
+                          }
+                        }}
+                      />
+                      <span style={{ fontSize: 14 }}>{perm}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+                <button type="button" onClick={() => setEditingUser(null)} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid var(--border-color)', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button type="submit" style={{ flex: 1, padding: '12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

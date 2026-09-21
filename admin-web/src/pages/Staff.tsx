@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { UserPlus, Users, Trash2, Wrench } from 'lucide-react';
+import { UserPlus, Users, Trash2, Wrench, Edit, Search, Filter, RotateCcw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -10,14 +11,32 @@ const defaultCategories = [
   'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'
 ];
 
+const phases = ['All', 'Universal', 'Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
+
 export default function Staff() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Filter States
   const [filterPhase, setFilterPhase] = useState('All');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   // Form State
   const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 - C,D,E');
@@ -26,6 +45,7 @@ export default function Staff() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [category, setCategory] = useState('Electricity');
   const [isCreating, setIsCreating] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
   
   // Custom Category State
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
@@ -70,15 +90,32 @@ export default function Staff() {
 
   useEffect(() => {
     if (activeTab === 'list') {
-      fetchStaff(page, filterPhase);
+      fetchStaff(page, filterPhase, debouncedSearch, dateFrom, dateTo);
     }
-  }, [activeTab, page, filterPhase]);
+  }, [activeTab, page, filterPhase, debouncedSearch, dateFrom, dateTo]);
 
-  const fetchStaff = async (currentPage = page, phaseFilter = filterPhase, showLoading = true) => {
+  const fetchStaff = async (
+    currentPage = page, 
+    phase = filterPhase,
+    searchFilter = debouncedSearch,
+    from = dateFrom,
+    to = dateTo,
+    showLoading = true
+  ) => {
     try {
       if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`${API_URL}/users/staff?page=${currentPage}&limit=10&phase=${encodeURIComponent(phaseFilter)}`, {
+      
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '10',
+        phase
+      });
+      if (searchFilter.trim()) params.append('search', searchFilter.trim());
+      if (from) params.append('dateFrom', from);
+      if (to) params.append('dateTo', to);
+
+      const res = await axios.get(`${API_URL}/users/staff?${params.toString()}`, {
         headers: { 'x-auth-token': token }
       });
       if (res.data && res.data.staff) {
@@ -139,6 +176,40 @@ export default function Staff() {
     }
   };
 
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const loadingToast = toast.loading('Updating staff...');
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(`${API_URL}/users/${editingUser._id}`, {
+        name: editingUser.name,
+        phone_number: editingUser.phone_number,
+        category: editingUser.assigned_category,
+        phase: editingUser.phase
+      }, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      toast.success('Staff updated successfully!', { id: loadingToast });
+      setEditingUser(null);
+      fetchStaff(page, filterPhase, debouncedSearch, dateFrom, dateTo, false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to update staff', { id: loadingToast });
+    }
+  };
+
+  const isFiltered = search !== '' || dateFrom !== '' || dateTo !== '' || filterPhase !== 'All';
+
+  const resetFilters = () => {
+    setSearch('');
+    setDebouncedSearch('');
+    setDateFrom('');
+    setDateTo('');
+    setFilterPhase('All');
+    setPage(1);
+  };
+
   const handleDelete = (id: string) => {
     toast((t) => (
       <div>
@@ -160,7 +231,7 @@ export default function Staff() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Staff member deleted', { id: loadingToast });
-                fetchStaff(page, filterPhase, false);
+                fetchStaff(page, filterPhase, debouncedSearch, dateFrom, dateTo, false);
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete staff', { id: loadingToast });
@@ -216,21 +287,95 @@ export default function Staff() {
       {activeTab === 'list' && (
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600 }}>Staff List ({totalCount})</h2>
-            <select 
-              value={filterPhase} 
-              onChange={(e) => {
-                setFilterPhase(e.target.value);
-                setPage(1);
-              }}
-              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
-            >
-              <option value="All">All Groups (Show Everything)</option>
-              <option value="Universal">🌐 Universal Staff Only</option>
-              <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
-              <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
-              <option value="Sushant Lok 3">Sushant Lok 3</option>
-            </select>
+            <h2 className="card-title">Staff Members</h2>
+            <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+              Total: {totalCount}
+            </div>
+          </div>
+
+          {/* Filter Toolbar */}
+          <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Filter size={20} color="var(--primary)" />
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-main)' }}>Filter Staff</h3>
+                {isFiltered && (
+                  <span style={{ fontSize: 12, background: 'rgba(29, 78, 216, 0.1)', color: 'var(--primary)', padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>
+                    Filters Applied
+                  </span>
+                )}
+              </div>
+
+              {isFiltered && (
+                <button
+                  onClick={resetFilters}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
+                    border: '1px solid var(--border-color)', background: '#FFFFFF', color: 'var(--danger)',
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = '#FFFFFF'}
+                >
+                  <RotateCcw size={14} /> Reset Filters
+                </button>
+              )}
+            </div>
+
+            {/* Search Input Bar */}
+            <div style={{ position: 'relative' }}>
+              <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                placeholder="Search by name, phone number, or category..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  width: '100%', padding: '11px 40px 11px 42px', borderRadius: 10,
+                  border: '1px solid var(--border-color)', background: '#F8FAFC',
+                  fontSize: 14, color: 'var(--text-main)', outline: 'none', boxSizing: 'border-box'
+                }}
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  title="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Additional Filters Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>Phase / Location</label>
+                <select 
+                  value={filterPhase} 
+                  onChange={(e) => { setFilterPhase(e.target.value); setPage(1); }}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
+                >
+                  {phases.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>From Date</label>
+                <input 
+                  type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>To Date</label>
+                <input 
+                  type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
+                />
+              </div>
+            </div>
           </div>
           <table>
             <thead>
@@ -302,6 +447,15 @@ export default function Staff() {
                         </td>
                         <td style={{ textAlign: 'center' }}>
                           <button 
+                            onClick={() => setEditingUser(member)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, marginRight: 4 }}
+                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                            title="Edit"
+                          >
+                            <Edit size={20} color="var(--primary)" />
+                          </button>
+                          <button 
                             onClick={() => handleDelete(member._id)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
                             onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
@@ -318,29 +472,7 @@ export default function Staff() {
           </table>
 
           {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, padding: '0 10px' }}>
-              <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-                Page {page} of {totalPages}
-              </span>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button 
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === 1 ? '#f3f4f6' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
-                >
-                  Previous
-                </button>
-                <button 
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === totalPages ? '#f3f4f6' : 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+          <Pagination page={page} totalPages={totalPages} setPage={setPage} />
         </div>
       )}
       
@@ -487,6 +619,58 @@ export default function Staff() {
             </button>
           </form>
         </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingUser && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20 }}>
+            <h2 className="card-title" style={{ marginBottom: 20 }}>Edit Staff Member</h2>
+            <form onSubmit={handleEditSubmit}>
+              <div className="input-group">
+                <label>Name</label>
+                <input 
+                  type="text" 
+                  value={editingUser.name} 
+                  onChange={(e) => setEditingUser({...editingUser, name: e.target.value})} 
+                  required
+                />
+              </div>
+              
+              <div className="input-group">
+                <label>Phone Number</label>
+                <input 
+                  type="text" 
+                  value={editingUser.phone_number} 
+                  onChange={(e) => setEditingUser({...editingUser, phone_number: e.target.value})} 
+                  required
+                />
+              </div>
+
+              <div className="input-group">
+                <label>Category</label>
+                <select 
+                  value={editingUser.assigned_category}
+                  onChange={(e) => setEditingUser({...editingUser, assigned_category: e.target.value})}
+                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
+                >
+                  {availableCategories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+                <button type="button" onClick={() => setEditingUser(null)} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid var(--border-color)', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button type="submit" style={{ flex: 1, padding: '12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

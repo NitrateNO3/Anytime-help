@@ -39,7 +39,32 @@ router.get('/', auth, async (req, res) => {
       }
     }
 
-    const { page, limit } = req.query;
+    const { page, limit, search, dateFrom, dateTo } = req.query;
+
+    if (search && search.trim()) {
+      const s = search.trim();
+      if (!query.$and) query.$and = [];
+      query.$and.push({
+        $or: [
+          { title: { $regex: s, $options: 'i' } },
+          { message: { $regex: s, $options: 'i' } },
+          { creatorName: { $regex: s, $options: 'i' } }
+        ]
+      });
+    }
+
+    if (dateFrom || dateTo) {
+      const dateFilter = {};
+      if (dateFrom) dateFilter.$gte = new Date(dateFrom);
+      if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.$lte = end;
+      }
+      if (!query.$and) query.$and = [];
+      query.$and.push({ date: dateFilter });
+    }
+
     if (page && limit) {
       const pageNum = parseInt(page, 10);
       const limitNum = parseInt(limit, 10);
@@ -160,6 +185,46 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     res.json({ msg: 'Announcement removed' });
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Announcement not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
+// @route   PUT api/announcements/:id
+// @desc    Update an announcement
+// @access  Private
+router.put('/:id', auth, async (req, res) => {
+  const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || 
+    ((req.user.role === 'SubAdmin' || req.user.role === 'Member') && req.user.permissions && req.user.permissions.includes('Announcements'));
+  if (!hasAccess) {
+    return res.status(403).json({ msg: 'Authorization denied' });
+  }
+
+  const { title, message, phases, targetAudience } = req.body;
+
+  try {
+    let announcement = await Announcement.findById(req.params.id);
+    if (!announcement) {
+      return res.status(404).json({ msg: 'Announcement not found' });
+    }
+
+    if (title) announcement.title = title;
+    if (message) announcement.message = message;
+    if (phases) announcement.phases = phases;
+    if (targetAudience) announcement.targetAudience = targetAudience;
+
+    await announcement.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('announcement_changed', { action: 'update', data: announcement });
+    }
+
+    res.json({ msg: 'Announcement updated successfully', announcement });
   } catch (err) {
     console.error(err.message);
     if (err.kind === 'ObjectId') {

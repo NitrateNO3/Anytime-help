@@ -13,7 +13,7 @@ const otpStore = new Map();
 // @desc    Register user (Resident or Staff)
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, phone_number, firebase_uid, role, department, address, relation, phase, family_members } = req.body;
+  const { name, phone_number, firebase_uid, role, department, address, relation, phase, family_members, gender } = req.body;
 
   try {
     let user = await User.findOne({ phone_number });
@@ -57,7 +57,7 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    user = new User({ name, phone_number, firebase_uid, role, department, address, relation, phase, family_members: family_members || [] });
+    user = new User({ name, phone_number, firebase_uid, role, department, address, relation, phase, family_members: family_members || [], gender });
 
     await user.save();
 

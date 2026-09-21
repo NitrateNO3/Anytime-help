@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
+import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { Trash2, Megaphone, Plus, Bell } from 'lucide-react';
+import { Trash2, Megaphone, Plus, Bell, Edit, Search, Filter, RotateCcw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 
@@ -16,11 +17,27 @@ export default function Announcements() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  // Filter States
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Form State
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
 
   const availablePhases = ['Resident', 'Members'];
 
@@ -28,22 +45,44 @@ export default function Announcements() {
     if (activeTab === 'list') {
       fetchAnnouncements(page, filterPhase);
     }
-    
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('announcement_changed', () => {
-      if (activeTab === 'list') fetchAnnouncements(page, filterPhase, false);
+      if (activeTab === 'list') fetchAnnouncements(page, filterPhase, debouncedSearch, dateFrom, dateTo, false);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [activeTab, page, filterPhase]);
+  }, [activeTab, page, filterPhase, debouncedSearch, dateFrom, dateTo]);
 
-  const fetchAnnouncements = async (currentPage = page, phaseFilter = filterPhase, showLoading = true) => {
+  useEffect(() => {
+    if (activeTab === 'list') {
+      fetchAnnouncements(page, filterPhase, debouncedSearch, dateFrom, dateTo);
+    }
+  }, [activeTab, page, filterPhase, debouncedSearch, dateFrom, dateTo]);
+
+  const fetchAnnouncements = async (
+    currentPage = page, 
+    phase = filterPhase,
+    searchFilter = debouncedSearch,
+    from = dateFrom,
+    to = dateTo,
+    showLoading = true
+  ) => {
     try {
       if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
-      const res = await axios.get(`${API_URL}/announcements?page=${currentPage}&limit=10&phase=${encodeURIComponent(phaseFilter)}`, {
+      
+      const params = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: '10',
+        phase
+      });
+      if (searchFilter.trim()) params.append('search', searchFilter.trim());
+      if (from) params.append('dateFrom', from);
+      if (to) params.append('dateTo', to);
+
+      const res = await axios.get(`${API_URL}/announcements?${params.toString()}`, {
         headers: { 'x-auth-token': token }
       });
       if (res.data && res.data.announcements) {
@@ -115,7 +154,7 @@ export default function Announcements() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Announcement deleted', { id: loadingToast });
-                fetchAnnouncements(page, filterPhase, false);
+                fetchAnnouncements(page, filterPhase, debouncedSearch, dateFrom, dateTo, false);
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete', { id: loadingToast });
@@ -128,6 +167,38 @@ export default function Announcements() {
         </div>
       </div>
     ), { duration: Infinity, style: { minWidth: '300px' } });
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const loadingToast = toast.loading('Updating announcement...');
+
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(`${API_URL}/announcements/${editingAnnouncement._id}`, {
+        title: editingAnnouncement.title,
+        message: editingAnnouncement.message
+      }, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      toast.success('Announcement updated successfully!', { id: loadingToast });
+      setEditingAnnouncement(null);
+      fetchAnnouncements(page, filterPhase, debouncedSearch, dateFrom, dateTo, false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || err.response?.data?.msg || 'Failed to update', { id: loadingToast });
+    }
+  };
+
+  const isFiltered = search !== '' || dateFrom !== '' || dateTo !== '' || filterPhase !== 'All Groups (Show Everything)';
+
+  const resetFilters = () => {
+    setSearch('');
+    setDebouncedSearch('');
+    setDateFrom('');
+    setDateTo('');
+    setFilterPhase('All Groups (Show Everything)');
+    setPage(1);
   };
 
   return (
@@ -171,20 +242,96 @@ export default function Announcements() {
       {activeTab === 'list' ? (
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-            <h2 style={{ fontSize: 18, fontWeight: 600 }}>Past Announcements ({totalCount})</h2>
-            <select 
-              value={filterPhase} 
-              onChange={(e) => {
-                setFilterPhase(e.target.value);
-                setPage(1);
-              }}
-              style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
-            >
-              <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
-              <option value="Universal (Sent to Everyone)">Universal (Sent to Everyone)</option>
-              <option value="Resident">Resident</option>
-              <option value="Members">Members</option>
-            </select>
+            <h2 className="card-title">Recent Announcements</h2>
+            <div style={{ background: 'var(--bg-light)', padding: '6px 12px', borderRadius: 20, fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>
+              Total: {totalCount}
+            </div>
+          </div>
+
+          {/* Filter Toolbar */}
+          <div style={{ marginBottom: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Filter size={20} color="var(--primary)" />
+                <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-main)' }}>Filter Announcements</h3>
+                {isFiltered && (
+                  <span style={{ fontSize: 12, background: 'rgba(29, 78, 216, 0.1)', color: 'var(--primary)', padding: '2px 8px', borderRadius: 12, fontWeight: 600 }}>
+                    Filters Applied
+                  </span>
+                )}
+              </div>
+
+              {isFiltered && (
+                <button
+                  onClick={resetFilters}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 8,
+                    border: '1px solid var(--border-color)', background: '#FFFFFF', color: 'var(--danger)',
+                    fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease'
+                  }}
+                  onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
+                  onMouseOut={(e) => e.currentTarget.style.background = '#FFFFFF'}
+                >
+                  <RotateCcw size={14} /> Reset Filters
+                </button>
+              )}
+            </div>
+
+            {/* Search Input Bar */}
+            <div style={{ position: 'relative' }}>
+              <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                placeholder="Search by title, message, or creator..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  width: '100%', padding: '11px 40px 11px 42px', borderRadius: 10,
+                  border: '1px solid var(--border-color)', background: '#F8FAFC',
+                  fontSize: 14, color: 'var(--text-main)', outline: 'none', boxSizing: 'border-box'
+                }}
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                  title="Clear search"
+                >
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Additional Filters Row */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>Target Phase</label>
+                <select 
+                  value={filterPhase} 
+                  onChange={(e) => { setFilterPhase(e.target.value); setPage(1); }}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
+                >
+                  <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
+                  <option value="Universal (Sent to Everyone)">Universal (Sent to Everyone)</option>
+                  <option value="Resident">Resident</option>
+                  <option value="Members">Members</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>From Date</label>
+                <input 
+                  type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>To Date</label>
+                <input 
+                  type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+                  style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
+                />
+              </div>
+            </div>
           </div>
           <table>
             <thead>
@@ -225,6 +372,15 @@ export default function Announcements() {
                       <td style={{ color: 'var(--text-muted)' }}>{announcement.message}</td>
                       <td style={{ textAlign: 'center' }}>
                         <button 
+                          onClick={() => setEditingAnnouncement(announcement)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8, marginRight: 4 }}
+                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                          title="Edit"
+                        >
+                          <Edit size={20} color="var(--primary)" />
+                        </button>
+                        <button 
                           onClick={() => handleDelete(announcement._id)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
                           onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
@@ -239,30 +395,7 @@ export default function Announcements() {
               </tbody>
           </table>
 
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 20, padding: '0 10px' }}>
-              <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-                Page {page} of {totalPages}
-              </span>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button 
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === 1 ? '#f3f4f6' : 'white', cursor: page === 1 ? 'not-allowed' : 'pointer' }}
-                >
-                  Previous
-                </button>
-                <button 
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-color)', background: page === totalPages ? '#f3f4f6' : 'white', cursor: page === totalPages ? 'not-allowed' : 'pointer' }}
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          )}
+          <Pagination page={page} totalPages={totalPages} setPage={setPage} />
         </div>
 
       ) : (
@@ -353,6 +486,54 @@ export default function Announcements() {
               <button type="submit" className="btn-primary" disabled={isCreating} style={{ marginTop: '16px', height: '52px' }}>
                 {isCreating ? 'Publishing...' : 'Publish Announcement'}
               </button>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Edit Modal */}
+      {editingAnnouncement && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="card" style={{ width: '100%', maxWidth: 600, margin: 20 }}>
+            <h2 className="card-title" style={{ marginBottom: 20 }}>Edit Announcement</h2>
+            <form onSubmit={handleEditSubmit}>
+              <div className="input-group">
+                <label>Title</label>
+                <input 
+                  type="text" 
+                  value={editingAnnouncement.title} 
+                  onChange={(e) => setEditingAnnouncement({...editingAnnouncement, title: e.target.value})} 
+                  required
+                />
+              </div>
+              
+              <div className="input-group">
+                <label>Message</label>
+                <textarea 
+                  value={editingAnnouncement.message} 
+                  onChange={(e) => setEditingAnnouncement({...editingAnnouncement, message: e.target.value})} 
+                  required
+                  style={{ 
+                    width: '100%', 
+                    padding: '14px 16px', 
+                    background: 'white', 
+                    border: '1px solid var(--border-color)', 
+                    borderRadius: '12px', 
+                    minHeight: '120px', 
+                    resize: 'vertical',
+                    fontFamily: 'inherit',
+                    fontSize: '15px'
+                  }}
+                />
+              </div>
+              
+              <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
+                <button type="button" onClick={() => setEditingAnnouncement(null)} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid var(--border-color)', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                  Cancel
+                </button>
+                <button type="submit" style={{ flex: 1, padding: '12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                  Save Changes
+                </button>
+              </div>
             </form>
           </div>
         </div>
