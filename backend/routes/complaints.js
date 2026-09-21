@@ -67,6 +67,34 @@ router.post('/', auth, async (req, res) => {
       io.emit('complaint_changed', { action: 'create', data: createdComplaint });
     }
 
+    try {
+      // Find Admin and Staff to notify
+      const adminsAndStaff = await User.find({
+        $or: [
+          { role: 'Admin' },
+          { role: 'SubAdmin', permissions: 'Complaints' },
+          { role: 'Staff', $or: [{ phase: userPhase }, { phase: 'Universal' }, { phase: 'All' }, { phase: { $exists: false } }] }
+        ],
+        expoPushToken: { $exists: true, $ne: '' }
+      }).select('expoPushToken assigned_category role');
+
+      const tokens = adminsAndStaff
+        .filter(u => {
+          if (u.role === 'Staff' && u.assigned_category && u.assigned_category !== 'All' && u.assigned_category !== category) {
+            return false;
+          }
+          return true;
+        })
+        .map(u => u.expoPushToken);
+
+      if (tokens.length > 0) {
+        const { sendPushNotifications } = require('../utils/push');
+        sendPushNotifications(tokens, '🚨 New Complaint: ' + category, title || 'A new issue was reported.', { type: 'complaint', id: createdComplaint._id });
+      }
+    } catch (pushErr) {
+      console.error('Push notification error:', pushErr.message);
+    }
+
     res.status(201).json(createdComplaint);
   } catch (error) {
     res.status(400).json({ message: error.message });

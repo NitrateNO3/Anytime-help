@@ -165,6 +165,7 @@ export default function StaffScreen() {
     React.useCallback(() => {
       fetchComplaints();
       fetchAnnouncements();
+      import('../services/pushNotifications').then(({ clearAppBadge }) => clearAppBadge());
     }, [])
   );
 

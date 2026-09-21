@@ -20,6 +20,7 @@ export default function Announcements() {
   useFocusEffect(
     useCallback(() => {
       fetchAnnouncements();
+      import('../../services/pushNotifications').then(({ clearAppBadge }) => clearAppBadge());
 
       const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
       socket.on('announcement_changed', () => {

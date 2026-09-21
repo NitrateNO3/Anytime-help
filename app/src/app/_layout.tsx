@@ -45,6 +45,24 @@ export default function RootLayout() {
 
   useEffect(() => {
     checkVersion();
+    
+    // Setup Push Notifications
+    const setupPushNotifications = async () => {
+      try {
+        const token = await SecureStore.getItemAsync('userToken');
+        if (token) {
+          const { registerForPushNotificationsAsync, sendPushTokenToBackend } = await import('../services/pushNotifications');
+          const pushToken = await registerForPushNotificationsAsync();
+          if (pushToken) {
+            await sendPushTokenToBackend(pushToken);
+          }
+        }
+      } catch (err) {
+        console.error('Push notification setup error:', err);
+      }
+    };
+    setupPushNotifications();
+
     console.log('Connecting to socket at:', API_URL);
     const socket = io(API_URL, {
       transports: ['websocket'],

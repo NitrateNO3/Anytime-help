@@ -6,6 +6,7 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: false },
   phone_number: { type: String, required: false, unique: true, sparse: true },
   firebase_uid: { type: String, required: false },
+  expoPushToken: { type: String, required: false },
   role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'SubAdmin', 'PaidStaff', 'Member'], default: 'Resident' },
   assigned_category: { type: String, required: false }, // Only for Staff (e.g., 'Plumbing')
   phase: { type: String, required: false }, // For phase/entity-based routing

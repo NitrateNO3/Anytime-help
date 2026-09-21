@@ -97,6 +97,36 @@ router.post('/', auth, async (req, res) => {
       io.emit('announcement_changed', { action: 'create', data: announcement });
     }
 
+    try {
+      // Find users to notify
+      let userQuery = {};
+      const audience = targetAudience || 'All';
+      if (audience === 'Members') {
+        userQuery.role = 'Member';
+      } else {
+        userQuery.role = { $in: ['Resident', 'Member'] }; // Notify residents and members for 'All'
+      }
+
+      const targetPhases = phases || [];
+      if (targetPhases.length > 0 && !targetPhases.includes('All')) {
+        userQuery.$or = [{ phase: { $in: targetPhases } }, { phase: { $exists: false } }, { phase: '' }];
+      }
+      
+      userQuery.expoPushToken = { $exists: true, $ne: '' };
+
+      const User = require('../models/User');
+      const usersToNotify = await User.find(userQuery).select('expoPushToken');
+      const tokens = usersToNotify.map(u => u.expoPushToken);
+      
+      if (tokens.length > 0) {
+        const { sendPushNotifications } = require('../utils/push');
+        // We don't await to not block the API response
+        sendPushNotifications(tokens, '📢 ' + title, message, { type: 'announcement', id: announcement._id });
+      }
+    } catch (pushErr) {
+      console.error('Push notification error:', pushErr.message);
+    }
+
     res.json(announcement);
   } catch (err) {
     console.error(err.message);
