@@ -231,7 +231,7 @@ export default function RegisterScreen() {
       await AsyncStorage.removeItem('register_draft'); // Clear draft
 
       Toast.show({ type: 'success', text1: 'Welcome', text2: 'Account created successfully!' });
-      router.replace('/resident');
+      router.replace('/login');
     } catch (err: any) {
       const errorCode = err.response?.data?.error_code;
       if (errorCode === 'DUPLICATE_ADDRESS') {
