@@ -263,7 +263,7 @@ export default function LoginScreen() {
                   onPress={() => setRole('Resident')}
                 >
                   <Text style={[styles.roleBtnText, role === 'Resident' && styles.roleBtnTextActive]}>
-                    Resident
+                    {t('login.resident')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -271,7 +271,7 @@ export default function LoginScreen() {
                   onPress={() => setRole('Member')}
                 >
                   <Text style={[styles.roleBtnText, role === 'Member' && styles.roleBtnTextActive]}>
-                    Member
+                    {t('login.member')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -279,7 +279,7 @@ export default function LoginScreen() {
                   onPress={() => setRole('Staff')}
                 >
                   <Text style={[styles.roleBtnText, role === 'Staff' && styles.roleBtnTextActive]}>
-                    Staff
+                    {t('login.staff')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -305,7 +305,7 @@ export default function LoginScreen() {
                     onPress={sendOTP}
                     disabled={loading}
                   >
-                    <Text style={styles.loginBtnText}>{loading ? 'Sending OTP...' : 'Get OTP'}</Text>
+                    <Text style={styles.loginBtnText}>{loading ? t('login.sendingOtp') : t('login.getOtp')}</Text>
                   </TouchableOpacity>
                 </>
               ) : (
@@ -314,7 +314,7 @@ export default function LoginScreen() {
                     <Ionicons name="keypad-outline" size={20} color="#555" style={styles.inputIcon} />
                     <TextInput
                       style={styles.input}
-                      placeholder="Enter 6-digit OTP"
+                      placeholder={t('login.enterOtp')}
                       placeholderTextColor="#777"
                       keyboardType="number-pad"
                       maxLength={6}
@@ -328,21 +328,21 @@ export default function LoginScreen() {
                     onPress={handleVerifyLogin}
                     disabled={loading}
                   >
-                    <Text style={styles.loginBtnText}>{loading ? 'Verifying...' : 'Verify & Login'}</Text>
+                    <Text style={styles.loginBtnText}>{loading ? t('login.verifying') : t('login.verifyLogin')}</Text>
                   </TouchableOpacity>
                   
                   <View style={{flexDirection: 'row', justifyContent: 'center', marginBottom: 20}}>
                     {timer > 0 ? (
-                      <Text style={{color: '#555', fontWeight: '500'}}>Resend OTP in {timer}s</Text>
+                      <Text style={{color: '#555', fontWeight: '500'}}>{t('login.resendOtpIn').replace('{{timer}}', timer.toString())}</Text>
                     ) : (
                       <TouchableOpacity onPress={sendOTP} disabled={loading}>
-                        <Text style={{color: '#1D4ED8', fontWeight: '700'}}>Resend OTP</Text>
+                        <Text style={{color: '#1D4ED8', fontWeight: '700'}}>{t('login.resendOtp')}</Text>
                       </TouchableOpacity>
                     )}
                   </View>
                   
                   <TouchableOpacity onPress={() => setStep('PHONE')} style={{alignItems: 'center', marginBottom: 20}}>
-                    <Text style={{color: '#1D4ED8', fontWeight: '600'}}>Change Phone Number</Text>
+                    <Text style={{color: '#1D4ED8', fontWeight: '600'}}>{t('login.changePhone')}</Text>
                   </TouchableOpacity>
                 </>
               )}

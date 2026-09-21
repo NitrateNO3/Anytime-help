@@ -34,6 +34,7 @@ export default function RegisterScreen() {
   // Form State
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [gender, setGender] = useState('');
   const [propertyType, setPropertyType] = useState('');
   const [phase, setPhase] = useState('');
   const [block, setBlock] = useState('');
@@ -42,6 +43,7 @@ export default function RegisterScreen() {
   // Family Member State
   const [addFamily, setAddFamily] = useState(false);
   const [familyRelation, setFamilyRelation] = useState('');
+  const [customRelation, setCustomRelation] = useState('');
   const [familyName, setFamilyName] = useState('');
   const [familyPhone, setFamilyPhone] = useState('');
 
@@ -76,6 +78,7 @@ export default function RegisterScreen() {
           const parsed = JSON.parse(draft);
           if (parsed.name) setName(parsed.name);
           if (parsed.phoneNumber) setPhoneNumber(parsed.phoneNumber);
+          if (parsed.gender) setGender(parsed.gender);
           if (parsed.propertyType) setPropertyType(parsed.propertyType);
           if (parsed.phase) setPhase(parsed.phase);
           if (parsed.block) setBlock(parsed.block);
@@ -88,11 +91,11 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     const saveDraft = async () => {
-      const draft = { name, phoneNumber, propertyType, phase, block, houseNo };
+      const draft = { name, phoneNumber, gender, propertyType, phase, block, houseNo };
       await AsyncStorage.setItem('register_draft', JSON.stringify(draft));
     };
     saveDraft();
-  }, [name, phoneNumber, propertyType, phase, block, houseNo]);
+  }, [name, phoneNumber, gender, propertyType, phase, block, houseNo]);
 
   // Update progress bar
   useEffect(() => {
@@ -146,7 +149,7 @@ export default function RegisterScreen() {
 
   const handleNext = () => {
     if (step === 0) {
-      if (!name || !phoneNumber || phoneNumber.length < 10) {
+      if (!name || !phoneNumber || phoneNumber.length < 10 || !gender) {
         Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a valid name and phone number' });
         return;
       }
@@ -164,7 +167,7 @@ export default function RegisterScreen() {
       }
     } else if (step === 4) {
       if (addFamily) {
-        if (!familyRelation || !familyName || !familyPhone || familyPhone.length < 10) {
+        if (!familyRelation || !familyName || !familyPhone || familyPhone.length < 10 || (familyRelation === 'Other' && !customRelation)) {
           Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please fill in all family member details correctly' });
           return;
         }
@@ -202,7 +205,7 @@ export default function RegisterScreen() {
       const family_members = [];
       if (addFamily && familyRelation && familyName && familyPhone) {
         family_members.push({
-          relation: familyRelation,
+          relation: familyRelation === 'Other' ? customRelation : familyRelation,
           name: familyName,
           phone_number: familyPhone.startsWith('+') ? familyPhone : `+91${familyPhone}`
         });
@@ -216,7 +219,8 @@ export default function RegisterScreen() {
         property_type: propertyType,
         relation: isDuplicateAddress ? relation : propertyType,
         phase,
-        family_members
+        family_members,
+        gender
       };
 
       const res = await axios.post(`${API_URL}/auth/register`, payload);
@@ -252,11 +256,11 @@ export default function RegisterScreen() {
   // Renders
   const renderStep0 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Let's start with your details</Text>
-      <Text style={styles.stepSubtitle}>We use this to verify you in the society.</Text>
+      <Text style={styles.stepTitle}>{t('register.step1Title')}</Text>
+      <Text style={styles.stepSubtitle}>{t('register.step1Sub')}</Text>
       
       <View style={styles.inputWrapper}>
-        <Text style={styles.label}>Full Name</Text>
+        <Text style={styles.label}>{t('register.fullName')}</Text>
         <View style={styles.inputBox}>
           <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
           <TextInput
@@ -270,8 +274,23 @@ export default function RegisterScreen() {
         </View>
       </View>
 
+      <Text style={[styles.label, {marginTop: 16, marginBottom: 8}]}>{t('register.genderLabel')}</Text>
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 16 }}>
+        {['Male', 'Female'].map((gen) => (
+          <TouchableOpacity
+            key={gen}
+            style={[styles.smallChip, { flex: 1, alignItems: 'center' }, gender === gen && styles.smallChipActive]}
+            onPress={() => setGender(gen)}
+          >
+            <Text style={[styles.smallChipText, gender === gen && styles.smallChipTextActive]}>
+              {t('register.' + gen.toLowerCase()) || gen}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
       <View style={styles.inputWrapper}>
-        <Text style={styles.label}>Phone Number</Text>
+        <Text style={styles.label}>{t('register.phonePlaceholder').replace(' (+91)', '')}</Text>
         <View style={styles.inputBox}>
           <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
           <Text style={{fontSize: 16, color: '#334155', marginRight: 8, fontWeight: '500'}}>+91</Text>
@@ -307,7 +326,7 @@ export default function RegisterScreen() {
             }}
           >
             <Ionicons name={type === 'Owned' ? 'home' : 'key'} size={24} color={propertyType === type ? '#FFF' : '#3B82F6'} style={{marginBottom: 8}} />
-            <Text style={[styles.chipText, propertyType === type && styles.chipTextActive]}>{type}</Text>
+            <Text style={[styles.chipText, propertyType === type && styles.chipTextActive]}>{t('register.' + type.toLowerCase()) || type}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -319,7 +338,7 @@ export default function RegisterScreen() {
       <Text style={styles.stepTitle}>Where is your property?</Text>
       <Text style={styles.stepSubtitle}>Select your phase and block.</Text>
       
-      <Text style={styles.label}>Phase</Text>
+      <Text style={styles.label}>{t('register.selectPhase')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 20}}>
         {phasesList.map((p) => (
           <TouchableOpacity 
@@ -337,7 +356,7 @@ export default function RegisterScreen() {
 
       {phase ? (
         <>
-          <Text style={styles.label}>Block</Text>
+          <Text style={styles.label}>{t('register.selectBlock')}</Text>
           <View style={styles.gridContainer}>
             {getBlockOptions().map((b) => (
               <TouchableOpacity 
@@ -365,7 +384,7 @@ export default function RegisterScreen() {
       <Text style={styles.stepSubtitle}>What is your house or flat number?</Text>
       
       <View style={styles.inputWrapper}>
-        <Text style={styles.label}>House / Flat No.</Text>
+        <Text style={styles.label}>{t('register.houseNo')}</Text>
         <View style={styles.inputBox}>
           <Ionicons name="business-outline" size={20} color="#64748B" style={styles.inputIcon} />
           <TextInput
@@ -383,42 +402,58 @@ export default function RegisterScreen() {
 
   const renderStep4 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Share Account?</Text>
-      <Text style={styles.stepSubtitle}>Want to give access to a family member? (Optional)</Text>
+      <Text style={styles.stepTitle}>{t('register.step5Title')}</Text>
+      <Text style={styles.stepSubtitle}>{t('register.step5Sub')}</Text>
       
       <View style={styles.chipsContainer}>
         <TouchableOpacity style={[styles.chip, !addFamily && styles.chipActive]} onPress={() => setAddFamily(false)}>
-          <Text style={[styles.chipText, !addFamily && styles.chipTextActive]}>No</Text>
+          <Text style={[styles.chipText, !addFamily && styles.chipTextActive]}>{t('register.no')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.chip, addFamily && styles.chipActive]} onPress={() => setAddFamily(true)}>
-          <Text style={[styles.chipText, addFamily && styles.chipTextActive]}>Yes</Text>
+          <Text style={[styles.chipText, addFamily && styles.chipTextActive]}>{t('register.yes')}</Text>
         </TouchableOpacity>
       </View>
 
       {addFamily && (
         <View style={{marginTop: 24}}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 16}}>
-            {['Brother', 'Sister', 'Spouse', 'Parent', 'Other'].map((rel) => (
+            {['Mother', 'Father', 'Brother', 'Sister', 'Other'].map((rel) => (
               <TouchableOpacity 
                 key={rel}
                 style={[styles.smallChip, familyRelation === rel && styles.smallChipActive]}
                 onPress={() => setFamilyRelation(rel)}
               >
-                <Text style={[styles.smallChipText, familyRelation === rel && styles.smallChipTextActive]}>{rel}</Text>
+                <Text style={[styles.smallChipText, familyRelation === rel && styles.smallChipTextActive]}>{t('register.' + rel.toLowerCase()) || rel}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
+          {familyRelation === 'Other' && (
+            <View style={styles.inputWrapper}>
+              <Text style={styles.label}>{t('register.customRelation')}</Text>
+              <View style={styles.inputBox}>
+                <Ionicons name="people-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('register.customRelation')}
+                  placeholderTextColor="#94A3B8"
+                  value={customRelation}
+                  onChangeText={setCustomRelation}
+                />
+              </View>
+            </View>
+          )}
+
           <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Name</Text>
+            <Text style={styles.label}>{t('register.theirName')}</Text>
             <View style={styles.inputBox}>
               <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
-              <TextInput style={styles.input} placeholder="Their Name" placeholderTextColor="#94A3B8" value={familyName} onChangeText={setFamilyName} />
+              <TextInput style={styles.input} placeholder={t('register.theirName')} placeholderTextColor="#94A3B8" value={familyName} onChangeText={setFamilyName} />
             </View>
           </View>
           
           <View style={styles.inputWrapper}>
-            <Text style={styles.label}>Phone Number</Text>
+            <Text style={styles.label}>{t('register.phonePlaceholder').replace(' (+91)', '')}</Text>
             <View style={styles.inputBox}>
               <Ionicons name="call-outline" size={20} color="#64748B" style={styles.inputIcon} />
               <Text style={{fontSize: 16, color: '#334155', marginRight: 8, fontWeight: '500'}}>+91</Text>
@@ -432,26 +467,26 @@ export default function RegisterScreen() {
 
   const renderStep5 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Review & Terms</Text>
-      <Text style={styles.stepSubtitle}>Review your info and agree to the rules.</Text>
+      <Text style={styles.stepTitle}>{t('register.step6Title')}</Text>
+      <Text style={styles.stepSubtitle}>{t('register.step6Sub')}</Text>
       
       <View style={styles.summaryCard}>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Name:</Text>
+          <Text style={styles.summaryLabel}>{t('register.nameLabel')}</Text>
           <Text style={styles.summaryValue}>{name}</Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Phone:</Text>
+          <Text style={styles.summaryLabel}>{t('register.phoneLabel')}</Text>
           <Text style={styles.summaryValue}>+91 {phoneNumber}</Text>
         </View>
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Address:</Text>
-          <Text style={styles.summaryValue}>{houseNo}, Block {block}, {phase} ({propertyType})</Text>
+          <Text style={styles.summaryLabel}>{t('register.addressLabel')}</Text>
+          <Text style={styles.summaryValue}>{houseNo}, Block {block}, {phase} ({t('register.' + propertyType.toLowerCase()) || propertyType})</Text>
         </View>
         {addFamily && (
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Family:</Text>
-            <Text style={styles.summaryValue}>{familyName} ({familyRelation})</Text>
+            <Text style={styles.summaryLabel}>{t('register.familyLabel')}</Text>
+            <Text style={styles.summaryValue}>{familyName} ({t('register.' + familyRelation.toLowerCase()) || familyRelation})</Text>
           </View>
         )}
       </View>
@@ -508,7 +543,7 @@ export default function RegisterScreen() {
   };
 
   const isNextDisabled = () => {
-    if (step === 0) return !name || phoneNumber.length < 10;
+    if (step === 0) return !name || phoneNumber.length < 10 || !gender;
     if (step === 1) return !propertyType;
     if (step === 2) return !phase || !block;
     if (step === 3) return !houseNo;
@@ -519,7 +554,11 @@ export default function RegisterScreen() {
   };
 
   return (
-    <LinearGradient colors={['#F0F9FF', '#FFFFFF']} style={styles.container}>
+    <View style={{flex: 1, backgroundColor: '#EFF6FF'}}>
+      <LinearGradient colors={['#DBEAFE', '#EFF6FF', '#FFFFFF']} style={StyleSheet.absoluteFill} />
+      <View style={{position: 'absolute', top: -100, right: -50, width: 300, height: 300, borderRadius: 150, backgroundColor: '#BFDBFE', opacity: 0.5, transform: [{scale: 1.2}]}} />
+      <View style={{position: 'absolute', bottom: -50, left: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: '#93C5FD', opacity: 0.3}} />
+      <View style={{position: 'absolute', top: '40%', right: -80, width: 150, height: 150, borderRadius: 75, backgroundColor: '#60A5FA', opacity: 0.2}} />
       <Stack.Screen options={{ gestureEnabled: false }} />
       <SafeAreaView style={{ flex: 1 }}>
       <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
@@ -587,15 +626,15 @@ export default function RegisterScreen() {
         
         {step === 0 && (
           <View style={styles.loginLinkRow}>
-            <Text style={styles.loginHintText}>Already have an account? </Text>
+            <Text style={styles.loginHintText}>{t('register.alreadyHave')} </Text>
             <TouchableOpacity onPress={() => router.push('/login' as any)}>
-              <Text style={styles.loginLink}>Log in</Text>
+              <Text style={styles.loginLink}>{t('register.loginHere')}</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
@@ -612,14 +651,14 @@ const styles = StyleSheet.create({
   
   contentArea: { flex: 1, paddingHorizontal: 24 },
   stepContainer: { flex: 1, paddingTop: 20 },
-  stepTitle: { fontSize: 28, fontWeight: '800', color: '#0F172A', marginBottom: 8, letterSpacing: -0.5 },
+  stepTitle: { fontSize: 28, fontWeight: '800', color: '#1D4ED8', marginBottom: 8, letterSpacing: -0.5 },
   stepSubtitle: { fontSize: 16, color: '#64748B', marginBottom: 40, lineHeight: 24 },
   
   label: { fontSize: 14, fontWeight: '600', color: '#334155', marginBottom: 8, marginLeft: 4 },
   inputWrapper: { marginBottom: 24 },
   inputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, height: 60, paddingHorizontal: 16 },
   inputIcon: { marginRight: 12 },
-  input: { flex: 1, height: '100%', fontSize: 16, color: '#0F172A', fontWeight: '500' },
+  input: { flex: 1, height: '100%', fontSize: 16, color: '#1D4ED8', fontWeight: '500' },
   
   chipsContainer: { flexDirection: 'row', gap: 16 },
   chip: { flex: 1, backgroundColor: '#F8FAFC', borderWidth: 2, borderColor: '#E2E8F0', borderRadius: 20, padding: 24, alignItems: 'center', justifyContent: 'center' },
@@ -641,7 +680,7 @@ const styles = StyleSheet.create({
   summaryCard: { backgroundColor: '#F8FAFC', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
   summaryLabel: { fontSize: 15, color: '#64748B', fontWeight: '500' },
-  summaryValue: { fontSize: 15, color: '#0F172A', fontWeight: '600', maxWidth: '70%', textAlign: 'right' },
+  summaryValue: { fontSize: 15, color: '#1D4ED8', fontWeight: '600', maxWidth: '70%', textAlign: 'right' },
   
   termsBox: { flexDirection: 'row', alignItems: 'flex-start', padding: 16, backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0' },
   termsText: { flex: 1, fontSize: 14, color: '#475569', marginLeft: 12, lineHeight: 20 },
@@ -650,11 +689,11 @@ const styles = StyleSheet.create({
   warningTitle: { fontSize: 14, fontWeight: '700', color: '#92400E', marginLeft: 8 },
 
   footer: { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 10 : 24, paddingTop: 16, backgroundColor: '#FFF' },
-  primaryBtn: { backgroundColor: '#0F172A', height: 56, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
+  primaryBtn: { backgroundColor: '#1D4ED8', height: 56, borderRadius: 28, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 4 },
   disabledBtn: { backgroundColor: '#CBD5E1', shadowOpacity: 0, elevation: 0 },
   primaryBtnText: { color: '#FFF', fontSize: 17, fontWeight: '700' },
   
   loginLinkRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 16 },
   loginHintText: { color: '#64748B', fontSize: 14 },
-  loginLink: { color: '#0F172A', fontSize: 14, fontWeight: '700' }
+  loginLink: { color: '#1D4ED8', fontSize: 14, fontWeight: '700' }
 });
