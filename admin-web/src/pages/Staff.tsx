@@ -59,6 +59,11 @@ export default function Staff() {
   // Custom Phase/Block State
   const [showCustomEntity, setShowCustomEntity] = useState(false);
   const [showCustomBlock, setShowCustomBlock] = useState(false);
+  
+  // Group Management State
+  const [showManageGroupsModal, setShowManageGroupsModal] = useState(false);
+  const [editingPhaseName, setEditingPhaseName] = useState<string | null>(null);
+  const [newPhaseName, setNewPhaseName] = useState('');
 
   useEffect(() => {
     // Fetch categories for the dropdown when tab changes
@@ -81,8 +86,9 @@ export default function Staff() {
           if (!category) setCategory(defaultCategories[0]);
         });
     }
+  }, [activeTab]);
 
-    // Fetch dynamic phases
+  const fetchDynamicPhases = () => {
     const token = localStorage.getItem('adminToken');
     axios.get(`${API_URL}/users/phases`, { headers: { 'x-auth-token': token } })
       .then(res => {
@@ -108,6 +114,32 @@ export default function Staff() {
       .catch(err => {
         console.error('Error fetching phases:', err);
       });
+  };
+
+  useEffect(() => {
+    // Fetch categories for the dropdown when tab changes
+    if (activeTab === 'create') {
+      axios.get(`${API_URL}/categories`)
+        .then(res => {
+          if (res.data && res.data.length > 0) {
+            setAvailableCategories(res.data.map((c: any) => c.title));
+            if (!category || !res.data.find((c: any) => c.title === category)) {
+              setCategory(res.data[0].title);
+            }
+          } else {
+            setAvailableCategories(defaultCategories);
+            if (!category) setCategory(defaultCategories[0]);
+          }
+        })
+        .catch(err => {
+          console.error('Error fetching categories for dropdown:', err);
+          setAvailableCategories(defaultCategories);
+          if (!category) setCategory(defaultCategories[0]);
+        });
+    }
+
+    // Fetch dynamic phases
+    fetchDynamicPhases();
   }, [activeTab]);
 
   // Group blocks together into a single option for each entity
@@ -236,6 +268,44 @@ export default function Staff() {
     setDebouncedSearch('');
     setFilterPhase('All');
     setPage(1);
+  };
+
+  const handleRenameGroup = async (oldName: string, newName: string) => {
+    if (!newName.trim() || oldName === newName) {
+      setEditingPhaseName(null);
+      return;
+    }
+    const token = localStorage.getItem('adminToken');
+    const loadId = toast.loading('Renaming group...');
+    try {
+      await axios.put(`${API_URL}/users/phases/${encodeURIComponent(oldName)}`, { newName }, {
+        headers: { 'x-auth-token': token }
+      });
+      toast.success('Group renamed successfully!', { id: loadId });
+      setEditingPhaseName(null);
+      fetchDynamicPhases();
+      fetchStaff(page, filterPhase, debouncedSearch, false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to rename group', { id: loadId });
+    }
+  };
+
+  const handleDeleteGroup = async (phaseName: string) => {
+    if (!window.confirm(`Are you sure you want to delete the group "${phaseName}"?\nAll Staff and Residents in this group will be moved to "Unassigned". This cannot be undone.`)) {
+      return;
+    }
+    const token = localStorage.getItem('adminToken');
+    const loadId = toast.loading('Deleting group...');
+    try {
+      await axios.delete(`${API_URL}/users/phases/${encodeURIComponent(phaseName)}`, {
+        headers: { 'x-auth-token': token }
+      });
+      toast.success('Group deleted successfully!', { id: loadId });
+      fetchDynamicPhases();
+      fetchStaff(page, filterPhase, debouncedSearch, false);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete group', { id: loadId });
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -392,7 +462,15 @@ export default function Staff() {
             {/* Additional Filters Row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>Phase / Location</label>
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                  <span>Phase / Location</span>
+                  <button 
+                    onClick={() => setShowManageGroupsModal(true)}
+                    style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
+                  >
+                    <Wrench size={12} /> Manage Groups
+                  </button>
+                </label>
                 <select 
                   value={filterPhase} 
                   onChange={(e) => { setFilterPhase(e.target.value); setPage(1); }}
@@ -754,6 +832,75 @@ export default function Staff() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Groups Modal */}
+      {showManageGroupsModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '500px', width: '90%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <h2 style={{ margin: 0, fontSize: 20, color: 'var(--text-main)' }}>Manage Custom Groups</h2>
+              <button onClick={() => setShowManageGroupsModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={24} />
+              </button>
+            </div>
+            
+            <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 20 }}>
+              Rename or delete your custom groups. Note: Default groups cannot be modified. Deleting a group will move its members to "Unassigned".
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '400px', overflowY: 'auto' }}>
+              {phases.filter(p => !defaultPhases.includes(p) && p !== 'Unassigned').length === 0 ? (
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
+                  No custom groups found.
+                </div>
+              ) : (
+                phases.filter(p => !defaultPhases.includes(p) && p !== 'Unassigned').map(phase => (
+                  <div key={phase} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#F8FAFC', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+                    
+                    {editingPhaseName === phase ? (
+                      <input 
+                        type="text" 
+                        value={newPhaseName} 
+                        onChange={(e) => setNewPhaseName(e.target.value)}
+                        autoFocus
+                        style={{ padding: '6px 12px', borderRadius: '4px', border: '1px solid var(--primary)', outline: 'none', flex: 1, marginRight: '12px' }}
+                      />
+                    ) : (
+                      <span style={{ fontWeight: 500, color: 'var(--text-main)', flex: 1 }}>{phase}</span>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {editingPhaseName === phase ? (
+                        <>
+                          <button onClick={() => handleRenameGroup(phase, newPhaseName)} style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Save</button>
+                          <button onClick={() => setEditingPhaseName(null)} style={{ background: '#E2E8F0', color: 'var(--text-main)', border: 'none', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>Cancel</button>
+                        </>
+                      ) : (
+                        <>
+                          <button 
+                            onClick={() => { setEditingPhaseName(phase); setNewPhaseName(phase); }}
+                            style={{ background: 'rgba(59,130,246,0.1)', color: 'var(--primary)', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}
+                            title="Rename Group"
+                          >
+                            <Edit2 size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteGroup(phase)}
+                            style={{ background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer' }}
+                            title="Delete Group"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}

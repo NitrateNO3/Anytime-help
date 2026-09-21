@@ -23,6 +23,53 @@ router.get('/phases', auth, async (req, res) => {
   }
 });
 
+// @route   PUT api/users/phases/:oldName
+// @desc    Rename a phase across all users
+// @access  Admin Private
+router.put('/phases/:oldName', auth, async (req, res) => {
+  try {
+    if (!checkAccess(req.user, 'Staff Team') && !checkAccess(req.user, 'Residents List')) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    const { oldName } = req.params;
+    const { newName } = req.body;
+    
+    if (!newName || newName.trim() === '') {
+      return res.status(400).json({ message: 'New phase name is required' });
+    }
+
+    const result = await User.updateMany(
+      { phase: oldName },
+      { $set: { phase: newName.trim() } }
+    );
+    
+    res.json({ message: 'Phase renamed successfully', modifiedCount: result.modifiedCount });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   DELETE api/users/phases/:phaseName
+// @desc    Safely delete a phase by setting users to Unassigned
+// @access  Admin Private
+router.delete('/phases/:phaseName', auth, async (req, res) => {
+  try {
+    if (!checkAccess(req.user, 'Staff Team') && !checkAccess(req.user, 'Residents List')) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    const { phaseName } = req.params;
+
+    const result = await User.updateMany(
+      { phase: phaseName },
+      { $set: { phase: 'Unassigned' } }
+    );
+    
+    res.json({ message: 'Phase deleted safely', modifiedCount: result.modifiedCount });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   GET api/users/staff
 // @desc    Get all staff members (supports pagination)
 // @access  Admin Private
