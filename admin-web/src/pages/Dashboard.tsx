@@ -113,6 +113,21 @@ export default function Dashboard() {
     }
   };
 
+  const fetchAllData = async () => {
+    const token = localStorage.getItem('adminToken');
+    const params = new URLSearchParams();
+    if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+    if (statusFilter !== 'ALL') params.append('status', statusFilter);
+    if (categoryFilter !== 'ALL') params.append('category', categoryFilter);
+    if (phaseFilter !== 'ALL') params.append('phase', phaseFilter);
+    if (sortOrder) params.append('sortOrder', sortOrder);
+    
+    const res = await axios.get(`${API_URL}/complaints?${params.toString()}`, {
+      headers: { 'x-auth-token': token }
+    });
+    return res.data;
+  };
+
   const deleteComplaint = (id: string) => {
     toast((t) => (
       <div>
@@ -452,6 +467,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <ExportButtons 
               data={complaints}
+              fetchAllData={fetchAllData}
               columns={[
                 { header: 'Title', key: 'title' },
                 { header: 'Category', key: (c: any) => c.category?.name || 'N/A' },

@@ -160,6 +160,21 @@ export default function Residents() {
     }
   };
 
+  const fetchAllData = async () => {
+    const token = localStorage.getItem('adminToken');
+    const params = new URLSearchParams({ phase: filterPhase });
+    if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+    if (filterRelation !== 'ALL') params.append('relation', filterRelation);
+    if (dateFrom) params.append('dateFrom', dateFrom);
+    if (dateTo) params.append('dateTo', dateTo);
+    if (filterRole !== 'ALL') params.append('role', filterRole);
+
+    const res = await axios.get(`${API_URL}/users/residents?${params.toString()}`, {
+      headers: { 'x-auth-token': token }
+    });
+    return Array.isArray(res.data) ? res.data : (res.data.residents || []);
+  };
+
   const isFiltered = filterPhase !== 'All Groups (Show Everything)' || filterRelation !== 'ALL' || search !== '' || dateFrom !== '' || dateTo !== '' || filterRole !== 'ALL';
 
   const resetFilters = () => {
@@ -614,6 +629,7 @@ export default function Residents() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
             <ExportButtons 
               data={residents}
+              fetchAllData={fetchAllData}
               columns={[
                 { header: 'Name', key: 'name' },
                 { header: 'Phone', key: 'phoneNumber' },

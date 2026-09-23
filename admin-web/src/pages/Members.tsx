@@ -85,6 +85,17 @@ export default function Members() {
     }
   };
 
+  const fetchAllData = async () => {
+    const token = localStorage.getItem('adminToken');
+    const params = new URLSearchParams();
+    if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+
+    const res = await axios.get(`${API_URL}/users/members?${params.toString()}`, {
+      headers: { 'x-auth-token': token }
+    });
+    return Array.isArray(res.data) ? res.data : (res.data.members || []);
+  };
+
   const handleCreateMember = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phoneNumber || !designation || !memberId) {
@@ -243,6 +254,7 @@ export default function Members() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <ExportButtons 
                 data={members}
+                fetchAllData={fetchAllData}
                 columns={[
                   { header: 'Name', key: 'name' },
                   { header: 'Designation', key: 'designation' },

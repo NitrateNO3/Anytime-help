@@ -221,6 +221,7 @@ export default function SubAdmins() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <ExportButtons 
                 data={filteredSubAdmins}
+                fetchAllData={async () => filteredSubAdmins}
                 columns={[
                   { header: 'Name', key: 'name' },
                   { header: 'Email', key: 'email' },

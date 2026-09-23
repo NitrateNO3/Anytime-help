@@ -107,6 +107,19 @@ export default function Announcements() {
     }
   };
 
+  const fetchAllData = async () => {
+    const token = localStorage.getItem('adminToken');
+    const params = new URLSearchParams({ phase: filterPhase });
+    if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+    if (dateFrom) params.append('dateFrom', dateFrom);
+    if (dateTo) params.append('dateTo', dateTo);
+
+    const res = await axios.get(`${API_URL}/announcements?${params.toString()}`, {
+      headers: { 'x-auth-token': token }
+    });
+    return Array.isArray(res.data) ? res.data : (res.data.announcements || []);
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsCreating(true);
@@ -253,6 +266,7 @@ export default function Announcements() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <ExportButtons 
                 data={announcements}
+                fetchAllData={fetchAllData}
                 columns={[
                   { header: 'Title', key: 'title' },
                   { header: 'Message', key: 'message' },

@@ -201,6 +201,17 @@ export default function Staff() {
     }
   };
 
+  const fetchAllData = async () => {
+    const token = localStorage.getItem('adminToken');
+    const params = new URLSearchParams({ phase: filterPhase });
+    if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+
+    const res = await axios.get(`${API_URL}/users/staff?${params.toString()}`, {
+      headers: { 'x-auth-token': token }
+    });
+    return Array.isArray(res.data) ? res.data : (res.data.staff || []);
+  };
+
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (categories.length === 0) {
@@ -414,6 +425,7 @@ export default function Staff() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <ExportButtons 
                 data={staff}
+                fetchAllData={fetchAllData}
                 columns={[
                   { header: 'Name', key: 'name' },
                   { header: 'Phone Number', key: 'phone_number' },
