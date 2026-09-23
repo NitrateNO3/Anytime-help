@@ -632,8 +632,8 @@ export default function Residents() {
               fetchAllData={fetchAllData}
               columns={[
                 { header: 'Name', key: 'name' },
-                { header: 'Phone', key: 'phoneNumber' },
-                { header: 'Address', key: (r: any) => `${r.houseNo} - ${r.block}` },
+                { header: 'Phone Number', key: 'phone_number' },
+                { header: 'Address', key: (r: any) => r.address || 'N/A' },
                 { header: 'Phase', key: 'phase' },
                 { header: 'Relation', key: 'relation' },
                 { header: 'Joined Date', key: (r: any) => new Date(r.createdAt).toLocaleDateString() }

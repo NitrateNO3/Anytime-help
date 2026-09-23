@@ -272,7 +272,8 @@ export default function Announcements() {
                   { header: 'Title', key: 'title' },
                   { header: 'Message', key: 'message' },
                   { header: 'Created By', key: (r: any) => r.createdBy?.name || r.creatorName || 'Admin' },
-                  { header: 'Target Phase', key: (r: any) => r.phases?.join(', ') || 'All' }
+                  { header: 'Target Phase', key: (r: any) => r.phases?.join(', ') || 'All' },
+                  { header: 'Target Audience', key: 'targetAudience' }
                 ]}
                 filename="Announcements"
               />

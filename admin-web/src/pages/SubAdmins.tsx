@@ -225,6 +225,7 @@ export default function SubAdmins() {
                 columns={[
                   { header: 'Name', key: 'name' },
                   { header: 'Email', key: 'email' },
+                  { header: 'Permissions', key: (r: any) => r.permissions?.join(', ') || 'N/A' },
                   { header: 'Role', key: 'role' },
                   { header: 'Created At', key: (r: any) => new Date(r.createdAt).toLocaleString() }
                 ]}

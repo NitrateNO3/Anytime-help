@@ -258,7 +258,9 @@ export default function Members() {
                 columns={[
                   { header: 'Name', key: 'name' },
                   { header: 'Designation', key: 'designation' },
+                  { header: 'Member ID', key: 'member_id' },
                   { header: 'Phone Number', key: 'phone_number' },
+                  { header: 'Phase', key: 'phase' },
                   { header: 'Address', key: 'address' },
                   { header: 'Created At', key: (r: any) => new Date(r.createdAt).toLocaleString() }
                 ]}

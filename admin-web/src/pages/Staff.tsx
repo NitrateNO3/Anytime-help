@@ -429,7 +429,7 @@ export default function Staff() {
                 columns={[
                   { header: 'Name', key: 'name' },
                   { header: 'Phone Number', key: 'phone_number' },
-                  { header: 'Category', key: 'assigned_category' },
+                  { header: 'Categories', key: (r: any) => Array.isArray(r.assigned_categories) && r.assigned_categories.length > 0 ? r.assigned_categories.join(', ') : r.assigned_category || 'N/A' },
                   { header: 'Phase', key: 'phase' },
                   { header: 'Block', key: 'block' },
                   { header: 'Created At', key: (r: any) => new Date(r.createdAt).toLocaleString() }

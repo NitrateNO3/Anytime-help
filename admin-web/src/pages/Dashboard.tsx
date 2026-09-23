@@ -470,13 +470,16 @@ export default function Dashboard() {
               fetchAllData={fetchAllData}
               columns={[
                 { header: 'Title', key: 'title' },
-                { header: 'Category', key: (c: any) => c.category?.name || 'N/A' },
+                { header: 'Description', key: 'description' },
+                { header: 'Category', key: (c: any) => c.category?.name || c.category || 'N/A' },
                 { header: 'Phase', key: (c: any) => c.phase || 'N/A' },
+                { header: 'Address', key: (c: any) => c.address || 'N/A' },
                 { header: 'Location', key: (c: any) => c.location || 'N/A' },
-                { header: 'Resident', key: (c: any) => c.createdBy?.name || 'N/A' },
-                { header: 'Phone', key: (c: any) => c.createdBy?.phoneNumber || 'N/A' },
+                { header: 'Resident', key: (c: any) => c.user?.name || c.createdBy?.name || 'N/A' },
+                { header: 'Phone', key: (c: any) => c.user?.phone_number || c.user?.phone || c.createdBy?.phoneNumber || 'N/A' },
                 { header: 'Status', key: 'status' },
-                { header: 'Created At', key: (c: any) => new Date(c.createdAt).toLocaleString() }
+                { header: 'Priority', key: 'priority' },
+                { header: 'Created At', key: (c: any) => new Date(c.created_at || c.createdAt).toLocaleString() }
               ]}
               filename="Complaints_Export"
             />
