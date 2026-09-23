@@ -76,12 +76,15 @@ router.post('/', auth, async (req, res) => {
           { role: 'Staff', $or: [{ phase: userPhase }, { phase: 'Universal' }, { phase: 'All' }, { phase: { $exists: false } }] }
         ],
         expoPushToken: { $exists: true, $ne: '' }
-      }).select('expoPushToken assigned_category role');
+      }).select('expoPushToken assigned_category assigned_categories role');
 
       const tokens = adminsAndStaff
         .filter(u => {
-          if (u.role === 'Staff' && u.assigned_category && u.assigned_category !== 'All' && u.assigned_category !== category) {
-            return false;
+          if (u.role === 'Staff') {
+            const cats = u.assigned_categories && u.assigned_categories.length > 0 ? u.assigned_categories : (u.assigned_category ? [u.assigned_category] : []);
+            if (cats.length > 0 && !cats.includes('All') && !cats.includes(category)) {
+              return false;
+            }
           }
           return true;
         })
@@ -163,8 +166,9 @@ router.get('/', auth, async (req, res) => {
     } else if (req.user.role === 'Staff') {
       // Staff only sees complaints for their assigned category and phase
       const user = await User.findById(req.user.id);
-      if (req.user.assigned_category) {
-        query.category = req.user.assigned_category;
+      const cats = req.user.assigned_categories && req.user.assigned_categories.length > 0 ? req.user.assigned_categories : (req.user.assigned_category ? [req.user.assigned_category] : []);
+      if (cats.length > 0 && !cats.includes('All')) {
+        query.category = { $in: cats };
       }
       if (user && user.phase && user.phase !== 'All' && user.phase !== 'Universal' && user.phase !== 'All Groups' && user.phase !== 'All Phases') {
         if (user.phase === 'Sushant Lok 2 - C,D,E' || user.phase === 'Sushant Lok 2 Option 1') {

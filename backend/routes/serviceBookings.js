@@ -88,7 +88,8 @@ router.get('/available', auth, async (req, res) => {
       .populate('resident', 'name address');
       
     // Filter in JS to only those matching the staff's assigned category
-    const filtered = bookings.filter(b => b.service.name === req.user.assigned_category);
+    const cats = req.user.assigned_categories && req.user.assigned_categories.length > 0 ? req.user.assigned_categories : (req.user.assigned_category ? [req.user.assigned_category] : []);
+    const filtered = bookings.filter(b => cats.includes(b.service.name));
 
     res.json(filtered);
   } catch (error) {

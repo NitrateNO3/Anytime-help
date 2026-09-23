@@ -9,7 +9,8 @@ const userSchema = new mongoose.Schema({
   expoPushToken: { type: String, required: false },
   role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'SubAdmin', 'PaidStaff', 'Member'], default: 'Resident' },
   gender: { type: String, enum: ['Male', 'Female', 'Other'] },
-  assigned_category: { type: String, required: false }, // Only for Staff (e.g., 'Plumbing')
+  assigned_category: { type: String, required: false }, // Legacy support
+  assigned_categories: { type: [String], default: [] }, // New array for multiple categories
   phase: { type: String, required: false }, // For phase/entity-based routing
   address: { type: String, required: false }, // For Resident/Member
   relation: { type: String, required: false }, // e.g., 'Tenant', 'Family Member'

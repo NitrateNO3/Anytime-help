@@ -412,7 +412,12 @@ router.post('/members', auth, async (req, res) => {
 // @desc    Create a new staff member
 // @access  Admin Private
 router.post('/staff', auth, async (req, res) => {
-  let { name, phone_number, assigned_category, phase } = req.body;
+  let { name, phone_number, assigned_category, assigned_categories, phase } = req.body;
+  
+  if (!assigned_categories && assigned_category) {
+    assigned_categories = [assigned_category];
+  }
+  const legacy_category = assigned_categories && assigned_categories.length > 0 ? assigned_categories.join(', ') : '';
 
   try {
     if (!checkAccess(req.user, 'Staff Team')) {
@@ -432,7 +437,8 @@ router.post('/staff', auth, async (req, res) => {
       name,
       phone_number,
       role: 'Staff',
-      assigned_category,
+      assigned_category: legacy_category,
+      assigned_categories: assigned_categories || [],
       phase
     });
 
@@ -459,7 +465,12 @@ router.post('/staff', auth, async (req, res) => {
 // @desc    Create a new paid staff member
 // @access  Admin Private
 router.post('/paid-staff', auth, async (req, res) => {
-  let { name, phone_number, assigned_category } = req.body;
+  let { name, phone_number, assigned_category, assigned_categories } = req.body;
+
+  if (!assigned_categories && assigned_category) {
+    assigned_categories = [assigned_category];
+  }
+  const legacy_category = assigned_categories && assigned_categories.length > 0 ? assigned_categories.join(', ') : '';
 
   try {
     if (req.user.role !== 'Admin') {
@@ -479,7 +490,8 @@ router.post('/paid-staff', auth, async (req, res) => {
       name,
       phone_number,
       role: 'PaidStaff',
-      assigned_category
+      assigned_category: legacy_category,
+      assigned_categories: assigned_categories || []
     });
 
     await user.save();
@@ -629,7 +641,7 @@ router.put('/:id', auth, async (req, res) => {
       if (!hasAccess) return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    const { name, phone_number, designation, category, phase } = req.body;
+    const { name, phone_number, designation, assigned_category, assigned_categories, phase } = req.body;
     let user = await User.findById(req.params.id);
     
     if (!user) {
@@ -640,8 +652,17 @@ router.put('/:id', auth, async (req, res) => {
     if (name) user.name = name;
     if (phone_number) user.phone_number = phone_number;
     if (designation && user.role === 'Member') user.designation = designation;
-    if (category && user.role === 'Staff') user.category = category;
-    if (phase && user.role === 'Staff') user.phase = phase; // For assigned block
+    if (user.role === 'Staff' || user.role === 'PaidStaff') {
+      let finalAssignedCategories = assigned_categories;
+      if (!finalAssignedCategories && assigned_category) {
+        finalAssignedCategories = [assigned_category];
+      }
+      if (finalAssignedCategories) {
+        user.assigned_categories = finalAssignedCategories;
+        user.assigned_category = finalAssignedCategories.join(', ');
+      }
+      if (phase) user.phase = phase;
+    }
 
     await user.save();
     res.json({ message: 'User updated successfully', user });

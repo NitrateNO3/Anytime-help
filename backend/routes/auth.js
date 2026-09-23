@@ -68,11 +68,11 @@ router.post('/register', async (req, res) => {
     }
 
     // Create JWT Payload
-    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category } };
+    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories } };
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category } });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories } });
     });
   } catch (err) {
     console.error(err.message);
@@ -93,11 +93,11 @@ router.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: 'Invalid Credentials' });
 
-    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, permissions: user.permissions } };
+    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, permissions: user.permissions } };
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, assigned_category: user.assigned_category, permissions: user.permissions } });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, permissions: user.permissions } });
     });
   } catch (err) {
     console.error(err.message);
@@ -139,11 +139,11 @@ router.post('/firebase-login', async (req, res) => {
       }
     }
 
-    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, member_id: user.member_id } };
+    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id } };
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, member_id: user.member_id } });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id } });
     });
   } catch (err) {
     console.error(err.message);
@@ -187,7 +187,7 @@ router.post('/send-otp', async (req, res) => {
         userExists = new User({ name: 'Resident Reviewer', phone_number: dbPhoneNumber, role: 'Resident' });
         await userExists.save();
       } else if (phone_number === '8888888888') {
-        userExists = new User({ name: 'Staff Reviewer', phone_number: dbPhoneNumber, role: 'Staff', assigned_category: 'Electrical' });
+        userExists = new User({ name: 'Staff Reviewer', phone_number: dbPhoneNumber, role: 'Staff', assigned_category: 'Electrical', assigned_categories: ['Electrical'] });
         await userExists.save();
       } else if (phone_number === '7777777777') {
         userExists = new User({ name: 'Partner Reviewer', phone_number: dbPhoneNumber, role: 'PaidStaff' });
@@ -305,11 +305,11 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(403).json({ msg: `Access Denied. You are registered as ${user.role}, not ${role}.` });
     }
 
-    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, member_id: user.member_id, permissions: user.permissions || [] } };
+    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id, permissions: user.permissions || [] } };
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, member_id: user.member_id, permissions: user.permissions || [] } });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id, permissions: user.permissions || [] } });
     });
   } catch (err) {
     console.error(err.message);

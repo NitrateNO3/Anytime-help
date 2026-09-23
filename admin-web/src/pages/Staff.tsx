@@ -46,7 +46,7 @@ export default function Staff() {
   const [selectedBlock, setSelectedBlock] = useState('C, D, E');
   const [staffPersonalName, setStaffPersonalName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [category, setCategory] = useState('Electricity');
+  const [categories, setCategories] = useState<string[]>(['Electricity']);
   const [isCreating, setIsCreating] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   
@@ -76,18 +76,18 @@ export default function Staff() {
         .then(res => {
           if (res.data && res.data.length > 0) {
             setAvailableCategories(res.data.map((c: any) => c.title));
-            if (!category || !res.data.find((c: any) => c.title === category)) {
-              setCategory(res.data[0].title);
+            if (categories.length === 0) {
+              setCategories([res.data[0].title]);
             }
           } else {
             setAvailableCategories(defaultCategories);
-            if (!category) setCategory(defaultCategories[0]);
+            if (categories.length === 0) setCategories([defaultCategories[0]]);
           }
         })
         .catch(err => {
           console.error('Error fetching categories for dropdown:', err);
           setAvailableCategories(defaultCategories);
-          if (!category) setCategory(defaultCategories[0]);
+          if (categories.length === 0) setCategories([defaultCategories[0]]);
         });
     }
   }, [activeTab]);
@@ -127,18 +127,18 @@ export default function Staff() {
         .then(res => {
           if (res.data && res.data.length > 0) {
             setAvailableCategories(res.data.map((c: any) => c.title));
-            if (!category || !res.data.find((c: any) => c.title === category)) {
-              setCategory(res.data[0].title);
+            if (categories.length === 0) {
+              setCategories([res.data[0].title]);
             }
           } else {
             setAvailableCategories(defaultCategories);
-            if (!category) setCategory(defaultCategories[0]);
+            if (categories.length === 0) setCategories([defaultCategories[0]]);
           }
         })
         .catch(err => {
           console.error('Error fetching categories for dropdown:', err);
           setAvailableCategories(defaultCategories);
-          if (!category) setCategory(defaultCategories[0]);
+          if (categories.length === 0) setCategories([defaultCategories[0]]);
         });
     }
 
@@ -203,8 +203,8 @@ export default function Staff() {
 
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!category) {
-      toast.error('Please select or create a category first');
+    if (categories.length === 0) {
+      toast.error('Please select at least one category');
       return;
     }
     
@@ -221,7 +221,7 @@ export default function Staff() {
       await axios.post(`${API_URL}/users/staff`, {
         name: finalName,
         phone_number: phoneNumber,
-        assigned_category: category,
+        assigned_categories: categories,
         phase: staffPhase
       }, {
         headers: { 'x-auth-token': token }
@@ -251,7 +251,7 @@ export default function Staff() {
       await axios.put(`${API_URL}/users/${editingUser._id}`, {
         name: editingUser.name,
         phone_number: editingUser.phone_number,
-        category: editingUser.assigned_category,
+        assigned_categories: editingUser.assigned_categories || (editingUser.assigned_category ? [editingUser.assigned_category] : []),
         phase: editingUser.phase
       }, {
         headers: { 'x-auth-token': token }
@@ -567,16 +567,20 @@ export default function Staff() {
                         </td>
                         <td style={{ color: 'var(--text-muted)' }}>{member.phone_number}</td>
                         <td>
-                          <span style={{ 
-                            background: 'rgba(255, 99, 71, 0.1)', 
-                            color: 'var(--primary)', 
-                            padding: '6px 12px', 
-                            borderRadius: '20px', 
-                            fontSize: '12px',
-                            fontWeight: 600
-                          }}>
-                            {member.assigned_category}
-                          </span>
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                            {(member.assigned_categories && member.assigned_categories.length > 0 ? member.assigned_categories : [member.assigned_category]).map((cat: string) => (
+                              <span key={cat} style={{ 
+                                background: 'rgba(255, 99, 71, 0.1)', 
+                                color: 'var(--primary)', 
+                                padding: '6px 12px', 
+                                borderRadius: '20px', 
+                                fontSize: '12px',
+                                fontWeight: 600
+                              }}>
+                                {cat}
+                              </span>
+                            ))}
+                          </div>
                         </td>
                         {!isSubAdmin && (
                           <td style={{ textAlign: 'center' }}>
@@ -778,30 +782,38 @@ export default function Staff() {
             </div>
             
             <div className="input-group">
-              <label>Assigned Category</label>
-              <div style={{ position: 'relative' }}>
-                <Wrench size={18} style={{ position: 'absolute', left: '16px', top: '15px', color: 'var(--text-muted)' }} />
-                <select 
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px 14px 44px', 
-                    background: 'white', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    color: 'var(--text-main)',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                  required
-                >
-                  {availableCategories.length === 0 && <option value="" disabled>No categories available</option>}
-                  {availableCategories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+              <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Assigned Categories</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>Select multiple</span>
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                {availableCategories.length === 0 && <span style={{ color: 'var(--text-muted)' }}>No categories available</span>}
+                {availableCategories.map(cat => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => {
+                      if (categories.includes(cat)) {
+                        setCategories(categories.filter(c => c !== cat));
+                      } else {
+                        setCategories([...categories, cat]);
+                      }
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '20px',
+                      border: categories.includes(cat) ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                      background: categories.includes(cat) ? 'rgba(59, 130, 246, 0.1)' : 'white',
+                      color: categories.includes(cat) ? 'var(--primary)' : 'var(--text-main)',
+                      fontSize: '14px',
+                      fontWeight: categories.includes(cat) ? 600 : 500,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -840,16 +852,43 @@ export default function Staff() {
               </div>
 
               <div className="input-group">
-                <label>Category</label>
-                <select 
-                  value={editingUser.assigned_category}
-                  onChange={(e) => setEditingUser({...editingUser, assigned_category: e.target.value})}
-                  style={{ width: '100%', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)', outline: 'none' }}
-                >
-                  {availableCategories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
+                <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Categories</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>Select multiple</span>
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                  {availableCategories.map(cat => {
+                    const currentCats = editingUser.assigned_categories && editingUser.assigned_categories.length > 0 
+                      ? editingUser.assigned_categories 
+                      : (editingUser.assigned_category ? [editingUser.assigned_category] : []);
+                    const isSelected = currentCats.includes(cat);
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => {
+                          if (isSelected) {
+                            setEditingUser({...editingUser, assigned_categories: currentCats.filter((c: string) => c !== cat)});
+                          } else {
+                            setEditingUser({...editingUser, assigned_categories: [...currentCats, cat]});
+                          }
+                        }}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '20px',
+                          border: isSelected ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                          background: isSelected ? 'rgba(59, 130, 246, 0.1)' : 'white',
+                          color: isSelected ? 'var(--primary)' : 'var(--text-main)',
+                          fontSize: '13px',
+                          fontWeight: 500,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {cat}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
               
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>

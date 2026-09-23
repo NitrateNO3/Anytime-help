@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Trash2, UserPlus, Wrench, Users } from 'lucide-react';
+import { Trash2, UserPlus, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 
@@ -16,7 +16,7 @@ export default function PaidStaff() {
   // Form State
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [category, setCategory] = useState('');
+  const [categories, setCategories] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
 
   const adminUserStr = localStorage.getItem('adminUser');
@@ -64,8 +64,8 @@ export default function PaidStaff() {
         headers: { 'x-auth-token': token }
       });
       setServices(res.data);
-      if (res.data.length > 0 && !category) {
-        setCategory(res.data[0].name);
+      if (res.data.length > 0 && categories.length === 0) {
+        setCategories([res.data[0].name]);
       }
     } catch (error) {
       console.error(error);
@@ -75,7 +75,7 @@ export default function PaidStaff() {
 
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!category) {
+    if (categories.length === 0) {
       toast.error('Please create a Paid Service first.');
       return;
     }
@@ -88,7 +88,7 @@ export default function PaidStaff() {
       await axios.post(`${API_URL}/users/paid-staff`, {
         name,
         phone_number: phoneNumber,
-        assigned_category: category
+        assigned_categories: categories
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -219,16 +219,20 @@ export default function PaidStaff() {
                       <td style={{ fontWeight: 600 }}>{member.name}</td>
                       <td style={{ color: 'var(--text-muted)' }}>{member.phone_number}</td>
                       <td>
-                        <span style={{ 
-                          background: 'rgba(255, 99, 71, 0.1)', 
-                          color: 'var(--primary)', 
-                          padding: '6px 12px', 
-                          borderRadius: '20px', 
-                          fontSize: '12px',
-                          fontWeight: 600
-                        }}>
-                          {member.assigned_category}
-                        </span>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          {(member.assigned_categories && member.assigned_categories.length > 0 ? member.assigned_categories : [member.assigned_category]).map((cat: string) => (
+                            <span key={cat} style={{ 
+                              background: 'rgba(255, 99, 71, 0.1)', 
+                              color: 'var(--primary)', 
+                              padding: '6px 12px', 
+                              borderRadius: '20px', 
+                              fontSize: '12px',
+                              fontWeight: 600
+                            }}>
+                              {cat}
+                            </span>
+                          ))}
+                        </div>
                       </td>
                       {!isSubAdmin && (
                         <td style={{ textAlign: 'center' }}>
@@ -285,33 +289,41 @@ export default function PaidStaff() {
             </div>
             
             <div className="input-group">
-              <label>Assigned Service</label>
-              <div style={{ position: 'relative' }}>
-                <Wrench size={18} style={{ position: 'absolute', left: '16px', top: '15px', color: 'var(--text-muted)' }} />
-                <select 
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px 14px 44px', 
-                    background: 'white', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    color: 'var(--text-main)',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                  required
-                >
-                  {services.length === 0 ? (
-                    <option value="" disabled>No services available - Create one first</option>
-                  ) : (
-                    services.map(srv => (
-                      <option key={srv._id} value={srv.name}>{srv.name}</option>
-                    ))
-                  )}
-                </select>
+              <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Assigned Services</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>Select multiple</span>
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                {services.length === 0 ? (
+                  <span style={{ color: 'var(--text-muted)' }}>No services available - Create one first</span>
+                ) : (
+                  services.map(srv => (
+                    <button
+                      key={srv._id}
+                      type="button"
+                      onClick={() => {
+                        if (categories.includes(srv.name)) {
+                          setCategories(categories.filter(c => c !== srv.name));
+                        } else {
+                          setCategories([...categories, srv.name]);
+                        }
+                      }}
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: '20px',
+                        border: categories.includes(srv.name) ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                        background: categories.includes(srv.name) ? 'rgba(59, 130, 246, 0.1)' : 'white',
+                        color: categories.includes(srv.name) ? 'var(--primary)' : 'var(--text-main)',
+                        fontSize: '14px',
+                        fontWeight: categories.includes(srv.name) ? 600 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {srv.name}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
 
