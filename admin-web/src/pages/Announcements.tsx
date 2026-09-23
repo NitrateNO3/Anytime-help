@@ -373,7 +373,7 @@ export default function Announcements() {
                 <th>Date</th>
                 <th>Title</th>
                 <th>Message</th>
-                <th>Created By</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Created By</th>
                 {!isSubAdmin && <th style={{ width: 100 }}>Actions</th>}
               </tr>
             </thead>
@@ -406,7 +406,7 @@ export default function Announcements() {
                       </td>
                       <td style={{ fontWeight: 600 }}>{announcement.title}</td>
                       <td style={{ color: 'var(--text-muted)' }}>{announcement.message}</td>
-                      <td style={{ color: 'var(--text-muted)' }}>{announcement.createdBy?.name || announcement.creatorName || 'Admin'}</td>
+                      <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{announcement.createdBy?.name || announcement.creatorName || 'Admin'}</td>
                       {!isSubAdmin && (
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
