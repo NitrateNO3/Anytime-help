@@ -176,7 +176,7 @@ router.get('/residents', auth, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     const { page, limit, phase, search, relation, dateFrom, dateTo } = req.query;
-    let query = { role: 'Resident' };
+    let query = { role: { $in: ['Resident', 'Member'] } };
     const andConditions = [];
 
     if (phase && phase !== 'All Groups (Show Everything)') {

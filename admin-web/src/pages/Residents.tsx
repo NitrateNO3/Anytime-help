@@ -658,7 +658,14 @@ export default function Residents() {
               ) : (
                 residents.map((r) => (
                   <tr key={r._id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
-                    <td style={{ padding: '16px', fontWeight: '600', color: 'var(--text-main)' }}>{r.name || 'N/A'}</td>
+                    <td style={{ padding: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
+                      {r.name || 'N/A'}
+                      {r.role === 'Member' && (
+                        <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 12, fontSize: 11, background: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', fontWeight: 700 }}>
+                          Member
+                        </span>
+                      )}
+                    </td>
                     <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{r.phone_number}</td>
                     <td style={{ padding: '16px' }}>
                       <span className="badge" style={{ backgroundColor: '#DBEAFE', color: '#1D4ED8', padding: '6px 12px', fontWeight: 500, fontSize: 12 }}>
