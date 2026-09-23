@@ -271,7 +271,7 @@ export default function Announcements() {
                   { header: 'Date', key: (r: any) => new Date(r.date || r.createdAt).toLocaleDateString() },
                   { header: 'Title', key: 'title' },
                   { header: 'Message', key: 'message' },
-                  { header: 'Created By', key: (r: any) => r.creatorName || 'Admin' },
+                  { header: 'Created By', key: (r: any) => r.createdBy?.name || r.creatorName || 'Admin' },
                   { header: 'Target Phase', key: (r: any) => r.phases?.join(', ') || 'All' }
                 ]}
                 filename="Announcements"
@@ -406,7 +406,7 @@ export default function Announcements() {
                       </td>
                       <td style={{ fontWeight: 600 }}>{announcement.title}</td>
                       <td style={{ color: 'var(--text-muted)' }}>{announcement.message}</td>
-                      <td style={{ color: 'var(--text-muted)' }}>{announcement.creatorName || 'Admin'}</td>
+                      <td style={{ color: 'var(--text-muted)' }}>{announcement.createdBy?.name || announcement.creatorName || 'Admin'}</td>
                       {!isSubAdmin && (
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>

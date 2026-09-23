@@ -69,12 +69,18 @@ router.get('/', auth, async (req, res) => {
       const pageNum = parseInt(page, 10);
       const limitNum = parseInt(limit, 10);
       const skip = (pageNum - 1) * limitNum;
-      const announcements = await Announcement.find(query).sort({ date: -1 }).skip(skip).limit(limitNum);
+      const announcements = await Announcement.find(query)
+        .sort({ date: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate('createdBy', 'name');
       const total = await Announcement.countDocuments(query);
       return res.json({ announcements, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
     }
 
-    const announcements = await Announcement.find(query).sort({ date: -1 });
+    const announcements = await Announcement.find(query)
+      .sort({ date: -1 })
+      .populate('createdBy', 'name');
     res.json(announcements);
   } catch (err) {
     console.error(err.message);
@@ -99,9 +105,9 @@ router.post('/', auth, async (req, res) => {
     let creatorId = req.user.member_id;
 
     // Optional: if name is missing from token, fetch from db
-    if (!creatorName && req.user.role === 'Member') {
+    if (!creatorName) {
       const userObj = await User.findById(req.user.id);
-      creatorName = userObj?.name || 'Member';
+      creatorName = userObj?.name || req.user.role;
       creatorId = userObj?.member_id || '';
     }
 
