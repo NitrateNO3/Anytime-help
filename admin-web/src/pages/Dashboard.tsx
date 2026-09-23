@@ -187,9 +187,13 @@ export default function Dashboard() {
         </div>
       </header>
 
-      {/* KPI Widgets (Display only) */}
+      {/* KPI Widgets (Display only - Now Clickable) */}
       <div className="stats-grid">
-        <div className="glass stat-card">
+        <div 
+          className="glass stat-card" 
+          onClick={() => { setStatusFilter(statusFilter === 'PENDING' ? 'ALL' : 'PENDING'); setPage(1); }}
+          style={{ cursor: 'pointer', border: statusFilter === 'PENDING' ? '2px solid var(--warning)' : undefined }}
+        >
           <div className="stat-info">
             <h3>Pending</h3>
             <p>{stats.pending}</p>
@@ -199,7 +203,11 @@ export default function Dashboard() {
           </div>
         </div>
         
-        <div className="glass stat-card">
+        <div 
+          className="glass stat-card"
+          onClick={() => { setStatusFilter(statusFilter === 'IN_PROGRESS' ? 'ALL' : 'IN_PROGRESS'); setPage(1); }}
+          style={{ cursor: 'pointer', border: statusFilter === 'IN_PROGRESS' ? '2px solid #818cf8' : undefined }}
+        >
           <div className="stat-info">
             <h3>In Progress</h3>
             <p>{stats.inProgress}</p>
@@ -209,7 +217,11 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="glass stat-card">
+        <div 
+          className="glass stat-card"
+          onClick={() => { setStatusFilter(statusFilter === 'DONE' ? 'ALL' : 'DONE'); setPage(1); }}
+          style={{ cursor: 'pointer', border: statusFilter === 'DONE' ? '2px solid var(--success)' : undefined }}
+        >
           <div className="stat-info">
             <h3>Resolved</h3>
             <p>{stats.resolved}</p>
