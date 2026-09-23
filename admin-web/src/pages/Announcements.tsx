@@ -268,11 +268,11 @@ export default function Announcements() {
                 data={announcements}
                 fetchAllData={fetchAllData}
                 columns={[
+                  { header: 'Date', key: (r: any) => new Date(r.date || r.createdAt).toLocaleDateString() },
                   { header: 'Title', key: 'title' },
                   { header: 'Message', key: 'message' },
-                  { header: 'Target Phase', key: 'targetPhase' },
-                  { header: 'Is Global', key: (r: any) => r.isGlobal ? 'Yes' : 'No' },
-                  { header: 'Created At', key: (r: any) => new Date(r.createdAt).toLocaleString() }
+                  { header: 'Created By', key: (r: any) => r.creatorName || 'Admin' },
+                  { header: 'Target Phase', key: (r: any) => r.phases?.join(', ') || 'All' }
                 ]}
                 filename="Announcements"
               />
@@ -373,6 +373,7 @@ export default function Announcements() {
                 <th>Date</th>
                 <th>Title</th>
                 <th>Message</th>
+                <th>Created By</th>
                 {!isSubAdmin && <th style={{ width: 100 }}>Actions</th>}
               </tr>
             </thead>
@@ -386,12 +387,13 @@ export default function Announcements() {
                       <div className="skeleton skeleton-row" style={{ height: 16, width: '100%', marginBottom: 8 }}></div>
                       <div className="skeleton skeleton-row" style={{ height: 12, width: '60%' }}></div>
                     </td>
+                    <td><div className="skeleton skeleton-row" style={{ width: '70%' }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>
                   </tr>
                 ))
               ) : announcements.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
+                    <td colSpan={isSubAdmin ? 4 : 5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       <Megaphone size={40} color="var(--border-color)" style={{ margin: '0 auto 16px' }} />
                       No announcements broadcasted yet for this filter.
                     </td>
@@ -404,6 +406,7 @@ export default function Announcements() {
                       </td>
                       <td style={{ fontWeight: 600 }}>{announcement.title}</td>
                       <td style={{ color: 'var(--text-muted)' }}>{announcement.message}</td>
+                      <td style={{ color: 'var(--text-muted)' }}>{announcement.creatorName || 'Admin'}</td>
                       {!isSubAdmin && (
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
