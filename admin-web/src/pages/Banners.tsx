@@ -12,6 +12,10 @@ export default function Banners() {
   const [uploading, setUploading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSubAdmin = adminUser?.role === 'SubAdmin';
+
   useEffect(() => {
     fetchBanners();
   }, []);
@@ -83,17 +87,19 @@ export default function Banners() {
         </div>
         
         <div>
-          <label className="btn btn-primary" style={{ cursor: uploading ? 'not-allowed' : 'pointer' }}>
-            <Upload size={18} />
-            {uploading ? 'Uploading...' : 'Upload Banner'}
-            <input 
-              type="file" 
-              accept="image/*" 
-              style={{ display: 'none' }} 
-              onChange={handleFileChange}
-              disabled={uploading}
-            />
-          </label>
+          {!isSubAdmin && (
+            <label className="btn btn-primary" style={{ cursor: uploading ? 'not-allowed' : 'pointer' }}>
+              <Upload size={18} />
+              {uploading ? 'Uploading...' : 'Upload Banner'}
+              <input 
+                type="file" 
+                accept="image/*" 
+                style={{ display: 'none' }} 
+                onChange={handleFileChange}
+                disabled={uploading}
+              />
+            </label>
+          )}
         </div>
       </header>
 
@@ -129,14 +135,16 @@ export default function Banners() {
                   <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
                     Added on {new Date(banner.createdAt).toLocaleDateString()}
                   </span>
-                  <button 
-                    className="btn btn-icon" 
-                    onClick={() => confirmDelete(banner._id)}
-                    style={{ color: 'var(--danger)' }}
-                    title="Delete Banner"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  {!isSubAdmin && (
+                    <button 
+                      className="btn btn-icon" 
+                      onClick={() => confirmDelete(banner._id)}
+                      style={{ color: 'var(--danger)' }}
+                      title="Delete Banner"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))

@@ -19,6 +19,10 @@ export default function Staff() {
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSubAdmin = adminUser?.role === 'SubAdmin';
+
   // Filter States
   const [filterPhase, setFilterPhase] = useState('All');
   const [search, setSearch] = useState('');
@@ -386,18 +390,20 @@ export default function Staff() {
         >
           <Users size={18} /> <span>Active Members</span>
         </button>
-        <button 
-          onClick={() => { setActiveTab('create'); }}
-          style={{ 
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 20px', 
-            background: activeTab === 'create' ? 'var(--primary)' : 'white', 
-            color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
-            border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
-            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
-          }}
-        >
-          <UserPlus size={18} /> <span>Create Account</span>
-        </button>
+        {!isSubAdmin && (
+          <button 
+            onClick={() => { setActiveTab('create'); }}
+            style={{ 
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '10px 20px', 
+              background: activeTab === 'create' ? 'var(--primary)' : 'white', 
+              color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
+              border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
+              borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+            }}
+          >
+            <UserPlus size={18} /> <span>Create Account</span>
+          </button>
+        )}
       </div>
 
       {/* Content Area */}
@@ -483,12 +489,14 @@ export default function Staff() {
               <div>
                 <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
                   <span>Phase / Location</span>
-                  <button 
-                    onClick={() => setShowManageGroupsModal(true)}
-                    style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
-                  >
-                    <Wrench size={12} /> Manage Groups
-                  </button>
+                  {!isSubAdmin && (
+                    <button 
+                      onClick={() => setShowManageGroupsModal(true)}
+                      style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      <Wrench size={12} /> Manage Groups
+                    </button>
+                  )}
                 </label>
                 <select 
                   value={filterPhase} 
@@ -508,7 +516,7 @@ export default function Staff() {
                 <th>Group / Block / Name</th>
                 <th>Phone Number</th>
                 <th>Category</th>
-                <th style={{ width: 100 }}>Actions</th>
+                {!isSubAdmin && <th style={{ width: 100 }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -518,7 +526,7 @@ export default function Staff() {
                     <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: '90%' }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: 80, borderRadius: 20 }}></div></td>
-                    <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>
+                    {!isSubAdmin && <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>}
                   </tr>
                 ))
               ) : staff.length === 0 ? (
@@ -570,32 +578,34 @@ export default function Staff() {
                             {member.assigned_category}
                           </span>
                         </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                            <button 
-                              onClick={() => {
-                                setEditingUser({ ...member, password: '' });
-                                setSelectedEntity(member.phase);
-                                setSelectedBlock(member.block);
-                              }}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
-                              onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                              title="Edit"
-                            >
-                              <Edit2 size={18} color="var(--primary)" />
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(member._id)}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                              onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                              title="Delete"
-                            >
-                              <Trash2 size={20} color="var(--danger)" />
-                            </button>
-                          </div>
-                        </td>
+                        {!isSubAdmin && (
+                          <td style={{ textAlign: 'center' }}>
+                            <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                              <button 
+                                onClick={() => {
+                                  setEditingUser({ ...member, password: '' });
+                                  setSelectedEntity(member.phase);
+                                  setSelectedBlock(member.block);
+                                }}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                                onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                                title="Edit"
+                              >
+                                <Edit2 size={18} color="var(--primary)" />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(member._id)}
+                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                                onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                                title="Delete"
+                              >
+                                <Trash2 size={20} color="var(--danger)" />
+                              </button>
+                            </div>
+                          </td>
+                        )}
                       </tr>
                     );
                   })

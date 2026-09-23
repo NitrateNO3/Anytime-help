@@ -21,6 +21,10 @@ export default function Directory() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSubAdmin = adminUser?.role === 'SubAdmin';
+
   const availablePhases = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
 
   useEffect(() => {
@@ -154,9 +158,11 @@ export default function Directory() {
             <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
             <option value="Sushant Lok 3">Sushant Lok 3</option>
           </select>
-          <button className="btn btn-primary" onClick={openAddModal}>
-            <Plus size={18} /> Add Contact
-          </button>
+          {!isSubAdmin && (
+            <button className="btn btn-primary" onClick={openAddModal}>
+              <Plus size={18} /> Add Contact
+            </button>
+          )}
         </div>
       </header>
 
@@ -167,7 +173,7 @@ export default function Directory() {
               <th>Name</th>
               <th>Role / Designation</th>
               <th>Phone</th>
-              <th>Actions</th>
+              {!isSubAdmin && <th>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -194,16 +200,18 @@ export default function Directory() {
                         <Phone size={14} color="#6B7280" /> {contact.phone}
                       </div>
                     </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button className="btn-icon" onClick={() => openEditModal(contact)} title="Edit">
-                          <Edit size={16} />
-                        </button>
-                        <button className="btn-icon btn-icon-danger" onClick={() => confirmDelete(contact._id)} title="Delete">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+                    {!isSubAdmin && (
+                      <td>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button className="btn-icon" onClick={() => openEditModal(contact)} title="Edit">
+                            <Edit size={16} />
+                          </button>
+                          <button className="btn-icon btn-icon-danger" onClick={() => confirmDelete(contact._id)} title="Delete">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

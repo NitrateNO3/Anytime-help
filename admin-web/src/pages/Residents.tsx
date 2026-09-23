@@ -21,6 +21,10 @@ export default function Residents() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
+  
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSubAdmin = adminUser?.role === 'SubAdmin';
 
   // Form State for  // Form State
   const [name, setName] = useState('');
@@ -342,18 +346,20 @@ export default function Residents() {
         >
           <Users size={18} /> Directory List
         </button>
-        <button 
-          onClick={() => { setActiveTab('create'); }}
-          style={{ 
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
-            background: activeTab === 'create' ? 'var(--primary)' : 'white', 
-            color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
-            border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
-            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
-          }}
-        >
-          <Plus size={18} /> Add Resident
-        </button>
+        {!isSubAdmin && (
+          <button 
+            onClick={() => { setActiveTab('create'); }}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+              background: activeTab === 'create' ? 'var(--primary)' : 'white', 
+              color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
+              border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
+              borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+            }}
+          >
+            <Plus size={18} /> Add Resident
+          </button>
+        )}
       </div>
 
       {activeTab === 'list' ? (
@@ -448,12 +454,14 @@ export default function Residents() {
           <div>
             <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
               <span>Phase / Location</span>
-              <button 
-                onClick={() => setShowManageGroupsModal(true)}
-                style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
-              >
-                <Wrench size={12} /> Manage Groups
-              </button>
+              {!isSubAdmin && (
+                <button 
+                  onClick={() => setShowManageGroupsModal(true)}
+                  style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  <Wrench size={12} /> Manage Groups
+                </button>
+              )}
             </label>
             <select 
               value={filterPhase} 
@@ -597,7 +605,9 @@ export default function Residents() {
                 <th style={{ padding: '16px', width: '16%' }}>Phase / Group</th>
                 <th style={{ padding: '16px', width: '10%' }}>Relation</th>
                 <th style={{ padding: '16px', width: '11%' }}>Joined Date</th>
-                <th style={{ padding: '16px', width: '7%', textAlign: 'center' }}>Actions</th>
+                {!isSubAdmin && (
+                  <th style={{ padding: '16px', width: '7%', textAlign: 'center' }}>Actions</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -610,7 +620,9 @@ export default function Residents() {
                     <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '70%' }}></div></td>
                     <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '60%' }}></div></td>
                     <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '90%' }}></div></td>
-                    <td style={{ padding: '16px', textAlign: 'center' }}><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8, margin: '0 auto' }}></div></td>
+                    {!isSubAdmin && (
+                      <td style={{ padding: '16px', textAlign: 'center' }}><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8, margin: '0 auto' }}></div></td>
+                    )}
                   </tr>
                 ))
               ) : residents.length === 0 ? (
@@ -669,19 +681,21 @@ export default function Residents() {
                     <td style={{ padding: '16px', color: 'var(--text-muted)', fontSize: 13 }}>
                       {new Date(r.createdAt || r.updatedAt || Date.now()).toLocaleDateString()}
                     </td>
-                    <td style={{ padding: '16px', textAlign: 'center' }}>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                        <button 
-                          onClick={() => requestDelete(r._id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                          onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                          onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                          title="Delete"
-                        >
-                          <Trash2 size={18} color="var(--danger)" />
-                        </button>
-                      </div>
-                    </td>
+                    {!isSubAdmin && (
+                      <td style={{ padding: '16px', textAlign: 'center' }}>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                          <button 
+                            onClick={() => requestDelete(r._id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                            title="Delete"
+                          >
+                            <Trash2 size={18} color="var(--danger)" />
+                          </button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))
               )}

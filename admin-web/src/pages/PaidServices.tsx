@@ -18,6 +18,10 @@ export default function PaidServices() {
   const [basePrice, setBasePrice] = useState('Paid');
   const [isCreating, setIsCreating] = useState(false);
 
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSubAdmin = adminUser?.role === 'SubAdmin';
+
   useEffect(() => {
     fetchServices();
     
@@ -135,18 +139,20 @@ export default function PaidServices() {
         >
           <Briefcase size={18} /> Active Services
         </button>
-        <button 
-          onClick={() => setActiveTab('create')}
-          style={{ 
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
-            background: activeTab === 'create' ? 'var(--primary)' : 'white', 
-            color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
-            border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
-            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
-          }}
-        >
-          <Plus size={18} /> Create Service
-        </button>
+        {!isSubAdmin && (
+          <button 
+            onClick={() => setActiveTab('create')}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+              background: activeTab === 'create' ? 'var(--primary)' : 'white', 
+              color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
+              border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
+              borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+            }}
+          >
+            <Plus size={18} /> Create Service
+          </button>
+        )}
       </div>
 
       {activeTab === 'list' ? (
@@ -159,7 +165,7 @@ export default function PaidServices() {
                   <th>Name</th>
                   <th>Icon</th>
                   <th>Price Tag</th>
-                  <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
+                  {!isSubAdmin && <th style={{ width: 80, textAlign: 'center' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -168,7 +174,7 @@ export default function PaidServices() {
                     <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: 60, height: 24 }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: 80, height: 24, borderRadius: 12 }}></div></td>
-                    <td><div className="skeleton skeleton-row" style={{ width: 30, margin: '0 auto' }}></div></td>
+                    {!isSubAdmin && <td><div className="skeleton skeleton-row" style={{ width: 30, margin: '0 auto' }}></div></td>}
                   </tr>
                 ))}
               </tbody>
@@ -185,7 +191,7 @@ export default function PaidServices() {
                   <th>Name</th>
                   <th>Icon</th>
                   <th>Price Tag</th>
-                  <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
+                  {!isSubAdmin && <th style={{ width: 80, textAlign: 'center' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -205,14 +211,16 @@ export default function PaidServices() {
                         {service.basePrice}
                       </span>
                     </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button 
-                        onClick={() => handleDelete(service._id)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                      >
-                        <Trash2 size={18} color="var(--danger)" />
-                      </button>
-                    </td>
+                    {!isSubAdmin && (
+                      <td style={{ textAlign: 'center' }}>
+                        <button 
+                          onClick={() => handleDelete(service._id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                        >
+                          <Trash2 size={18} color="var(--danger)" />
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

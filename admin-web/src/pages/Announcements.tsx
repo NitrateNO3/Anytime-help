@@ -18,6 +18,10 @@ export default function Announcements() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
 
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSubAdmin = adminUser?.role === 'SubAdmin';
+
   // Filter States
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -225,18 +229,20 @@ export default function Announcements() {
         >
           <Bell size={18} /> Recent Announcements
         </button>
-        <button 
-          onClick={() => { setActiveTab('create'); }}
-          style={{ 
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
-            background: activeTab === 'create' ? 'var(--primary)' : 'white', 
-            color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
-            border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
-            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
-          }}
-        >
-          <Plus size={18} /> New Broadcast
-        </button>
+        {!isSubAdmin && (
+          <button 
+            onClick={() => { setActiveTab('create'); }}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+              background: activeTab === 'create' ? 'var(--primary)' : 'white', 
+              color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
+              border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
+              borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+            }}
+          >
+            <Plus size={18} /> New Broadcast
+          </button>
+        )}
       </div>
 
       {/* Content Area */}
@@ -353,7 +359,7 @@ export default function Announcements() {
                 <th>Date</th>
                 <th>Title</th>
                 <th>Message</th>
-                <th style={{ width: 100 }}>Actions</th>
+                {!isSubAdmin && <th style={{ width: 100 }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -384,30 +390,32 @@ export default function Announcements() {
                       </td>
                       <td style={{ fontWeight: 600 }}>{announcement.title}</td>
                       <td style={{ color: 'var(--text-muted)' }}>{announcement.message}</td>
-                      <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                          <button 
-                            onClick={() => {
-                              setEditingAnnouncement(announcement);
-                            }}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                            title="Edit"
-                          >
-                            <Edit2 size={18} color="var(--primary)" />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(announcement._id)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                            title="Delete"
-                          >
-                            <Trash2 size={20} color="var(--danger)" />
-                          </button>
-                        </div>
-                      </td>
+                      {!isSubAdmin && (
+                        <td style={{ textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                            <button 
+                              onClick={() => {
+                                setEditingAnnouncement(announcement);
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                              title="Edit"
+                            >
+                              <Edit2 size={18} color="var(--primary)" />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(announcement._id)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                              title="Delete"
+                            >
+                              <Trash2 size={20} color="var(--danger)" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}

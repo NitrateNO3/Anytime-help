@@ -13,6 +13,10 @@ export default function Categories() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSubAdmin = adminUser?.role === 'SubAdmin';
+
   const [formData, setFormData] = useState({
     title: '',
     image: '',
@@ -193,9 +197,11 @@ export default function Categories() {
     <div style={{ marginTop: '40px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2 style={{ fontSize: 24, fontWeight: 700 }}>Manage Categories & Sub-Categories</h2>
-        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-          <Plus size={18} /> Add Category
-        </button>
+        {!isSubAdmin && (
+          <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+            <Plus size={18} /> Add Category
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -244,33 +250,35 @@ export default function Categories() {
                       </span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button 
-                      className="btn btn-icon" 
-                      onClick={() => handleReorder(index, index - 1)} 
-                      style={{ color: index === 0 ? '#CBD5E1' : '#64748B' }} 
-                      disabled={index === 0}
-                      title="Move Up"
-                    >
-                      <ArrowUp size={18} />
-                    </button>
-                    <button 
-                      className="btn btn-icon" 
-                      onClick={() => handleReorder(index, index + 1)} 
-                      style={{ color: index === categories.length - 1 ? '#CBD5E1' : '#64748B' }} 
-                      disabled={index === categories.length - 1}
-                      title="Move Down"
-                    >
-                      <ArrowDown size={18} />
-                    </button>
-                    <div style={{ width: '1px', height: '24px', backgroundColor: '#E2E8F0', margin: '0 4px' }}></div>
-                    <button className="btn btn-icon" onClick={() => handleOpenModal(cat)} style={{ color: 'var(--primary)' }} title="Edit Category">
-                      <Edit2 size={18} />
-                    </button>
-                    <button className="btn btn-icon" onClick={() => confirmDelete(cat._id)} style={{ color: 'var(--danger)' }} title="Delete Category">
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+                  {!isSubAdmin && (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button 
+                        className="btn btn-icon" 
+                        onClick={() => handleReorder(index, index - 1)} 
+                        style={{ color: index === 0 ? '#CBD5E1' : '#64748B' }} 
+                        disabled={index === 0}
+                        title="Move Up"
+                      >
+                        <ArrowUp size={18} />
+                      </button>
+                      <button 
+                        className="btn btn-icon" 
+                        onClick={() => handleReorder(index, index + 1)} 
+                        style={{ color: index === categories.length - 1 ? '#CBD5E1' : '#64748B' }} 
+                        disabled={index === categories.length - 1}
+                        title="Move Down"
+                      >
+                        <ArrowDown size={18} />
+                      </button>
+                      <div style={{ width: '1px', height: '24px', backgroundColor: '#E2E8F0', margin: '0 4px' }}></div>
+                      <button className="btn btn-icon" onClick={() => handleOpenModal(cat)} style={{ color: 'var(--primary)' }} title="Edit Category">
+                        <Edit2 size={18} />
+                      </button>
+                      <button className="btn btn-icon" onClick={() => confirmDelete(cat._id)} style={{ color: 'var(--danger)' }} title="Delete Category">
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ))

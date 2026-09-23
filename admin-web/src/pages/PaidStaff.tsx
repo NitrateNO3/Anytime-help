@@ -19,6 +19,10 @@ export default function PaidStaff() {
   const [category, setCategory] = useState('');
   const [isCreating, setIsCreating] = useState(false);
 
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSubAdmin = adminUser?.role === 'SubAdmin';
+
   useEffect(() => {
     if (activeTab === 'list') {
       fetchStaff();
@@ -163,18 +167,20 @@ export default function PaidStaff() {
         >
           <Users size={18} /> Active Partners
         </button>
-        <button 
-          onClick={() => setActiveTab('create')}
-          style={{ 
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
-            background: activeTab === 'create' ? 'var(--primary)' : 'white', 
-            color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
-            border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
-            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
-          }}
-        >
-          <UserPlus size={18} /> Create Account
-        </button>
+        {!isSubAdmin && (
+          <button 
+            onClick={() => setActiveTab('create')}
+            style={{ 
+              display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+              background: activeTab === 'create' ? 'var(--primary)' : 'white', 
+              color: activeTab === 'create' ? 'white' : 'var(--text-muted)',
+              border: activeTab === 'create' ? 'none' : '1px solid var(--border-color)',
+              borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+            }}
+          >
+            <UserPlus size={18} /> Create Account
+          </button>
+        )}
       </div>
 
       {/* Content Area */}
@@ -187,7 +193,7 @@ export default function PaidStaff() {
                 <th>Name</th>
                 <th>Phone Number</th>
                 <th>Service Category</th>
-                <th style={{ width: 80 }}>Actions</th>
+                {!isSubAdmin && <th style={{ width: 80 }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -197,7 +203,7 @@ export default function PaidStaff() {
                     <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: '60%' }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: 100, height: 24, borderRadius: 20 }}></div></td>
-                    <td><div className="skeleton skeleton-row" style={{ width: 30, margin: '0 auto' }}></div></td>
+                    {!isSubAdmin && <td><div className="skeleton skeleton-row" style={{ width: 30, margin: '0 auto' }}></div></td>}
                   </tr>
                 ))
               ) : staff.length === 0 ? (
@@ -224,14 +230,16 @@ export default function PaidStaff() {
                           {member.assigned_category}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button 
-                          onClick={() => handleDelete(member._id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                        >
-                          <Trash2 size={20} color="var(--danger)" />
-                        </button>
-                      </td>
+                      {!isSubAdmin && (
+                        <td style={{ textAlign: 'center' }}>
+                          <button 
+                            onClick={() => handleDelete(member._id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                          >
+                            <Trash2 size={20} color="var(--danger)" />
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}

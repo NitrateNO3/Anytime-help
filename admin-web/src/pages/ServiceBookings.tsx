@@ -11,6 +11,10 @@ export default function ServiceBookings() {
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSubAdmin = adminUser?.role === 'SubAdmin';
+
   useEffect(() => {
     fetchBookings();
     
@@ -111,7 +115,7 @@ export default function ServiceBookings() {
                 <th>Staff Assigned</th>
                 <th>Status</th>
                 <th>Requested At</th>
-                <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
+                {!isSubAdmin && <th style={{ width: 80, textAlign: 'center' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -127,7 +131,7 @@ export default function ServiceBookings() {
                   <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
                   <td><div className="skeleton skeleton-row" style={{ width: 80, height: 24, borderRadius: 12 }}></div></td>
                   <td><div className="skeleton skeleton-row" style={{ width: '70%' }}></div></td>
-                  <td><div className="skeleton skeleton-row" style={{ width: 30, margin: '0 auto' }}></div></td>
+                  {!isSubAdmin && <td><div className="skeleton skeleton-row" style={{ width: 30, margin: '0 auto' }}></div></td>}
                 </tr>
               ))}
             </tbody>
@@ -148,7 +152,7 @@ export default function ServiceBookings() {
                 <th>Staff Assigned</th>
                 <th>Status</th>
                 <th>Requested At</th>
-                <th style={{ width: 80, textAlign: 'center' }}>Actions</th>
+                {!isSubAdmin && <th style={{ width: 80, textAlign: 'center' }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -170,15 +174,17 @@ export default function ServiceBookings() {
                   </td>
                   <td>{getStatusBadge(booking.status)}</td>
                   <td>{new Date(booking.createdAt).toLocaleDateString()}</td>
-                  <td style={{ textAlign: 'center' }}>
-                    <button 
-                      onClick={() => handleDelete(booking._id)}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
-                      title="Delete Booking"
-                    >
-                      <Trash2 size={18} color="var(--danger)" />
-                    </button>
-                  </td>
+                  {!isSubAdmin && (
+                    <td style={{ textAlign: 'center' }}>
+                      <button 
+                        onClick={() => handleDelete(booking._id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
+                        title="Delete Booking"
+                      >
+                        <Trash2 size={18} color="var(--danger)" />
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
