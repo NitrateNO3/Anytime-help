@@ -633,11 +633,12 @@ export default function Residents() {
           <table className="data-table" style={{ width: '100%', minWidth: 950, textAlign: 'left', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border)', color: 'var(--text-secondary)' }}>
-                <th style={{ padding: '16px', width: '18%' }}>Name</th>
-                <th style={{ padding: '16px', width: '16%' }}>Phone Number</th>
-                <th style={{ padding: '16px', width: '22%' }}>Address</th>
-                <th style={{ padding: '16px', width: '16%' }}>Phase / Group</th>
-                <th style={{ padding: '16px', width: '10%' }}>Relation</th>
+                <th style={{ padding: '16px', width: '16%' }}>Name</th>
+                <th style={{ padding: '16px', width: '10%' }}>Type</th>
+                <th style={{ padding: '16px', width: '14%' }}>Phone Number</th>
+                <th style={{ padding: '16px', width: '20%' }}>Address</th>
+                <th style={{ padding: '16px', width: '14%' }}>Phase / Group</th>
+                <th style={{ padding: '16px', width: '8%' }}>Relation</th>
                 <th style={{ padding: '16px', width: '11%' }}>Joined Date</th>
                 {!isSubAdmin && (
                   <th style={{ padding: '16px', width: '7%', textAlign: 'center' }}>Actions</th>
@@ -649,6 +650,7 @@ export default function Residents() {
                 Array.from({ length: 5 }).map((_, idx) => (
                   <tr key={`skeleton-${idx}`} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
+                    <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '60%' }}></div></td>
                     <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '100%' }}></div></td>
                     <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: 80, height: 24, borderRadius: 12 }}></div></td>
                     <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '70%' }}></div></td>
@@ -661,7 +663,7 @@ export default function Residents() {
                 ))
               ) : residents.length === 0 ? (
                 <tr>
-                  <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)' }}>
                     <AlertCircle size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px', display: 'block', opacity: 0.6 }} />
                     <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
                       No residents found
@@ -694,11 +696,18 @@ export default function Residents() {
                   <tr key={r._id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.2s' }}>
                     <td style={{ padding: '16px', fontWeight: '600', color: 'var(--text-main)' }}>
                       {r.name || 'N/A'}
-                      {r.role === 'Member' && (
-                        <span style={{ marginLeft: 8, padding: '2px 8px', borderRadius: 12, fontSize: 11, background: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', fontWeight: 700 }}>
-                          Member
-                        </span>
-                      )}
+                    </td>
+                    <td style={{ padding: '16px' }}>
+                      <span style={{ 
+                        padding: '4px 10px', 
+                        borderRadius: 12, 
+                        fontSize: 12, 
+                        fontWeight: 600,
+                        background: r.role === 'Member' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(139, 92, 246, 0.1)',
+                        color: r.role === 'Member' ? 'var(--primary)' : '#7c3aed'
+                      }}>
+                        {r.role === 'Member' ? 'Member' : 'Resident'}
+                      </span>
                     </td>
                     <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{r.phone_number}</td>
                     <td style={{ padding: '16px' }}>
