@@ -577,7 +577,7 @@ export default function Members() {
       {/* Edit Modal */}
       {editingUser && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, padding: '32px 24px', borderRadius: 16, maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             <h2 className="card-title" style={{ marginBottom: 20, borderBottom: '1px solid var(--border-color)', paddingBottom: 16 }}>Edit Member</h2>
             <form onSubmit={handleEditSubmit}>
               <div className="form-group">
