@@ -255,6 +255,57 @@ router.post('/:id/reply', auth, async (req, res) => {
       io.emit('complaint_changed', { action: 'reply', data: complaint });
     }
     
+    // Push Notification Logic
+    try {
+      const { sendPushNotifications } = require('../utils/push');
+      let tokensToNotify = [];
+      let notificationTitle = '';
+      let notificationBody = req.body.text;
+      
+      // Fetch all relevant admins and staff for this category/phase
+      const userPhase = complaint.phase;
+      const category = complaint.category;
+      
+      const adminsAndStaff = await User.find({
+        $or: [
+          { role: 'Admin' },
+          { role: 'SubAdmin', permissions: 'Complaints' },
+          { role: 'Staff', $or: [{ phase: userPhase }, { phase: 'Universal' }, { phase: 'All' }, { phase: { $exists: false } }] }
+        ],
+        expoPushToken: { $exists: true, $ne: '' }
+      }).select('_id expoPushToken assigned_category assigned_categories role');
+
+      const staffAdminTokens = adminsAndStaff
+        .filter(u => {
+          if (u.role === 'Staff') {
+            const cats = u.assigned_categories && u.assigned_categories.length > 0 ? u.assigned_categories : (u.assigned_category ? [u.assigned_category] : []);
+            if (cats.length > 0 && !cats.includes('All') && !cats.includes(category)) {
+              return false;
+            }
+          }
+          return u._id.toString() !== req.user.id; // Exclude sender
+        })
+        .map(u => u.expoPushToken);
+        
+      tokensToNotify = [...staffAdminTokens];
+      
+      // Also notify resident if the sender is not the resident
+      if (req.user.id !== complaint.user.toString()) {
+        const resident = await User.findById(complaint.user).select('expoPushToken');
+        if (resident && resident.expoPushToken) {
+          tokensToNotify.push(resident.expoPushToken);
+        }
+      }
+      
+      notificationTitle = role === 'Resident' ? `New Reply on ${complaint.title}` : `Update on ${complaint.title}`;
+
+      if (tokensToNotify.length > 0) {
+        sendPushNotifications(tokensToNotify, notificationTitle, notificationBody, { type: 'complaint', id: complaint._id });
+      }
+    } catch (pushErr) {
+      console.error('Push notification error on reply:', pushErr.message);
+    }
+    
     res.json(complaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
