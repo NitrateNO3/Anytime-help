@@ -183,8 +183,8 @@ router.get('/', auth, async (req, res) => {
     
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     let complaintsQuery = Complaint.find(query)
-      .populate('user', 'name phone')
-      .populate('assigned_staff', 'name phone')
+      .populate('user', 'name phone_number address')
+      .populate('assigned_staff', 'name phone_number address')
       .sort({ created_at: sortDirection });
     
     if (page && limit) {
@@ -218,11 +218,43 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
-      .populate('user', 'name phone')
-      .populate('assigned_staff', 'name phone');
+      .populate('user', 'name phone_number address')
+      .populate('assigned_staff', 'name phone_number address');
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
     }
+    res.json(complaint);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// POST /api/complaints/:id/reply
+router.post('/:id/reply', auth, async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
+    
+    let role = req.user.role;
+    if (role === 'Admin' || role === 'SubAdmin') {
+      role = 'Admin';
+    } else if (role === 'Resident' || role === 'Member') {
+      role = 'Resident';
+    }
+    
+    complaint.replies.push({
+      user: req.user.id,
+      text: req.body.text,
+      role: role
+    });
+    
+    await complaint.save();
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('complaint_changed', { action: 'reply', data: complaint });
+    }
+    
     res.json(complaint);
   } catch (error) {
     res.status(500).json({ message: error.message });

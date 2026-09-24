@@ -38,6 +38,11 @@ export default function Dashboard() {
   const [sortOrder, setSortOrder] = useState('desc');
   const [availableCategories, setAvailableCategories] = useState<string[]>(defaultCategoriesList);
 
+  // View/Reply Modal States
+  const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [replyText, setReplyText] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
+
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -110,6 +115,30 @@ export default function Dashboard() {
       toast.error('Failed to fetch complaints');
     } finally {
       if (showLoading) setLoading(false);
+    }
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim() || !selectedComplaint) return;
+    const loadingId = toast.loading('Sending reply...');
+    setIsReplying(true);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.post(`${API_URL}/complaints/${selectedComplaint._id}/reply`, {
+        text: replyText.trim()
+      }, {
+        headers: { 'x-auth-token': token }
+      });
+      toast.success('Reply sent!', { id: loadingId });
+      setReplyText('');
+      setSelectedComplaint(res.data);
+      
+      // Update in the list as well
+      setComplaints(prev => prev.map(c => c._id === res.data._id ? res.data : c));
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to send reply', { id: loadingId });
+    } finally {
+      setIsReplying(false);
     }
   };
 
@@ -473,10 +502,11 @@ export default function Dashboard() {
                 { header: 'Description', key: 'description' },
                 { header: 'Category', key: (c: any) => c.category?.name || c.category || 'N/A' },
                 { header: 'Phase', key: (c: any) => c.phase || 'N/A' },
-                { header: 'Address', key: (c: any) => c.address || 'N/A' },
                 { header: 'Location', key: (c: any) => c.location || 'N/A' },
-                { header: 'Resident', key: (c: any) => c.user?.name || c.createdBy?.name || 'N/A' },
-                { header: 'Phone', key: (c: any) => c.user?.phone_number || c.user?.phone || c.createdBy?.phoneNumber || 'N/A' },
+                { header: 'Complaint Address', key: (c: any) => c.address || 'N/A' },
+                { header: 'Resident Name', key: (c: any) => c.user?.name || c.createdBy?.name || 'N/A' },
+                { header: 'Resident Address', key: (c: any) => c.user?.address || 'N/A' },
+                { header: 'Resident Phone', key: (c: any) => c.user?.phone_number || c.user?.phone || c.createdBy?.phoneNumber || 'N/A' },
                 { header: 'Status', key: 'status' },
                 { header: 'Priority', key: 'priority' },
                 { header: 'Created At', key: (c: any) => new Date(c.created_at || c.createdAt).toLocaleString() }
@@ -494,11 +524,12 @@ export default function Dashboard() {
             <table style={{ width: '100%', minWidth: 1100, tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '23%' }}>Title & Desc</th>
+                  <th style={{ width: '20%' }}>Title & Desc</th>
                   <th style={{ width: '13%' }}>Category</th>
                   <th style={{ width: '15%' }}>Location / Phase</th>
-                  <th style={{ width: '15%' }}>Address</th>
-                  <th style={{ width: '13%' }}>Resident</th>
+                  <th style={{ width: '15%' }}>Complaint Address</th>
+                  <th style={{ width: '15%' }}>Resident Address</th>
+                  <th style={{ width: '15%' }}>Resident Info</th>
                   <th style={{ width: '10%', minWidth: 105, whiteSpace: 'nowrap' }}>Status</th>
                   <th style={{ width: '11%', minWidth: 140, whiteSpace: 'nowrap' }}>Actions</th>
                 </tr>
@@ -590,12 +621,17 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td>
+                        <div style={{ color: item.user?.address ? 'var(--text-main)' : 'var(--text-muted)', fontSize: 13 }}>
+                          {item.user?.address || '-'}
+                        </div>
+                      </td>
+                      <td>
                         <div style={{ fontWeight: 500, color: 'var(--text-main)', fontSize: 13 }}>
                           {item.user?.name || 'Unknown'}
                         </div>
-                        {item.user?.phone && (
+                        {(item.user?.phone_number || item.user?.phone) && (
                           <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                            {item.user.phone}
+                            {item.user.phone_number || item.user.phone}
                           </div>
                         )}
                       </td>
@@ -629,6 +665,13 @@ export default function Dashboard() {
                             <option value="IN_PROGRESS">In Progress</option>
                             <option value="DONE">Resolved</option>
                           </select>
+                          <button 
+                            onClick={() => setSelectedComplaint(item)}
+                            style={{ background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer', padding: '6px 12px', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 500 }}
+                            title="View & Reply"
+                          >
+                            View
+                          </button>
                           <button 
                             onClick={() => deleteComplaint(item._id)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -673,6 +716,89 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+      
+      {/* View & Reply Modal */}
+      {selectedComplaint && (
+        <div className="modal-overlay" onClick={() => setSelectedComplaint(null)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
+            <div className="modal-header">
+              <h2 className="modal-title">Complaint Details</h2>
+              <button className="modal-close" onClick={() => setSelectedComplaint(null)}><X size={20} /></button>
+            </div>
+            <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '20px' }}>
+              <div style={{ marginBottom: 20 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text-main)' }}>{selectedComplaint.title}</h3>
+                <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, background: '#f8fafc', padding: 16, borderRadius: 12 }}>
+                  {selectedComplaint.description}
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+                <div style={{ background: '#f8fafc', padding: 16, borderRadius: 12 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Reported By</div>
+                  <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{selectedComplaint.user?.name || 'Unknown'}</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{selectedComplaint.user?.phone_number || selectedComplaint.user?.phone}</div>
+                </div>
+                <div style={{ background: '#f8fafc', padding: 16, borderRadius: 12 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Status</div>
+                  <div style={{ fontWeight: 600, color: selectedComplaint.status === 'DONE' ? 'var(--success)' : 'var(--primary)' }}>
+                    {selectedComplaint.status.replace('_', ' ')}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: 'var(--text-main)' }}>Replies & Updates</h4>
+                {(!selectedComplaint.replies || selectedComplaint.replies.length === 0) ? (
+                  <div style={{ padding: 16, textAlign: 'center', color: 'var(--text-muted)', background: '#f8fafc', borderRadius: 12 }}>
+                    No replies yet.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {selectedComplaint.replies.map((reply: any, idx: number) => (
+                      <div key={idx} style={{ 
+                        background: reply.role === 'Admin' || reply.role === 'Staff' ? 'rgba(59, 130, 246, 0.05)' : '#f8fafc', 
+                        borderLeft: reply.role === 'Admin' || reply.role === 'Staff' ? '3px solid var(--primary)' : '3px solid #cbd5e1',
+                        padding: 12, 
+                        borderRadius: '0 8px 8px 0' 
+                      }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: reply.role === 'Admin' || reply.role === 'Staff' ? 'var(--primary)' : 'var(--text-main)' }}>
+                            {reply.role}
+                          </span>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                            {new Date(reply.created_at).toLocaleString()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{reply.text}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
+                <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Add a Reply</h4>
+                <textarea
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Type your reply here... (This will be visible to the resident)"
+                  style={{ width: '100%', height: 100, padding: 12, borderRadius: 8, border: '1px solid var(--border-color)', resize: 'none', marginBottom: 12, boxSizing: 'border-box' }}
+                />
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                  <button 
+                    onClick={handleReply}
+                    disabled={isReplying || !replyText.trim()}
+                    style={{ background: 'var(--primary)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: 8, fontWeight: 600, cursor: isReplying || !replyText.trim() ? 'not-allowed' : 'pointer', opacity: isReplying || !replyText.trim() ? 0.7 : 1 }}
+                  >
+                    {isReplying ? 'Sending...' : 'Send Reply'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
