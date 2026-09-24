@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Modal, Platform, StatusBar, Animated, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Modal, Platform, StatusBar, Animated, Linking, TextInput, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -42,6 +42,8 @@ export default function ComplaintDetails() {
   const [loading, setLoading] = useState(true);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const [isReplying, setIsReplying] = useState(false);
 
   useEffect(() => {
     fetchComplaintDetails();
@@ -100,6 +102,25 @@ export default function ComplaintDetails() {
         }
       ]
     );
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim()) return;
+    setIsReplying(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      const res = await axios.post(`${API_URL}/complaints/${id}/reply`, { text: replyText }, {
+        headers: { 'x-auth-token': token }
+      });
+      setComplaint(res.data);
+      setReplyText('');
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Reply sent successfully!' });
+    } catch (err: any) {
+      console.error(err);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to send reply' });
+    } finally {
+      setIsReplying(false);
+    }
   };
 
   const parseResolutionData = (afterImageStr: string | null) => {
@@ -322,6 +343,67 @@ export default function ComplaintDetails() {
             )}
           </View>
         ) : null}
+
+        {/* Replies Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Replies & Updates</Text>
+          {(!complaint.replies || complaint.replies.length === 0) ? (
+            <Text style={{ color: '#64748B', fontSize: 14, fontStyle: 'italic', textAlign: 'center', marginTop: 10, marginBottom: 20 }}>
+              No replies yet.
+            </Text>
+          ) : (
+            <View style={{ marginTop: 12, marginBottom: 20 }}>
+              {complaint.replies.map((reply: any, idx: number) => (
+                <View key={idx} style={{ 
+                  backgroundColor: reply.role === 'Admin' || reply.role === 'Staff' ? '#F0FDF4' : '#F8FAFC',
+                  borderLeftWidth: 3,
+                  borderLeftColor: reply.role === 'Admin' || reply.role === 'Staff' ? '#16A34A' : '#94A3B8',
+                  padding: 12,
+                  borderRadius: 8,
+                  marginBottom: 12
+                }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontWeight: '600', color: reply.role === 'Admin' || reply.role === 'Staff' ? '#16A34A' : '#334155', fontSize: 13 }}>
+                      {reply.role}
+                    </Text>
+                    <Text style={{ color: '#94A3B8', fontSize: 11 }}>
+                      {new Date(reply.created_at).toLocaleString()}
+                    </Text>
+                  </View>
+                  <Text style={{ color: '#334155', fontSize: 14, lineHeight: 20 }}>{reply.text}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {complaint.status !== 'DONE' && complaint.status !== 'RESOLVED' && (
+            <View style={{ marginTop: 8 }}>
+              <TextInput
+                style={{
+                  backgroundColor: '#F1F5F9',
+                  borderRadius: 12,
+                  padding: 14,
+                  fontSize: 14,
+                  minHeight: 80,
+                  color: '#1E293B',
+                  textAlignVertical: 'top'
+                }}
+                placeholder="Type your reply here..."
+                placeholderTextColor="#94A3B8"
+                multiline
+                value={replyText}
+                onChangeText={setReplyText}
+              />
+              <TouchableOpacity 
+                style={[styles.actionBtnPrimary, { marginTop: 12, opacity: !replyText.trim() ? 0.5 : 1 }]} 
+                onPress={handleReply}
+                disabled={!replyText.trim() || isReplying}
+              >
+                {isReplying ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.actionBtnPrimaryText}>Send Reply</Text>}
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
 
         {/* Delete Button */}
         {complaint.status === 'PENDING' && (

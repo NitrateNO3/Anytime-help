@@ -312,6 +312,33 @@ router.post('/:id/reply', auth, async (req, res) => {
   }
 });
 
+// DELETE /api/complaints/:id/reply/:replyId
+router.delete('/:id/reply/:replyId', auth, async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
+    
+    const reply = complaint.replies.id(req.params.replyId);
+    if (!reply) return res.status(404).json({ message: 'Reply not found' });
+    
+    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin' && reply.user.toString() !== req.user.id) {
+       return res.status(403).json({ message: 'Unauthorized to delete this reply' });
+    }
+    
+    reply.deleteOne();
+    await complaint.save();
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('complaint_changed', { action: 'reply_delete', data: complaint });
+    }
+    
+    res.json(complaint);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // PATCH /api/complaints/:id
 router.patch('/:id', auth, async (req, res) => {
   try {

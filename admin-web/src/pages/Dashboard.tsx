@@ -194,6 +194,43 @@ export default function Dashboard() {
     ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
+  const deleteReply = async (complaintId: string, replyId: string) => {
+    toast((t) => (
+      <div>
+        <p style={{ fontWeight: 600, marginBottom: 12, color: 'var(--text-main)' }}>Delete this reply?</p>
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <button 
+            onClick={() => toast.dismiss(t.id)} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'white', cursor: 'pointer', fontWeight: 500, color: 'var(--text-main)' }}
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              const loadingToast = toast.loading('Deleting reply...');
+              try {
+                const token = localStorage.getItem('adminToken');
+                const res = await axios.delete(`${API_URL}/complaints/${complaintId}/reply/${replyId}`, {
+                  headers: { 'x-auth-token': token }
+                });
+                toast.success('Reply deleted', { id: loadingToast });
+                setSelectedComplaint(res.data);
+                setComplaints(prev => prev.map(c => c._id === complaintId ? res.data : c));
+              } catch (err) {
+                console.error(err);
+                toast.error('Failed to delete reply', { id: loadingToast });
+              }
+            }} 
+            style={{ padding: '6px 16px', borderRadius: 8, border: 'none', background: 'var(--danger)', color: 'white', cursor: 'pointer', fontWeight: 600 }}
+          >
+            Delete
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, style: { minWidth: '250px' } });
+  };
+
   const updateStatus = async (id: string, newStatus: string) => {
     const loadingToast = toast.loading('Updating status...');
     try {
@@ -766,9 +803,27 @@ export default function Dashboard() {
                           <span style={{ fontSize: 13, fontWeight: 600, color: reply.role === 'Admin' || reply.role === 'Staff' ? 'var(--primary)' : 'var(--text-main)' }}>
                             {reply.role}
                           </span>
-                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                            {new Date(reply.created_at).toLocaleString()}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                              {new Date(reply.created_at).toLocaleString()}
+                            </span>
+                            <button 
+                              onClick={() => deleteReply(selectedComplaint._id, reply._id)}
+                              title="Delete Reply"
+                              style={{ 
+                                background: 'transparent', 
+                                border: 'none', 
+                                cursor: 'pointer', 
+                                color: 'var(--danger)',
+                                padding: 2,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </div>
                         <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{reply.text}</div>
                       </div>
