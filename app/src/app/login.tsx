@@ -161,6 +161,17 @@ export default function LoginScreen() {
       await SecureStore.setItemAsync('userToken', token);
       await SecureStore.setItemAsync('userData', JSON.stringify(user));
 
+      // Trigger push notification permission prompt right after login
+      try {
+        const { registerForPushNotificationsAsync, sendPushTokenToBackend } = await import('../services/pushNotifications');
+        const pushToken = await registerForPushNotificationsAsync();
+        if (pushToken) {
+          await sendPushTokenToBackend(pushToken);
+        }
+      } catch (pushErr) {
+        console.error('Push setup error during login:', pushErr);
+      }
+
       if (user.role === 'Resident') {
         Toast.show({ type: 'success', text1: 'Welcome', text2: 'Logged in successfully' });
         router.replace('/resident');

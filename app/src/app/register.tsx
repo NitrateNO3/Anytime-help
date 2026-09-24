@@ -231,6 +231,17 @@ export default function RegisterScreen() {
       await SecureStore.setItemAsync('userData', JSON.stringify(user));
       await AsyncStorage.removeItem('register_draft'); // Clear draft
 
+      // Trigger push notification permission prompt right after registration
+      try {
+        const { registerForPushNotificationsAsync, sendPushTokenToBackend } = await import('../services/pushNotifications');
+        const pushToken = await registerForPushNotificationsAsync();
+        if (pushToken) {
+          await sendPushTokenToBackend(pushToken);
+        }
+      } catch (pushErr) {
+        console.error('Push setup error during registration:', pushErr);
+      }
+
       isCompleteRef.current = true;
       Toast.show({ type: 'success', text1: 'Welcome', text2: 'Account created successfully!' });
       router.replace('/login');
