@@ -183,8 +183,8 @@ router.get('/', auth, async (req, res) => {
     
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     let complaintsQuery = Complaint.find(query)
-      .populate('user', 'name phone_number address')
-      .populate('assigned_staff', 'name phone_number address')
+      .populate('user', 'name phone_number address room_number phase relation')
+      .populate('assigned_staff', 'name phone_number address room_number phase')
       .sort({ created_at: sortDirection });
     
     if (page && limit) {
@@ -218,8 +218,8 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
-      .populate('user', 'name phone_number address')
-      .populate('assigned_staff', 'name phone_number address');
+      .populate('user', 'name phone_number address room_number phase relation')
+      .populate('assigned_staff', 'name phone_number address room_number phase');
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
     }

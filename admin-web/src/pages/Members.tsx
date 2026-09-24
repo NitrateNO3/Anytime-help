@@ -576,85 +576,101 @@ export default function Members() {
       )}
       {/* Edit Modal */}
       {editingUser && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, maxHeight: '90vh', overflowY: 'auto' }}>
-            <h2 className="card-title" style={{ marginBottom: 20 }}>Edit Member</h2>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <h2 className="card-title" style={{ marginBottom: 20, borderBottom: '1px solid var(--border-color)', paddingBottom: 16 }}>Edit Member</h2>
             <form onSubmit={handleEditSubmit}>
-              <div className="input-group">
-                <label>Name</label>
+              <div className="form-group">
+                <label className="form-label">Name</label>
                 <input 
                   type="text" 
+                  className="form-input"
                   value={editingUser.name} 
                   onChange={(e) => setEditingUser({...editingUser, name: e.target.value})} 
                   required
                 />
               </div>
               
-              <div className="input-group">
-                <label>Phone Number</label>
+              <div className="form-group">
+                <label className="form-label">Phone Number</label>
                 <input 
                   type="text" 
+                  className="form-input"
                   value={editingUser.phone_number} 
                   onChange={(e) => setEditingUser({...editingUser, phone_number: e.target.value})} 
                   required
                 />
               </div>
 
-              <div className="input-group">
-                <label>Designation</label>
-                <input 
-                  type="text" 
-                  value={editingUser.designation} 
+              <div className="form-group">
+                <label className="form-label">Designation</label>
+                <select 
+                  className="form-input"
+                  value={editingUser.designation || 'Member'} 
                   onChange={(e) => setEditingUser({...editingUser, designation: e.target.value})} 
-                />
+                >
+                  <option value="President">President</option>
+                  <option value="Vice President">Vice President</option>
+                  <option value="General Secretary">General Secretary</option>
+                  <option value="Joint Secretary">Joint Secretary</option>
+                  <option value="Treasurer">Treasurer</option>
+                  <option value="Executive Member">Executive Member</option>
+                  <option value="Member">Member</option>
+                </select>
               </div>
 
-              <div className="input-group">
-                <label>Address</label>
+              <div className="form-group">
+                <label className="form-label">Address</label>
                 <input 
                   type="text" 
+                  className="form-input"
                   value={editingUser.address || ''} 
                   onChange={(e) => setEditingUser({...editingUser, address: e.target.value})} 
                 />
               </div>
 
-              <div className="input-group">
-                <label>Member ID</label>
+              <div className="form-group">
+                <label className="form-label">Member ID</label>
                 <input 
                   type="text" 
+                  className="form-input"
                   value={editingUser.member_id || ''} 
                   onChange={(e) => setEditingUser({...editingUser, member_id: e.target.value})} 
                 />
               </div>
               
-              <div className="input-group">
-                <label>Permissions</label>
+              <div className="form-group">
+                <label className="form-label">App Access Permissions</label>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 8 }}>
-                  {availablePermissions.map(perm => (
-                    <label key={perm} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                      <input 
-                        type="checkbox"
-                        checked={(editingUser.permissions || []).includes(perm)}
-                        onChange={(e) => {
-                          const currentPerms = editingUser.permissions || [];
-                          if (e.target.checked) {
-                            setEditingUser({...editingUser, permissions: [...currentPerms, perm]});
-                          } else {
-                            setEditingUser({...editingUser, permissions: currentPerms.filter((p: string) => p !== perm)});
-                          }
-                        }}
-                      />
-                      <span style={{ fontSize: 14 }}>{perm}</span>
-                    </label>
-                  ))}
+                  {availablePermissions.map(perm => {
+                    const isChecked = (editingUser.permissions || []).includes(perm);
+                    return (
+                      <label key={perm} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '12px 16px', border: '1px solid ' + (isChecked ? 'var(--primary)' : 'var(--border-color)'), borderRadius: 8, background: isChecked ? 'rgba(79, 70, 229, 0.05)' : 'white' }}>
+                        <input 
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            const currentPerms = editingUser.permissions || [];
+                            if (e.target.checked) {
+                              setEditingUser({...editingUser, permissions: [...currentPerms, perm]});
+                            } else {
+                              setEditingUser({...editingUser, permissions: currentPerms.filter((p: string) => p !== perm)});
+                            }
+                          }}
+                          style={{ width: 18, height: 18, accentColor: 'var(--primary)', cursor: 'pointer' }}
+                        />
+                        <span style={{ fontWeight: isChecked ? 600 : 500, color: isChecked ? 'var(--primary)' : 'var(--text-main)', fontSize: 14 }}>{perm}</span>
+                      </label>
+                    )
+                  })}
                 </div>
               </div>
               
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-                <button type="button" onClick={() => setEditingUser(null)} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid var(--border-color)', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                <button type="button" onClick={() => setEditingUser(null)} className="btn btn-outline" style={{ flex: 1 }}>
                   Cancel
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
                   Save Changes
                 </button>
               </div>
