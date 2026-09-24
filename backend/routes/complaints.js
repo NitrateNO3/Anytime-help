@@ -250,9 +250,13 @@ router.post('/:id/reply', auth, async (req, res) => {
     
     await complaint.save();
     
+    const populatedComplaint = await Complaint.findById(complaint._id)
+      .populate('user', 'name phone_number phase room_number role')
+      .populate('assigned_staff', 'name role');
+    
     const io = req.app.get('io');
     if (io) {
-      io.emit('complaint_changed', { action: 'reply', data: complaint });
+      io.emit('complaint_changed', { action: 'reply', data: populatedComplaint });
     }
     
     // Push Notification Logic
@@ -306,7 +310,7 @@ router.post('/:id/reply', auth, async (req, res) => {
       console.error('Push notification error on reply:', pushErr.message);
     }
     
-    res.json(complaint);
+    res.json(populatedComplaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -328,12 +332,16 @@ router.delete('/:id/reply/:replyId', auth, async (req, res) => {
     reply.deleteOne();
     await complaint.save();
     
+    const populatedComplaint = await Complaint.findById(complaint._id)
+      .populate('user', 'name phone_number phase room_number role')
+      .populate('assigned_staff', 'name role');
+    
     const io = req.app.get('io');
     if (io) {
-      io.emit('complaint_changed', { action: 'reply_delete', data: complaint });
+      io.emit('complaint_changed', { action: 'reply_delete', data: populatedComplaint });
     }
     
-    res.json(complaint);
+    res.json(populatedComplaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
