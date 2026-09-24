@@ -577,9 +577,14 @@ export default function Members() {
       {/* Edit Modal */}
       {editingUser && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, padding: '32px 24px', borderRadius: 16, maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
-            <h2 className="card-title" style={{ marginBottom: 20, borderBottom: '1px solid var(--border-color)', paddingBottom: 16 }}>Edit Member</h2>
-            <form onSubmit={handleEditSubmit}>
+          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, padding: 0, borderRadius: 16, maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 className="card-title" style={{ margin: 0, fontSize: 20 }}>Edit Member</h2>
+              <button type="button" onClick={() => setEditingUser(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, borderRadius: 8 }} title="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} style={{ padding: '24px', overflowY: 'auto' }}>
               <div className="form-group">
                 <label className="form-label">Name</label>
                 <input 

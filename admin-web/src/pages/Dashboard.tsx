@@ -658,8 +658,8 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td>
-                        <div style={{ color: (item.user?.address || item.address) ? 'var(--text-main)' : 'var(--text-muted)', fontSize: 13 }}>
-                          {item.user?.address || item.address || '-'}
+                        <div style={{ color: (item.user?.address || item.address || item.user?.phase) ? 'var(--text-main)' : 'var(--text-muted)', fontSize: 13 }}>
+                          {item.user?.address || item.address || (item.user?.phase ? `Phase: ${item.user.phase}` : 'Not Provided')}
                         </div>
                       </td>
                       <td>
