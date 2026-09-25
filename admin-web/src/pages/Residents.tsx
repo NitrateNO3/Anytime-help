@@ -175,6 +175,24 @@ export default function Residents() {
     return Array.isArray(res.data) ? res.data : (res.data.residents || []);
   };
 
+  const formatAddress = (address: string) => {
+    if (!address) return 'N/A';
+    let formatted = address;
+    
+    // Remove everything from ", Block " onwards
+    const blockIndex = formatted.lastIndexOf(', Block ');
+    if (blockIndex !== -1) {
+      formatted = formatted.substring(0, blockIndex);
+    }
+    
+    // Remove property type like ", (Owned)" if Block wasn't present
+    const bracketIndex = formatted.lastIndexOf(', (');
+    if (bracketIndex !== -1 && bracketIndex > formatted.length - 20) { 
+      formatted = formatted.substring(0, bracketIndex);
+    }
+    return formatted;
+  };
+
   const isFiltered = filterPhase !== 'All Groups (Show Everything)' || filterRelation !== 'ALL' || search !== '' || dateFrom !== '' || dateTo !== '' || filterRole !== 'ALL';
 
   const resetFilters = () => {
@@ -728,7 +746,7 @@ export default function Residents() {
                     <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{r.phone_number}</td>
                     <td style={{ padding: '16px' }}>
                       <span className="badge" style={{ backgroundColor: '#DBEAFE', color: '#1D4ED8', padding: '6px 12px', fontWeight: 500, fontSize: 12 }}>
-                        {r.address || 'N/A'}
+                        {formatAddress(r.address)}
                       </span>
                     </td>
                     <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{r.phase || 'Unassigned'}</td>
