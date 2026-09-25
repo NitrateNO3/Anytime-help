@@ -177,20 +177,11 @@ export default function Residents() {
 
   const formatAddress = (address: string) => {
     if (!address) return 'N/A';
-    let formatted = address;
     
-    // Remove everything from ", Block " onwards
-    const blockIndex = formatted.lastIndexOf(', Block ');
-    if (blockIndex !== -1) {
-      formatted = formatted.substring(0, blockIndex);
-    }
-    
-    // Remove property type like ", (Owned)" if Block wasn't present
-    const bracketIndex = formatted.lastIndexOf(', (');
-    if (bracketIndex !== -1 && bracketIndex > formatted.length - 20) { 
-      formatted = formatted.substring(0, bracketIndex);
-    }
-    return formatted;
+    // Address is usually saved as: "House/Flat: G 123A , Sushant Lok 2 - F,G, Block F, G, (Owned)"
+    // The user only wants to see the flat number.
+    const parts = address.split(',');
+    return parts[0].trim();
   };
 
   const isFiltered = filterPhase !== 'All Groups (Show Everything)' || filterRelation !== 'ALL' || search !== '' || dateFrom !== '' || dateTo !== '' || filterRole !== 'ALL';
