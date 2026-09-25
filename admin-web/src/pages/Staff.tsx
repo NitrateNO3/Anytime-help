@@ -839,32 +839,39 @@ export default function Staff() {
 
       {/* Edit Modal */}
       {editingUser && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20 }}>
-            <h2 className="card-title" style={{ marginBottom: 20 }}>Edit Staff Member</h2>
-            <form onSubmit={handleEditSubmit}>
-              <div className="input-group">
-                <label>Name</label>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, padding: 0, borderRadius: 16, maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 className="card-title" style={{ margin: 0, fontSize: 20 }}>Edit Staff Member</h2>
+              <button type="button" onClick={() => setEditingUser(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, borderRadius: 8 }} title="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} style={{ padding: '24px', overflowY: 'auto' }}>
+              <div className="form-group">
+                <label className="form-label">Name</label>
                 <input 
                   type="text" 
+                  className="form-input"
                   value={editingUser.name} 
                   onChange={(e) => setEditingUser({...editingUser, name: e.target.value})} 
                   required
                 />
               </div>
               
-              <div className="input-group">
-                <label>Phone Number</label>
+              <div className="form-group">
+                <label className="form-label">Phone Number</label>
                 <input 
                   type="text" 
+                  className="form-input"
                   value={editingUser.phone_number} 
                   onChange={(e) => setEditingUser({...editingUser, phone_number: e.target.value})} 
                   required
                 />
               </div>
 
-              <div className="input-group">
-                <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Categories</span>
                   <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>Select multiple</span>
                 </label>
@@ -893,7 +900,8 @@ export default function Staff() {
                           color: isSelected ? 'var(--primary)' : 'var(--text-main)',
                           fontSize: '13px',
                           fontWeight: 500,
-                          cursor: 'pointer'
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
                         }}
                       >
                         {cat}
@@ -904,10 +912,10 @@ export default function Staff() {
               </div>
               
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-                <button type="button" onClick={() => setEditingUser(null)} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid var(--border-color)', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                <button type="button" onClick={() => setEditingUser(null)} className="btn btn-outline" style={{ flex: 1 }}>
                   Cancel
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
                   Save Changes
                 </button>
               </div>

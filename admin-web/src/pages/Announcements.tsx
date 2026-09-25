@@ -537,32 +537,34 @@ export default function Announcements() {
       )}
       {/* Edit Modal */}
       {editingAnnouncement && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="card" style={{ width: '100%', maxWidth: 600, margin: 20 }}>
-            <h2 className="card-title" style={{ marginBottom: 20 }}>Edit Announcement</h2>
-            <form onSubmit={handleEditSubmit}>
-              <div className="input-group">
-                <label>Title</label>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="card" style={{ width: '100%', maxWidth: 600, margin: 20, padding: 0, borderRadius: 16, maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 className="card-title" style={{ margin: 0, fontSize: 20 }}>Edit Announcement</h2>
+              <button type="button" onClick={() => setEditingAnnouncement(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, borderRadius: 8 }} title="Close">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditSubmit} style={{ padding: '24px', overflowY: 'auto' }}>
+              <div className="form-group">
+                <label className="form-label">Title</label>
                 <input 
                   type="text" 
+                  className="form-input"
                   value={editingAnnouncement.title} 
                   onChange={(e) => setEditingAnnouncement({...editingAnnouncement, title: e.target.value})} 
                   required
                 />
               </div>
               
-              <div className="input-group">
-                <label>Message</label>
+              <div className="form-group">
+                <label className="form-label">Message</label>
                 <textarea 
+                  className="form-input"
                   value={editingAnnouncement.message} 
                   onChange={(e) => setEditingAnnouncement({...editingAnnouncement, message: e.target.value})} 
                   required
                   style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    background: 'white', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '12px', 
                     minHeight: '120px', 
                     resize: 'vertical',
                     fontFamily: 'inherit',
@@ -572,10 +574,10 @@ export default function Announcements() {
               </div>
               
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-                <button type="button" onClick={() => setEditingAnnouncement(null)} style={{ flex: 1, padding: '12px', background: 'white', border: '1px solid var(--border-color)', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                <button type="button" onClick={() => setEditingAnnouncement(null)} className="btn btn-outline" style={{ flex: 1 }}>
                   Cancel
                 </button>
-                <button type="submit" style={{ flex: 1, padding: '12px', background: 'var(--primary)', color: 'white', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer' }}>
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
                   Save Changes
                 </button>
               </div>
