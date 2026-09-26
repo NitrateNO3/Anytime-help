@@ -40,7 +40,7 @@ export default function AdminLayout() {
         </div>
 
         <nav style={{ flex: 1 }}>
-          {isSuperAdmin && (
+          {hasAccess('Overview') && (
             <Link to="/dashboard" className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}>
               <LayoutDashboard size={20} />
               Overview

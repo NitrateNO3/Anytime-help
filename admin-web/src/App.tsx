@@ -22,6 +22,7 @@ function IndexRedirect() {
   if (user?.role === 'Admin') return <Navigate to="/dashboard" replace />;
   if (user?.role === 'SubAdmin') {
     const perms = user.permissions || [];
+    if (perms.includes('Overview')) return <Navigate to="/dashboard" replace />;
     if (perms.includes('Residents')) return <Navigate to="/residents" replace />;
     if (perms.includes('Staff Team')) return <Navigate to="/staff" replace />;
     if (perms.includes('Committee Members')) return <Navigate to="/members" replace />;

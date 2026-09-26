@@ -44,6 +44,10 @@ export default function Dashboard() {
   const [isReplying, setIsReplying] = useState(false);
   const [isFetchingDetails, setIsFetchingDetails] = useState(false);
 
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const isSubAdmin = adminUser?.role === 'SubAdmin';
+
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -586,7 +590,7 @@ export default function Dashboard() {
                   <th style={{ width: '15%' }}>Resident Address</th>
                   <th style={{ width: '15%' }}>Resident Info</th>
                   <th style={{ width: '10%', minWidth: 105, whiteSpace: 'nowrap' }}>Status</th>
-                  <th style={{ width: '11%', minWidth: 140, whiteSpace: 'nowrap' }}>Actions</th>
+                  {!isSubAdmin && <th style={{ width: '11%', minWidth: 140, whiteSpace: 'nowrap' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -702,40 +706,42 @@ export default function Dashboard() {
                           {item.status.replace('_', ' ')}
                         </span>
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <select 
-                            value={item.status}
-                            onChange={(e) => updateStatus(item._id, e.target.value)}
-                            style={{ 
-                              background: '#F8FAFC', 
-                              color: 'var(--text-main)', 
-                              border: '1px solid var(--border-color)', 
-                              padding: '5px 8px', 
-                              borderRadius: '6px',
-                              outline: 'none',
-                              cursor: 'pointer',
-                              fontSize: '12px',
-                              fontWeight: '500',
-                              minWidth: '95px'
-                            }}
-                          >
-                            <option value="PENDING">Pending</option>
-                            <option value="IN_PROGRESS">In Progress</option>
-                            <option value="DONE">Resolved</option>
-                          </select>
+                      {!isSubAdmin && (
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <select 
+                              value={item.status}
+                              onChange={(e) => updateStatus(item._id, e.target.value)}
+                              style={{ 
+                                background: '#F8FAFC', 
+                                color: 'var(--text-main)', 
+                                border: '1px solid var(--border-color)', 
+                                padding: '5px 8px', 
+                                borderRadius: '6px',
+                                outline: 'none',
+                                cursor: 'pointer',
+                                fontSize: '12px',
+                                fontWeight: '500',
+                                minWidth: '95px'
+                              }}
+                            >
+                              <option value="PENDING">Pending</option>
+                              <option value="IN_PROGRESS">In Progress</option>
+                              <option value="DONE">Resolved</option>
+                            </select>
 
-                          <button 
-                            onClick={() => deleteComplaint(item._id)}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                            onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                            onMouseOut={(e) => e.currentTarget.style.background = 'none'}
-                            title="Delete Complaint"
-                          >
-                            <Trash2 size={16} color="var(--danger)" />
-                          </button>
-                        </div>
-                      </td>
+                            <button 
+                              onClick={() => deleteComplaint(item._id)}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                              onMouseOver={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                              onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+                              title="Delete Complaint"
+                            >
+                              <Trash2 size={16} color="var(--danger)" />
+                            </button>
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -835,22 +841,24 @@ export default function Dashboard() {
                             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                               {new Date(reply.created_at).toLocaleString()}
                             </span>
-                            <button 
-                              onClick={() => deleteReply(selectedComplaint._id, reply._id)}
-                              title="Delete Reply"
-                              style={{ 
-                                background: 'transparent', 
-                                border: 'none', 
-                                cursor: 'pointer', 
-                                color: 'var(--danger)',
-                                padding: 2,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                            {!isSubAdmin && (
+                              <button 
+                                onClick={() => deleteReply(selectedComplaint._id, reply._id)}
+                                title="Delete Reply"
+                                style={{ 
+                                  background: 'transparent', 
+                                  border: 'none', 
+                                  cursor: 'pointer', 
+                                  color: 'var(--danger)',
+                                  padding: 2,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center'
+                                }}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         </div>
                         <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{reply.text}</div>
@@ -860,8 +868,9 @@ export default function Dashboard() {
                 )}
               </div>
 
-              <div style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
-                <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Add a Reply</h4>
+              {!isSubAdmin && (
+                <div style={{ marginTop: 24, borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
+                  <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Add a Reply</h4>
                 <textarea
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
@@ -876,8 +885,9 @@ export default function Dashboard() {
                   >
                     {isReplying ? 'Sending...' : 'Send Reply'}
                   </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
