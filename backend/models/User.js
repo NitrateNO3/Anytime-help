@@ -21,7 +21,9 @@ const userSchema = new mongoose.Schema({
     relation: { type: String },
     name: { type: String },
     phone_number: { type: String }
-  }]
+  }],
+  has_logged_in: { type: Boolean, default: false },
+  last_login_at: { type: Date, required: false }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

@@ -374,6 +374,7 @@ export default function Members() {
                       <th>Designation</th>
                       <th>Permissions</th>
                       <th>Address</th>
+                      <th>Status</th>
                       {!isSubAdmin && <th style={{ width: 100, textAlign: 'center' }}>Actions</th>}
                     </tr>
                   </thead>
@@ -402,6 +403,17 @@ export default function Members() {
                           </div>
                         </td>
                         <td>{member.address || '-'}</td>
+                        <td>
+                          {member.has_logged_in ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#10B981', background: '#D1FAE5', padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: 3, background: '#10B981' }}></span> Active
+                            </span>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#6B7280', background: '#F3F4F6', padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+                              <span style={{ width: 6, height: 6, borderRadius: 3, background: '#9CA3AF' }}></span> Pending
+                            </span>
+                          )}
+                        </td>
                         {!isSubAdmin && (
                           <td style={{ textAlign: 'center' }}>
                             <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>

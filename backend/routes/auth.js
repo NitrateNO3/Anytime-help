@@ -93,6 +93,10 @@ router.post('/login', async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: 'Invalid Credentials' });
 
+    user.has_logged_in = true;
+    user.last_login_at = new Date();
+    await user.save();
+
     const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, permissions: user.permissions } };
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
@@ -138,6 +142,10 @@ router.post('/firebase-login', async (req, res) => {
         await user.save();
       }
     }
+    
+    user.has_logged_in = true;
+    user.last_login_at = new Date();
+    await user.save();
 
     const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id } };
     
@@ -304,6 +312,10 @@ router.post('/verify-otp', async (req, res) => {
     if (role && user.role !== role) {
       return res.status(403).json({ msg: `Access Denied. You are registered as ${user.role}, not ${role}.` });
     }
+
+    user.has_logged_in = true;
+    user.last_login_at = new Date();
+    await user.save();
 
     const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id, permissions: user.permissions || [] } };
     

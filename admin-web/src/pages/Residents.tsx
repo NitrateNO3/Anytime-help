@@ -665,6 +665,7 @@ export default function Residents() {
                 <th style={{ padding: '16px', width: '14%' }}>Phase / Group</th>
                 <th style={{ padding: '16px', width: '8%' }}>Relation</th>
                 <th style={{ padding: '16px', width: '11%' }}>Joined Date</th>
+                <th style={{ padding: '16px', width: '8%' }}>Status</th>
                 {!isSubAdmin && (
                   <th style={{ padding: '16px', width: '7%', textAlign: 'center' }}>Actions</th>
                 )}
@@ -681,6 +682,7 @@ export default function Residents() {
                     <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '70%' }}></div></td>
                     <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '60%' }}></div></td>
                     <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '90%' }}></div></td>
+                    <td style={{ padding: '16px' }}><div className="skeleton skeleton-row" style={{ width: '50%' }}></div></td>
                     {!isSubAdmin && (
                       <td style={{ padding: '16px', textAlign: 'center' }}><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8, margin: '0 auto' }}></div></td>
                     )}
@@ -755,6 +757,17 @@ export default function Residents() {
                     </td>
                     <td style={{ padding: '16px', color: 'var(--text-muted)', fontSize: 13 }}>
                       {new Date(r.createdAt || r.updatedAt || Date.now()).toLocaleDateString()}
+                    </td>
+                    <td style={{ padding: '16px' }}>
+                      {r.has_logged_in ? (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#10B981', background: '#D1FAE5', padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: 3, background: '#10B981' }}></span> Active
+                        </span>
+                      ) : (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#6B7280', background: '#F3F4F6', padding: '4px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600 }}>
+                          <span style={{ width: 6, height: 6, borderRadius: 3, background: '#9CA3AF' }}></span> Pending
+                        </span>
+                      )}
                     </td>
                     {!isSubAdmin && (
                       <td style={{ padding: '16px', textAlign: 'center' }}>
