@@ -157,6 +157,20 @@ export default function Dashboard() {
     return res.data;
   };
 
+  const openComplaintDetails = async (item: any) => {
+    // Open optimistically with what we have
+    setSelectedComplaint(item);
+    try {
+      const token = localStorage.getItem('adminToken');
+      const res = await axios.get(`${API_URL}/complaints/${item._id}`, {
+        headers: { 'x-auth-token': token }
+      });
+      setSelectedComplaint(res.data);
+    } catch (err) {
+      console.error('Failed to load full complaint details', err);
+    }
+  };
+
   const deleteComplaint = (id: string) => {
     toast((t) => (
       <div>
@@ -622,7 +636,7 @@ export default function Dashboard() {
                     <tr key={item._id}>
                       <td 
                         style={{ maxWidth: 280, cursor: 'pointer' }}
-                        onClick={() => setSelectedComplaint(item)}
+                        onClick={() => openComplaintDetails(item)}
                         title="Click to view details"
                       >
                         <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: 4 }}>{item.title}</div>

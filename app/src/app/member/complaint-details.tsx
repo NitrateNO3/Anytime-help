@@ -53,16 +53,12 @@ export default function ComplaintDetails() {
     if (!id) return;
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      // Using the fetch all workaround to avoid backend deployment requirement
-      const res = await axios.get(`${API_URL}/complaints`, {
+      const res = await axios.get(`${API_URL}/complaints/${id}`, {
         headers: { 'x-auth-token': token }
       });
       
-      const complaintsArray = Array.isArray(res.data) ? res.data : (res.data.complaints || []);
-      const found = complaintsArray.find((c: any) => c._id === id);
-      
-      if (found) {
-        setComplaint(found);
+      if (res.data) {
+        setComplaint(res.data);
       } else {
         Toast.show({ type: 'error', text1: 'Error', text2: 'Complaint not found' });
       }
@@ -186,7 +182,11 @@ export default function ComplaintDetails() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <KeyboardAvoidingView 
+        style={{ flex: 1 }} 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent}>
         
         {/* Title and Badge */}
         <View style={styles.titleRow}>
@@ -435,6 +435,7 @@ export default function ComplaintDetails() {
         
         <View style={{ height: 40 }} />
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Full Screen Image Modal */}
       <Modal visible={!!fullScreenImage} transparent={true} animationType="fade" onRequestClose={() => setFullScreenImage(null)}>
