@@ -329,4 +329,25 @@ router.post('/verify-otp', async (req, res) => {
   }
 });
 
+// @route   POST api/auth/logout
+// @desc    Logout user and mark as inactive
+// @access  Public
+router.post('/logout', async (req, res) => {
+  const { userId } = req.body;
+  try {
+    if (!userId) return res.status(400).json({ msg: 'User ID is required' });
+    
+    let user = await User.findById(userId);
+    if (!user) return res.status(404).json({ msg: 'User not found' });
+
+    user.has_logged_in = false;
+    await user.save();
+
+    res.json({ msg: 'Logged out successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server error');
+  }
+});
+
 module.exports = router;

@@ -105,6 +105,19 @@ export default function PaidStaffScreen() {
   };
 
   const handleLogout = async () => {
+    try {
+      const userData = await SecureStore.getItemAsync('userData');
+      if (userData) {
+        const parsed = JSON.parse(userData);
+        await fetch('https://anytime-help.onrender.com/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: parsed.id })
+        });
+      }
+    } catch (e) {
+      console.error('Error logging out from server', e);
+    }
     await SecureStore.deleteItemAsync('userToken');
     await SecureStore.deleteItemAsync('userData');
     Toast.show({ type: 'success', text1: 'Logged out successfully' });
