@@ -21,6 +21,7 @@ export default function Announcements() {
   const adminUserStr = localStorage.getItem('adminUser');
   const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
   const isSubAdmin = adminUser?.role === 'SubAdmin';
+  const canManageAnnouncements = adminUser?.role === 'Admin' || (isSubAdmin && adminUser?.permissions?.includes('Announcements'));
 
   // Filter States
   const [search, setSearch] = useState('');
@@ -242,7 +243,7 @@ export default function Announcements() {
         >
           <Bell size={18} /> Recent Announcements
         </button>
-        {!isSubAdmin && (
+        {canManageAnnouncements && (
           <button 
             onClick={() => { setActiveTab('create'); }}
             style={{ 
@@ -375,7 +376,7 @@ export default function Announcements() {
                 <th>Title</th>
                 <th>Message</th>
                 <th style={{ whiteSpace: 'nowrap' }}>Created By</th>
-                {!isSubAdmin && <th style={{ width: 100 }}>Actions</th>}
+                {canManageAnnouncements && <th style={{ width: 100 }}>Actions</th>}
               </tr>
             </thead>
             <tbody>
@@ -394,7 +395,7 @@ export default function Announcements() {
                 ))
               ) : announcements.length === 0 ? (
                   <tr>
-                    <td colSpan={isSubAdmin ? 4 : 5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
+                    <td colSpan={!canManageAnnouncements ? 4 : 5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       <Megaphone size={40} color="var(--border-color)" style={{ margin: '0 auto 16px' }} />
                       No announcements broadcasted yet for this filter.
                     </td>
@@ -408,7 +409,7 @@ export default function Announcements() {
                       <td style={{ fontWeight: 600 }}>{announcement.title}</td>
                       <td style={{ color: 'var(--text-muted)' }}>{announcement.message}</td>
                       <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{announcement.createdBy?.name || announcement.creatorName || 'Admin'}</td>
-                      {!isSubAdmin && (
+                      {canManageAnnouncements && (
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                             <button 
