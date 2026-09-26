@@ -16,10 +16,6 @@ module.exports = async function (req, res, next) {
       return res.status(401).json({ msg: 'User no longer exists, authorization denied' });
     }
 
-    // Sub-Admin Read-Only Check
-    if (user.role === 'SubAdmin' && req.method !== 'GET') {
-      return res.status(403).json({ msg: 'Access Denied: Sub-Admins have read-only permissions.' });
-    }
 
     req.user = decoded.user;
     next();

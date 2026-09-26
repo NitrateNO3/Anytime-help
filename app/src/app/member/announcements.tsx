@@ -22,6 +22,27 @@ export default function Announcements() {
   const [newTitle, setNewTitle] = useState('');
   const [newDesc, setNewDesc] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const [newTargetPhase, setNewTargetPhase] = useState('All');
+
+  const getAvailableAudiences = () => {
+    if (!user?.permissions) return [{ label: 'All', value: 'All' }];
+    const options = [];
+    if (user.permissions.includes('Announcements (All)')) options.push({ label: 'All', value: 'All' });
+    if (user.permissions.includes('Announcements (Residents)')) options.push({ label: 'Residents', value: 'Resident' });
+    if (user.permissions.includes('Announcements (Members)')) options.push({ label: 'Members', value: 'Members' });
+    if (options.length === 0) options.push({ label: 'All', value: 'All' }); // Fallback
+    return options;
+  };
+
+  // Set default phase when opening modal
+  useEffect(() => {
+    if (createModalVisible) {
+      const opts = getAvailableAudiences();
+      if (!opts.some(o => o.value === newTargetPhase)) {
+        setNewTargetPhase(opts[0].value);
+      }
+    }
+  }, [createModalVisible]);
   useEffect(() => {
     SecureStore.getItemAsync('userData').then((data) => {
       if (data) setUser(JSON.parse(data));
@@ -99,17 +120,10 @@ export default function Announcements() {
     setIsCreating(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      let targetPhase = 'All';
-      if (user?.permissions) {
-        if (user.permissions.includes('Announcements (All)')) targetPhase = 'All';
-        else if (user.permissions.includes('Announcements (Residents)')) targetPhase = 'Resident';
-        else if (user.permissions.includes('Announcements (Members)')) targetPhase = 'Members';
-      }
-
       await axios.post(`${API_URL}/announcements`, {
         title: newTitle.trim(),
         message: newDesc.trim(),
-        phases: [targetPhase]
+        phases: [newTargetPhase]
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -183,7 +197,7 @@ export default function Announcements() {
         )}
       </ScrollView>
 
-      {(!user?.permissions || user?.permissions?.includes('Announcements')) && (
+      {(!user?.permissions || user?.permissions?.some((p: string) => p.startsWith('Announcements'))) && (
         <TouchableOpacity 
           style={styles.fab} 
           onPress={() => setCreateModalVisible(true)}
@@ -233,6 +247,35 @@ export default function Announcements() {
                 numberOfLines={4}
                 textAlignVertical="top"
               />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Send To</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {getAvailableAudiences().map((opt) => (
+                  <TouchableOpacity
+                    key={opt.value}
+                    onPress={() => setNewTargetPhase(opt.value)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      alignItems: 'center',
+                      borderRadius: 8,
+                      borderWidth: 1,
+                      borderColor: newTargetPhase === opt.value ? '#2563EB' : '#E2E8F0',
+                      backgroundColor: newTargetPhase === opt.value ? '#EFF6FF' : '#F8FAFC'
+                    }}
+                  >
+                    <Text style={{ 
+                      fontWeight: '600', 
+                      fontSize: 14, 
+                      color: newTargetPhase === opt.value ? '#1D4ED8' : '#64748B' 
+                    }}>
+                      {opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
 
             <TouchableOpacity 

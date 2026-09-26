@@ -93,7 +93,7 @@ router.get('/', auth, async (req, res) => {
 // @access  Private
 router.post('/', auth, async (req, res) => {
   const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || 
-    ((req.user.role === 'SubAdmin' || req.user.role === 'Member') && req.user.permissions && req.user.permissions.includes('Announcements'));
+    ((req.user.role === 'SubAdmin' || req.user.role === 'Member') && req.user.permissions && req.user.permissions.some(p => p.startsWith('Announcements')));
   if (!hasAccess) {
     return res.status(403).json({ msg: 'Authorization denied' });
   }
@@ -170,7 +170,7 @@ router.post('/', auth, async (req, res) => {
 // @access  Private
 router.delete('/:id', auth, async (req, res) => {
   const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || 
-    ((req.user.role === 'SubAdmin' || req.user.role === 'Member') && req.user.permissions && req.user.permissions.includes('Announcements'));
+    ((req.user.role === 'SubAdmin' || req.user.role === 'Member') && req.user.permissions && req.user.permissions.some(p => p.startsWith('Announcements')));
   if (!hasAccess) {
     return res.status(403).json({ msg: 'Authorization denied' });
   }
@@ -205,7 +205,7 @@ router.delete('/:id', auth, async (req, res) => {
 // @access  Private
 router.put('/:id', auth, async (req, res) => {
   const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || 
-    ((req.user.role === 'SubAdmin' || req.user.role === 'Member') && req.user.permissions && req.user.permissions.includes('Announcements'));
+    ((req.user.role === 'SubAdmin' || req.user.role === 'Member') && req.user.permissions && req.user.permissions.some(p => p.startsWith('Announcements')));
   if (!hasAccess) {
     return res.status(403).json({ msg: 'Authorization denied' });
   }
