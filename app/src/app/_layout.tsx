@@ -199,13 +199,9 @@ export default function RootLayout() {
             const msg = 'Hello Anytime Help Support, I need some assistance. Could you please help me?';
             const encodedMsg = encodeURIComponent(msg);
             const url = `whatsapp://send?phone=918882004800&text=${encodedMsg}`;
-            Linking.canOpenURL(url).then(supported => {
-              if (supported) {
-                Linking.openURL(url);
-              } else {
-                Linking.openURL(`https://wa.me/918882004800?text=${encodedMsg}`);
-              }
-            }).catch(err => console.error('An error occurred', err));
+            Linking.openURL(url).catch(() => {
+              Linking.openURL(`https://wa.me/918882004800?text=${encodedMsg}`).catch(err => console.error('An error occurred', err));
+            });
           }}
         >
           <Ionicons name="logo-whatsapp" size={30} color="#FFFFFF" />

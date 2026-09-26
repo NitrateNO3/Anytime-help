@@ -100,13 +100,9 @@ export default function DirectoryScreen() {
       }
       // Try to open WhatsApp app directly, fallback to wa.me web link
       const url = `whatsapp://send?phone=${cleaned}`;
-      Linking.canOpenURL(url).then(supported => {
-        if (supported) {
-          Linking.openURL(url);
-        } else {
-          Linking.openURL(`https://wa.me/${cleaned}`);
-        }
-      }).catch(err => console.error('An error occurred', err));
+      Linking.openURL(url).catch(() => {
+        Linking.openURL(`https://wa.me/${cleaned}`).catch(err => console.error('An error occurred', err));
+      });
     }
   };
 
