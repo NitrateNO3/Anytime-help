@@ -786,7 +786,7 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              {isFetchingDetails ? (
+              {isFetchingDetails && !selectedComplaint.before_image ? (
                 <div style={{ marginBottom: 20 }}>
                   <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--text-main)' }}>Attached Image</h4>
                   <div className="skeleton" style={{ width: '100%', height: 200, borderRadius: 12 }}></div>

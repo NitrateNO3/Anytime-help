@@ -183,7 +183,6 @@ router.get('/', auth, async (req, res) => {
     
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     let complaintsQuery = Complaint.find(query)
-      .select('-before_image -after_image')
       .populate('user', 'name phone_number address room_number phase relation')
       .populate('assigned_staff', 'name phone_number address room_number phase')
       .sort({ created_at: sortDirection });
