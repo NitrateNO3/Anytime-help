@@ -620,8 +620,12 @@ export default function Dashboard() {
                 ) : (
                   complaints.map(item => (
                     <tr key={item._id}>
-                      <td style={{ maxWidth: 280 }}>
-                        <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: 4 }}>{item.title}</div>
+                      <td 
+                        style={{ maxWidth: 280, cursor: 'pointer' }}
+                        onClick={() => setSelectedComplaint(item)}
+                        title="Click to view details"
+                      >
+                        <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: 4 }}>{item.title}</div>
                         <div style={{ color: 'var(--text-muted)', fontSize: 12, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginBottom: 4 }}>
                           {item.description}
                         </div>
@@ -702,13 +706,7 @@ export default function Dashboard() {
                             <option value="IN_PROGRESS">In Progress</option>
                             <option value="DONE">Resolved</option>
                           </select>
-                          <button 
-                            onClick={() => setSelectedComplaint(item)}
-                            style={{ background: 'var(--primary)', color: 'white', border: 'none', cursor: 'pointer', padding: '6px 12px', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 500 }}
-                            title="View & Reply"
-                          >
-                            View
-                          </button>
+
                           <button 
                             onClick={() => deleteComplaint(item._id)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 6, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -769,6 +767,13 @@ export default function Dashboard() {
                   {selectedComplaint.description}
                 </p>
               </div>
+
+              {selectedComplaint.before_image && (
+                <div style={{ marginBottom: 20 }}>
+                  <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--text-main)' }}>Attached Image</h4>
+                  <img src={selectedComplaint.before_image} alt="Complaint" style={{ width: '100%', maxHeight: 300, objectFit: 'contain', borderRadius: 12, border: '1px solid var(--border-color)', background: '#f8fafc' }} />
+                </div>
+              )}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
                 <div style={{ background: '#f8fafc', padding: 16, borderRadius: 12 }}>
