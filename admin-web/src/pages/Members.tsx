@@ -22,6 +22,7 @@ export default function Members() {
   // Filter States
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL');
 
   // Debounce search
   useEffect(() => {
@@ -46,13 +47,14 @@ export default function Members() {
 
   useEffect(() => {
     if (activeTab === 'list') {
-      fetchMembers(page, debouncedSearch);
+      fetchMembers(page, debouncedSearch, filterStatus);
     }
-  }, [activeTab, page, debouncedSearch]);
+  }, [activeTab, page, debouncedSearch, filterStatus]);
 
   const fetchMembers = async (
     currentPage = page, 
     searchFilter = debouncedSearch,
+    statusFilter = filterStatus,
     showLoading = true
   ) => {
     try {
@@ -64,6 +66,7 @@ export default function Members() {
         limit: '10'
       });
       if (searchFilter.trim()) params.append('search', searchFilter.trim());
+      if (statusFilter !== 'ALL') params.append('status', statusFilter);
 
       const res = await axios.get(`${API_URL}/users/members?${params.toString()}`, {
         headers: { 'x-auth-token': token }
@@ -89,6 +92,7 @@ export default function Members() {
     const token = localStorage.getItem('adminToken');
     const params = new URLSearchParams();
     if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+    if (filterStatus !== 'ALL') params.append('status', filterStatus);
 
     const res = await axios.get(`${API_URL}/users/members?${params.toString()}`, {
       headers: { 'x-auth-token': token }
@@ -160,7 +164,7 @@ export default function Members() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Member deleted', { id: loadingToast });
-                fetchMembers(page, debouncedSearch, false);
+                fetchMembers(page, debouncedSearch, filterStatus, false);
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete member', { id: loadingToast });
@@ -175,11 +179,12 @@ export default function Members() {
     ), { duration: Infinity, style: { minWidth: '300px' } });
   };
 
-  const isFiltered = search !== '';
+  const isFiltered = search !== '' || filterStatus !== 'ALL';
 
   const resetFilters = () => {
     setSearch('');
     setDebouncedSearch('');
+    setFilterStatus('ALL');
     setPage(1);
   };
 
@@ -202,7 +207,7 @@ export default function Members() {
       
       toast.success('Member updated successfully!', { id: loadingToast });
       setEditingUser(null);
-      fetchMembers(page, debouncedSearch, false);
+      fetchMembers(page, debouncedSearch, filterStatus, false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update member', { id: loadingToast });
     }
@@ -324,6 +329,36 @@ export default function Members() {
                   <X size={16} />
                 </button>
               )}
+            </div>
+            
+            {/* Status Filter */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>
+                Login Status:
+              </label>
+              <select 
+                value={filterStatus} 
+                onChange={(e) => {
+                  setFilterStatus(e.target.value);
+                  setPage(1);
+                }}
+                style={{ 
+                  padding: '8px 12px', 
+                  borderRadius: '8px', 
+                  border: '1px solid var(--border-color)', 
+                  background: '#FFFFFF',
+                  fontSize: 13,
+                  color: 'var(--text-main)',
+                  fontWeight: 500,
+                  outline: 'none',
+                  cursor: 'pointer',
+                  minWidth: '150px'
+                }}
+              >
+                <option value="ALL">All Statuses</option>
+                <option value="Active">Active</option>
+                <option value="Pending">Pending</option>
+              </select>
             </div>
           </div>
           

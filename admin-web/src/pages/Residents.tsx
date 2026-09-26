@@ -19,6 +19,7 @@ export default function Residents() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [filterRole, setFilterRole] = useState('ALL');
+  const [filterStatus, setFilterStatus] = useState('ALL');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -65,8 +66,8 @@ export default function Residents() {
   }, [search]);
 
   useEffect(() => {
-    fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole);
-  }, [page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole]);
+    fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, filterStatus);
+  }, [page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, filterStatus]);
 
   const fetchDynamicPhases = () => {
     const token = localStorage.getItem('adminToken');
@@ -104,18 +105,18 @@ export default function Residents() {
 
     socket.on('user_created', (newUser: any) => {
       if (newUser.role === 'Resident') {
-        fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, false);
+        fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, filterStatus, false);
       }
     });
 
     socket.on('user_deleted', () => {
-      fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, false);
+      fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, filterStatus, false);
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole]);
+  }, [page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, filterStatus]);
 
   const fetchResidents = async (
     currentPage = page, 
@@ -125,6 +126,7 @@ export default function Residents() {
     from = dateFrom,
     to = dateTo,
     role = filterRole,
+    statusFilter = filterStatus,
     showLoading = true
   ) => {
     try {
@@ -140,6 +142,7 @@ export default function Residents() {
       if (from) params.append('dateFrom', from);
       if (to) params.append('dateTo', to);
       if (role !== 'ALL') params.append('role', role);
+      if (statusFilter !== 'ALL') params.append('status', statusFilter);
 
       const res = await axios.get(`${API_URL}/users/residents?${params.toString()}`, {
         headers: { 'x-auth-token': token }
@@ -168,6 +171,7 @@ export default function Residents() {
     if (dateFrom) params.append('dateFrom', dateFrom);
     if (dateTo) params.append('dateTo', dateTo);
     if (filterRole !== 'ALL') params.append('role', filterRole);
+    if (filterStatus !== 'ALL') params.append('status', filterStatus);
 
     const res = await axios.get(`${API_URL}/users/residents?${params.toString()}`, {
       headers: { 'x-auth-token': token }
@@ -184,12 +188,13 @@ export default function Residents() {
     return parts[0].trim();
   };
 
-  const isFiltered = filterPhase !== 'All Groups (Show Everything)' || filterRelation !== 'ALL' || search !== '' || dateFrom !== '' || dateTo !== '' || filterRole !== 'ALL';
+  const isFiltered = filterPhase !== 'All Groups (Show Everything)' || filterRelation !== 'ALL' || search !== '' || dateFrom !== '' || dateTo !== '' || filterRole !== 'ALL' || filterStatus !== 'ALL';
 
   const resetFilters = () => {
     setFilterPhase('All Groups (Show Everything)');
     setFilterRelation('ALL');
     setFilterRole('ALL');
+    setFilterStatus('ALL');
     setSearch('');
     setDebouncedSearch('');
     setDateFrom('');
@@ -223,7 +228,7 @@ export default function Residents() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Resident deleted successfully', { id: loadingToast });
-                fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, false);
+                fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, filterStatus, false);
               } catch (error: any) {
                 console.error('Error deleting resident:', error);
                 toast.error(error.response?.data?.message || 'Could not delete resident', { id: loadingToast });
@@ -574,6 +579,36 @@ export default function Residents() {
               <option value="ALL">Both Residents & Members</option>
               <option value="Resident">Only Residents</option>
               <option value="Member">Only Members</option>
+            </select>
+          </div>
+
+          {/* Status Filter */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+              Login Status
+            </label>
+            <select 
+              value={filterStatus} 
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setPage(1);
+              }}
+              style={{ 
+                width: '100%', 
+                padding: '9px 12px', 
+                borderRadius: '8px', 
+                border: '1px solid var(--border-color)', 
+                background: '#FFFFFF',
+                fontSize: 13,
+                color: 'var(--text-main)',
+                fontWeight: 500,
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="ALL">All Statuses</option>
+              <option value="Active">Active</option>
+              <option value="Pending">Pending</option>
             </select>
           </div>
 

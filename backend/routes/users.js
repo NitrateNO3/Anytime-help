@@ -175,7 +175,7 @@ router.get('/residents', auth, async (req, res) => {
     if (!checkAccess(req.user, 'Residents')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const { page, limit, phase, search, relation, dateFrom, dateTo, role } = req.query;
+    const { page, limit, phase, search, relation, dateFrom, dateTo, role, status } = req.query;
     
     let roleQuery = { $in: ['Resident', 'Member'] };
     if (role === 'Resident') roleQuery = 'Resident';
@@ -239,6 +239,14 @@ router.get('/residents', auth, async (req, res) => {
       andConditions.push({ createdAt: dateFilter });
     }
 
+    if (status && status !== 'ALL') {
+      if (status === 'Active') {
+        andConditions.push({ has_logged_in: true });
+      } else if (status === 'Pending') {
+        andConditions.push({ has_logged_in: { $ne: true } });
+      }
+    }
+
     if (andConditions.length > 0) {
       query.$and = andConditions;
     }
@@ -267,7 +275,7 @@ router.get('/members', auth, async (req, res) => {
     if (!checkAccess(req.user, 'Committee Members')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const { page, limit, search, dateFrom, dateTo } = req.query;
+    const { page, limit, search, dateFrom, dateTo, status } = req.query;
     let query = { role: 'Member' };
     const andConditions = [];
 
@@ -292,6 +300,14 @@ router.get('/members', auth, async (req, res) => {
         dateFilter.$lte = end;
       }
       andConditions.push({ createdAt: dateFilter });
+    }
+
+    if (status && status !== 'ALL') {
+      if (status === 'Active') {
+        andConditions.push({ has_logged_in: true });
+      } else if (status === 'Pending') {
+        andConditions.push({ has_logged_in: { $ne: true } });
+      }
     }
 
     if (andConditions.length > 0) {
