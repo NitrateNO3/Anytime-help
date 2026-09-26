@@ -42,6 +42,7 @@ export default function Dashboard() {
   const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+  const [isFetchingDetails, setIsFetchingDetails] = useState(false);
 
   // Debounce search query
   useEffect(() => {
@@ -160,6 +161,7 @@ export default function Dashboard() {
   const openComplaintDetails = async (item: any) => {
     // Open optimistically with what we have
     setSelectedComplaint(item);
+    setIsFetchingDetails(true);
     try {
       const token = localStorage.getItem('adminToken');
       const res = await axios.get(`${API_URL}/complaints/${item._id}`, {
@@ -168,6 +170,8 @@ export default function Dashboard() {
       setSelectedComplaint(res.data);
     } catch (err) {
       console.error('Failed to load full complaint details', err);
+    } finally {
+      setIsFetchingDetails(false);
     }
   };
 
@@ -782,12 +786,17 @@ export default function Dashboard() {
                 </p>
               </div>
 
-              {selectedComplaint.before_image && (
+              {isFetchingDetails ? (
+                <div style={{ marginBottom: 20 }}>
+                  <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--text-main)' }}>Attached Image</h4>
+                  <div className="skeleton" style={{ width: '100%', height: 200, borderRadius: 12 }}></div>
+                </div>
+              ) : selectedComplaint.before_image ? (
                 <div style={{ marginBottom: 20 }}>
                   <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--text-main)' }}>Attached Image</h4>
                   <img src={selectedComplaint.before_image} alt="Complaint" style={{ width: '100%', maxHeight: 300, objectFit: 'contain', borderRadius: 12, border: '1px solid var(--border-color)', background: '#f8fafc' }} />
                 </div>
-              )}
+              ) : null}
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
                 <div style={{ background: '#f8fafc', padding: 16, borderRadius: 12 }}>
