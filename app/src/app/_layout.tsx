@@ -28,6 +28,9 @@ export default function RootLayout() {
   const pan = useRef(new Animated.ValueXY()).current;
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponderCapture: () => false,
       onMoveShouldSetPanResponder: (evt, gestureState) => {
         // Only claim the gesture if the user drags significantly
         return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
