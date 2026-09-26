@@ -37,6 +37,10 @@ const AnnouncementSchema = new mongoose.Schema({
     type: String,
     enum: ['All', 'Members'],
     default: 'All'
+  },
+  image: {
+    type: String, // Base64 or URL
+    required: false
   }
 });
 

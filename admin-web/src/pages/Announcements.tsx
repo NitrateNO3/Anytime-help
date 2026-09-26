@@ -407,7 +407,12 @@ export default function Announcements() {
                         {new Date(announcement.date).toLocaleDateString()}
                       </td>
                       <td style={{ fontWeight: 600 }}>{announcement.title}</td>
-                      <td style={{ color: 'var(--text-muted)' }}>{announcement.message}</td>
+                      <td style={{ color: 'var(--text-muted)' }}>
+                        <div>{announcement.message}</div>
+                        {announcement.image && (
+                          <img src={announcement.image} alt="Announcement Image" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, marginTop: 8, border: '1px solid var(--border-color)' }} />
+                        )}
+                      </td>
                       <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{announcement.createdBy?.name || announcement.creatorName || 'Admin'}</td>
                       {canManageAnnouncements && (
                         <td style={{ textAlign: 'center' }}>

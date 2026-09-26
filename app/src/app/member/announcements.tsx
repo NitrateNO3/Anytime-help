@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler, Modal, TextInput, Alert, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler, Modal, TextInput, Alert, KeyboardAvoidingView, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { io } from 'socket.io-client';
+import * as ImagePicker from 'expo-image-picker';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -23,6 +24,20 @@ export default function Announcements() {
   const [newDesc, setNewDesc] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newTargetPhase, setNewTargetPhase] = useState('All');
+  const [newImage, setNewImage] = useState<string | null>(null);
+
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.5,
+      base64: true
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setNewImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
 
   const getAvailableAudiences = () => {
     if (!user?.permissions) return [{ label: 'All', value: 'All' }];
@@ -123,7 +138,9 @@ export default function Announcements() {
       await axios.post(`${API_URL}/announcements`, {
         title: newTitle.trim(),
         message: newDesc.trim(),
-        phases: [newTargetPhase]
+        phases: [newTargetPhase],
+        targetAudience: newTargetPhase,
+        image: newImage
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -132,6 +149,7 @@ export default function Announcements() {
       setCreateModalVisible(false);
       setNewTitle('');
       setNewDesc('');
+      setNewImage(null);
       fetchAnnouncements();
     } catch (err: any) {
       console.log('Error creating announcement:', err);
@@ -183,6 +201,9 @@ export default function Announcements() {
                 </View>
               </View>
               <Text style={styles.cardMessage}>{item.message}</Text>
+              {item.image && (
+                <Image source={{ uri: item.image }} style={{ width: '100%', height: 200, borderRadius: 12, marginTop: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
+              )}
               
               <View style={styles.cardFooter}>
                 <Text style={styles.dateText}>{formatDate(item.date)}</Text>
@@ -247,6 +268,23 @@ export default function Announcements() {
                 numberOfLines={4}
                 textAlignVertical="top"
               />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Image (Optional)</Text>
+              {newImage ? (
+                <View style={{ position: 'relative' }}>
+                  <Image source={{ uri: newImage }} style={{ width: '100%', height: 150, borderRadius: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
+                  <TouchableOpacity onPress={() => setNewImage(null)} style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.5)', padding: 6, borderRadius: 16 }}>
+                    <Ionicons name="close" size={20} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity onPress={pickImage} style={{ padding: 16, borderWidth: 1, borderColor: '#CBD5E1', borderStyle: 'dashed', borderRadius: 12, alignItems: 'center', backgroundColor: '#F8FAFC' }}>
+                  <Ionicons name="image-outline" size={32} color="#94A3B8" />
+                  <Text style={{ marginTop: 8, color: '#64748B', fontWeight: '500' }}>Tap to upload an image</Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <View style={styles.formGroup}>

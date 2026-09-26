@@ -98,7 +98,7 @@ router.post('/', auth, async (req, res) => {
     return res.status(403).json({ msg: 'Authorization denied' });
   }
 
-  const { title, message, phases, targetAudience } = req.body;
+  const { title, message, phases, targetAudience, image } = req.body;
 
   try {
     let creatorName = req.user.name;
@@ -118,7 +118,8 @@ router.post('/', auth, async (req, res) => {
       creatorName: creatorName || req.user.role,
       creatorId: creatorId || '',
       phases: phases || [],
-      targetAudience: targetAudience || 'All'
+      targetAudience: targetAudience || 'All',
+      image: image || null
     });
 
     const announcement = await newAnnouncement.save();
@@ -210,7 +211,7 @@ router.put('/:id', auth, async (req, res) => {
     return res.status(403).json({ msg: 'Authorization denied' });
   }
 
-  const { title, message, phases, targetAudience } = req.body;
+  const { title, message, phases, targetAudience, image } = req.body;
 
   try {
     let announcement = await Announcement.findById(req.params.id);
@@ -219,9 +220,10 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     if (title) announcement.title = title;
-    if (message) announcement.message = message;
-    if (phases) announcement.phases = phases;
-    if (targetAudience) announcement.targetAudience = targetAudience;
+    if (message !== undefined) announcement.message = message;
+    if (phases !== undefined) announcement.phases = phases;
+    if (targetAudience !== undefined) announcement.targetAudience = targetAudience;
+    if (image !== undefined) announcement.image = image;
 
     await announcement.save();
 
