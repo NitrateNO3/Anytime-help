@@ -657,7 +657,7 @@ router.put('/:id', auth, async (req, res) => {
       if (!hasAccess) return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    const { name, phone_number, designation, assigned_category, assigned_categories, phase } = req.body;
+    const { name, phone_number, designation, assigned_category, assigned_categories, phase, permissions, member_id, address } = req.body;
     let user = await User.findById(req.params.id);
     
     if (!user) {
@@ -665,19 +665,30 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     // Only allow specific fields to be updated based on role to prevent escalation
-    if (name) user.name = name;
-    if (phone_number) user.phone_number = phone_number;
-    if (designation && user.role === 'Member') user.designation = designation;
+    if (name !== undefined) user.name = name;
+    if (phone_number !== undefined) user.phone_number = phone_number;
+    if (address !== undefined) user.address = address;
+    
+    if (user.role === 'Member') {
+      if (designation !== undefined) user.designation = designation;
+      if (permissions !== undefined) user.permissions = permissions;
+      if (member_id !== undefined) user.member_id = member_id;
+    }
+    
+    if (user.role === 'Resident') {
+      if (phase !== undefined) user.phase = phase;
+    }
+    
     if (user.role === 'Staff' || user.role === 'PaidStaff') {
       let finalAssignedCategories = assigned_categories;
-      if (!finalAssignedCategories && assigned_category) {
+      if (!finalAssignedCategories && assigned_category !== undefined) {
         finalAssignedCategories = [assigned_category];
       }
       if (finalAssignedCategories) {
         user.assigned_categories = finalAssignedCategories;
         user.assigned_category = finalAssignedCategories.join(', ');
       }
-      if (phase) user.phase = phase;
+      if (phase !== undefined) user.phase = phase;
     }
 
     await user.save();
