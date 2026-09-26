@@ -3,6 +3,13 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Announcement = require('../models/Announcement');
 const User = require('../models/User');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
 // @route   GET api/announcements
 // @desc    Get all active announcements
@@ -111,6 +118,21 @@ router.post('/', auth, async (req, res) => {
       creatorId = userObj?.member_id || '';
     }
 
+    let imageUrl = null;
+    if (image && image.startsWith('data:image')) {
+      try {
+        const result = await cloudinary.uploader.upload(image, {
+          folder: 'anytime_help/announcements'
+        });
+        imageUrl = result.secure_url;
+      } catch (err) {
+        console.error('Cloudinary upload error:', err);
+        imageUrl = image; // fallback
+      }
+    } else if (image) {
+      imageUrl = image;
+    }
+
     const newAnnouncement = new Announcement({
       title,
       message,
@@ -119,7 +141,7 @@ router.post('/', auth, async (req, res) => {
       creatorId: creatorId || '',
       phases: phases || [],
       targetAudience: targetAudience || 'All',
-      image: image || null
+      image: imageUrl
     });
 
     const announcement = await newAnnouncement.save();

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, Modal, Platform, Linking, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useGlobalSearchParams } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
@@ -14,7 +14,7 @@ const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function TaskDetailsScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id } = useGlobalSearchParams();
   
   const [complaint, setComplaint] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -81,14 +81,13 @@ export default function TaskDetailsScreen() {
     if (!id) return;
     try {
       setLoading(true);
+      setComplaint(null);
       const token = await SecureStore.getItemAsync('userToken');
-      // Fetching all complaints since the live server doesn't have the /:id route yet
-      const res = await axios.get(`${API_URL}/complaints`, {
+      const res = await axios.get(`${API_URL}/complaints/${id}`, {
         headers: { 'x-auth-token': token }
       });
       
-      const complaintsArray = Array.isArray(res.data) ? res.data : (res.data.complaints || []);
-      const found = complaintsArray.find((c: any) => c._id === id);
+      const found = res.data;
       
       if (found) {
         setComplaint(found);

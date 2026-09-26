@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Modal, Platform, StatusBar, Animated, Linking, TextInput, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useGlobalSearchParams } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import MapView, { Marker } from 'react-native-maps';
@@ -35,7 +35,7 @@ const SkeletonDetail = () => {
 
 export default function ComplaintDetails() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id } = useGlobalSearchParams();
   const { t } = useTranslation();
   
   const [complaint, setComplaint] = useState<any>(null);
@@ -51,6 +51,8 @@ export default function ComplaintDetails() {
 
   const fetchComplaintDetails = async () => {
     if (!id) return;
+    setLoading(true);
+    setComplaint(null);
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const res = await axios.get(`${API_URL}/complaints/${id}`, {

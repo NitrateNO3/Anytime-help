@@ -3,6 +3,13 @@ const router = express.Router();
 const Complaint = require('../models/Complaint');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
 
 // POST /api/complaints
 router.post('/', auth, async (req, res) => {
@@ -47,6 +54,21 @@ router.post('/', auth, async (req, res) => {
     }
 
     // Otherwise, create a new complaint
+    let imageUrl = '';
+    if (before_image && before_image.startsWith('data:image')) {
+      try {
+        const result = await cloudinary.uploader.upload(before_image, {
+          folder: 'anytime_help/complaints'
+        });
+        imageUrl = result.secure_url;
+      } catch (err) {
+        console.error('Cloudinary upload error:', err);
+        imageUrl = before_image; // fallback to base64 if it fails
+      }
+    } else if (before_image) {
+      imageUrl = before_image;
+    }
+
     const complaint = new Complaint({
       title,
       description,
@@ -56,7 +78,7 @@ router.post('/', auth, async (req, res) => {
       department,
       priority,
       user: req.user.id,
-      before_image: before_image || '',
+      before_image: imageUrl,
       phase: userPhase
     });
     const createdComplaint = await complaint.save();
@@ -364,7 +386,21 @@ router.patch('/:id', auth, async (req, res) => {
         complaint.assigned_staff = req.user.id;
       }
     }
-    if (after_image) complaint.after_image = after_image;
+    if (after_image) {
+      if (after_image.startsWith('data:image')) {
+        try {
+          const result = await cloudinary.uploader.upload(after_image, {
+            folder: 'anytime_help/complaints_resolved'
+          });
+          complaint.after_image = result.secure_url;
+        } catch (err) {
+          console.error('Cloudinary upload error:', err);
+          complaint.after_image = after_image;
+        }
+      } else {
+        complaint.after_image = after_image;
+      }
+    }
 
     const updatedComplaint = await complaint.save();
 
