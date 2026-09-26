@@ -336,29 +336,28 @@ export default function Members() {
               <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>
                 Login Status:
               </label>
-              <select 
-                value={filterStatus} 
-                onChange={(e) => {
-                  setFilterStatus(e.target.value);
-                  setPage(1);
-                }}
-                style={{ 
-                  padding: '8px 12px', 
-                  borderRadius: '8px', 
-                  border: '1px solid var(--border-color)', 
-                  background: '#FFFFFF',
-                  fontSize: 13,
-                  color: 'var(--text-main)',
-                  fontWeight: 500,
-                  outline: 'none',
-                  cursor: 'pointer',
-                  minWidth: '150px'
-                }}
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="Active">Active</option>
-                <option value="Pending">Pending</option>
-              </select>
+              <div style={{ display: 'flex', background: '#F1F5F9', borderRadius: '8px', padding: '4px' }}>
+                {['ALL', 'Active', 'Pending'].map(status => (
+                  <button
+                    key={status}
+                    onClick={() => { setFilterStatus(status); setPage(1); }}
+                    style={{
+                      padding: '6px 16px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: filterStatus === status ? '#FFFFFF' : 'transparent',
+                      color: filterStatus === status ? 'var(--primary)' : 'var(--text-muted)',
+                      fontWeight: filterStatus === status ? 600 : 500,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      boxShadow: filterStatus === status ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    {status === 'ALL' ? 'All' : status}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
           
