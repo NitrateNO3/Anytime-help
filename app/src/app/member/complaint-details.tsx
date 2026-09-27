@@ -37,6 +37,7 @@ export default function ComplaintDetails() {
   const router = useRouter();
   const { id } = useGlobalSearchParams();
   const { t } = useTranslation();
+  const scrollViewRef = React.useRef<ScrollView>(null);
   
   const [complaint, setComplaint] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -190,6 +191,7 @@ export default function ComplaintDetails() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 140 : 0}
       >
         <ScrollView 
+          ref={scrollViewRef}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
           keyboardShouldPersistTaps="handled"
         >
@@ -411,6 +413,11 @@ export default function ComplaintDetails() {
                 multiline
                 value={replyText}
                 onChangeText={setReplyText}
+                onFocus={() => {
+                  setTimeout(() => {
+                    scrollViewRef.current?.scrollToEnd({ animated: true });
+                  }, 250);
+                }}
               />
               <TouchableOpacity 
                 style={[styles.actionBtnPrimary, { marginTop: 12, opacity: !replyText.trim() ? 0.5 : 1 }]} 
