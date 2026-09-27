@@ -229,11 +229,7 @@ export default function ResidentHome() {
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => {
-                if (user?.permissions?.includes('All Complaints')) {
-                  router.push('/member/my-complaints' as any);
-                } else {
-                  router.push('/resident/my-complaints' as any);
-                }
+                router.push('/member/my-complaints' as any);
               }}
               activeOpacity={0.8}
             >
