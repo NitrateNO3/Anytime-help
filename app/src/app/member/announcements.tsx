@@ -209,7 +209,7 @@ export default function Announcements() {
                 <Text style={styles.dateText}>{formatDate(item.date)}</Text>
                 {item.creatorName && (
                   <View style={styles.creatorBadge}>
-                    <Text style={styles.creatorText}>By: {item.creatorName} {item.creatorId ? `(ID: ${item.creatorId})` : ''}</Text>
+                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {item.creatorName} {item.creatorId ? `(ID: ${item.creatorId})` : ''}</Text>
                   </View>
                 )}
               </View>
@@ -420,8 +420,8 @@ const styles = StyleSheet.create({
   
   titleContainer: { flex: 1 },
   cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  creatorBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
-  creatorText: { fontSize: 11, color: '#64748B', fontWeight: '600' },
+  creatorBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, flexShrink: 1, marginLeft: 12 },
+  creatorText: { fontSize: 11, color: '#64748B', fontWeight: '600', flexShrink: 1 },
   
   fab: { position: 'absolute', bottom: 90, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: '#1D4ED8', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
   
