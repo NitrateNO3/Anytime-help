@@ -423,7 +423,22 @@ export default function ComplaintDetails() {
           )}
         </View>
 
-
+        {complaint.status === 'PENDING' && (!complaint.replies || complaint.replies.length === 0) && (
+          <TouchableOpacity 
+            style={styles.deleteButton} 
+            onPress={handleDelete}
+            disabled={isDeleting}
+          >
+            {isDeleting ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <>
+                <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={styles.deleteButtonText}>{t('resident.deleteBtn', 'Delete Complaint')}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
         
         <View style={{ height: 40 }} />
       </ScrollView>
