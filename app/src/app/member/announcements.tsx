@@ -218,7 +218,7 @@ export default function Announcements() {
         )}
       </ScrollView>
 
-      {(!user?.permissions || user?.permissions?.some((p: string) => p.startsWith('Announcements'))) && (
+      {(user?.permissions && user.permissions.some((p: string) => p.startsWith('Announcements'))) && (
         <TouchableOpacity 
           style={styles.fab} 
           onPress={() => setCreateModalVisible(true)}

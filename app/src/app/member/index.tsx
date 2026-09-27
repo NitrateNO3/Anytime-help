@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -216,34 +216,30 @@ export default function ResidentHome() {
           {/* Card 2: All / My Complaints */}
           <CopilotStep text="शिकायतें देखें" order={2} name="all_complaints" active={true}>
             <WalkthroughableTouchableOpacity 
-              style={[styles.gridCard, (!user?.permissions || user.permissions.length === 0 || user.permissions.includes('All Complaints')) ? {} : { display: 'none' }]}
+              style={styles.gridCard}
               onPress={() => {
-                if (!user?.permissions || user.permissions.length === 0) {
-                  router.push('/resident/my-complaints' as any);
-                } else {
+                if (user?.permissions?.includes('All Complaints')) {
                   router.push('/member/my-complaints' as any);
+                } else {
+                  router.push('/resident/my-complaints' as any);
                 }
               }}
               activeOpacity={0.8}
             >
-              <View style={[styles.gridIconCircle, { backgroundColor: (!user?.permissions || user.permissions.length === 0) ? '#D1FAE5' : '#FEF3C7' }]}>
-                <Ionicons name="list" size={30} color={(!user?.permissions || user.permissions.length === 0) ? '#10B981' : '#D97706'} />
+              <View style={[styles.gridIconCircle, { backgroundColor: user?.permissions?.includes('All Complaints') ? '#FEF3C7' : '#D1FAE5' }]}>
+                <Ionicons name="list" size={30} color={user?.permissions?.includes('All Complaints') ? '#D97706' : '#10B981'} />
               </View>
-              <Text style={styles.gridCardTitle}>{(!user?.permissions || user.permissions.length === 0) ? t('resident.myComplaints', 'My Complaints') : 'All Complaints'}</Text>
-              <Text style={styles.gridCardSub}>{(!user?.permissions || user.permissions.length === 0) ? t('resident.myComplaintsSub', 'Track status live') : t('resident.myComplaintsSub', 'Track status live')}</Text>
+              <Text style={styles.gridCardTitle}>{user?.permissions?.includes('All Complaints') ? 'All Complaints' : t('resident.myComplaints', 'My Complaints')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub', 'Track status live')}</Text>
             </WalkthroughableTouchableOpacity>
           </CopilotStep>
 
           {/* Card 3: Announcements */}
           <CopilotStep text="यहाँ से नई सूचनाएँ पोस्ट करें या ज़रूरी घोषणाएँ देखें।" order={3} name="announcements" active={true}>
             <WalkthroughableTouchableOpacity 
-              style={[styles.gridCard, (!user?.permissions || user.permissions.length === 0 || user?.permissions?.some((p: string) => p.startsWith('Announcements'))) ? {} : { display: 'none' }]}
+              style={styles.gridCard}
               onPress={() => {
-                if (!user?.permissions || user.permissions.length === 0) {
-                  router.push('/resident/announcements' as any);
-                } else {
-                  router.push('/member/announcements' as any);
-                }
+                router.push('/member/announcements' as any);
               }}
               activeOpacity={0.8}
             >
@@ -263,12 +259,12 @@ export default function ResidentHome() {
           {/* Card 4: Resident / Directory */}
           <CopilotStep text="निवासियों को खोजने और उनसे संपर्क करने के लिए कम्युनिटी डायरेक्टरी का उपयोग करें।" order={4} name="directory" active={true}>
             <WalkthroughableTouchableOpacity 
-              style={[styles.gridCard, (!user?.permissions || user.permissions.length === 0 || user?.permissions?.includes('Resident')) ? {} : { display: 'none' }]}
+              style={styles.gridCard}
               onPress={() => {
-                if (!user?.permissions || user.permissions.length === 0) {
-                  router.push('/resident/search' as any);
-                } else {
+                if (user?.permissions?.includes('Resident')) {
                   router.push('/member/search' as any);
+                } else {
+                  Alert.alert('Permission Required', 'You do not have permission to view the resident directory.');
                 }
               }}
               activeOpacity={0.8}
@@ -276,8 +272,8 @@ export default function ResidentHome() {
               <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
                 <Ionicons name="people" size={30} color="#7C3AED" />
               </View>
-              <Text style={styles.gridCardTitle}>{(!user?.permissions || user.permissions.length === 0) ? t('resident.directory', 'Directory') : 'Residents'}</Text>
-              <Text style={styles.gridCardSub}>{(!user?.permissions || user.permissions.length === 0) ? t('resident.directorySub', 'Connect easily') : 'View community residents'}</Text>
+              <Text style={styles.gridCardTitle}>{user?.permissions?.includes('Resident') ? 'Residents' : t('resident.directory', 'Directory')}</Text>
+              <Text style={styles.gridCardSub}>{user?.permissions?.includes('Resident') ? 'View community residents' : t('resident.directorySub', 'Important contacts')}</Text>
             </WalkthroughableTouchableOpacity>
           </CopilotStep>
         </View>
