@@ -692,6 +692,13 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     await user.save();
+    
+    // Emit real-time update
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_updated', { userId: user._id, role: user.role, permissions: user.permissions, name: user.name, designation: user.designation });
+    }
+
     res.json({ message: 'User updated successfully', user });
   } catch (error) {
     console.error(error.message);
