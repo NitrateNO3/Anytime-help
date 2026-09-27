@@ -188,7 +188,7 @@ export default function ComplaintDetails() {
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
       >
         <ScrollView 
           ref={scrollViewRef}
@@ -436,8 +436,6 @@ export default function ComplaintDetails() {
             )}
           </TouchableOpacity>
         )}
-        
-        <View style={{ height: 40 }} />
       </ScrollView>
       </KeyboardAvoidingView>
 
