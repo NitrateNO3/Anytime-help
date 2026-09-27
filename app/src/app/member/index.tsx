@@ -90,6 +90,17 @@ export default function ResidentHome() {
       socket.on('announcement_changed', () => {
         fetchUnreadCount();
       });
+      socket.on('user_updated', async (data: any) => {
+        const stored = await SecureStore.getItemAsync('userData');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed._id === data.userId || parsed.id === data.userId) {
+            const updatedUser = { ...parsed, permissions: data.permissions, name: data.name, designation: data.designation };
+            await SecureStore.setItemAsync('userData', JSON.stringify(updatedUser));
+            setUser(updatedUser);
+          }
+        }
+      });
 
       const onBackPress = () => {
         BackHandler.exitApp();

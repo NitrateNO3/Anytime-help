@@ -105,9 +105,13 @@ export default function MyComplaints() {
 
       const token = await SecureStore.getItemAsync('userToken');
       const userData = await SecureStore.getItemAsync('userData');
-      if (userData) setUser(JSON.parse(userData));
+      let parsedUser = user;
+      if (userData) {
+        parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+      }
 
-      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=5${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${currentViewMode === 'mine' ? '&mine=true' : ''}`, {
+      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=5${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${(currentViewMode === 'mine' || (parsedUser && !parsedUser.permissions?.includes('All Complaints'))) ? '&mine=true' : ''}`, {
         headers: { 'x-auth-token': token }
       });
       
@@ -178,6 +182,17 @@ export default function MyComplaints() {
     });
     socket.on('announcement_changed', () => {
       fetchAnnouncements();
+    });
+    socket.on('user_updated', async (data: any) => {
+      const stored = await SecureStore.getItemAsync('userData');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed._id === data.userId || parsed.id === data.userId) {
+          const updatedUser = { ...parsed, permissions: data.permissions, name: data.name, designation: data.designation };
+          await SecureStore.setItemAsync('userData', JSON.stringify(updatedUser));
+          setUser(updatedUser);
+        }
+      }
     });
 
     return () => {
@@ -263,7 +278,7 @@ export default function MyComplaints() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       
       {isOffline && (
         <View style={styles.offlineBanner}>
@@ -288,24 +303,26 @@ export default function MyComplaints() {
       </View>
 
       {/* View Mode Toggle */}
-      <View style={{ flexDirection: 'row', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
-        <TouchableOpacity 
-          style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: viewMode === 'all' ? '#1D4ED8' : 'transparent' }}
-          onPress={() => setViewMode('all')}
-        >
-          <Text style={{ fontSize: 15, fontWeight: viewMode === 'all' ? '700' : '500', color: viewMode === 'all' ? '#1D4ED8' : '#64748B' }}>
-            All Complaints
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity 
-          style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: viewMode === 'mine' ? '#1D4ED8' : 'transparent' }}
-          onPress={() => setViewMode('mine')}
-        >
-          <Text style={{ fontSize: 15, fontWeight: viewMode === 'mine' ? '700' : '500', color: viewMode === 'mine' ? '#1D4ED8' : '#64748B' }}>
-            My Complaints
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {(user?.permissions?.includes('All Complaints')) && (
+        <View style={{ flexDirection: 'row', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+          <TouchableOpacity 
+            style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: viewMode === 'all' ? '#0F172A' : 'transparent' }}
+            onPress={() => setViewMode('all')}
+          >
+            <Text style={{ fontSize: 15, fontWeight: viewMode === 'all' ? '700' : '500', color: viewMode === 'all' ? '#0F172A' : '#64748B' }}>
+              All Complaints
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: viewMode === 'mine' ? '#0F172A' : 'transparent' }}
+            onPress={() => setViewMode('mine')}
+          >
+            <Text style={{ fontSize: 15, fontWeight: viewMode === 'mine' ? '700' : '500', color: viewMode === 'mine' ? '#0F172A' : '#64748B' }}>
+              My Complaints
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView 
         style={[styles.container, { zIndex: 1 }]} 
@@ -510,7 +527,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, 
     paddingBottom: 14, 
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#0F172A',
     elevation: 4,
     shadowColor: '#1E3A8A',
     shadowOffset: { width: 0, height: 2 },
