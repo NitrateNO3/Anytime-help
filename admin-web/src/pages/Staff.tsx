@@ -226,7 +226,8 @@ export default function Staff() {
       const token = localStorage.getItem('adminToken');
       const isUniversal = selectedEntity === 'All Groups (Universal)' || selectedEntity === 'Universal';
       const defaultStaffName = isUniversal ? 'Universal: All Groups & Blocks' : `${selectedEntity}: Block ${selectedBlock}`;
-      const staffPhase = isUniversal ? 'Universal' : selectedEntity;
+      // Fix: If there is a selected block (that is not empty or ADD_NEW), append it to the entity to form the exact phase string
+      const staffPhase = isUniversal ? 'Universal' : (selectedBlock && selectedBlock !== 'ADD_NEW' ? `${selectedEntity} - ${selectedBlock}` : selectedEntity);
       const finalName = staffPersonalName ? `${staffPersonalName} (${defaultStaffName})` : defaultStaffName;
       
       await axios.post(`${API_URL}/users/staff`, {

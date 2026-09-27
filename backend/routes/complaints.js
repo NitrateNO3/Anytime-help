@@ -91,14 +91,29 @@ router.post('/', auth, async (req, res) => {
 
     try {
       // Find Admin and Staff to notify
+      // We need to match staff based on exact phase (group + block) or legacy options
+      let phaseConditions = [{ phase: 'Universal' }, { phase: 'All' }, { phase: { $exists: false } }];
+      if (userPhase) {
+        phaseConditions.push({ phase: userPhase });
+        // Handle case where resident phase is Sushant Lok 2 - C,D,E but staff phase is Sushant Lok 2
+        // If staff is assigned to the parent group, they should probably get it, or if they are assigned to exact block
+        const parentGroupMatch = userPhase.split(' - ')[0];
+        phaseConditions.push({ phase: parentGroupMatch });
+        
+        if (userPhase === 'Sushant Lok 2 - C,D,E') phaseConditions.push({ phase: 'Sushant Lok 2 Option 1' });
+        if (userPhase === 'Sushant Lok 2 - F,G') phaseConditions.push({ phase: 'Sushant Lok 2 Option 2' });
+        if (userPhase === 'Sushant Lok 2 Option 1') phaseConditions.push({ phase: 'Sushant Lok 2 - C,D,E' });
+        if (userPhase === 'Sushant Lok 2 Option 2') phaseConditions.push({ phase: 'Sushant Lok 2 - F,G' });
+      }
+
       const adminsAndStaff = await User.find({
         $or: [
           { role: 'Admin' },
           { role: 'SubAdmin', permissions: 'Complaints' },
-          { role: 'Staff', $or: [{ phase: userPhase }, { phase: 'Universal' }, { phase: 'All' }, { phase: { $exists: false } }] }
+          { role: 'Staff', $or: phaseConditions }
         ],
         expoPushToken: { $exists: true, $ne: '' }
-      }).select('expoPushToken assigned_category assigned_categories role');
+      }).select('expoPushToken assigned_category assigned_categories role phase');
 
       const tokens = adminsAndStaff
         .filter(u => {
@@ -188,7 +203,7 @@ router.get('/', auth, async (req, res) => {
     } else if (req.user.role === 'Staff') {
       // Staff only sees complaints for their assigned category and phase
       const user = await User.findById(req.user.id);
-      const cats = req.user.assigned_categories && req.user.assigned_categories.length > 0 ? req.user.assigned_categories : (req.user.assigned_category ? [req.user.assigned_category] : []);
+      const cats = user && user.assigned_categories && user.assigned_categories.length > 0 ? user.assigned_categories : (user && user.assigned_category ? [user.assigned_category] : []);
       if (cats.length > 0 && !cats.includes('All')) {
         query.category = { $in: cats };
       }
