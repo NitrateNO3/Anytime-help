@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput, Platform, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput, Platform, BackHandler, KeyboardAvoidingView, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
@@ -501,12 +501,23 @@ export default function StaffScreen() {
         visible={broadcastModalVisible}
         onRequestClose={() => setBroadcastModalVisible(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setBroadcastModalVisible(false)}
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+          style={{ flex: 1 }}
         >
-          <View style={styles.broadcastModalContent}>
+          <TouchableOpacity 
+            style={styles.modalOverlay} 
+            activeOpacity={1} 
+            onPress={() => {
+              Keyboard.dismiss();
+              setBroadcastModalVisible(false);
+            }}
+          >
+            <TouchableOpacity 
+              activeOpacity={1} 
+              style={styles.broadcastModalContent}
+              onPress={() => Keyboard.dismiss()}
+            >
             <View style={styles.broadcastHeader}>
               <Text style={styles.modalTitle}>New Announcement</Text>
               <TouchableOpacity onPress={() => setBroadcastModalVisible(false)}>
@@ -562,8 +573,9 @@ export default function StaffScreen() {
                 </>
               )}
             </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Full Screen Image Modal */}

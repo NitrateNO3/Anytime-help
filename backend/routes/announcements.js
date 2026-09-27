@@ -20,7 +20,8 @@ router.get('/', auth, async (req, res) => {
     if (req.user.role === 'Resident') {
       const user = await User.findById(req.user.id);
       if (user && user.phase) {
-        query.phases = { $in: [user.phase, 'All', 'Resident'] };
+        const parentGroup = user.phase.split(' - ')[0];
+        query.phases = { $in: [user.phase, parentGroup, 'All', 'Resident'] };
       } else {
         // If user has no phase, fallback to 'All', 'Resident', or empty
         query.$or = [{ phases: 'All' }, { phases: 'Resident' }, { phases: { $size: 0 } }];
@@ -29,7 +30,12 @@ router.get('/', auth, async (req, res) => {
     } else if (req.user.role === 'Staff') {
       const user = await User.findById(req.user.id);
       if (user && user.phase) {
-        query.phases = { $in: [user.phase, 'All'] };
+        query.$or = [
+          { phases: { $in: [user.phase, 'All'] } },
+          { createdBy: req.user.id }
+        ];
+      } else {
+        query.createdBy = req.user.id;
       }
     } else if (req.user.role === 'Admin') {
       const { phase } = req.query;
@@ -110,12 +116,27 @@ router.post('/', auth, async (req, res) => {
   try {
     let creatorName = req.user.name;
     let creatorId = req.user.member_id;
+    let creatorPhase = null;
 
-    // Optional: if name is missing from token, fetch from db
-    if (!creatorName) {
-      const userObj = await User.findById(req.user.id);
-      creatorName = userObj?.name || req.user.role;
-      creatorId = userObj?.member_id || '';
+    // Fetch from db to guarantee accuracy
+    const userObj = await User.findById(req.user.id);
+    if (userObj) {
+      if (!creatorName) {
+        creatorName = userObj.name || req.user.role;
+        creatorId = userObj.member_id || '';
+      }
+      creatorPhase = userObj.phase;
+    }
+
+    let finalPhases = phases || [];
+    if (!phases || phases.length === 0) {
+      if (req.user.role === 'Staff' || req.user.role === 'SubAdmin') {
+        if (creatorPhase && creatorPhase !== 'Universal' && creatorPhase !== 'All') {
+          finalPhases = [creatorPhase];
+        } else {
+          finalPhases = ['All'];
+        }
+      }
     }
 
     let imageUrl = null;
@@ -139,7 +160,7 @@ router.post('/', auth, async (req, res) => {
       createdBy: req.user.id,
       creatorName: creatorName || req.user.role,
       creatorId: creatorId || '',
-      phases: phases || [],
+      phases: finalPhases,
       targetAudience: targetAudience || 'All',
       image: imageUrl
     });
@@ -161,9 +182,10 @@ router.post('/', auth, async (req, res) => {
         userQuery.role = { $in: ['Resident', 'Member'] }; // Notify residents and members for 'All'
       }
 
-      const targetPhases = phases || [];
+      const targetPhases = finalPhases;
       if (targetPhases.length > 0 && !targetPhases.includes('All')) {
-        userQuery.$or = [{ phase: { $in: targetPhases } }, { phase: { $exists: false } }, { phase: '' }];
+        const phaseRegexes = targetPhases.map(p => new RegExp('^' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+        userQuery.$or = [{ phase: { $in: phaseRegexes } }, { phase: { $exists: false } }, { phase: '' }];
       }
       
       userQuery.expoPushToken = { $exists: true, $ne: '' };
