@@ -220,7 +220,7 @@ export default function Announcements() {
                 <Text style={styles.dateText}>{formatDate(item.date)}</Text>
                 {item.creatorName && (
                   <View style={styles.creatorBadge}>
-                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {item.creatorName} {item.creatorId ? `(ID: ${item.creatorId})` : ''}</Text>
+                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {item.creatorName}</Text>
                   </View>
                 )}
               </View>

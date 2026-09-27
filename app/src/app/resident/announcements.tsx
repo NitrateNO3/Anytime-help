@@ -129,7 +129,7 @@ export default function Announcements() {
               {item.creatorName && (
                 <View style={styles.cardFooter}>
                   <View style={styles.creatorBadge}>
-                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {item.creatorName} {item.creatorId ? `(ID: ${item.creatorId})` : ''}</Text>
+                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {item.creatorName}</Text>
                   </View>
                 </View>
               )}
