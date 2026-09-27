@@ -187,8 +187,12 @@ export default function ComplaintDetails() {
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView 
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
+          keyboardShouldPersistTaps="handled"
+        >
         
         {/* Title and Badge */}
         <View style={styles.titleRow}>
@@ -392,11 +396,13 @@ export default function ComplaintDetails() {
             <View style={{ marginTop: 8 }}>
               <TextInput
                 style={{
-                  backgroundColor: '#F1F5F9',
+                  backgroundColor: '#F8FAFC',
                   borderRadius: 12,
-                  padding: 14,
-                  fontSize: 14,
-                  minHeight: 80,
+                  borderWidth: 1,
+                  borderColor: '#E2E8F0',
+                  padding: 16,
+                  fontSize: 15,
+                  minHeight: 120,
                   color: '#1E293B',
                   textAlignVertical: 'top'
                 }}
@@ -417,24 +423,7 @@ export default function ComplaintDetails() {
           )}
         </View>
 
-        {/* Delete Button - Removed as per request: Once sent, no delete option 
-        {complaint.status === 'PENDING' && (
-          <TouchableOpacity 
-            style={styles.deleteButton} 
-            onPress={handleDelete}
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={styles.deleteButtonText}>{t('resident.deleteBtn', 'Delete Complaint')}</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-        */}
+
         
         <View style={{ height: 40 }} />
       </ScrollView>
