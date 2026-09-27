@@ -187,7 +187,7 @@ export default function ComplaintDetails() {
       <KeyboardAvoidingView 
         style={{ flex: 1 }} 
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 140 : 0}
       >
         <ScrollView 
           contentContainerStyle={[styles.scrollContent, { paddingBottom: 100 }]}
@@ -362,13 +362,13 @@ export default function ComplaintDetails() {
 
         {/* Replies Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Replies & Updates</Text>
+          <Text style={[styles.sectionTitle, { marginBottom: 4 }]}>Replies & Updates</Text>
           {(!complaint.replies || complaint.replies.length === 0) ? (
-            <Text style={{ color: '#64748B', fontSize: 14, fontStyle: 'italic', textAlign: 'center', marginTop: 10, marginBottom: 20 }}>
+            <Text style={{ color: '#64748B', fontSize: 14, fontStyle: 'italic', textAlign: 'center', marginTop: 4, marginBottom: 12 }}>
               No replies yet.
             </Text>
           ) : (
-            <View style={{ marginTop: 12, marginBottom: 20 }}>
+            <View style={{ marginTop: 8, marginBottom: 16 }}>
               {complaint.replies.map((reply: any, idx: number) => (
                 <View key={idx} style={{ 
                   backgroundColor: reply.role === 'Admin' || reply.role === 'Staff' ? '#F0FDF4' : '#F8FAFC',
@@ -423,23 +423,7 @@ export default function ComplaintDetails() {
           )}
         </View>
 
-        {complaint.status === 'PENDING' && (!complaint.replies || complaint.replies.length === 0) && (
-          <TouchableOpacity 
-            style={styles.deleteButton} 
-            onPress={handleDelete}
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <ActivityIndicator size="small" color="#FFFFFF" />
-            ) : (
-              <>
-                <Ionicons name="trash-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={styles.deleteButtonText}>{t('resident.deleteBtn', 'Delete Complaint')}</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        )}
-        
+
         <View style={{ height: 40 }} />
       </ScrollView>
       </KeyboardAvoidingView>
