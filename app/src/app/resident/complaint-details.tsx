@@ -132,7 +132,7 @@ export default function ComplaintDetails() {
     }
   };
 
-  if (loading) {
+  if (loading || (complaint && complaint._id !== id)) {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
