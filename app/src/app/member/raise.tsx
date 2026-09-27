@@ -295,7 +295,7 @@ export default function RaiseComplaint() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-        <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+        <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
         {/* Header */}
         <View style={styles.headerBar}>
@@ -574,7 +574,7 @@ export default function RaiseComplaint() {
         <View style={styles.successModalOverlay}>
           <View style={styles.successModalContainer}>
             <View style={styles.successIconCircle}>
-              <Ionicons name="checkmark" size={40} color="#1D4ED8" />
+              <Ionicons name="checkmark" size={40} color="#0F172A" />
             </View>
             <Text style={styles.successModalTitle}>Success!</Text>
             <Text style={styles.successModalText}>Your grievance has been submitted successfully.</Text>
@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, 
     paddingBottom: 14, 
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#0F172A',
     elevation: 4,
     shadowColor: '#1E3A8A',
     shadowOffset: { width: 0, height: 2 },
@@ -757,7 +757,7 @@ const styles = StyleSheet.create({
   bottomSheetOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   bottomSheetContainer: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingBottom: 30, maxHeight: '80%' },
   bottomSheetHeader: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  bottomSheetTitle: { fontSize: 18, fontWeight: '700', color: '#1D4ED8' },
+  bottomSheetTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
   subCategoryItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 18, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
   subCategoryText: { fontSize: 15, color: '#1E293B', fontWeight: '500', flex: 1, paddingRight: 16 },
 

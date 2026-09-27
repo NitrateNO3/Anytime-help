@@ -117,7 +117,7 @@ export default function DirectoryScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
       {/* Header */}
       <View style={styles.headerBar}>
@@ -156,10 +156,10 @@ export default function DirectoryScreen() {
       <ScrollView 
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1D4ED8']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0F172A']} />}
       >
         {loading ? (
-          <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
+          <ActivityIndicator size="large" color="#0F172A" style={{ marginTop: 40 }} />
         ) : filteredContacts.length === 0 ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconCircle}>
@@ -212,7 +212,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, 
     paddingBottom: 14, 
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#0F172A',
     elevation: 4,
     shadowColor: '#1E3A8A',
     shadowOffset: { width: 0, height: 2 },
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   initialsText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1D4ED8',
+    color: '#0F172A',
     letterSpacing: 0.5,
   },
   info: { flex: 1 },

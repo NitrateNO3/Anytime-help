@@ -205,7 +205,7 @@ export default function ResidentHome() {
         contentContainerStyle={styles.gridContentContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1D4ED8']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0F172A']} />
         }
       >
         <View style={styles.dashboardGrid}>
@@ -268,11 +268,7 @@ export default function ResidentHome() {
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => {
-                if (user?.permissions?.includes('Resident')) {
-                  router.push('/member/search' as any);
-                } else {
-                  Alert.alert('Permission Required', 'You do not have permission to view the resident directory.');
-                }
+                router.push('/member/search' as any);
               }}
               activeOpacity={0.8}
             >

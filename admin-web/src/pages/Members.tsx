@@ -42,6 +42,7 @@ export default function Members() {
   const [permissions, setPermissions] = useState<string[]>([]);
   const [isCreating, setIsCreating] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   const availablePermissions = ['All Complaints', 'Resident', 'Announcements (All)', 'Announcements (Residents)', 'Announcements (Members)'];
 
@@ -190,6 +191,9 @@ export default function Members() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editingUser) return;
+    
+    setIsSaving(true);
     const loadingToast = toast.loading('Updating member...');
 
     try {
@@ -210,6 +214,8 @@ export default function Members() {
       fetchMembers(page, debouncedSearch, filterStatus, false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update member', { id: loadingToast });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -721,8 +727,13 @@ export default function Members() {
                 <button type="button" onClick={() => setEditingUser(null)} className="btn btn-outline" style={{ flex: 1 }}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                  Save Changes
+                <button type="submit" className="btn btn-primary" style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }} disabled={isSaving}>
+                  {isSaving ? (
+                    <>
+                      <div className="spinner" style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                      Saving...
+                    </>
+                  ) : 'Save Changes'}
                 </button>
               </div>
             </form>

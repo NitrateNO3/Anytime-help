@@ -147,7 +147,7 @@ export default function PrivacyPolicy() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       <View style={styles.headerBar}>
         <TouchableOpacity 
           onPress={handleBack} 
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, 
     paddingBottom: 14, 
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#0F172A',
     elevation: 4,
     shadowColor: '#1E3A8A',
     shadowOffset: { width: 0, height: 2 },

@@ -59,10 +59,10 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
       {/* Header */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, paddingBottom: 14, paddingHorizontal: 20, backgroundColor: '#1D4ED8', zIndex: 1, elevation: 4 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, paddingBottom: 14, paddingHorizontal: 20, backgroundColor: '#0F172A', zIndex: 1, elevation: 4 }}>
         <TouchableOpacity 
           onPress={() => router.replace('/member' as any)} 
           style={{ width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 12 }}
@@ -78,7 +78,7 @@ export default function SettingsScreen() {
         {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatarBox}>
-            <Ionicons name="person" size={36} color="#1D4ED8" />
+            <Ionicons name="person" size={36} color="#0F172A" />
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{user?.name || 'Resident'}</Text>
@@ -220,6 +220,6 @@ const styles = StyleSheet.create({
   settingRowLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 12 },
   iconContainer: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center', marginRight: 14 },
   settingText: { fontSize: 16, fontWeight: '500', color: '#1F2937', flex: 1 }, 
-  changeBtn: { backgroundColor: '#1D4ED8', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
+  changeBtn: { backgroundColor: '#0F172A', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20 },
   changeBtnText: { color: 'white', fontWeight: '600', fontSize: 13 }
 });

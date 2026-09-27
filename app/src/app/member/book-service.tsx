@@ -113,14 +113,14 @@ export default function BookServiceScreen() {
   if (fetchingUser) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#1D4ED8" />
+        <ActivityIndicator size="large" color="#0F172A" />
       </View>
     );
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* Header */}
         <View style={styles.headerBar}>
@@ -140,7 +140,7 @@ export default function BookServiceScreen() {
           {/* Service Info Card */}
           <View style={styles.serviceCard}>
             <View style={styles.iconCircle}>
-              <Ionicons name={icon as any || 'briefcase'} size={28} color="#1D4ED8" />
+              <Ionicons name={icon as any || 'briefcase'} size={28} color="#0F172A" />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.serviceName}>{name}</Text>
@@ -198,7 +198,7 @@ export default function BookServiceScreen() {
             disabled={loading}
           >
             <LinearGradient
-              colors={['#1D4ED8', '#2563EB']}
+              colors={['#0F172A', '#2563EB']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.gradientBtn}
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, 
     paddingBottom: 14, 
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#0F172A',
     elevation: 4,
     shadowColor: '#1E3A8A',
     shadowOffset: { width: 0, height: 2 },

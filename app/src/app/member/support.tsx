@@ -36,7 +36,7 @@ export default function HelpSupport() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
       {/* Header */}
       <View style={styles.headerBar}>
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, 
     paddingBottom: 14, 
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#0F172A',
     elevation: 4,
     shadowColor: '#1E3A8A',
     shadowOffset: { width: 0, height: 2 },
@@ -169,11 +169,11 @@ const styles = StyleSheet.create({
   raiseBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#0F172A',
     borderRadius: 18,
     padding: 20,
     marginTop: 16,
-    shadowColor: '#1D4ED8',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,

@@ -172,7 +172,7 @@ export default function Announcements() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
 
       {/* Header */}
       <View style={styles.headerBar}>
@@ -192,11 +192,11 @@ export default function Announcements() {
         style={styles.container} 
         contentContainerStyle={styles.contentContainer} 
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1D4ED8']} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0F172A']} />}
       >
         {loadingAnnouncements ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#1D4ED8" />
+            <ActivityIndicator size="large" color="#0F172A" />
           </View>
         ) : announcements.length === 0 ? (
           <View style={styles.centerContainer}>
@@ -318,7 +318,7 @@ export default function Announcements() {
                     <Text style={{ 
                       fontWeight: '600', 
                       fontSize: 14, 
-                      color: newTargetPhase === opt.value ? '#1D4ED8' : '#64748B' 
+                      color: newTargetPhase === opt.value ? '#0F172A' : '#64748B' 
                     }}>
                       {opt.label}
                     </Text>
@@ -355,7 +355,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20, 
     paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, 
     paddingBottom: 14, 
-    backgroundColor: '#1D4ED8',
+    backgroundColor: '#0F172A',
     elevation: 4,
     shadowColor: '#1E3A8A',
     shadowOffset: { width: 0, height: 2 },
@@ -434,7 +434,7 @@ const styles = StyleSheet.create({
   creatorBadge: { backgroundColor: '#F1F5F9', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, flexShrink: 1, marginLeft: 12 },
   creatorText: { fontSize: 11, color: '#64748B', fontWeight: '600', flexShrink: 1 },
   
-  fab: { position: 'absolute', bottom: 90, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: '#1D4ED8', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
+  fab: { position: 'absolute', bottom: 90, right: 24, width: 56, height: 56, borderRadius: 28, backgroundColor: '#0F172A', justifyContent: 'center', alignItems: 'center', elevation: 8, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8 },
   
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, minHeight: 400 },
@@ -444,6 +444,6 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: '#334155', marginBottom: 8 },
   input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 12, padding: 14, fontSize: 15, color: '#0F172A' },
   textArea: { minHeight: 100 },
-  submitButton: { backgroundColor: '#1D4ED8', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
+  submitButton: { backgroundColor: '#0F172A', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
   submitButtonText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
 });

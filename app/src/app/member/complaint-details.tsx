@@ -207,7 +207,7 @@ export default function ComplaintDetails() {
 
         {/* Location */}
         <View style={styles.locationContainer}>
-          <Ionicons name="location" size={20} color="#1D4ED8" />
+          <Ionicons name="location" size={20} color="#0F172A" />
           <Text style={styles.locationText}>{complaint.location || complaint.address}</Text>
         </View>
 
@@ -494,7 +494,7 @@ const styles = StyleSheet.create({
   imageWrapper: { width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', backgroundColor: '#F1F5F9' },
   photoImage: { width: '100%', height: '100%', resizeMode: 'cover' },
   
-  actionBtnPrimary: { height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#1D4ED8' },
+  actionBtnPrimary: { height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0F172A' },
   actionBtnPrimaryText: { color: '#FFF', fontSize: 16, fontWeight: '600' },
 
   deleteButton: { flexDirection: 'row', backgroundColor: '#EF4444', height: 54, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginTop: 10, shadowColor: '#EF4444', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },

@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, height: '100%', color: '#0F172A', fontSize: 14, paddingVertical: 0 },
   catChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
-  catChipActive: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
+  catChipActive: { backgroundColor: '#0F172A', borderColor: '#0F172A' },
   catChipText: { fontSize: 13, fontWeight: '600', color: '#64748B' },
   catChipTextActive: { color: '#FFFFFF' },
   card: { 
