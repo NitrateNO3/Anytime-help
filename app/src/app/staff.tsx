@@ -421,7 +421,7 @@ export default function StaffScreen() {
             {(() => {
               const filteredAnnouncements = announcements.filter(item => {
                 const uid = user?._id || user?.id;
-                const cid = item?.createdBy;
+                const cid = item?.createdBy?._id || item?.createdBy?.id || item?.createdBy;
                 return uid && cid && String(uid) === String(cid);
               });
 
@@ -496,7 +496,7 @@ export default function StaffScreen() {
 
       {/* Broadcast Modal */}
       <Modal
-        animationType="slide"
+        animationType="fade"
         transparent={true}
         visible={broadcastModalVisible}
         onRequestClose={() => setBroadcastModalVisible(false)}
@@ -510,7 +510,6 @@ export default function StaffScreen() {
             activeOpacity={1} 
             onPress={() => {
               Keyboard.dismiss();
-              setBroadcastModalVisible(false);
             }}
           >
             <TouchableOpacity 
