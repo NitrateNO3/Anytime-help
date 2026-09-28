@@ -173,12 +173,18 @@ export default function MyComplaints() {
   };
 
 
+  const stateRef = React.useRef({ viewMode, searchQuery, selectedCategory });
+  React.useEffect(() => {
+    stateRef.current = { viewMode, searchQuery, selectedCategory };
+  }, [viewMode, searchQuery, selectedCategory]);
+
   const { tab } = useLocalSearchParams();
 
   React.useEffect(() => {
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', () => {
-      fetchComplaints();
+      const { viewMode: v, searchQuery: s, selectedCategory: c } = stateRef.current;
+      fetchComplaints(1, false, s, c, v);
     });
     socket.on('announcement_changed', () => {
       fetchAnnouncements();
@@ -272,14 +278,7 @@ export default function MyComplaints() {
     }
   };
 
-  const displayedComplaints = viewMode === 'mine' && user 
-    ? allFetchedComplaints.filter(c => {
-        const uid = String(user._id || user.id);
-        const cid = String(c.user?._id || c.user?.id || c.user);
-        const inUpvotes = c.upvotes && Array.isArray(c.upvotes) && c.upvotes.some((u: any) => String(u) === uid);
-        return cid === uid || inUpvotes;
-      })
-    : allFetchedComplaints;
+  const displayedComplaints = allFetchedComplaints;
 
   return (
     <SafeAreaView style={styles.safeArea}>
