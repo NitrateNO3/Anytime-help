@@ -6,7 +6,18 @@ const auth = require('../middleware/auth');
 
 const checkAccess = (user, section) => {
   if (user.role === 'Admin') return true;
-  if ((user.role === 'SubAdmin' || user.role === 'Member') && user.permissions && user.permissions.includes(section)) return true;
+  
+  if ((user.role === 'SubAdmin' || user.role === 'Member') && user.permissions) {
+    if (user.permissions.includes(section)) return true;
+    
+    // Handle variations of the Residents permission
+    if (section === 'Residents' || section === 'Residents List') {
+      const hasResidentPerm = user.permissions.some(p => 
+        ['Resident', 'Residents', 'Residents List'].includes(p)
+      );
+      if (hasResidentPerm) return true;
+    }
+  }
   return false;
 };
 

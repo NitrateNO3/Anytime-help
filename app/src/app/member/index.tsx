@@ -281,7 +281,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 5: Residents List (Only if has permission) */}
-          {user?.permissions?.includes('Residents') && (
+          {user?.permissions?.some((p: string) => ['Resident', 'Residents', 'Residents List'].includes(p)) && (
             <CopilotStep text="सभी निवासियों की सूची देखें।" order={5} name="residents_list">
               <WalkthroughableTouchableOpacity 
                 style={styles.gridCard}
