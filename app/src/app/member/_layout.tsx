@@ -101,6 +101,7 @@ export default function MemberLayout() {
         }} 
       />
       <Tabs.Screen name="announcements" options={{ href: null }} />
+      <Tabs.Screen name="residents" options={{ href: null }} />
       <Tabs.Screen name="complaint-details" options={{ href: null, tabBarStyle: { display: 'none' } }} />
     </Tabs>
   );
