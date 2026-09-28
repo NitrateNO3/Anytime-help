@@ -95,7 +95,8 @@ export default function MyComplaints() {
       return;
     }
     const delayDebounceFn = setTimeout(() => {
-      fetchComplaints(1, false, searchQuery, selectedCategory, viewMode);
+      const { viewMode: v, selectedCategory: c } = stateRef.current;
+      fetchComplaints(1, false, searchQuery, c, v);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
@@ -187,6 +188,13 @@ export default function MyComplaints() {
   }, [viewMode, searchQuery, selectedCategory]);
 
   React.useEffect(() => {
+    if (view === 'mine' || view === 'all') {
+      setViewMode(view);
+      stateRef.current.viewMode = view;
+    }
+  }, [view]);
+
+  React.useEffect(() => {
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', () => {
       const { viewMode: v, searchQuery: s, selectedCategory: c } = stateRef.current;
@@ -214,7 +222,8 @@ export default function MyComplaints() {
 
   useFocusEffect(
     useCallback(() => {
-      fetchComplaints(1, false, searchQuery, selectedCategory, viewMode, true);
+      const { viewMode: currentV, searchQuery: currentS, selectedCategory: currentC } = stateRef.current;
+      fetchComplaints(1, false, currentS, currentC, currentV, true);
       fetchAnnouncements(true);
       if (tab === 'Complaints') {
         setActiveTab('Complaints');
