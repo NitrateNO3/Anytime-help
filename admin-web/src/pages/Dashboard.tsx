@@ -835,7 +835,7 @@ export default function Dashboard() {
                       }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                           <span style={{ fontSize: 13, fontWeight: 600, color: reply.role === 'Admin' || reply.role === 'Staff' ? 'var(--primary)' : 'var(--text-main)' }}>
-                            {reply.role}
+                            {reply.user?.role === 'Member' ? 'Member' : reply.role} {reply.user?.name ? `- ${reply.user.name}` : ''}
                           </span>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>

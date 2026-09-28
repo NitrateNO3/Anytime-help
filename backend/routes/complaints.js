@@ -222,6 +222,7 @@ router.get('/', auth, async (req, res) => {
     let complaintsQuery = Complaint.find(query)
       .populate('user', 'name phone_number address room_number phase relation')
       .populate('assigned_staff', 'name phone_number address room_number phase')
+      .populate('replies.user', 'name role')
       .sort({ created_at: sortDirection });
     
     if (page && limit) {
@@ -256,7 +257,8 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
       .populate('user', 'name phone_number address room_number phase relation')
-      .populate('assigned_staff', 'name phone_number address room_number phase');
+      .populate('assigned_staff', 'name phone_number address room_number phase')
+      .populate('replies.user', 'name role');
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
     }
@@ -289,7 +291,8 @@ router.post('/:id/reply', auth, async (req, res) => {
     
     const populatedComplaint = await Complaint.findById(complaint._id)
       .populate('user', 'name phone_number phase room_number role')
-      .populate('assigned_staff', 'name role');
+      .populate('assigned_staff', 'name role')
+      .populate('replies.user', 'name role');
     
     const io = req.app.get('io');
     if (io) {
@@ -371,7 +374,8 @@ router.delete('/:id/reply/:replyId', auth, async (req, res) => {
     
     const populatedComplaint = await Complaint.findById(complaint._id)
       .populate('user', 'name phone_number phase room_number role')
-      .populate('assigned_staff', 'name role');
+      .populate('assigned_staff', 'name role')
+      .populate('replies.user', 'name role');
     
     const io = req.app.get('io');
     if (io) {

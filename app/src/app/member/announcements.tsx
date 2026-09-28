@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler, Modal, TextInput, Alert, KeyboardAvoidingView, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler, Modal, TextInput, Alert, KeyboardAvoidingView, Image, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
@@ -220,7 +220,7 @@ export default function Announcements() {
                 <Text style={styles.dateText}>{formatDate(item.date)}</Text>
                 {item.creatorName && (
                   <View style={styles.creatorBadge}>
-                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {item.creatorName}</Text>
+                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {item.createdBy?.name || item.creatorName}</Text>
                   </View>
                 )}
               </View>
@@ -250,13 +250,15 @@ export default function Announcements() {
           style={styles.modalOverlay}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <View style={styles.modalContent}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => Keyboard.dismiss()} />
+          <View style={[styles.modalContent, { flexShrink: 1, maxHeight: '90%' }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Announcement</Text>
               <TouchableOpacity onPress={() => setCreateModalVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                 <Ionicons name="close" size={24} color="#64748B" />
               </TouchableOpacity>
             </View>
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
             <View style={styles.formGroup}>
               <Text style={styles.label}>Title *</Text>
@@ -338,6 +340,7 @@ export default function Announcements() {
                 <Text style={styles.submitButtonText}>Post Announcement</Text>
               )}
             </TouchableOpacity>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>

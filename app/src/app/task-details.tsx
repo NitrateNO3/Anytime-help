@@ -351,6 +351,16 @@ export default function TaskDetailsScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Reported By</Text>
               <Text style={styles.detailText}>{complaint.user.name}</Text>
+              {complaint.user.address ? (
+                <Text style={[styles.detailText, { fontSize: 14, color: '#6B7280', marginTop: 4 }]}>
+                  {complaint.user.address}
+                </Text>
+              ) : null}
+              {complaint.user.phone_number ? (
+                <Text style={[styles.detailText, { fontSize: 14, color: '#6B7280', marginTop: 2 }]}>
+                  {complaint.user.phone_number}
+                </Text>
+              ) : null}
             </View>
           )}
 

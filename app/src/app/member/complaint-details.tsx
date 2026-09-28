@@ -213,11 +213,18 @@ export default function ComplaintDetails() {
 
         {/* Reported By */}
         {complaint.user?.name ? (
-          <View style={[styles.locationContainer, { marginTop: 8, backgroundColor: '#F8FAFC' }]}>
-            <Ionicons name="person" size={20} color="#475569" />
-            <Text style={[styles.locationText, { color: '#475569' }]}>
-              Reported by: {complaint.user.name}
-            </Text>
+          <View style={[styles.locationContainer, { marginTop: 8, backgroundColor: '#F8FAFC', alignItems: 'flex-start' }]}>
+            <Ionicons name="person" size={20} color="#475569" style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={{ fontSize: 14, color: '#475569', fontWeight: '500' }}>
+                Reported by: {complaint.user.name}
+              </Text>
+              {complaint.user.address ? (
+                <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4, lineHeight: 18 }}>
+                  Address: {complaint.user.address}
+                </Text>
+              ) : null}
+            </View>
           </View>
         ) : null}
         
@@ -382,7 +389,7 @@ export default function ComplaintDetails() {
                 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                     <Text style={{ fontWeight: '600', color: reply.role === 'Admin' || reply.role === 'Staff' ? '#16A34A' : '#334155', fontSize: 13 }}>
-                      {reply.role}
+                      {reply.user?.role === 'Member' ? 'Member' : reply.role} {reply.user?.name ? `- ${reply.user.name}` : ''}
                     </Text>
                     <Text style={{ color: '#94A3B8', fontSize: 11 }}>
                       {new Date(reply.created_at).toLocaleString()}
