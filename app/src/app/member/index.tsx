@@ -210,93 +210,103 @@ export default function ResidentHome() {
       >
         <View style={styles.dashboardGrid}>
           {/* Card 1: Lodge Grievance */}
-          <CopilotStep text="यहाँ से किसी भी निवासी (resident) के लिए एक नई शिकायत दर्ज करें।" order={1} name="raise_complaint">
-            <WalkthroughableTouchableOpacity 
-              style={styles.gridCard}
-              onPress={() => router.push('/member/raise' as any)}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
-                <Ionicons name="add-circle" size={30} color="#2563EB" />
-              </View>
-              <Text style={styles.gridCardTitle}>Raise Complaint</Text>
-              <Text style={styles.gridCardSub}>{t('resident.lodgeGrievanceSub')}</Text>
-            </WalkthroughableTouchableOpacity>
-          </CopilotStep>
+          <View style={styles.cardWrapper}>
+            <CopilotStep text="यहाँ से किसी भी निवासी (resident) के लिए एक नई शिकायत दर्ज करें।" order={1} name="raise_complaint">
+              <WalkthroughableTouchableOpacity 
+                style={[styles.gridCard, { width: '100%', marginBottom: 0 }]}
+                onPress={() => router.push('/member/raise' as any)}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="add-circle" size={30} color="#2563EB" />
+                </View>
+                <Text style={styles.gridCardTitle}>Raise Complaint</Text>
+                <Text style={styles.gridCardSub}>{t('resident.lodgeGrievanceSub')}</Text>
+              </WalkthroughableTouchableOpacity>
+            </CopilotStep>
+          </View>
 
           {/* Card 2: All / My Complaints */}
-          <CopilotStep text="शिकायतें देखें" order={2} name="all_complaints">
-            <WalkthroughableTouchableOpacity 
-              style={styles.gridCard}
-              onPress={() => {
-                router.push('/member/my-complaints' as any);
-              }}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.gridIconCircle, { backgroundColor: user?.permissions?.includes('All Complaints') ? '#FEF3C7' : '#D1FAE5' }]}>
-                <Ionicons name="list" size={30} color={user?.permissions?.includes('All Complaints') ? '#D97706' : '#10B981'} />
-              </View>
-              <Text style={styles.gridCardTitle}>{user?.permissions?.includes('All Complaints') ? 'All Complaints' : t('resident.myComplaints', 'My Complaints')}</Text>
-              <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub', 'Track status live')}</Text>
-            </WalkthroughableTouchableOpacity>
-          </CopilotStep>
-
-          {/* Card 3: Announcements */}
-          <CopilotStep text="यहाँ से नई सूचनाएँ पोस्ट करें या ज़रूरी घोषणाएँ देखें।" order={3} name="announcements">
-            <WalkthroughableTouchableOpacity 
-              style={styles.gridCard}
-              onPress={() => {
-                router.push('/member/announcements' as any);
-              }}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
-                <Ionicons name="notifications" size={30} color="#2563EB" />
-                {unreadCount > 0 && (
-                  <View style={styles.badgeContainer}>
-                    <Text style={styles.badgeText}>{unreadCount}</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
-              <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
-            </WalkthroughableTouchableOpacity>
-          </CopilotStep>
-
-          {/* Card 4: Directory */}
-          <CopilotStep text="निवासियों को खोजने और उनसे संपर्क करने के लिए कम्युनिटी डायरेक्टरी का उपयोग करें।" order={4} name="directory">
-            <WalkthroughableTouchableOpacity 
-              style={styles.gridCard}
-              onPress={() => {
-                router.push('/member/search' as any);
-              }}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
-                <Ionicons name="call" size={30} color="#7C3AED" />
-              </View>
-              <Text style={styles.gridCardTitle}>{t('resident.directory', 'Directory')}</Text>
-              <Text style={styles.gridCardSub}>{t('resident.directorySub', 'Important contacts')}</Text>
-            </WalkthroughableTouchableOpacity>
-          </CopilotStep>
-
-          {/* Card 5: Residents List (Only if has permission) */}
-          {user?.permissions?.some((p: string) => ['Resident', 'Residents', 'Residents List'].includes(p)) && (
-            <CopilotStep text="सभी निवासियों की सूची देखें।" order={5} name="residents_list">
+          <View style={styles.cardWrapper}>
+            <CopilotStep text="शिकायतें देखें" order={2} name="all_complaints">
               <WalkthroughableTouchableOpacity 
-                style={styles.gridCard}
+                style={[styles.gridCard, { width: '100%', marginBottom: 0 }]}
                 onPress={() => {
-                  router.push('/member/residents' as any);
+                  router.push('/member/my-complaints' as any);
                 }}
                 activeOpacity={0.8}
               >
-                <View style={[styles.gridIconCircle, { backgroundColor: '#FCE7F3' }]}>
-                  <Ionicons name="people" size={30} color="#DB2777" />
+                <View style={[styles.gridIconCircle, { backgroundColor: user?.permissions?.includes('All Complaints') ? '#FEF3C7' : '#D1FAE5' }]}>
+                  <Ionicons name="list" size={30} color={user?.permissions?.includes('All Complaints') ? '#D97706' : '#10B981'} />
                 </View>
-                <Text style={styles.gridCardTitle}>Residents</Text>
-                <Text style={styles.gridCardSub}>View community residents</Text>
+                <Text style={styles.gridCardTitle}>{user?.permissions?.includes('All Complaints') ? 'All Complaints' : t('resident.myComplaints', 'My Complaints')}</Text>
+                <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub', 'Track status live')}</Text>
               </WalkthroughableTouchableOpacity>
             </CopilotStep>
+          </View>
+
+          {/* Card 3: Announcements */}
+          <View style={styles.cardWrapper}>
+            <CopilotStep text="यहाँ से नई सूचनाएँ पोस्ट करें या ज़रूरी घोषणाएँ देखें।" order={3} name="announcements">
+              <WalkthroughableTouchableOpacity 
+                style={[styles.gridCard, { width: '100%', marginBottom: 0 }]}
+                onPress={() => {
+                  router.push('/member/announcements' as any);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                  <Ionicons name="notifications" size={30} color="#2563EB" />
+                  {unreadCount > 0 && (
+                    <View style={styles.badgeContainer}>
+                      <Text style={styles.badgeText}>{unreadCount}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
+                <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
+              </WalkthroughableTouchableOpacity>
+            </CopilotStep>
+          </View>
+
+          {/* Card 4: Directory */}
+          <View style={styles.cardWrapper}>
+            <CopilotStep text="निवासियों को खोजने और उनसे संपर्क करने के लिए कम्युनिटी डायरेक्टरी का उपयोग करें।" order={4} name="directory">
+              <WalkthroughableTouchableOpacity 
+                style={[styles.gridCard, { width: '100%', marginBottom: 0 }]}
+                onPress={() => {
+                  router.push('/member/search' as any);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
+                  <Ionicons name="call" size={30} color="#7C3AED" />
+                </View>
+                <Text style={styles.gridCardTitle}>{t('resident.directory', 'Directory')}</Text>
+                <Text style={styles.gridCardSub}>{t('resident.directorySub', 'Important contacts')}</Text>
+              </WalkthroughableTouchableOpacity>
+            </CopilotStep>
+          </View>
+
+          {/* Card 5: Residents List (Only if has permission) */}
+          {user?.permissions?.some((p: string) => ['Resident', 'Residents', 'Residents List'].includes(p)) && (
+            <View style={styles.cardWrapper}>
+              <CopilotStep text="सभी निवासियों की सूची देखें।" order={5} name="residents_list">
+                <WalkthroughableTouchableOpacity 
+                  style={[styles.gridCard, { width: '100%', marginBottom: 0 }]}
+                  onPress={() => {
+                    router.push('/member/residents' as any);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <View style={[styles.gridIconCircle, { backgroundColor: '#FCE7F3' }]}>
+                    <Ionicons name="people" size={30} color="#DB2777" />
+                  </View>
+                  <Text style={styles.gridCardTitle}>Residents</Text>
+                  <Text style={styles.gridCardSub}>View community residents</Text>
+                </WalkthroughableTouchableOpacity>
+              </CopilotStep>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -372,13 +382,15 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
-  gridCard: {
+  cardWrapper: {
     width: '48%',
+    marginBottom: 16,
+  },
+  gridCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 22,
     paddingVertical: 22,
     paddingHorizontal: 16,
-    marginBottom: 16,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#0F172A',
