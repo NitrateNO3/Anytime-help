@@ -80,9 +80,10 @@ export default function MyComplaints() {
   const [errorMessage, setErrorMessage] = useState('');
   const [lastViewedDate, setLastViewedDate] = useState<Date>(new Date(0));
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+  const { tab, view } = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
-  const [viewMode, setViewMode] = useState<'all' | 'mine'>('all');
+  const [viewMode, setViewMode] = useState<'all' | 'mine'>((view as 'mine' | 'all') || 'all');
   const [isOffline, setIsOffline] = useState(false);
   
   const mounted = React.useRef(false);
@@ -184,8 +185,6 @@ export default function MyComplaints() {
   React.useEffect(() => {
     stateRef.current = { viewMode, searchQuery, selectedCategory };
   }, [viewMode, searchQuery, selectedCategory]);
-
-  const { tab } = useLocalSearchParams();
 
   React.useEffect(() => {
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });

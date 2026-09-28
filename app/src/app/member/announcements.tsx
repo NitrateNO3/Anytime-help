@@ -140,6 +140,7 @@ export default function Announcements() {
 
   const formatCreatorName = (rawName: string) => {
     if (!rawName) return '';
+    if (rawName.includes('(')) return rawName.split('(')[0].trim();
     if (rawName.includes(',')) return rawName.split(',')[0].trim();
     if (rawName.includes('-')) return rawName.split('-')[0].trim();
     return rawName;

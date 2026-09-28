@@ -585,7 +585,7 @@ export default function RaiseComplaint() {
                 setStep(1);
                 setDescription('');
                 setImage(null);
-                router.replace('/member/my-complaints' as any);
+                router.replace({ pathname: '/member/my-complaints', params: { view: 'mine' } } as any);
               }}
             >
               <Text style={styles.doneBtnText}>Done</Text>
@@ -648,7 +648,7 @@ export default function RaiseComplaint() {
                 setStep(1);
                 setDescription('');
                 setImage(null);
-                router.replace('/member/my-complaints');
+                router.replace({ pathname: '/member/my-complaints', params: { view: 'mine' } } as any);
               }}
             >
               <Text style={[styles.doneBtnText, { color: '#4B5563' }]}>Close</Text>
