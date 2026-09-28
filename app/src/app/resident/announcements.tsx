@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler, Modal, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
@@ -16,6 +16,7 @@ export default function Announcements() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -126,6 +127,12 @@ export default function Announcements() {
               <Text style={styles.cardTitle}>{item.title}</Text>
               <Text style={styles.cardMessage}>{item.message}</Text>
               
+              {item.image && (
+                <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.image)}>
+                  <Image source={{ uri: item.image }} style={{ width: '100%', height: 200, borderRadius: 12, marginTop: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
+                </TouchableOpacity>
+              )}
+              
               {item.creatorName && (
                 <View style={styles.cardFooter}>
                   <View style={styles.creatorBadge}>
@@ -138,6 +145,16 @@ export default function Announcements() {
         )}
         <View style={{ height: 60 }} />
       </ScrollView>
+
+      {/* Full Screen Image Modal */}
+      <Modal visible={!!fullScreenImage} transparent={true} animationType="fade" onRequestClose={() => setFullScreenImage(null)}>
+        <View style={styles.fullScreenImageContainer}>
+          <TouchableOpacity style={styles.closeImageBtn} onPress={() => setFullScreenImage(null)}>
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+          {fullScreenImage && <Image source={{ uri: fullScreenImage }} style={styles.fullScreenImage} resizeMode="contain" />}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -224,4 +241,7 @@ const styles = StyleSheet.create({
   emptyIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   emptyTextLarge: { fontSize: 17, fontWeight: '700', color: '#1E293B', marginBottom: 6, textAlign: 'center' },
   emptyTextSub: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20 },
+  fullScreenImageContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+  fullScreenImage: { width: '100%', height: '100%' },
+  closeImageBtn: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 60, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },
 });

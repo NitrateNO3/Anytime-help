@@ -41,9 +41,11 @@ export default function Announcements() {
   // Form State
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
+  const [image, setImage] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
   const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
   const availablePhases = ['Resident', 'Members'];
 
@@ -131,7 +133,8 @@ export default function Announcements() {
       await axios.post(`${API_URL}/announcements`, {
         title,
         message,
-        phases: selectedPhases
+        phases: selectedPhases,
+        image
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -141,6 +144,7 @@ export default function Announcements() {
       // Reset form
       setTitle('');
       setMessage('');
+      setImage(null);
       setSelectedPhases(['All']);
       
       // Auto switch back to list
@@ -218,6 +222,17 @@ export default function Announcements() {
     setDateTo('');
     setFilterPhase('All Groups (Show Everything)');
     setPage(1);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   return (
@@ -410,7 +425,12 @@ export default function Announcements() {
                       <td style={{ color: 'var(--text-muted)' }}>
                         <div>{announcement.message}</div>
                         {announcement.image && (
-                          <img src={announcement.image} alt="Announcement Image" style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, marginTop: 8, border: '1px solid var(--border-color)' }} />
+                          <img 
+                            src={announcement.image} 
+                            alt="Announcement Image" 
+                            onClick={() => setFullScreenImage(announcement.image)}
+                            style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, marginTop: 8, border: '1px solid var(--border-color)', cursor: 'pointer' }} 
+                          />
                         )}
                       </td>
                       <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{announcement.createdBy?.name || announcement.creatorName || 'Admin'}</td>
@@ -533,8 +553,40 @@ export default function Announcements() {
                   </div>
                 </div>
               </div>
+
+              <div className="input-group" style={{ marginTop: '16px' }}>
+                <label>Image (Optional)</label>
+                {image ? (
+                  <div style={{ position: 'relative', width: '100%', maxWidth: '300px', marginTop: '8px' }}>
+                    <img src={image} alt="Preview" style={{ width: '100%', height: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)' }} />
+                    <button 
+                      type="button" 
+                      onClick={() => setImage(null)}
+                      style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: '8px' }}>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleImageChange}
+                      style={{ display: 'none' }}
+                      id="announcement-image-upload"
+                    />
+                    <label 
+                      htmlFor="announcement-image-upload"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}
+                    >
+                      <Plus size={18} /> Choose Image
+                    </label>
+                  </div>
+                )}
+              </div>
               
-              <button type="submit" className="btn-primary" disabled={isCreating} style={{ marginTop: '16px', height: '52px' }}>
+              <button type="submit" className="btn-primary" disabled={isCreating} style={{ marginTop: '24px', height: '52px', width: '100%' }}>
                 {isCreating ? 'Publishing...' : 'Publish Announcement'}
               </button>
             </form>
@@ -589,6 +641,19 @@ export default function Announcements() {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* Full Screen Image Modal */}
+      {fullScreenImage && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}>
+          <button 
+            onClick={() => setFullScreenImage(null)} 
+            style={{ position: 'absolute', top: 20, right: 20, background: 'rgba(255, 255, 255, 0.2)', border: 'none', color: 'white', padding: 8, borderRadius: '50%', cursor: 'pointer' }}
+          >
+            <X size={24} />
+          </button>
+          <img src={fullScreenImage} alt="Full Screen" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain' }} />
         </div>
       )}
     </div>

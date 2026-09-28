@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { io } from 'socket.io-client';
+import * as ImagePicker from 'expo-image-picker';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -65,6 +66,7 @@ export default function StaffScreen() {
   const [broadcastTitle, setBroadcastTitle] = useState('');
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcastTarget, setBroadcastTarget] = useState<'All' | 'Members'>('All');
+  const [broadcastImage, setBroadcastImage] = useState<string | null>(null);
   const [sendingBroadcast, setSendingBroadcast] = useState(false);
 
   // Delete Modal State
@@ -220,13 +222,14 @@ export default function StaffScreen() {
       setSendingBroadcast(true);
       const token = await SecureStore.getItemAsync('userToken');
       await axios.post(`${API_URL}/announcements`, 
-        { title: broadcastTitle, message: broadcastMessage, targetAudience: broadcastTarget },
+        { title: broadcastTitle, message: broadcastMessage, targetAudience: broadcastTarget, image: broadcastImage },
         { headers: { 'x-auth-token': token } }
       );
       setBroadcastModalVisible(false);
       setBroadcastTitle('');
       setBroadcastMessage('');
       setBroadcastTarget('All');
+      setBroadcastImage(null);
       const targetMsg = broadcastTarget === 'Members' ? 'RWA (Members)' : 'All Residents';
       Toast.show({ type: 'success', text1: 'Broadcast Sent', text2: `Your message has been sent to ${targetMsg}` });
       fetchAnnouncements(); // Refresh the broadcasts list
@@ -235,6 +238,19 @@ export default function StaffScreen() {
       Toast.show({ type: 'error', text1: 'Broadcast Failed', text2: 'Could not send broadcast' });
     } finally {
       setSendingBroadcast(false);
+    }
+  };
+
+  const pickBroadcastImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.5,
+      base64: true
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setBroadcastImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
     }
   };
 
@@ -449,6 +465,11 @@ export default function StaffScreen() {
                   </View>
                   <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>{new Date(item.date).toLocaleDateString()}</Text>
                   <Text style={{ fontSize: 15, color: '#4B5563', lineHeight: 22 }}>{item.message}</Text>
+                  {item.image && (
+                    <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.image)}>
+                      <Image source={{ uri: item.image }} style={{ width: '100%', height: 200, borderRadius: 12, marginTop: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               ));
             })()}
@@ -557,6 +578,23 @@ export default function StaffScreen() {
               numberOfLines={4}
               placeholderTextColor="#9CA3AF"
             />
+            
+            <View style={{ marginBottom: 16 }}>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 }}>Image (Optional)</Text>
+              {broadcastImage ? (
+                <View style={{ position: 'relative' }}>
+                  <Image source={{ uri: broadcastImage }} style={{ width: '100%', height: 150, borderRadius: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
+                  <TouchableOpacity onPress={() => setBroadcastImage(null)} style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.5)', padding: 6, borderRadius: 16 }}>
+                    <Ionicons name="close" size={20} color="#FFF" />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity onPress={pickBroadcastImage} style={{ padding: 16, borderWidth: 1, borderColor: '#D1D5DB', borderStyle: 'dashed', borderRadius: 12, alignItems: 'center', backgroundColor: '#F9FAFB' }}>
+                  <Ionicons name="image-outline" size={32} color="#9CA3AF" />
+                  <Text style={{ marginTop: 8, color: '#6B7280', fontWeight: '500' }}>Tap to attach an image</Text>
+                </TouchableOpacity>
+              )}
+            </View>
             
             <TouchableOpacity 
               style={styles.broadcastBtn} 

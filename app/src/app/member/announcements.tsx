@@ -25,6 +25,7 @@ export default function Announcements() {
   const [isCreating, setIsCreating] = useState(false);
   const [newTargetPhase, setNewTargetPhase] = useState('All');
   const [newImage, setNewImage] = useState<string | null>(null);
+  const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -213,7 +214,9 @@ export default function Announcements() {
               </View>
               <Text style={styles.cardMessage}>{item.message}</Text>
               {item.image && (
-                <Image source={{ uri: item.image }} style={{ width: '100%', height: 200, borderRadius: 12, marginTop: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
+                <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.image)}>
+                  <Image source={{ uri: item.image }} style={{ width: '100%', height: 200, borderRadius: 12, marginTop: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
+                </TouchableOpacity>
               )}
               
               <View style={styles.cardFooter}>
@@ -228,6 +231,16 @@ export default function Announcements() {
           ))
         )}
       </ScrollView>
+
+      {/* Full Screen Image Modal */}
+      <Modal visible={!!fullScreenImage} transparent={true} animationType="fade" onRequestClose={() => setFullScreenImage(null)}>
+        <View style={styles.fullScreenImageContainer}>
+          <TouchableOpacity style={styles.closeImageBtn} onPress={() => setFullScreenImage(null)}>
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+          {fullScreenImage && <Image source={{ uri: fullScreenImage }} style={styles.fullScreenImage} resizeMode="contain" />}
+        </View>
+      </Modal>
 
       {(user?.permissions && user.permissions.some((p: string) => p.startsWith('Announcements'))) && (
         <TouchableOpacity 
@@ -449,4 +462,8 @@ const styles = StyleSheet.create({
   textArea: { minHeight: 100 },
   submitButton: { backgroundColor: '#0F172A', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 8 },
   submitButtonText: { color: '#FFF', fontSize: 16, fontWeight: '700' },
+  
+  fullScreenImageContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+  fullScreenImage: { width: '100%', height: '100%' },
+  closeImageBtn: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 60, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },
 });
