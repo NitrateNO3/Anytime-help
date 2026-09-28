@@ -58,4 +58,7 @@ app.use('/api/config', require('./routes/config'));
 
 const PORT = process.env.PORT || 5000;
 
-server.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+server.listen(PORT, () => {
+  console.log(`Server started on port ${PORT}`);
+  console.log('Backend successfully updated and running with mine=true fixes!');
+});
