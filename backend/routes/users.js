@@ -286,7 +286,8 @@ router.get('/members', auth, async (req, res) => {
           { name: { $regex: s, $options: 'i' } },
           { phone_number: { $regex: s, $options: 'i' } },
           { address: { $regex: s, $options: 'i' } },
-          { designation: { $regex: s, $options: 'i' } }
+          { designation: { $regex: s, $options: 'i' } },
+          { member_id: { $regex: s, $options: 'i' } }
         ]
       });
     }
