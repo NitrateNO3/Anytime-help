@@ -86,6 +86,7 @@ export default function MyComplaints() {
   const [isOffline, setIsOffline] = useState(false);
   
   const mounted = React.useRef(false);
+  const fetchIdRef = React.useRef(0);
 
   React.useEffect(() => {
     if (!mounted.current) {
@@ -99,6 +100,7 @@ export default function MyComplaints() {
   }, [searchQuery]);
 
   const fetchComplaints = async (pageNum = 1, append = false, currentSearch = searchQuery, currentCategory = selectedCategory, currentViewMode = viewMode, silent = false) => {
+    const currentFetchId = ++fetchIdRef.current;
     try {
       if (!append && !silent) setLoading(true);
       else if (append) setLoadingMore(true);
@@ -115,6 +117,8 @@ export default function MyComplaints() {
         headers: { 'x-auth-token': token }
       });
       
+      if (currentFetchId !== fetchIdRef.current) return;
+
       const newComplaints = res.data.complaints || res.data;
       const hasMoreData = res.data.hasMore !== undefined ? res.data.hasMore : false;
 
@@ -133,6 +137,7 @@ export default function MyComplaints() {
       setPage(pageNum);
       setIsOffline(false);
     } catch (err: any) {
+      if (currentFetchId !== fetchIdRef.current) return;
       console.log('Fetch complaints error:', err.message);
       if (!append) {
         const cachedStr = await AsyncStorage.getItem('cached_resident_complaints');
@@ -144,9 +149,11 @@ export default function MyComplaints() {
         }
       }
     } finally {
-      setLoading(false);
-      setLoadingMore(false);
-      setRefreshing(false);
+      if (currentFetchId === fetchIdRef.current) {
+        setLoading(false);
+        setLoadingMore(false);
+        setRefreshing(false);
+      }
     }
   };
 
