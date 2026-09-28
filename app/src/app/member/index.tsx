@@ -263,7 +263,7 @@ export default function ResidentHome() {
             </WalkthroughableTouchableOpacity>
           </CopilotStep>
 
-          {/* Card 4: Resident / Directory */}
+          {/* Card 4: Directory */}
           <CopilotStep text="निवासियों को खोजने और उनसे संपर्क करने के लिए कम्युनिटी डायरेक्टरी का उपयोग करें।" order={4} name="directory">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
@@ -273,12 +273,31 @@ export default function ResidentHome() {
               activeOpacity={0.8}
             >
               <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
-                <Ionicons name="people" size={30} color="#7C3AED" />
+                <Ionicons name="call" size={30} color="#7C3AED" />
               </View>
-              <Text style={styles.gridCardTitle}>{user?.permissions?.includes('Resident') ? 'Residents' : t('resident.directory', 'Directory')}</Text>
-              <Text style={styles.gridCardSub}>{user?.permissions?.includes('Resident') ? 'View community residents' : t('resident.directorySub', 'Important contacts')}</Text>
+              <Text style={styles.gridCardTitle}>{t('resident.directory', 'Directory')}</Text>
+              <Text style={styles.gridCardSub}>{t('resident.directorySub', 'Important contacts')}</Text>
             </WalkthroughableTouchableOpacity>
           </CopilotStep>
+
+          {/* Card 5: Residents List (Only if has permission) */}
+          {user?.permissions?.includes('Residents') && (
+            <CopilotStep text="सभी निवासियों की सूची देखें।" order={5} name="residents_list">
+              <WalkthroughableTouchableOpacity 
+                style={styles.gridCard}
+                onPress={() => {
+                  router.push('/member/residents' as any);
+                }}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.gridIconCircle, { backgroundColor: '#FCE7F3' }]}>
+                  <Ionicons name="people" size={30} color="#DB2777" />
+                </View>
+                <Text style={styles.gridCardTitle}>Residents</Text>
+                <Text style={styles.gridCardSub}>View community residents</Text>
+              </WalkthroughableTouchableOpacity>
+            </CopilotStep>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

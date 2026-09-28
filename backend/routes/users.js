@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 
 const checkAccess = (user, section) => {
   if (user.role === 'Admin') return true;
-  if (user.role === 'SubAdmin' && user.permissions && user.permissions.includes(section)) return true;
+  if ((user.role === 'SubAdmin' || user.role === 'Member') && user.permissions && user.permissions.includes(section)) return true;
   return false;
 };
 
