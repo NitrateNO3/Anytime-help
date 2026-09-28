@@ -1,28 +1,31 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Linking, Platform, StatusBar, ActivityIndicator, RefreshControl, TextInput, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Platform, StatusBar, ActivityIndicator, TextInput, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTranslation } from 'react-i18next';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
-const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function ResidentsScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
   
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  
+  // Debounce search timeout
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
   useFocusEffect(
     useCallback(() => {
-      fetchContacts();
+      fetchContacts(1, searchQuery, false);
 
       const onBackPress = () => {
         router.replace('/member' as any);
@@ -33,33 +36,75 @@ export default function ResidentsScreen() {
     }, [])
   );
 
-  useEffect(() => {
-    // Optionally setup sockets if you have resident_updated events
-  }, []);
+  const fetchContacts = async (pageNum: number, search: string, isLoadMore = false) => {
+    if (!isLoadMore) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
 
-  const fetchContacts = async () => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const res = await axios.get(`${API_URL}/users/residents`, {
-        headers: { 'x-auth-token': token }
+        headers: { 'x-auth-token': token },
+        params: {
+          page: pageNum,
+          limit: 20,
+          search: search || undefined
+        }
       });
-      setContacts(res.data || []);
+      
+      const newContacts = res.data.residents || [];
+      const totalPages = res.data.totalPages || 1;
+
+      if (isLoadMore) {
+        setContacts(prev => [...prev, ...newContacts]);
+      } else {
+        setContacts(newContacts);
+      }
+      
+      setHasMore(pageNum < totalPages);
+      setPage(pageNum);
+      
     } catch (error) {
-      console.error('Error fetching directory:', error);
+      console.error('Error fetching residents:', error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
+      setRefreshing(false);
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = () => {
     setRefreshing(true);
-    await fetchContacts();
-    setRefreshing(false);
+    fetchContacts(1, searchQuery, false);
+  };
+
+  const loadMore = () => {
+    if (hasMore && !loadingMore && !loading) {
+      fetchContacts(page + 1, searchQuery, true);
+    }
+  };
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    if (searchTimeout) clearTimeout(searchTimeout);
+    
+    // Debounce backend search
+    const timeout = setTimeout(() => {
+      fetchContacts(1, text, false);
+    }, 500);
+    setSearchTimeout(timeout);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery('');
+    if (searchTimeout) clearTimeout(searchTimeout);
+    fetchContacts(1, '', false);
   };
 
   const getInitials = (name: string) => {
     if (!name) return 'U';
-    // Remove titles like Mr., Mrs., Dr.
     const cleanName = name.replace(/^(Mr\.|Mrs\.|Ms\.|Dr\.)\s*/i, '');
     const parts = cleanName.split(' ').filter(p => p.length > 0);
     if (parts.length >= 2) {
@@ -68,30 +113,22 @@ export default function ResidentsScreen() {
     return cleanName.substring(0, 2).toUpperCase();
   };
 
-  const handleWhatsApp = (phone: string) => {
-    if (phone) {
-      // Remove all non-numeric characters
-      let cleaned = phone.replace(/\D/g, '');
-      // If it's exactly 10 digits, assume it's an Indian number and prepend 91
-      if (cleaned.length === 10) {
-        cleaned = '91' + cleaned;
-      }
-      // Try to open WhatsApp app directly, fallback to wa.me web link
-      const url = `whatsapp://send?phone=${cleaned}`;
-      Linking.openURL(url).catch(() => {
-        Linking.openURL(`https://wa.me/${cleaned}`).catch(err => console.error('An error occurred', err));
-      });
-    }
-  };
-
-  const filteredContacts = contacts.filter(contact => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    const name = (contact.name || '').toLowerCase();
-    const phone = (contact.phone_number || '').toLowerCase();
-    const address = (contact.address || '').toLowerCase();
-    return name.includes(q) || phone.includes(q) || address.includes(q);
-  });
+  const renderItem = ({ item: contact }: { item: any }) => (
+    <View style={styles.card}>
+      <View style={styles.iconBox}>
+        <Text style={styles.initialsText}>{getInitials(contact.name)}</Text>
+      </View>
+      <View style={styles.info}>
+        <Text style={styles.name}>{contact.name}</Text>
+        {Boolean(contact.address) && (
+          <Text style={styles.role}>{contact.address}{contact.phase ? `, ${contact.phase}` : ''}</Text>
+        )}
+        {Boolean(contact.phone_number) && (
+          <Text style={styles.phone}>{contact.phone_number}</Text>
+        )}
+      </View>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -117,66 +154,53 @@ export default function ResidentsScreen() {
           <Ionicons name="search" size={18} color="#94A3B8" style={{ marginRight: 10 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search residents..."
+            placeholder="Search by name, flat, phone..."
             placeholderTextColor="#94A3B8"
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={handleSearchChange}
             autoCorrect={false}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity onPress={clearSearch} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close-circle" size={18} color="#94A3B8" />
             </TouchableOpacity>
           )}
         </View>
       </View>
 
-      <ScrollView 
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0F172A']} />}
-      >
-        {loading ? (
-          <ActivityIndicator size="large" color="#0F172A" style={{ marginTop: 40 }} />
-        ) : filteredContacts.length === 0 ? (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIconCircle}>
-              <Ionicons name="people-outline" size={40} color="#94A3B8" />
-            </View>
-            <Text style={styles.emptyTitle}>No residents found</Text>
-            <Text style={styles.emptySubtitle}>
-              {searchQuery 
-                ? 'Try searching with a different name or keyword'
-                : 'Residents will appear here once added by the administration'}
-            </Text>
-          </View>
-        ) : (
-          filteredContacts.map((contact) => (
-            <View key={contact._id || contact.id} style={styles.card}>
-              <View style={styles.iconBox}>
-                <Text style={styles.initialsText}>{getInitials(contact.name)}</Text>
+      {loading && !refreshing ? (
+        <ActivityIndicator size="large" color="#0F172A" style={{ marginTop: 40 }} />
+      ) : (
+        <FlatList
+          data={contacts}
+          keyExtractor={(item) => item._id || item.id}
+          renderItem={renderItem}
+          contentContainerStyle={styles.contentContainer}
+          showsVerticalScrollIndicator={false}
+          onRefresh={onRefresh}
+          refreshing={refreshing}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListEmptyComponent={
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconCircle}>
+                <Ionicons name="people-outline" size={40} color="#94A3B8" />
               </View>
-              <View style={styles.info}>
-                <Text style={styles.name}>{contact.name}</Text>
-                {Boolean(contact.address) && (
-                  <Text style={styles.role}>{contact.address}{contact.phase ? `, ${contact.phase}` : ''}</Text>
-                )}
-                {Boolean(contact.phone_number) && (
-                  <Text style={styles.phone}>{contact.phone_number}</Text>
-                )}
-              </View>
-              <TouchableOpacity 
-                style={styles.whatsappBtn} 
-                onPress={() => handleWhatsApp(contact.phone_number)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="logo-whatsapp" size={20} color="#FFFFFF" />
-              </TouchableOpacity>
+              <Text style={styles.emptyTitle}>No residents found</Text>
+              <Text style={styles.emptySubtitle}>
+                {searchQuery 
+                  ? 'Try searching with a different name or flat number'
+                  : 'Residents will appear here once added by the administration'}
+              </Text>
             </View>
-          ))
-        )}
-        <View style={{ height: 60 }} />
-      </ScrollView>
+          }
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator size="small" color="#0F172A" style={{ marginVertical: 20 }} />
+            ) : <View style={{ height: 60 }} />
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -265,19 +289,6 @@ const styles = StyleSheet.create({
   name: { fontSize: 16, fontWeight: '700', color: '#0F172A', marginBottom: 2 },
   role: { fontSize: 13, color: '#2563EB', fontWeight: '500', marginBottom: 2 },
   phone: { fontSize: 13, color: '#64748B' },
-  whatsappBtn: { 
-    width: 42, 
-    height: 42, 
-    borderRadius: 12, 
-    backgroundColor: '#25D366', 
-    justifyContent: 'center', 
-    alignItems: 'center',
-    shadowColor: '#25D366',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 3,
-  },
   emptyState: { alignItems: 'center', justifyContent: 'center', paddingVertical: 60, paddingHorizontal: 24 },
   emptyIconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   emptyTitle: { fontSize: 17, fontWeight: '700', color: '#1E293B', marginBottom: 6 },
