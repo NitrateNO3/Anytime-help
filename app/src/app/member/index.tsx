@@ -225,7 +225,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 2: All / My Complaints */}
-          <CopilotStep text="शिकायतें देखें" order={2} name="all_complaints" active={true}>
+          <CopilotStep text="शिकायतें देखें" order={2} name="all_complaints">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => {
@@ -242,7 +242,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 3: Announcements */}
-          <CopilotStep text="यहाँ से नई सूचनाएँ पोस्ट करें या ज़रूरी घोषणाएँ देखें।" order={3} name="announcements" active={true}>
+          <CopilotStep text="यहाँ से नई सूचनाएँ पोस्ट करें या ज़रूरी घोषणाएँ देखें।" order={3} name="announcements">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => {
@@ -264,7 +264,7 @@ export default function ResidentHome() {
           </CopilotStep>
 
           {/* Card 4: Resident / Directory */}
-          <CopilotStep text="निवासियों को खोजने और उनसे संपर्क करने के लिए कम्युनिटी डायरेक्टरी का उपयोग करें।" order={4} name="directory" active={true}>
+          <CopilotStep text="निवासियों को खोजने और उनसे संपर्क करने के लिए कम्युनिटी डायरेक्टरी का उपयोग करें।" order={4} name="directory">
             <WalkthroughableTouchableOpacity 
               style={styles.gridCard}
               onPress={() => {
