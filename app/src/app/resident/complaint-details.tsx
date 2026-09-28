@@ -45,6 +45,7 @@ export default function ComplaintDetails() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+  const [fullTextModal, setFullTextModal] = useState<{title: string, text: string} | null>(null);
 
   useEffect(() => {
     fetchComplaintDetails();
@@ -224,7 +225,9 @@ export default function ComplaintDetails() {
         {complaint.description ? (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.descriptionText}>{complaint.description}</Text>
+            <TouchableOpacity onPress={() => setFullTextModal({ title: 'Description', text: complaint.description })}>
+              <Text style={styles.descriptionText} numberOfLines={3}>{complaint.description}</Text>
+            </TouchableOpacity>
           </View>
         ) : null}
 
@@ -296,10 +299,10 @@ export default function ComplaintDetails() {
             <Text style={styles.sectionTitle}>Resolution Details</Text>
             
             {resolutionData.note ? (
-              <View style={{ marginBottom: 16, backgroundColor: '#F8FAFC', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' }}>
+              <TouchableOpacity onPress={() => setFullTextModal({ title: 'Staff Description', text: resolutionData.note })} style={{ marginBottom: 16, backgroundColor: '#F8FAFC', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0' }}>
                 <Text style={{ fontSize: 13, fontWeight: '600', color: '#64748B', marginBottom: 4 }}>Staff Description:</Text>
-                <Text style={{ fontSize: 14, color: '#334155', lineHeight: 20 }}>{resolutionData.note}</Text>
-              </View>
+                <Text style={{ fontSize: 14, color: '#334155', lineHeight: 20 }} numberOfLines={3}>{resolutionData.note}</Text>
+              </TouchableOpacity>
             ) : null}
 
             {resolutionData.uri && (
@@ -362,14 +365,14 @@ export default function ComplaintDetails() {
           ) : (
             <View style={{ marginTop: 8, marginBottom: 16 }}>
               {complaint.replies.map((reply: any, idx: number) => (
-                <View key={idx} style={{ 
+                <TouchableOpacity key={idx} style={{ 
                   backgroundColor: reply.role === 'Admin' || reply.role === 'Staff' ? '#F0FDF4' : '#F8FAFC',
                   borderLeftWidth: 3,
                   borderLeftColor: reply.role === 'Admin' || reply.role === 'Staff' ? '#16A34A' : '#94A3B8',
                   padding: 12,
                   borderRadius: 8,
                   marginBottom: 12
-                }}>
+                }} onPress={() => setFullTextModal({ title: 'Reply', text: reply.text })}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                     <Text style={{ fontWeight: '600', color: reply.role === 'Admin' || reply.role === 'Staff' ? '#16A34A' : '#334155', fontSize: 13 }}>
                       {reply.user?.role === 'Member' ? 'Member' : reply.role} {reply.user?.name ? `- ${reply.user.name}` : ''}
@@ -378,8 +381,8 @@ export default function ComplaintDetails() {
                       {new Date(reply.created_at).toLocaleString()}
                     </Text>
                   </View>
-                  <Text style={{ color: '#334155', fontSize: 14, lineHeight: 20 }}>{reply.text}</Text>
-                </View>
+                  <Text style={{ color: '#334155', fontSize: 14, lineHeight: 20 }} numberOfLines={3}>{reply.text}</Text>
+                </TouchableOpacity>
               ))}
             </View>
           )}
@@ -449,6 +452,23 @@ export default function ComplaintDetails() {
         </View>
       </Modal>
 
+      {/* Full Text Modal */}
+      <Modal visible={!!fullTextModal} transparent={true} animationType="fade" onRequestClose={() => setFullTextModal(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.textModalContainer}>
+            <View style={styles.textModalHeader}>
+              <Text style={styles.textModalTitle}>{fullTextModal?.title}</Text>
+              <TouchableOpacity onPress={() => setFullTextModal(null)}>
+                <Ionicons name="close" size={24} color="#0F172A" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.textModalScroll}>
+              <Text style={styles.textModalBody}>{fullTextModal?.text}</Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
       <Toast />
     </SafeAreaView>
   );
@@ -510,4 +530,11 @@ const styles = StyleSheet.create({
   fullScreenImageContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
   fullScreenImage: { width: '100%', height: '100%' },
   closeImageBtn: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 60, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },
+  
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  textModalContainer: { width: '100%', maxHeight: '80%', backgroundColor: '#FFFFFF', borderRadius: 16, overflow: 'hidden' },
+  textModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: '#E2E8F0', backgroundColor: '#F8FAFC' },
+  textModalTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
+  textModalScroll: { padding: 16 },
+  textModalBody: { fontSize: 16, color: '#334155', lineHeight: 24, paddingBottom: 20 },
 });
