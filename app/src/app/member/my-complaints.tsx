@@ -273,7 +273,12 @@ export default function MyComplaints() {
   };
 
   const displayedComplaints = viewMode === 'mine' && user 
-    ? allFetchedComplaints.filter(c => c.user?._id === user._id || c.user === user._id)
+    ? allFetchedComplaints.filter(c => 
+        c.user?._id === user._id || 
+        c.user?.id === user._id || 
+        c.user === user._id || 
+        (c.upvotes && (c.upvotes.includes(user._id) || c.upvotes.includes(user.id)))
+      )
     : allFetchedComplaints;
 
   return (

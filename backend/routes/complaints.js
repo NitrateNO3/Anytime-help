@@ -21,13 +21,21 @@ router.post('/', auth, async (req, res) => {
     const userPhase = user ? user.phase : null;
 
     // Check for existing identical or similar complaint
-    // We consider it a duplicate if it has the same department, category, location, and is not resolved
-    const existingComplaint = await Complaint.findOne({
+    // We consider it a duplicate if it has the same department, category, location, and address (house number), and is not resolved
+    let duplicateQuery = {
       department,
       category,
       location: { $regex: new RegExp('^' + location.trim() + '$', 'i') },
       status: { $in: ['PENDING', 'IN_PROGRESS'] }
-    });
+    };
+    
+    if (address && address.trim()) {
+      duplicateQuery.address = { $regex: new RegExp('^' + address.trim() + '$', 'i') };
+    } else {
+      duplicateQuery.address = { $in: [null, '', undefined] };
+    }
+
+    const existingComplaint = await Complaint.findOne(duplicateQuery);
 
     if (existingComplaint) {
       // If it exists, and the user hasn't already upvoted/submitted it, add them
@@ -199,7 +207,13 @@ router.get('/', auth, async (req, res) => {
     // If Resident, only show their own complaints (duplicates won't show in their list)
     // If Member passes mine=true, only show their own complaints
     if (req.user.role === 'Resident' || req.query.mine === 'true') {
-      query.user = req.user.id; 
+      const userCondition = { $or: [{ user: req.user.id }, { upvotes: req.user.id }] };
+      if (query.$or) {
+        query.$and = [userCondition, { $or: query.$or }];
+        delete query.$or;
+      } else {
+        query.$or = userCondition.$or;
+      }
     } else if (req.user.role === 'Staff') {
       // Staff only sees complaints for their assigned category and phase
       const user = await User.findById(req.user.id);
