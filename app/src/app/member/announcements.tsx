@@ -138,6 +138,13 @@ export default function Announcements() {
     }
   };
 
+  const formatCreatorName = (rawName: string) => {
+    if (!rawName) return '';
+    if (rawName.includes(',')) return rawName.split(',')[0].trim();
+    if (rawName.includes('-')) return rawName.split('-')[0].trim();
+    return rawName;
+  };
+
   const handleCreateAnnouncement = async () => {
     if (!newTitle.trim() || !newDesc.trim()) {
       Alert.alert('Validation Error', 'Title and description are required.');
@@ -223,7 +230,7 @@ export default function Announcements() {
                 <Text style={styles.dateText}>{formatDate(item.date)}</Text>
                 {item.creatorName && (
                   <View style={styles.creatorBadge}>
-                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {item.createdBy?.name || item.creatorName}</Text>
+                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {formatCreatorName(item.createdBy?.name || item.creatorName)}</Text>
                   </View>
                 )}
               </View>
