@@ -77,6 +77,14 @@ export default function Announcements() {
     }
   };
 
+  const formatCreatorName = (rawName: string) => {
+    if (!rawName) return '';
+    if (rawName.includes('(')) return rawName.split('(')[0].trim();
+    if (rawName.includes(',')) return rawName.split(',')[0].trim();
+    if (rawName.includes('-')) return rawName.split('-')[0].trim();
+    return rawName;
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
@@ -136,7 +144,7 @@ export default function Announcements() {
               {item.creatorName && (
                 <View style={styles.cardFooter}>
                   <View style={styles.creatorBadge}>
-                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {item.createdBy?.name || item.creatorName}</Text>
+                    <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {formatCreatorName(item.createdBy?.name || item.creatorName)}</Text>
                   </View>
                 </View>
               )}
