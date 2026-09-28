@@ -273,12 +273,12 @@ export default function MyComplaints() {
   };
 
   const displayedComplaints = viewMode === 'mine' && user 
-    ? allFetchedComplaints.filter(c => 
-        c.user?._id === user._id || 
-        c.user?.id === user._id || 
-        c.user === user._id || 
-        (c.upvotes && (c.upvotes.includes(user._id) || c.upvotes.includes(user.id)))
-      )
+    ? allFetchedComplaints.filter(c => {
+        const uid = String(user._id || user.id);
+        const cid = String(c.user?._id || c.user?.id || c.user);
+        const inUpvotes = c.upvotes && Array.isArray(c.upvotes) && c.upvotes.some((u: any) => String(u) === uid);
+        return cid === uid || inUpvotes;
+      })
     : allFetchedComplaints;
 
   return (
@@ -312,7 +312,10 @@ export default function MyComplaints() {
         <View style={{ flexDirection: 'row', backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
           <TouchableOpacity 
             style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: viewMode === 'all' ? '#0F172A' : 'transparent' }}
-            onPress={() => setViewMode('all')}
+            onPress={() => {
+              setViewMode('all');
+              fetchComplaints(1, false, searchQuery, selectedCategory, 'all');
+            }}
           >
             <Text style={{ fontSize: 15, fontWeight: viewMode === 'all' ? '700' : '500', color: viewMode === 'all' ? '#0F172A' : '#64748B' }}>
               All Complaints
@@ -320,7 +323,10 @@ export default function MyComplaints() {
           </TouchableOpacity>
           <TouchableOpacity 
             style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: viewMode === 'mine' ? '#0F172A' : 'transparent' }}
-            onPress={() => setViewMode('mine')}
+            onPress={() => {
+              setViewMode('mine');
+              fetchComplaints(1, false, searchQuery, selectedCategory, 'mine');
+            }}
           >
             <Text style={{ fontSize: 15, fontWeight: viewMode === 'mine' ? '700' : '500', color: viewMode === 'mine' ? '#0F172A' : '#64748B' }}>
               My Complaints
