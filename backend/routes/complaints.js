@@ -17,7 +17,7 @@ router.post('/', auth, async (req, res) => {
     const { title, description, location, address, category, department, priority, before_image } = req.body;
     
     if (!before_image) {
-      return res.status(400).json({ message: 'A photo of the issue is mandatory.' });
+      return res.status(400).json({ msg: 'A photo of the issue is mandatory.' });
     }
 
     // Fetch user to get their phase
