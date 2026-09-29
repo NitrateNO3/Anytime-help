@@ -101,7 +101,8 @@ export default function Dashboard() {
         if (cached.stats) setStats(cached.stats);
         setTotalCount(cached.total || 0);
         setTotalPages(Math.ceil((cached.total || 0) / 10) || 1);
-        showLoading = false; // We have data, no need to show loading spinner
+        showLoading = false;
+        setLoading(false); // Hide initial spinner since we have cache
       } catch(e) {}
     }
 
@@ -136,7 +137,7 @@ export default function Dashboard() {
       console.error(err);
       if (!cachedStr) toast.error('Failed to fetch complaints');
     } finally {
-      if (showLoading) setLoading(false);
+      setLoading(false); // Always turn off loading when done
     }
   };
 
