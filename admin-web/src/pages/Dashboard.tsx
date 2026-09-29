@@ -91,7 +91,22 @@ export default function Dashboard() {
   }, [page, debouncedSearch, statusFilter, categoryFilter, phaseFilter, sortOrder]);
 
   const fetchComplaints = async (currentPage: number, showLoading: boolean = true) => {
+    const cacheKey = `dashboard_cache_${currentPage}_${debouncedSearch}_${statusFilter}_${categoryFilter}_${phaseFilter}_${sortOrder}`;
+    const cachedStr = sessionStorage.getItem(cacheKey);
+    
+    if (cachedStr) {
+      try {
+        const cached = JSON.parse(cachedStr);
+        setComplaints(cached.complaints || []);
+        if (cached.stats) setStats(cached.stats);
+        setTotalCount(cached.total || 0);
+        setTotalPages(Math.ceil((cached.total || 0) / 10) || 1);
+        showLoading = false; // We have data, no need to show loading spinner
+      } catch(e) {}
+    }
+
     if (showLoading) setLoading(true);
+    
     try {
       const token = localStorage.getItem('adminToken');
       const params = new URLSearchParams({
@@ -109,6 +124,8 @@ export default function Dashboard() {
         headers: { 'x-auth-token': token }
       });
 
+      sessionStorage.setItem(cacheKey, JSON.stringify(res.data)); // Cache for next time
+
       setComplaints(res.data.complaints || []);
       if (res.data.stats) {
         setStats(res.data.stats);
@@ -117,7 +134,7 @@ export default function Dashboard() {
       setTotalPages(Math.ceil((res.data.total || 0) / 10) || 1);
     } catch (err) {
       console.error(err);
-      toast.error('Failed to fetch complaints');
+      if (!cachedStr) toast.error('Failed to fetch complaints');
     } finally {
       if (showLoading) setLoading(false);
     }
