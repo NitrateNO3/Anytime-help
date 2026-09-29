@@ -130,6 +130,22 @@ export default function Residents() {
     showLoading = true
   ) => {
     try {
+      const cacheKey = `residents_cache_${currentPage}_${phaseFilter}_${searchFilter}_${relationFilter}_${from}_${to}_${role}_${statusFilter}`;
+      const cachedStr = sessionStorage.getItem(cacheKey);
+
+      if (cachedStr) {
+        try {
+          const cached = JSON.parse(cachedStr);
+          if (cached && cached.residents) {
+            setResidents(cached.residents);
+            setTotalCount(cached.total || 0);
+            setTotalPages(Math.ceil((cached.total || 0) / 10) || 1);
+            showLoading = false;
+            setLoading(false);
+          }
+        } catch(e) {}
+      }
+
       if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
       const params = new URLSearchParams({
@@ -147,6 +163,8 @@ export default function Residents() {
       const res = await axios.get(`${API_URL}/users/residents?${params.toString()}`, {
         headers: { 'x-auth-token': token }
       });
+      
+      sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
       if (res.data && res.data.residents) {
         setResidents(res.data.residents);
         setTotalCount(res.data.total || 0);
@@ -159,7 +177,7 @@ export default function Residents() {
     } catch (error) {
       console.error('Error fetching residents:', error);
     } finally {
-      if (showLoading) setLoading(false);
+      setLoading(false);
     }
   };
 

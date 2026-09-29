@@ -59,6 +59,22 @@ export default function Members() {
     showLoading = true
   ) => {
     try {
+      const cacheKey = `members_cache_${currentPage}_${searchFilter}_${statusFilter}`;
+      const cachedStr = sessionStorage.getItem(cacheKey);
+
+      if (cachedStr) {
+        try {
+          const cached = JSON.parse(cachedStr);
+          if (cached && cached.members) {
+            setMembers(cached.members);
+            setTotalCount(cached.total || 0);
+            setTotalPages(Math.ceil((cached.total || 0) / 10) || 1);
+            showLoading = false;
+            setLoading(false);
+          }
+        } catch(e) {}
+      }
+
       if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
       
@@ -72,6 +88,9 @@ export default function Members() {
       const res = await axios.get(`${API_URL}/users/members?${params.toString()}`, {
         headers: { 'x-auth-token': token }
       });
+
+      sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
+
       if (res.data && res.data.members) {
         setMembers(res.data.members);
         setTotalCount(res.data.total || 0);
@@ -85,7 +104,7 @@ export default function Members() {
       console.error(err);
       toast.error('Failed to load members');
     } finally {
-      if (showLoading) setLoading(false);
+      setLoading(false);
     }
   };
 

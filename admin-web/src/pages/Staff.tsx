@@ -171,6 +171,22 @@ export default function Staff() {
     showLoading = true
   ) => {
     try {
+      const cacheKey = `staff_cache_${currentPage}_${phase}_${searchFilter}`;
+      const cachedStr = sessionStorage.getItem(cacheKey);
+
+      if (cachedStr) {
+        try {
+          const cached = JSON.parse(cachedStr);
+          if (cached && cached.staff) {
+            setStaff(cached.staff);
+            setTotalCount(cached.total || 0);
+            setTotalPages(Math.ceil((cached.total || 0) / 10) || 1);
+            showLoading = false;
+            setLoading(false);
+          }
+        } catch(e) {}
+      }
+
       if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
       
@@ -184,6 +200,9 @@ export default function Staff() {
       const res = await axios.get(`${API_URL}/users/staff?${params.toString()}`, {
         headers: { 'x-auth-token': token }
       });
+
+      sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
+
       if (res.data && res.data.staff) {
         setStaff(res.data.staff);
         setTotalCount(res.data.total || 0);
@@ -197,7 +216,7 @@ export default function Staff() {
       console.error(err);
       toast.error('Failed to load staff members');
     } finally {
-      if (showLoading) setLoading(false);
+      setLoading(false);
     }
   };
 

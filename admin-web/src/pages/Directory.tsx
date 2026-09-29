@@ -42,11 +42,36 @@ export default function Directory() {
 
   const fetchContacts = async (currentPage = page, phaseFilter = filterPhase, showLoading = true) => {
     try {
+      const cacheKey = `directory_cache_${currentPage}_${phaseFilter}`;
+      const cachedStr = sessionStorage.getItem(cacheKey);
+
+      if (cachedStr) {
+        try {
+          const cached = JSON.parse(cachedStr);
+          if (cached && (cached.directory || Array.isArray(cached))) {
+            if (cached.directory) {
+              setContacts(cached.directory);
+              setTotalCount(cached.total || 0);
+              setTotalPages(cached.totalPages || 1);
+            } else {
+              setContacts(cached);
+              setTotalCount(cached.length);
+              setTotalPages(Math.ceil(cached.length / 10) || 1);
+            }
+            showLoading = false;
+            setLoading(false);
+          }
+        } catch(e) {}
+      }
+
       if (showLoading) setLoading(true);
       const token = localStorage.getItem('adminToken');
       const res = await axios.get(`${API_URL}/directory?page=${currentPage}&limit=10&phase=${encodeURIComponent(phaseFilter)}`, {
         headers: { 'x-auth-token': token }
       });
+      
+      sessionStorage.setItem(cacheKey, JSON.stringify(res.data));
+
       if (res.data && res.data.directory) {
         setContacts(res.data.directory);
         setTotalCount(res.data.total || 0);
@@ -60,7 +85,7 @@ export default function Directory() {
       console.error(error);
       toast.error('Failed to fetch directory contacts');
     } finally {
-      if (showLoading) setLoading(false);
+      setLoading(false);
     }
   };
 
