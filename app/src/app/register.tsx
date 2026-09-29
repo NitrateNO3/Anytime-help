@@ -251,7 +251,7 @@ export default function RegisterScreen() {
 
     useEffect(() => {
       Animated.parallel([
-        Animated.spring(scaleAnim, { toValue: isFocused ? 1.02 : 1, friction: 5, useNativeDriver: true }),
+        Animated.spring(scaleAnim, { toValue: isFocused ? 1.02 : 1, friction: 5, useNativeDriver: false }),
         Animated.timing(borderAnim, { toValue: isFocused ? 1 : 0, duration: 200, useNativeDriver: false })
       ]).start();
     }, [isFocused]);
