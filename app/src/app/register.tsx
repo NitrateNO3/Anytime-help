@@ -20,6 +20,40 @@ const { width } = Dimensions.get('window');
 // 2: Family Members (Add Family + Details)
 // 3: Summary, Terms & Sign Up (Conditional Duplicate Address)
 
+// Custom Animated Input Component for Focus Effects
+const FocusableInput = ({ icon, label, prefix, ...props }: any) => {
+  const [isFocused, setIsFocused] = useState(false);
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const borderAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scaleAnim, { toValue: isFocused ? 1.02 : 1, friction: 5, useNativeDriver: false }),
+      Animated.timing(borderAnim, { toValue: isFocused ? 1 : 0, duration: 200, useNativeDriver: false })
+    ]).start();
+  }, [isFocused]);
+
+  const borderColor = borderAnim.interpolate({ inputRange: [0, 1], outputRange: ['#E2E8F0', '#3B82F6'] });
+  const shadowOpacity = borderAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.15] });
+
+  return (
+    <View style={styles.inputWrapper}>
+      <Text style={styles.label}>{label}</Text>
+      <Animated.View style={[styles.inputBox, { borderColor, transform: [{ scale: scaleAnim }], shadowColor: '#3B82F6', shadowOffset: {width: 0, height: 4}, shadowOpacity, shadowRadius: 8, elevation: isFocused ? 4 : 0 }]}>
+        {icon && <Ionicons name={icon} size={20} color={isFocused ? "#3B82F6" : "#64748B"} style={styles.inputIcon} />}
+        {prefix && <Text style={styles.prefixText}>{prefix}</Text>}
+        <TextInput
+          style={styles.input}
+          placeholderTextColor="#94A3B8"
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          {...props}
+        />
+      </Animated.View>
+    </View>
+  );
+};
+
 export default function RegisterScreen() {
   const router = useRouter();
   const navigation = useNavigation();
@@ -241,40 +275,6 @@ export default function RegisterScreen() {
     const newLang = getNextLanguage(i18n.language);
     await i18n.changeLanguage(newLang);
     await AsyncStorage.setItem('user-language', newLang);
-  };
-
-  // Custom Animated Input Component for Focus Effects
-  const FocusableInput = ({ icon, label, prefix, ...props }: any) => {
-    const [isFocused, setIsFocused] = useState(false);
-    const scaleAnim = useRef(new Animated.Value(1)).current;
-    const borderAnim = useRef(new Animated.Value(0)).current;
-
-    useEffect(() => {
-      Animated.parallel([
-        Animated.spring(scaleAnim, { toValue: isFocused ? 1.02 : 1, friction: 5, useNativeDriver: false }),
-        Animated.timing(borderAnim, { toValue: isFocused ? 1 : 0, duration: 200, useNativeDriver: false })
-      ]).start();
-    }, [isFocused]);
-
-    const borderColor = borderAnim.interpolate({ inputRange: [0, 1], outputRange: ['#E2E8F0', '#3B82F6'] });
-    const shadowOpacity = borderAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.15] });
-
-    return (
-      <View style={styles.inputWrapper}>
-        <Text style={styles.label}>{label}</Text>
-        <Animated.View style={[styles.inputBox, { borderColor, transform: [{ scale: scaleAnim }], shadowColor: '#3B82F6', shadowOffset: {width: 0, height: 4}, shadowOpacity, shadowRadius: 8, elevation: isFocused ? 4 : 0 }]}>
-          {icon && <Ionicons name={icon} size={20} color={isFocused ? "#3B82F6" : "#64748B"} style={styles.inputIcon} />}
-          {prefix && <Text style={styles.prefixText}>{prefix}</Text>}
-          <TextInput
-            style={styles.input}
-            placeholderTextColor="#94A3B8"
-            onFocus={() => setIsFocused(true)}
-            onBlur={() => setIsFocused(false)}
-            {...props}
-          />
-        </Animated.View>
-      </View>
-    );
   };
 
   // Renders

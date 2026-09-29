@@ -8,6 +8,7 @@ const auth = require('../middleware/auth');
 // @desc    Get all directory contacts
 router.get('/', auth, async (req, res) => {
   try {
+    const { page, limit } = req.query;
     let query = {};
     if (req.user.role === 'Resident') {
       const user = await User.findById(req.user.id);
