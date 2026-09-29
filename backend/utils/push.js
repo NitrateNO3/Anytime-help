@@ -11,8 +11,8 @@ const axios = require('axios');
 const sendPushNotifications = async (tokens, title, body, data = {}, badge = 1) => {
   if (!tokens || tokens.length === 0) return;
 
-  // Filter out invalid tokens
-  const validTokens = tokens.filter(token => token && token.startsWith('ExponentPushToken['));
+  // Filter out invalid tokens and remove duplicates
+  const validTokens = [...new Set(tokens.filter(token => token && token.startsWith('ExponentPushToken[')))];
   if (validTokens.length === 0) return;
 
   const messages = validTokens.map(token => ({
