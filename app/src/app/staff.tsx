@@ -25,7 +25,7 @@ export default function StaffScreen() {
   const { t, i18n } = useTranslation();
   const [complaints, setComplaints] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'Tasks' | 'Broadcasts'>('Tasks');
+  const [activeTab, setActiveTab] = useState<'Tasks' | 'Broadcasts' | 'Announcements'>('Tasks');
 
   const toggleLanguage = async () => {
     const newLang = getNextLanguage(i18n.language);
@@ -328,7 +328,15 @@ export default function StaffScreen() {
               <Text style={[styles.filterText, activeTab === 'Tasks' && styles.filterTextActive]}>{t('staff.assignedTasks')}</Text>
             </WalkthroughableTouchableOpacity>
           </CopilotStep>
-          <CopilotStep text="निवासियों को ज़रूरी अपडेट या घोषणाएँ भेजने के लिए इसका उपयोग करें।" order={2} name="broadcasts_tab">
+          <CopilotStep text="एडमिन या मैनेजमेंट से आई घोषणाएं यहाँ देखें।" order={2} name="announcements_tab">
+            <WalkthroughableTouchableOpacity 
+              style={[styles.filterChip, activeTab === 'Announcements' && styles.filterChipActive]}
+              onPress={() => setActiveTab('Announcements')}
+            >
+              <Text style={[styles.filterText, activeTab === 'Announcements' && styles.filterTextActive]}>Announcements</Text>
+            </WalkthroughableTouchableOpacity>
+          </CopilotStep>
+          <CopilotStep text="निवासियों को ज़रूरी अपडेट या घोषणाएँ भेजने के लिए इसका उपयोग करें।" order={3} name="broadcasts_tab">
             <WalkthroughableTouchableOpacity 
               style={[styles.filterChip, activeTab === 'Broadcasts' && styles.filterChipActive]}
               onPress={() => setActiveTab('Broadcasts')}
@@ -431,6 +439,43 @@ export default function StaffScreen() {
                 </TouchableOpacity>
               ))
             )}
+          </>
+        ) : activeTab === 'Announcements' ? (
+          <>
+            {(() => {
+              const filteredAnnouncements = announcements.filter(item => {
+                const uid = user?._id || user?.id;
+                const cid = item?.createdBy?._id || item?.createdBy?.id || item?.createdBy;
+                return !uid || !cid || String(uid) !== String(cid);
+              });
+
+              if (loadingAnnouncements) {
+                return <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />;
+              }
+
+              if (filteredAnnouncements.length === 0) {
+                return (
+                  <View style={styles.emptyStateContainer}>
+                    <Ionicons name="megaphone-outline" size={64} color="#D1D5DB" />
+                    <Text style={styles.emptyTextLarge}>No Announcements</Text>
+                    <Text style={styles.emptyTextSub}>You have no new announcements from management.</Text>
+                  </View>
+                );
+              }
+
+              return filteredAnnouncements.map((item) => (
+                <View key={item._id} style={[styles.card, { padding: 16 }]}>
+                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 }}>{item.title}</Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>{new Date(item.date).toLocaleDateString()}</Text>
+                  <Text style={{ fontSize: 15, color: '#4B5563', lineHeight: 22 }}>{item.message}</Text>
+                  {item.image && (
+                    <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.image)}>
+                      <Image source={{ uri: item.image }} style={{ width: '100%', height: 200, borderRadius: 12, marginTop: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ));
+            })()}
           </>
         ) : (
           <>
