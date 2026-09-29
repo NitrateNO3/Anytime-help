@@ -36,18 +36,22 @@ router.get('/', auth, async (req, res) => {
       }
     }
 
-    const { page, limit } = req.query;
-    if (page && limit) {
-      const pageNum = parseInt(page, 10);
-      const limitNum = parseInt(limit, 10);
-      const skip = (pageNum - 1) * limitNum;
-      const directories = await Directory.find(query).sort({ order: 1, createdAt: -1 }).skip(skip).limit(limitNum);
-      const total = await Directory.countDocuments(query);
-      return res.json({ directory: directories, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
-    }
-
-    const directories = await Directory.find(query).sort({ order: 1, createdAt: -1 });
-    res.json(directories);
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = Math.min(parseInt(limit || '20', 10), 20);
+    const skip = (pageNum - 1) * limitNum;
+    
+    const directories = await Directory.find(query)
+      .select('-__v')
+      .sort({ order: 1, createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+      
+    const total = await Directory.countDocuments(query);
+    
+    if (!req.query.page && !req.query.limit) return res.json(directories);
+    
+    return res.json({ directory: directories, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');

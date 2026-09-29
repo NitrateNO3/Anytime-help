@@ -76,4 +76,10 @@ const complaintSchema = new mongoose.Schema({
   },
 });
 
+complaintSchema.index({ user: 1 });
+complaintSchema.index({ status: 1, created_at: -1 });
+complaintSchema.index({ department: 1, status: 1 });
+complaintSchema.index({ assigned_staff: 1, status: 1 });
+complaintSchema.index({ category: 1 });
+
 module.exports = mongoose.model('Complaint', complaintSchema);

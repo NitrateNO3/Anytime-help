@@ -15,4 +15,6 @@ const DirectorySchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+DirectorySchema.index({ phases: 1, order: 1 });
+
 module.exports = mongoose.model('Directory', DirectorySchema);

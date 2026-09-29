@@ -60,13 +60,25 @@ router.get('/me', auth, async (req, res) => {
       query = {}; // Admins see all
     }
 
+    const pageNum = parseInt(req.query.page || '1', 10);
+    const limitNum = Math.min(parseInt(req.query.limit || '15', 10), 20);
+    const skip = (pageNum - 1) * limitNum;
+
     const bookings = await ServiceBooking.find(query)
+      .select('-__v')
       .populate('service')
       .populate('resident', 'name phone_number address')
       .populate('assigned_staff', 'name phone_number')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
       
-    res.json(bookings);
+    const total = await ServiceBooking.countDocuments(query);
+    
+    if (!req.query.page && !req.query.limit) return res.json(bookings);
+    
+    res.json({ bookings, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -81,17 +93,31 @@ router.get('/available', auth, async (req, res) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     
-    // We could filter by the staff's assigned_category matching the service's name
-    // For simplicity, let's fetch all pending. In production, we'd do a lookup.
-    const bookings = await ServiceBooking.find({ status: 'PENDING' })
-      .populate('service')
-      .populate('resident', 'name address');
-      
-    // Filter in JS to only those matching the staff's assigned category
     const cats = req.user.assigned_categories && req.user.assigned_categories.length > 0 ? req.user.assigned_categories : (req.user.assigned_category ? [req.user.assigned_category] : []);
-    const filtered = bookings.filter(b => cats.includes(b.service.name));
+    
+    // Offload JS filter to database
+    const mongoose = require('mongoose');
+    const PaidService = require('../models/PaidService');
+    const matchingServices = await PaidService.find({ name: { $in: cats } }).select('_id').lean();
+    const serviceIds = matchingServices.map(s => s._id);
 
-    res.json(filtered);
+    const pageNum = parseInt(req.query.page || '1', 10);
+    const limitNum = Math.min(parseInt(req.query.limit || '15', 10), 20);
+    const skip = (pageNum - 1) * limitNum;
+
+    const bookings = await ServiceBooking.find({ status: 'PENDING', service: { $in: serviceIds } })
+      .select('-__v')
+      .populate('service')
+      .populate('resident', 'name address')
+      .skip(skip)
+      .limit(limitNum)
+      .lean();
+
+    const total = await ServiceBooking.countDocuments({ status: 'PENDING', service: { $in: serviceIds } });
+    
+    if (!req.query.page && !req.query.limit) return res.json(bookings);
+    
+    res.json({ bookings, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

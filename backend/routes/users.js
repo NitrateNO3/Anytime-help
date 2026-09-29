@@ -147,17 +147,16 @@ router.get('/staff', auth, async (req, res) => {
       query.$and = andConditions;
     }
 
-    if (page && limit) {
-      const pageNum = parseInt(page, 10);
-      const limitNum = parseInt(limit, 10);
-      const skip = (pageNum - 1) * limitNum;
-      const staff = await User.find(query).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limitNum);
-      const total = await User.countDocuments(query);
-      return res.json({ staff, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
-    }
-
-    const staff = await User.find(query).select('-password').sort({ createdAt: -1 });
-    res.json(staff);
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = Math.min(parseInt(limit || '20', 10), 20);
+    const skip = (pageNum - 1) * limitNum;
+    
+    const staff = await User.find(query).select('-password -__v').sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean();
+    const total = await User.countDocuments(query);
+    
+    if (!page && !limit) return res.json(staff);
+    
+    return res.json({ staff, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -171,7 +170,7 @@ router.get('/paid-staff', auth, async (req, res) => {
     if (req.user.role !== 'Admin') {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const staff = await User.find({ role: 'PaidStaff' }).select('-password');
+    const staff = await User.find({ role: 'PaidStaff' }).select('-password -__v').lean();
     res.json(staff);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -262,17 +261,16 @@ router.get('/residents', auth, async (req, res) => {
       query.$and = andConditions;
     }
 
-    if (page && limit) {
-      const pageNum = parseInt(page, 10);
-      const limitNum = parseInt(limit, 10);
-      const skip = (pageNum - 1) * limitNum;
-      const residents = await User.find(query).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limitNum);
-      const total = await User.countDocuments(query);
-      return res.json({ residents, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
-    }
-
-    const residents = await User.find(query).select('-password').sort({ createdAt: -1 });
-    res.json(residents);
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = Math.min(parseInt(limit || '20', 10), 20);
+    const skip = (pageNum - 1) * limitNum;
+    
+    const residents = await User.find(query).select('-password -__v').sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean();
+    const total = await User.countDocuments(query);
+    
+    if (!page && !limit) return res.json(residents);
+    
+    return res.json({ residents, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -326,17 +324,16 @@ router.get('/members', auth, async (req, res) => {
       query.$and = andConditions;
     }
 
-    if (page && limit) {
-      const pageNum = parseInt(page, 10);
-      const limitNum = parseInt(limit, 10);
-      const skip = (pageNum - 1) * limitNum;
-      const members = await User.find(query).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limitNum);
-      const total = await User.countDocuments(query);
-      return res.json({ members, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
-    }
-
-    const members = await User.find(query).select('-password').sort({ createdAt: -1 });
-    res.json(members);
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = Math.min(parseInt(limit || '20', 10), 20);
+    const skip = (pageNum - 1) * limitNum;
+    
+    const members = await User.find(query).select('-password -__v').sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean();
+    const total = await User.countDocuments(query);
+    
+    if (!page && !limit) return res.json(members);
+    
+    return res.json({ members, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

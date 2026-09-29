@@ -44,4 +44,7 @@ const AnnouncementSchema = new mongoose.Schema({
   }
 });
 
+AnnouncementSchema.index({ active: 1, date: -1 });
+AnnouncementSchema.index({ phases: 1 });
+
 module.exports = mongoose.model('Announcement', AnnouncementSchema);

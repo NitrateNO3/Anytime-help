@@ -70,7 +70,8 @@ router.post('/', auth, async (req, res) => {
     if (before_image && before_image.startsWith('data:image')) {
       try {
         const result = await cloudinary.uploader.upload(before_image, {
-          folder: 'anytime_help/complaints'
+          folder: 'anytime_help/complaints',
+          transformation: [{ quality: 'auto', fetch_format: 'auto', width: 800, crop: 'limit' }]
         });
         imageUrl = result.secure_url;
       } catch (err) {
@@ -125,7 +126,7 @@ router.post('/', auth, async (req, res) => {
           { role: 'Staff', $or: phaseConditions }
         ],
         expoPushToken: { $exists: true, $ne: '' }
-      }).select('expoPushToken assigned_category assigned_categories role phase');
+      }).select('expoPushToken assigned_category assigned_categories role phase').lean();
 
       const tokens = adminsAndStaff
         .filter(u => {
@@ -197,7 +198,7 @@ router.get('/', auth, async (req, res) => {
             { name: { $regex: s, $options: 'i' } },
             { phone: { $regex: s, $options: 'i' } }
           ]
-        }).select('_id');
+        }).select('_id').lean();
         if (matchingUsers.length > 0) {
           orConditions.push({ user: { $in: matchingUsers.map(u => u._id) } });
         }
@@ -238,33 +239,47 @@ router.get('/', auth, async (req, res) => {
     
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     let complaintsQuery = Complaint.find(query)
+      .select('-__v')
       .populate('user', 'name phone_number address room_number phase relation')
       .populate('assigned_staff', 'name phone_number address room_number phase')
       .populate('replies.user', 'name role')
-      .sort({ created_at: sortDirection });
+      .sort({ created_at: sortDirection })
+      .lean();
     
-    if (page && limit) {
-      const pageNum = parseInt(page, 10);
-      const limitNum = parseInt(limit, 10);
-      const startIndex = (pageNum - 1) * limitNum;
-      
-      complaintsQuery = complaintsQuery.skip(startIndex).limit(limitNum);
-      const complaints = await complaintsQuery;
-      const total = await Complaint.countDocuments(query);
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = Math.min(parseInt(limit || '15', 10), 20); // Enforce max limit of 20
+    const startIndex = (pageNum - 1) * limitNum;
+    
+    complaintsQuery = complaintsQuery.skip(startIndex).limit(limitNum);
+    
+    const [complaints, total, pending, inProgress, resolved] = await Promise.all([
+      complaintsQuery,
+      Complaint.countDocuments(query),
+      Complaint.countDocuments({ ...query, status: 'PENDING' }),
+      Complaint.countDocuments({ ...query, status: 'IN_PROGRESS' }),
+      Complaint.countDocuments({ ...query, status: { $in: ['RESOLVED', 'DONE'] } })
+    ]);
 
-      // KPI stats: compute across non-status filters so status counts remain accurate
-      let statsQuery = { ...query };
-      delete statsQuery.status;
-      const pending = await Complaint.countDocuments({ ...statsQuery, status: 'PENDING' });
-      const inProgress = await Complaint.countDocuments({ ...statsQuery, status: 'IN_PROGRESS' });
-      const resolved = await Complaint.countDocuments({ ...statsQuery, status: { $in: ['RESOLVED', 'DONE'] } });
-      const hasMore = startIndex + complaints.length < total;
-      
-      return res.json({ complaints, total, hasMore, stats: { pending, inProgress, resolved } });
+    let processedComplaints = complaints.map(c => {
+      let bImage = c.before_image;
+      let aImage = c.after_image;
+      if (bImage && bImage.includes('cloudinary.com') && !bImage.includes('upload/f_auto,q_auto')) {
+        bImage = bImage.replace('/upload/', '/upload/f_auto,q_auto,w_800,c_limit/');
+      }
+      if (aImage && aImage.includes('cloudinary.com') && !aImage.includes('upload/f_auto,q_auto')) {
+        aImage = aImage.replace('/upload/', '/upload/f_auto,q_auto,w_800,c_limit/');
+      }
+      return { ...c, before_image: bImage, after_image: aImage };
+    });
+
+    if (!page && !limit && !sortOrder) {
+      // Fallback for older mobile app versions not sending pagination/sort
+      return res.json(processedComplaints);
     }
+
+    const hasMore = startIndex + complaints.length < total;
     
-    const complaints = await complaintsQuery;
-    res.json(complaints);
+    return res.json({ complaints: processedComplaints, total, hasMore, stats: { pending, inProgress, resolved } });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -274,12 +289,24 @@ router.get('/', auth, async (req, res) => {
 router.get('/:id', auth, async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
+      .select('-__v')
       .populate('user', 'name phone_number address room_number phase relation')
       .populate('assigned_staff', 'name phone_number address room_number phase')
-      .populate('replies.user', 'name role');
+      .populate('replies.user', 'name role')
+      .lean();
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
     }
+    
+    let bImage = complaint.before_image;
+    let aImage = complaint.after_image;
+    if (bImage && bImage.includes('cloudinary.com') && !bImage.includes('upload/f_auto,q_auto')) {
+      complaint.before_image = bImage.replace('/upload/', '/upload/f_auto,q_auto,w_800,c_limit/');
+    }
+    if (aImage && aImage.includes('cloudinary.com') && !aImage.includes('upload/f_auto,q_auto')) {
+      complaint.after_image = aImage.replace('/upload/', '/upload/f_auto,q_auto,w_800,c_limit/');
+    }
+
     res.json(complaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -335,7 +362,7 @@ router.post('/:id/reply', auth, async (req, res) => {
           { role: 'Staff', $or: [{ phase: userPhase }, { phase: 'Universal' }, { phase: 'All' }, { phase: { $exists: false } }] }
         ],
         expoPushToken: { $exists: true, $ne: '' }
-      }).select('_id expoPushToken assigned_category assigned_categories role');
+      }).select('_id expoPushToken assigned_category assigned_categories role').lean();
 
       const staffAdminTokens = adminsAndStaff
         .filter(u => {
@@ -427,7 +454,8 @@ router.patch('/:id', auth, async (req, res) => {
       if (after_image.startsWith('data:image')) {
         try {
           const result = await cloudinary.uploader.upload(after_image, {
-            folder: 'anytime_help/complaints_resolved'
+            folder: 'anytime_help/complaints_resolved',
+            transformation: [{ quality: 'auto', fetch_format: 'auto', width: 800, crop: 'limit' }]
           });
           complaint.after_image = result.secure_url;
         } catch (err) {

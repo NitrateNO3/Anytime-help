@@ -26,4 +26,8 @@ const userSchema = new mongoose.Schema({
   last_login_at: { type: Date, required: false }
 }, { timestamps: true });
 
+userSchema.index({ role: 1, phase: 1 });
+userSchema.index({ firebase_uid: 1 });
+userSchema.index({ assigned_categories: 1 });
+
 module.exports = mongoose.model('User', userSchema);

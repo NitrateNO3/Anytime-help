@@ -87,23 +87,31 @@ router.get('/', auth, async (req, res) => {
       query.$and.push({ date: dateFilter });
     }
 
-    if (page && limit) {
-      const pageNum = parseInt(page, 10);
-      const limitNum = parseInt(limit, 10);
-      const skip = (pageNum - 1) * limitNum;
-      const announcements = await Announcement.find(query)
-        .sort({ date: -1 })
-        .skip(skip)
-        .limit(limitNum)
-        .populate('createdBy', 'name');
-      const total = await Announcement.countDocuments(query);
-      return res.json({ announcements, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
-    }
-
+    const pageNum = parseInt(page || '1', 10);
+    const limitNum = Math.min(parseInt(limit || '20', 10), 20);
+    const skip = (pageNum - 1) * limitNum;
     const announcements = await Announcement.find(query)
+      .select('-__v')
       .sort({ date: -1 })
-      .populate('createdBy', 'name');
-    res.json(announcements);
+      .skip(skip)
+      .limit(limitNum)
+      .populate('createdBy', 'name')
+      .lean();
+    const total = await Announcement.countDocuments(query);
+    
+    const processedAnnouncements = announcements.map(a => {
+      let img = a.image;
+      if (img && img.includes('cloudinary.com') && !img.includes('upload/f_auto,q_auto')) {
+        img = img.replace('/upload/', '/upload/f_auto,q_auto,w_800,c_limit/');
+      }
+      return { ...a, image: img };
+    });
+
+    if (!page && !limit) {
+      return res.json(processedAnnouncements);
+    }
+    
+    return res.json({ announcements: processedAnnouncements, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server Error');
@@ -152,7 +160,8 @@ router.post('/', auth, async (req, res) => {
     if (image && image.startsWith('data:image')) {
       try {
         const result = await cloudinary.uploader.upload(image, {
-          folder: 'anytime_help/announcements'
+          folder: 'anytime_help/announcements',
+          transformation: [{ quality: 'auto', fetch_format: 'auto', width: 800, crop: 'limit' }]
         });
         imageUrl = result.secure_url;
       } catch (err) {

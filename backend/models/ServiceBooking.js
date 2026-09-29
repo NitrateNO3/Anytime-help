@@ -16,4 +16,8 @@ const serviceBookingSchema = new mongoose.Schema({
   address: { type: String, required: true }, // Snapshotted from resident at time of booking
 }, { timestamps: true });
 
+serviceBookingSchema.index({ resident: 1 });
+serviceBookingSchema.index({ status: 1 });
+serviceBookingSchema.index({ assigned_staff: 1 });
+
 module.exports = mongoose.model('ServiceBooking', serviceBookingSchema);

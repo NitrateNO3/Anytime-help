@@ -4,6 +4,7 @@ const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const Banner = require('../models/Banner');
+const { cache, clearCachePrefix } = require('../middleware/cache');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -19,7 +20,7 @@ const upload = multer({ storage });
 // @route   GET api/banners
 // @desc    Get all banners
 // @access  Public
-router.get('/', async (req, res) => {
+router.get('/', cache(300), async (req, res) => {
   try {
     const banners = await Banner.find().sort({ createdAt: -1 });
     res.json(banners);
@@ -46,6 +47,8 @@ router.post('/upload', upload.single('image'), async (req, res) => {
             folder: 'anytime_help/banners',
             quality: 'auto',
             fetch_format: 'auto',
+            width: 800,
+            crop: 'limit',
           },
           (error, result) => {
             if (result) {
@@ -68,6 +71,7 @@ router.post('/upload', upload.single('image'), async (req, res) => {
     });
 
     const savedBanner = await newBanner.save();
+    clearCachePrefix('/banners');
     res.json(savedBanner);
   } catch (err) {
     console.error(err);
@@ -91,6 +95,7 @@ router.delete('/:id', async (req, res) => {
     // Delete from database
     await Banner.findByIdAndDelete(req.params.id);
 
+    clearCachePrefix('/banners');
     res.json({ msg: 'Banner deleted successfully' });
   } catch (err) {
     console.error(err.message);

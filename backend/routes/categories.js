@@ -5,6 +5,7 @@ const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
 const Category = require('../models/Category');
 const auth = require('../middleware/auth');
+const { cache, clearCachePrefix } = require('../middleware/cache');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -159,7 +160,7 @@ const subCategoryHiMap = {
 
 // @route   GET /api/categories
 // @desc    Get all categories (seeds default if empty and auto-fills translations)
-router.get('/', async (req, res) => {
+router.get('/', cache(300), async (req, res) => {
   try {
     let categories = await Category.find().sort({ order: 1, createdAt: 1 });
     
@@ -219,6 +220,8 @@ const streamUpload = (req) => {
         folder: 'anytime_help/categories',
         quality: 'auto',
         fetch_format: 'auto',
+        width: 800,
+        crop: 'limit',
       },
       (error, result) => {
         if (result) {
