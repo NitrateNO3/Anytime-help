@@ -24,17 +24,28 @@ const sendPushNotifications = async (tokens, title, body, data = {}, badge = 1) 
     badge
   }));
 
-  try {
-    const response = await axios.post('https://exp.host/--/api/v2/push/send', messages, {
-      headers: {
-        'Accept': 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      }
-    });
-    console.log('Push notifications sent:', response.data);
-  } catch (error) {
-    console.error('Error sending push notifications:', error.message);
+  // Expo Push API recommends batching in chunks of 100
+  const chunkArray = (arr, size) => {
+    return Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+      arr.slice(i * size, i * size + size)
+    );
+  };
+
+  const chunks = chunkArray(messages, 100);
+
+  for (let chunk of chunks) {
+    try {
+      const response = await axios.post('https://exp.host/--/api/v2/push/send', chunk, {
+        headers: {
+          'Accept': 'application/json',
+          'Accept-encoding': 'gzip, deflate',
+          'Content-Type': 'application/json',
+        }
+      });
+      console.log(`Push notifications chunk sent (${chunk.length} messages)`);
+    } catch (error) {
+      console.error('Error sending push notifications chunk:', error.message);
+    }
   }
 };
 
