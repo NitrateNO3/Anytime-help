@@ -1,6 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Keyboard, Dimensions, Animated, BackHandler } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Keyboard, Dimensions, Animated, BackHandler, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useNavigation, Stack } from 'expo-router';
 import axios from 'axios';
@@ -99,6 +99,25 @@ export default function RegisterScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
+  const floatAnim = useRef(new Animated.Value(0)).current;
+
+  // Floating 3D Avatar Animation
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: -15,
+          duration: 1500,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 1500,
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
+  }, []);
 
   // Persist & Load Draft
   useEffect(() => {
@@ -548,6 +567,24 @@ export default function RegisterScreen() {
         {/* Main Content Area */}
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
           <ScrollView contentContainerStyle={{flexGrow: 1}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            
+            {/* 3D Animated Floating Avatar */}
+            <View style={{ alignItems: 'center', marginTop: 15, marginBottom: 5 }}>
+              <Animated.View style={{ transform: [{ translateY: floatAnim }] }}>
+                <View style={{
+                  width: 130, height: 130, borderRadius: 65, overflow: 'hidden',
+                  borderWidth: 4, borderColor: '#FFFFFF',
+                  shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 15, elevation: 6,
+                  backgroundColor: '#FFF'
+                }}>
+                  <Image 
+                    source={require('../../assets/images/3d-avatar.jpg')}
+                    style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
+                  />
+                </View>
+              </Animated.View>
+            </View>
+
             <Animated.View style={[styles.contentArea, {
               opacity: fadeAnim,
               transform: [{ translateX: slideAnim }]
