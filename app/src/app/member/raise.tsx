@@ -244,6 +244,12 @@ export default function RaiseComplaint() {
   };
 
   const handleSubmit = async () => {
+    if (!image) {
+      setErrorMessage('Please provide a photo of the issue.');
+      setErrorModalVisible(true);
+      return;
+    }
+
     if (!description || description.length < 50) {
       setErrorMessage('Please provide a description of at least 50 characters.');
       setErrorModalVisible(true);

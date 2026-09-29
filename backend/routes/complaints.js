@@ -16,6 +16,10 @@ router.post('/', auth, async (req, res) => {
   try {
     const { title, description, location, address, category, department, priority, before_image } = req.body;
     
+    if (!before_image) {
+      return res.status(400).json({ message: 'A photo of the issue is mandatory.' });
+    }
+
     // Fetch user to get their phase
     const user = await User.findById(req.user.id);
     const userPhase = user ? user.phase : null;
