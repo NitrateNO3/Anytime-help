@@ -29,14 +29,23 @@ router.get('/', auth, async (req, res) => {
       query.targetAudience = { $ne: 'Members' }; // Residents cannot see 'Members' only announcements
     } else if (req.user.role === 'Staff') {
       const user = await User.findById(req.user.id);
+      let phasesToMatch = ['All', 'Staff'];
+      if (user && user.phase) phasesToMatch.push(user.phase);
+      query.$or = [
+        { phases: { $in: phasesToMatch } },
+        { createdBy: req.user.id }
+      ];
+    } else if (req.user.role === 'Member') {
+      const user = await User.findById(req.user.id);
+      let phasesToMatch = ['All', 'Members'];
       if (user && user.phase) {
-        query.$or = [
-          { phases: { $in: [user.phase, 'All'] } },
-          { createdBy: req.user.id }
-        ];
-      } else {
-        query.createdBy = req.user.id;
+        const parentGroup = user.phase.split(' - ')[0];
+        phasesToMatch.push(user.phase, parentGroup);
       }
+      query.$or = [
+        { phases: { $in: phasesToMatch } },
+        { createdBy: req.user.id }
+      ];
     } else if (req.user.role === 'Admin') {
       const { phase } = req.query;
       if (phase && phase !== 'All Groups (Show Everything)') {
@@ -175,16 +184,37 @@ router.post('/', auth, async (req, res) => {
     try {
       // Find users to notify
       let userQuery = {};
-      const audience = targetAudience || 'All';
-      if (audience === 'Members') {
-        userQuery.role = 'Member';
+      const targetPhases = finalPhases || [];
+      
+      let rolesToNotify = [];
+      let isAll = false;
+      
+      if (targetPhases.includes('All')) {
+        isAll = true;
+      }
+      if (targetPhases.includes('Resident')) {
+        rolesToNotify.push('Resident');
+      }
+      if (targetPhases.includes('Members') || targetAudience === 'Members') {
+        rolesToNotify.push('Member');
+      }
+      if (targetPhases.includes('Staff')) {
+        rolesToNotify.push('Staff');
+      }
+      
+      if (isAll) {
+        userQuery.role = { $in: ['Resident', 'Member', 'Staff', 'Admin', 'SubAdmin', 'PaidStaff'] };
+      } else if (rolesToNotify.length > 0) {
+        userQuery.role = { $in: rolesToNotify };
       } else {
-        userQuery.role = { $in: ['Resident', 'Member'] }; // Notify residents and members for 'All'
+        // Default if no specific role phase is set
+        userQuery.role = { $in: ['Resident', 'Member', 'Staff'] };
       }
 
-      const targetPhases = finalPhases;
-      if (targetPhases.length > 0 && !targetPhases.includes('All')) {
-        const phaseRegexes = targetPhases.map(p => new RegExp('^' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+      const locationPhases = targetPhases.filter(p => p !== 'All' && p !== 'Resident' && p !== 'Members' && p !== 'Staff');
+      
+      if (locationPhases.length > 0) {
+        const phaseRegexes = locationPhases.map(p => new RegExp('^' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
         userQuery.$or = [{ phase: { $in: phaseRegexes } }, { phase: { $exists: false } }, { phase: '' }];
       }
       

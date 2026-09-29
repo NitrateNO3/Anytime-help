@@ -47,7 +47,7 @@ export default function Announcements() {
   const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
-  const availablePhases = ['Resident', 'Members'];
+  const availablePhases = ['Resident', 'Members', 'Staff'];
 
   useEffect(() => {
     if (activeTab === 'list') {
@@ -366,6 +366,7 @@ export default function Announcements() {
                   <option value="Universal (Sent to Everyone)">Universal (Sent to Everyone)</option>
                   <option value="Resident">Resident</option>
                   <option value="Members">Members</option>
+                  <option value="Staff">Staff</option>
                 </select>
               </div>
               <div>
