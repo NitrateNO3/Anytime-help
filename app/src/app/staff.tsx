@@ -163,10 +163,14 @@ export default function StaffScreen() {
     };
   }, []);
 
+  const hasFetchedRef = React.useRef(false);
   useFocusEffect(
     React.useCallback(() => {
-      fetchComplaints();
-      fetchAnnouncements();
+      if (!hasFetchedRef.current) {
+        hasFetchedRef.current = true;
+        fetchComplaints();
+        fetchAnnouncements();
+      }
       import('../services/pushNotifications').then(({ clearAppBadge }) => clearAppBadge());
     }, [])
   );

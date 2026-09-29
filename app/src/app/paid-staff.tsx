@@ -80,9 +80,16 @@ export default function PaidStaffScreen() {
     }
   };
 
+  const hasFetchedRef = React.useRef(false);
+  const activeTabRef = React.useRef(activeTab);
+
   useFocusEffect(
     React.useCallback(() => {
-      fetchBookings();
+      if (!hasFetchedRef.current || activeTabRef.current !== activeTab) {
+        hasFetchedRef.current = true;
+        activeTabRef.current = activeTab;
+        fetchBookings();
+      }
     }, [activeTab])
   );
 

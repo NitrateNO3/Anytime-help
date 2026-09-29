@@ -184,10 +184,14 @@ export default function MyComplaints() {
     };
   }, []);
 
+  const hasFetchedRef = React.useRef(false);
   useFocusEffect(
     useCallback(() => {
-      fetchComplaints(1, false, searchQuery, selectedCategory, true);
-      fetchAnnouncements(true);
+      if (!hasFetchedRef.current) {
+        hasFetchedRef.current = true;
+        fetchComplaints(1, false, searchQuery, selectedCategory, true);
+        fetchAnnouncements(true);
+      }
       if (tab === 'Complaints') {
         setActiveTab('Complaints');
       }
