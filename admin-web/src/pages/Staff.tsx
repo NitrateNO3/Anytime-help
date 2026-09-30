@@ -566,6 +566,7 @@ export default function Staff() {
                 <th>Group / Block / Name</th>
                 <th>Phone Number</th>
                 <th>Category</th>
+                <th>Status</th>
                 {!isSubAdmin && <th style={{ width: 100 }}>Actions</th>}
               </tr>
             </thead>
@@ -576,12 +577,13 @@ export default function Staff() {
                     <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: '90%' }}></div></td>
                     <td><div className="skeleton skeleton-row" style={{ width: 80, borderRadius: 20 }}></div></td>
+                    <td><div className="skeleton skeleton-row" style={{ width: 60, borderRadius: 12 }}></div></td>
                     {!isSubAdmin && <td><div className="skeleton skeleton-row" style={{ width: 30, borderRadius: 8 }}></div></td>}
                   </tr>
                 ))
               ) : staff.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
+                    <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '40px 0' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
                         <Users size={40} color="var(--border-color)" />
                       </div>
@@ -613,16 +615,6 @@ export default function Staff() {
                                 🌐 UNIVERSAL
                               </span>
                             )}
-                            <span style={{
-                              background: member.has_logged_in ? '#DCFCE7' : '#FEF3C7',
-                              color: member.has_logged_in ? '#166534' : '#92400E',
-                              padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              {member.has_logged_in ? 'Active' : 'Pending'}
-                            </span>
                           </div>
                         </td>
                         <td style={{ color: 'var(--text-muted)' }}>{member.phone_number}</td>
@@ -641,6 +633,18 @@ export default function Staff() {
                               </span>
                             ))}
                           </div>
+                        </td>
+                        <td>
+                          <span style={{
+                            background: member.has_logged_in ? '#DCFCE7' : '#FEF3C7',
+                            color: member.has_logged_in ? '#166534' : '#92400E',
+                            padding: '4px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {member.has_logged_in ? 'Active' : 'Pending'}
+                          </span>
                         </td>
                         {!isSubAdmin && (
                           <td style={{ textAlign: 'center' }}>
