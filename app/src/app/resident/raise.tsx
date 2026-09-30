@@ -631,7 +631,7 @@ export default function RaiseComplaint() {
               SLERWA is committed to addressing residents’ concerns; however, we currently do not have the necessary infrastructure to undertake this work directly.
             </Text>
             <Text style={[styles.successModalText, { textAlign: 'left', marginBottom: 28 }]}>
-              Please raise the request with MCG for the required action. If the matter remains unresolved, SLERWA will take it up with the appropriate higher authorities within MCG to help ensure the work is addressed.
+              Please raise the request with {category?.toLowerCase().includes('electricity') ? 'DHBVN' : 'MCG'} for the required action. If the matter remains unresolved, SLERWA will take it up with the appropriate higher authorities within {category?.toLowerCase().includes('electricity') ? 'DHBVN' : 'MCG'} to help ensure the work is addressed.
             </Text>
             
             <TouchableOpacity 
@@ -641,10 +641,10 @@ export default function RaiseComplaint() {
                 setStep(1);
                 setDescription('');
                 setImage(null);
-                Linking.openURL('https://www.slerwa.in/');
+                Linking.openURL(category?.toLowerCase().includes('electricity') ? 'https://www.dhbvn.org.in/web/portal/home' : 'https://www.slerwa.in/');
               }}
             >
-              <Text style={styles.doneBtnText}>Proceed to MCG Website</Text>
+              <Text style={styles.doneBtnText}>Proceed to {category?.toLowerCase().includes('electricity') ? 'DHBVN' : 'MCG'} Website</Text>
             </TouchableOpacity>
             
             <TouchableOpacity 
