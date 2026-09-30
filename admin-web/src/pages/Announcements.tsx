@@ -43,6 +43,7 @@ export default function Announcements() {
   const [message, setMessage] = useState('');
   const [image, setImage] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [targetAudience, setTargetAudience] = useState('All');
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
   const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
@@ -131,10 +132,12 @@ export default function Announcements() {
 
     try {
       const token = localStorage.getItem('adminToken');
+      // Pass targetAudience: 'All' or get it from a new state if we add radio buttons
       await axios.post(`${API_URL}/announcements`, {
         title,
         message,
         phases: selectedPhases,
+        targetAudience: targetAudience,
         image
       }, {
         headers: { 'x-auth-token': token }
@@ -532,6 +535,34 @@ export default function Announcements() {
                     resize: 'vertical'
                   }}
                 />
+              </div>
+
+              <div className="input-group">
+                <label>Target Audience</label>
+                <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', margin: 0, fontWeight: 500 }}>
+                    <input 
+                      type="radio" 
+                      name="targetAudience"
+                      value="All"
+                      checked={targetAudience === 'All'}
+                      onChange={() => setTargetAudience('All')}
+                      style={{ width: 'auto', marginBottom: 0 }}
+                    />
+                    <span style={{ fontSize: 14 }}>Resident (All)</span>
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', margin: 0, fontWeight: 500 }}>
+                    <input 
+                      type="radio" 
+                      name="targetAudience"
+                      value="Members"
+                      checked={targetAudience === 'Members'}
+                      onChange={() => setTargetAudience('Members')}
+                      style={{ width: 'auto', marginBottom: 0 }}
+                    />
+                    <span style={{ fontSize: 14 }}>RWA (Members)</span>
+                  </label>
+                </div>
               </div>
 
               <div className="input-group">

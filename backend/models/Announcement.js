@@ -35,7 +35,7 @@ const AnnouncementSchema = new mongoose.Schema({
   },
   targetAudience: {
     type: String,
-    enum: ['All', 'Members'],
+    enum: ['All', 'Members', 'Resident'],
     default: 'All'
   },
   image: {
