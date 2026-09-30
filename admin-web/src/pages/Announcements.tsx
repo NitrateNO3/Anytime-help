@@ -46,6 +46,11 @@ export default function Announcements() {
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
   const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+  const [expandedMessages, setExpandedMessages] = useState<Record<string, boolean>>({});
+
+  const toggleMessage = (id: string) => {
+    setExpandedMessages(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const availablePhases = ['Resident + Member', 'Members', 'Staff'];
 
@@ -423,15 +428,34 @@ export default function Announcements() {
                         {new Date(announcement.date).toLocaleDateString()}
                       </td>
                       <td style={{ fontWeight: 600 }}>{announcement.title}</td>
-                      <td style={{ color: 'var(--text-muted)' }}>
-                        <div>{announcement.message}</div>
+                      <td style={{ color: 'var(--text-muted)', maxWidth: '350px' }}>
+                        <div style={{
+                          display: expandedMessages[announcement._id] ? 'block' : '-webkit-box',
+                          WebkitLineClamp: expandedMessages[announcement._id] ? 'unset' : 3,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'pre-wrap'
+                        }}>
+                          {announcement.message}
+                        </div>
+                        {announcement.message && announcement.message.length > 100 && (
+                          <button 
+                            onClick={() => toggleMessage(announcement._id)}
+                            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, marginTop: 4, fontSize: 13, fontWeight: 500 }}
+                          >
+                            {expandedMessages[announcement._id] ? 'Show less' : 'Read more'}
+                          </button>
+                        )}
                         {announcement.image && (
-                          <img 
-                            src={announcement.image} 
-                            alt="Announcement Image" 
-                            onClick={() => setFullScreenImage(announcement.image)}
-                            style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, marginTop: 8, border: '1px solid var(--border-color)', cursor: 'pointer' }} 
-                          />
+                          <div>
+                            <img 
+                              src={announcement.image} 
+                              alt="Announcement Image" 
+                              onClick={() => setFullScreenImage(announcement.image)}
+                              style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, marginTop: 8, border: '1px solid var(--border-color)', cursor: 'pointer' }} 
+                            />
+                          </div>
                         )}
                       </td>
                       <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{announcement.createdBy?.name || announcement.creatorName || 'Admin'}</td>
