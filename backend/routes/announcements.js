@@ -213,7 +213,7 @@ router.post('/', auth, async (req, res) => {
         rolesToNotify.push('Member');
       }
       if (targetPhases.includes('Members') || targetAudience === 'Members') {
-        rolesToNotify.push('Member');
+        rolesToNotify.push('Member', 'Staff', 'Admin', 'SubAdmin');
       }
       if (targetPhases.includes('Staff')) {
         rolesToNotify.push('Staff');
