@@ -48,7 +48,7 @@ export default function ComplaintDetails() {
   const [fullTextModal, setFullTextModal] = useState<{title: string, text: string} | null>(null);
   
   const [userPermissions, setUserPermissions] = useState<string[]>([]);
-  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
@@ -142,7 +142,7 @@ export default function ComplaintDetails() {
 
   const handleUpdateStatus = async (newStatus: string) => {
     try {
-      setStatusModalVisible(false);
+      setShowDropdown(false);
       setUpdating(true);
       const token = await SecureStore.getItemAsync('userToken');
       
@@ -239,23 +239,74 @@ export default function ComplaintDetails() {
         >
         
         {/* Title and Badge */}
-        <View style={styles.titleRow}>
+        <View style={[styles.titleRow, { zIndex: 100, elevation: 10 }]}>
           <Text style={styles.title}>{t(`categories.${complaint.title}`, { defaultValue: complaint.title })}</Text>
-          <TouchableOpacity 
-            style={[styles.statusBadge, statusBadgeStyle]} 
-            onPress={() => {
-              if (userPermissions.includes('Change Complaint Status')) {
-                setStatusModalVisible(true);
-              }
-            }}
-            disabled={!userPermissions.includes('Change Complaint Status')}
-          >
-            <Ionicons name={statusIcon as any} size={14} color={statusTextStyle.color} style={{ marginRight: 4 }} />
-            <Text style={[styles.statusBadgeText, statusTextStyle]}>{statusLabel}</Text>
-            {userPermissions.includes('Change Complaint Status') && (
-              <Ionicons name="chevron-down" size={14} color={statusTextStyle.color} style={{ marginLeft: 4 }} />
+          <View style={{ position: 'relative' }}>
+            <TouchableOpacity 
+              style={[styles.statusBadge, statusBadgeStyle]} 
+              onPress={() => {
+                if (userPermissions.includes('Change Complaint Status')) {
+                  setShowDropdown(!showDropdown);
+                }
+              }}
+              disabled={!userPermissions.includes('Change Complaint Status')}
+            >
+              <Ionicons name={statusIcon as any} size={14} color={statusTextStyle.color} style={{ marginRight: 4 }} />
+              <Text style={[styles.statusBadgeText, statusTextStyle]}>{statusLabel}</Text>
+              {userPermissions.includes('Change Complaint Status') && (
+                <Ionicons name={showDropdown ? "chevron-up" : "chevron-down"} size={14} color={statusTextStyle.color} style={{ marginLeft: 4 }} />
+              )}
+            </TouchableOpacity>
+
+            {/* Elegant Dropdown */}
+            {showDropdown && (
+              <View style={{
+                position: 'absolute',
+                top: '100%',
+                right: 0,
+                marginTop: 8,
+                backgroundColor: '#FFFFFF',
+                borderRadius: 16,
+                padding: 6,
+                width: 160,
+                shadowColor: '#0F172A',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.12,
+                shadowRadius: 20,
+                elevation: 10,
+                borderWidth: 1,
+                borderColor: '#F1F5F9',
+                zIndex: 999
+              }}>
+                <TouchableOpacity 
+                  style={{ padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', marginBottom: 2, backgroundColor: complaint.status === 'PENDING' ? '#FFFBEB' : 'transparent' }} 
+                  onPress={() => handleUpdateStatus('PENDING')}
+                  disabled={updating}
+                >
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#F59E0B', marginRight: 10 }} />
+                  <Text style={{ fontSize: 14, fontWeight: complaint.status === 'PENDING' ? '700' : '600', color: complaint.status === 'PENDING' ? '#D97706' : '#475569' }}>Pending</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={{ padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', marginBottom: 2, backgroundColor: complaint.status === 'IN_PROGRESS' ? '#EFF6FF' : 'transparent' }} 
+                  onPress={() => handleUpdateStatus('IN_PROGRESS')}
+                  disabled={updating}
+                >
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#3B82F6', marginRight: 10 }} />
+                  <Text style={{ fontSize: 14, fontWeight: complaint.status === 'IN_PROGRESS' ? '700' : '600', color: complaint.status === 'IN_PROGRESS' ? '#2563EB' : '#475569' }}>In Progress</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity 
+                  style={{ padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: complaint.status === 'RESOLVED' || complaint.status === 'DONE' ? '#ECFDF5' : 'transparent' }} 
+                  onPress={() => handleUpdateStatus('RESOLVED')}
+                  disabled={updating}
+                >
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981', marginRight: 10 }} />
+                  <Text style={{ fontSize: 14, fontWeight: complaint.status === 'RESOLVED' || complaint.status === 'DONE' ? '700' : '600', color: complaint.status === 'RESOLVED' || complaint.status === 'DONE' ? '#059669' : '#475569' }}>Resolved</Text>
+                </TouchableOpacity>
+              </View>
             )}
-          </TouchableOpacity>
+          </View>
         </View>
 
         {/* Location */}
@@ -517,43 +568,6 @@ export default function ComplaintDetails() {
             <ScrollView style={styles.textModalScroll}>
               <Text style={styles.textModalBody}>{fullTextModal?.text}</Text>
             </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Status Modal */}
-      <Modal visible={statusModalVisible} transparent={true} animationType="slide" onRequestClose={() => setStatusModalVisible(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.textModalContainer}>
-            <View style={styles.textModalHeader}>
-              <Text style={styles.textModalTitle}>Update Status</Text>
-              <TouchableOpacity onPress={() => setStatusModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#0F172A" />
-              </TouchableOpacity>
-            </View>
-            <View style={{ padding: 16 }}>
-              <TouchableOpacity 
-                style={[styles.statusOptionBtn, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]} 
-                onPress={() => handleUpdateStatus('PENDING')} 
-                disabled={updating}
-              >
-                <Text style={{ color: '#D97706', fontWeight: '700', fontSize: 16 }}>Pending</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.statusOptionBtn, { backgroundColor: '#EFF6FF', borderColor: '#3B82F6', marginTop: 12 }]} 
-                onPress={() => handleUpdateStatus('IN_PROGRESS')} 
-                disabled={updating}
-              >
-                <Text style={{ color: '#2563EB', fontWeight: '700', fontSize: 16 }}>In Progress</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.statusOptionBtn, { backgroundColor: '#ECFDF5', borderColor: '#10B981', marginTop: 12 }]} 
-                onPress={() => handleUpdateStatus('RESOLVED')} 
-                disabled={updating}
-              >
-                <Text style={{ color: '#059669', fontWeight: '700', fontSize: 16 }}>Resolved</Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
       </Modal>
