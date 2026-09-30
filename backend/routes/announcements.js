@@ -215,23 +215,20 @@ router.post('/', auth, async (req, res) => {
       if (targetPhases.includes('All')) {
         isAll = true;
       }
-      if (targetPhases.includes('Resident') || targetPhases.includes('Resident + Member')) {
-        rolesToNotify.push('Resident');
-        rolesToNotify.push('Member');
-      }
-      if (targetPhases.includes('Members') || targetAudience === 'Members') {
-        rolesToNotify.push('Member', 'Staff', 'Admin', 'SubAdmin');
-      }
-      if (targetPhases.includes('Staff')) {
-        rolesToNotify.push('Staff');
+
+      // Strict routing based on frontend options (Resident(All) vs RWA(Members))
+      if (targetAudience === 'Members' || targetPhases.includes('Members')) {
+        rolesToNotify = ['Member', 'Staff', 'Admin', 'SubAdmin'];
+      } else {
+        // 'All' (Resident)
+        rolesToNotify = ['Resident', 'Member'];
       }
       
-      if (isAll) {
-        userQuery.role = { $in: ['Resident', 'Member', 'Staff', 'Admin', 'SubAdmin', 'PaidStaff'] };
-      } else if (rolesToNotify.length > 0) {
+      if (rolesToNotify.length > 0) {
         userQuery.role = { $in: rolesToNotify };
+      } else if (isAll) {
+        userQuery.role = { $in: ['Resident', 'Member', 'Staff', 'Admin', 'SubAdmin', 'PaidStaff'] };
       } else {
-        // Default if no specific role phase is set
         userQuery.role = { $in: ['Resident', 'Member', 'Staff', 'Admin', 'SubAdmin'] };
       }
 
