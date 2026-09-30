@@ -8,8 +8,10 @@ import * as SecureStore from 'expo-secure-store';
 import MapView, { Marker } from 'react-native-maps';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 const SkeletonDetail = () => {
   const animatedValue = React.useRef(new Animated.Value(0.3)).current;
@@ -54,6 +56,23 @@ export default function ComplaintDetails() {
   useEffect(() => {
     fetchComplaintDetails();
     loadPermissions();
+
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socket.on('user_updated', async (data: any) => {
+      const stored = await SecureStore.getItemAsync('userData');
+      if (stored) {
+        const user = JSON.parse(stored);
+        if (user._id === data.userId || user.id === data.userId) {
+          user.permissions = data.permissions;
+          await SecureStore.setItemAsync('userData', JSON.stringify(user));
+          setUserPermissions(data.permissions);
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, [id]);
 
   const loadPermissions = async () => {
