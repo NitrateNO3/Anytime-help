@@ -21,10 +21,10 @@ router.get('/', auth, async (req, res) => {
       const user = await User.findById(req.user.id);
       if (user && user.phase) {
         const parentGroup = user.phase.split(' - ')[0];
-        query.phases = { $in: [user.phase, parentGroup, 'All', 'Resident'] };
+        query.phases = { $in: [user.phase, parentGroup, 'All', 'Resident', 'Resident + Member'] };
       } else {
         // If user has no phase, fallback to 'All', 'Resident', or empty
-        query.$or = [{ phases: 'All' }, { phases: 'Resident' }, { phases: { $size: 0 } }];
+        query.$or = [{ phases: 'All' }, { phases: 'Resident' }, { phases: 'Resident + Member' }, { phases: { $size: 0 } }];
       }
       query.targetAudience = { $ne: 'Members' }; // Residents cannot see 'Members' only announcements
     } else if (req.user.role === 'Staff') {
@@ -37,7 +37,7 @@ router.get('/', auth, async (req, res) => {
       ];
     } else if (req.user.role === 'Member') {
       const user = await User.findById(req.user.id);
-      let phasesToMatch = ['All', 'Members'];
+      let phasesToMatch = ['All', 'Members', 'Resident + Member', 'Resident'];
       if (user && user.phase) {
         const parentGroup = user.phase.split(' - ')[0];
         phasesToMatch.push(user.phase, parentGroup);
@@ -201,8 +201,9 @@ router.post('/', auth, async (req, res) => {
       if (targetPhases.includes('All')) {
         isAll = true;
       }
-      if (targetPhases.includes('Resident')) {
+      if (targetPhases.includes('Resident') || targetPhases.includes('Resident + Member')) {
         rolesToNotify.push('Resident');
+        rolesToNotify.push('Member');
       }
       if (targetPhases.includes('Members') || targetAudience === 'Members') {
         rolesToNotify.push('Member');
@@ -220,7 +221,7 @@ router.post('/', auth, async (req, res) => {
         userQuery.role = { $in: ['Resident', 'Member', 'Staff'] };
       }
 
-      const locationPhases = targetPhases.filter(p => p !== 'All' && p !== 'Resident' && p !== 'Members' && p !== 'Staff');
+      const locationPhases = targetPhases.filter(p => p !== 'All' && p !== 'Resident' && p !== 'Members' && p !== 'Staff' && p !== 'Resident + Member');
       
       if (locationPhases.length > 0) {
         const phaseRegexes = locationPhases.map(p => new RegExp('^' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));

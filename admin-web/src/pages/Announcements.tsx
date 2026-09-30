@@ -47,7 +47,7 @@ export default function Announcements() {
   const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
-  const availablePhases = ['Resident', 'Members', 'Staff'];
+  const availablePhases = ['Resident + Member', 'Members', 'Staff'];
 
   useEffect(() => {
     if (activeTab === 'list') {
