@@ -118,7 +118,29 @@ router.get('/', auth, async (req, res) => {
       if (img && img.includes('cloudinary.com') && !img.includes('upload/f_auto,q_auto')) {
         img = img.replace('/upload/', '/upload/f_auto,q_auto,w_800,c_limit/');
       }
-      return { ...a, image: img };
+      
+      let modifiedCreatorName = a.creatorName;
+      let modifiedCreatedBy = a.createdBy;
+
+      // Clean up creator name for Residents (removes address/designation in parenthesis)
+      if (req.user.role === 'Resident') {
+        const formatName = (rawName) => {
+          if (!rawName) return '';
+          if (rawName.includes('(')) return rawName.split('(')[0].trim();
+          if (rawName.includes(',')) return rawName.split(',')[0].trim();
+          if (rawName.includes('-')) return rawName.split('-')[0].trim();
+          return rawName;
+        };
+        
+        if (modifiedCreatedBy && modifiedCreatedBy.name) {
+          modifiedCreatedBy = { ...modifiedCreatedBy, name: formatName(modifiedCreatedBy.name) };
+        }
+        if (modifiedCreatorName) {
+          modifiedCreatorName = formatName(modifiedCreatorName);
+        }
+      }
+
+      return { ...a, image: img, creatorName: modifiedCreatorName, createdBy: modifiedCreatedBy };
     });
 
     if (!page && !limit) {
