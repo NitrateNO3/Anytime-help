@@ -46,11 +46,7 @@ export default function Announcements() {
   const [selectedPhases, setSelectedPhases] = useState<string[]>(['All']);
   const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
-  const [expandedMessages, setExpandedMessages] = useState<Record<string, boolean>>({});
-
-  const toggleMessage = (id: string) => {
-    setExpandedMessages(prev => ({ ...prev, [id]: !prev[id] }));
-  };
+  const [viewingMessage, setViewingMessage] = useState<any>(null);
 
   const availablePhases = ['Resident + Member', 'Members', 'Staff'];
 
@@ -430,8 +426,8 @@ export default function Announcements() {
                       <td style={{ fontWeight: 600 }}>{announcement.title}</td>
                       <td style={{ color: 'var(--text-muted)', maxWidth: '350px' }}>
                         <div style={{
-                          display: expandedMessages[announcement._id] ? 'block' : '-webkit-box',
-                          WebkitLineClamp: expandedMessages[announcement._id] ? 'unset' : 3,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 3,
                           WebkitBoxOrient: 'vertical',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
@@ -441,10 +437,10 @@ export default function Announcements() {
                         </div>
                         {announcement.message && announcement.message.length > 100 && (
                           <button 
-                            onClick={() => toggleMessage(announcement._id)}
-                            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, marginTop: 4, fontSize: 13, fontWeight: 500 }}
+                            onClick={() => setViewingMessage(announcement)}
+                            style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', padding: 0, marginTop: 4, fontSize: 13, fontWeight: 600, display: 'inline-flex', alignItems: 'center' }}
                           >
-                            {expandedMessages[announcement._id] ? 'Show less' : 'Read more'}
+                            Read more
                           </button>
                         )}
                         {announcement.image && (
@@ -679,6 +675,37 @@ export default function Announcements() {
             <X size={24} />
           </button>
           <img src={fullScreenImage} alt="Full Screen" style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain' }} />
+        </div>
+      )}
+      {/* View Message Modal */}
+      {viewingMessage && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, padding: 0, borderRadius: 16, maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: '#F8FAFC', borderRadius: '16px 16px 0 0' }}>
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Megaphone size={20} color="var(--primary)" />
+                {viewingMessage.title}
+              </h2>
+              <button 
+                onClick={() => setViewingMessage(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, borderRadius: '50%' }}
+                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.05)'}
+                onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div style={{ padding: '24px', overflowY: 'auto' }}>
+              <p style={{ fontSize: 15, color: 'var(--text-main)', lineHeight: '1.6', whiteSpace: 'pre-wrap', margin: 0 }}>
+                {viewingMessage.message}
+              </p>
+              {viewingMessage.image && (
+                <div style={{ marginTop: '20px', borderRadius: '12px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                  <img src={viewingMessage.image} alt="Announcement" style={{ width: '100%', height: 'auto', display: 'block' }} />
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
