@@ -23,7 +23,8 @@ const userSchema = new mongoose.Schema({
     phone_number: { type: String }
   }],
   has_logged_in: { type: Boolean, default: false },
-  last_login_at: { type: Date, required: false }
+  last_login_at: { type: Date, required: false },
+  unread_notifications: { type: Number, default: 0 }
 }, { timestamps: true });
 
 userSchema.index({ role: 1, phase: 1 });

@@ -83,11 +83,12 @@ export default function RootLayout() {
       try {
         const token = await SecureStore.getItemAsync('userToken');
         if (token) {
-          const { registerForPushNotificationsAsync, sendPushTokenToBackend } = await import('../services/pushNotifications');
+          const { registerForPushNotificationsAsync, sendPushTokenToBackend, clearAppBadge } = await import('../services/pushNotifications');
           const pushToken = await registerForPushNotificationsAsync();
           if (pushToken) {
             await sendPushTokenToBackend(pushToken);
           }
+          await clearAppBadge();
         }
       } catch (err) {
         console.error('Push notification setup error:', err);

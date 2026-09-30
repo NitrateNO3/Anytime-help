@@ -8,21 +8,36 @@ const axios = require('axios');
  * @param {object} data - Additional data payload
  * @param {number} badge - Number to show on the app icon
  */
-const sendPushNotifications = async (tokens, title, body, data = {}, badge = 1) => {
-  if (!tokens || tokens.length === 0) return;
+const sendPushNotifications = async (tokensOrObjects, title, body, data = {}, defaultBadge = 1) => {
+  if (!tokensOrObjects || tokensOrObjects.length === 0) return;
 
-  // Filter out invalid tokens and remove duplicates
-  const validTokens = [...new Set(tokens.filter(token => token && token.startsWith('ExponentPushToken[')))];
-  if (validTokens.length === 0) return;
+  const messages = [];
+  const seenTokens = new Set();
 
-  const messages = validTokens.map(token => ({
-    to: token,
-    sound: 'default',
-    title,
-    body,
-    data,
-    badge
-  }));
+  for (let item of tokensOrObjects) {
+    let tokenStr, badgeVal;
+    if (typeof item === 'string') {
+      tokenStr = item;
+      badgeVal = defaultBadge;
+    } else if (item && item.to) {
+      tokenStr = item.to;
+      badgeVal = item.badge !== undefined ? item.badge : defaultBadge;
+    }
+
+    if (tokenStr && tokenStr.startsWith('ExponentPushToken[') && !seenTokens.has(tokenStr)) {
+      seenTokens.add(tokenStr);
+      messages.push({
+        to: tokenStr,
+        sound: 'default',
+        title,
+        body,
+        data,
+        badge: badgeVal
+      });
+    }
+  }
+
+  if (messages.length === 0) return;
 
   // Expo Push API recommends batching in chunks of 100
   const chunkArray = (arr, size) => {

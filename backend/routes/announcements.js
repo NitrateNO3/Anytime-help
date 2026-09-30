@@ -245,13 +245,21 @@ router.post('/', auth, async (req, res) => {
       userQuery.expoPushToken = { $exists: true, $ne: '' };
 
       const User = require('../models/User');
-      const usersToNotify = await User.find(userQuery).select('expoPushToken');
-      const tokens = usersToNotify.map(u => u.expoPushToken);
       
-      if (tokens.length > 0) {
+      // Increment the unread_notifications for all matching users
+      await User.updateMany(userQuery, { $inc: { unread_notifications: 1 } });
+
+      // Retrieve to get push tokens and new unread counts
+      const usersToNotify = await User.find(userQuery).select('expoPushToken unread_notifications');
+      const tokenObjects = usersToNotify.map(u => ({
+        to: u.expoPushToken,
+        badge: u.unread_notifications
+      }));
+      
+      if (tokenObjects.length > 0) {
         const { sendPushNotifications } = require('../utils/push');
         // We don't await to not block the API response
-        sendPushNotifications(tokens, '📢 ' + title, message, { type: 'announcement', id: announcement._id });
+        sendPushNotifications(tokenObjects, '📢 ' + title, message, { type: 'announcement', id: announcement._id });
       }
     } catch (pushErr) {
       console.error('Push notification error:', pushErr.message);

@@ -617,6 +617,25 @@ router.put('/push-token', auth, async (req, res) => {
   }
 });
 
+// @route   PUT api/users/clear-badge
+// @desc    Reset unread notifications badge
+// @access  Private
+router.put('/clear-badge', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.unread_notifications = 0;
+    await user.save();
+
+    res.json({ message: 'Badge cleared successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   GET api/users/profile/family
 // @desc    Get user's family members
 // @access  Private

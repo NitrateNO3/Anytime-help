@@ -128,19 +128,27 @@ router.post('/', auth, async (req, res) => {
         expoPushToken: { $exists: true, $ne: '' }
       }).select('expoPushToken assigned_category assigned_categories role phase').lean();
 
-      const tokens = adminsAndStaff
-        .filter(u => {
-          if (u.role === 'Staff') {
-            const cats = u.assigned_categories && u.assigned_categories.length > 0 ? u.assigned_categories : (u.assigned_category ? [u.assigned_category] : []);
-            if (cats.length > 0 && !cats.includes('All') && !cats.includes(category)) {
-              return false;
-            }
+      const filteredUsers = adminsAndStaff.filter(u => {
+        if (u.role === 'Staff') {
+          const cats = u.assigned_categories && u.assigned_categories.length > 0 ? u.assigned_categories : (u.assigned_category ? [u.assigned_category] : []);
+          if (cats.length > 0 && !cats.includes('All') && !cats.includes(category)) {
+            return false;
           }
-          return true;
-        })
-        .map(u => u.expoPushToken);
+        }
+        return true;
+      });
 
-      if (tokens.length > 0) {
+      if (filteredUsers.length > 0) {
+        const userIds = filteredUsers.map(u => u._id);
+        await User.updateMany({ _id: { $in: userIds } }, { $inc: { unread_notifications: 1 } });
+        
+        // Refetch to get updated counts
+        const updatedUsers = await User.find({ _id: { $in: userIds } }).select('expoPushToken unread_notifications').lean();
+        const tokens = updatedUsers.map(u => ({
+          to: u.expoPushToken,
+          badge: u.unread_notifications
+        }));
+
         const { sendPushNotifications } = require('../utils/push');
         sendPushNotifications(tokens, '🚨 New Complaint: ' + category, title || 'A new issue was reported.', { type: 'complaint', id: createdComplaint._id });
       }
@@ -364,7 +372,7 @@ router.post('/:id/reply', auth, async (req, res) => {
         expoPushToken: { $exists: true, $ne: '' }
       }).select('_id expoPushToken assigned_category assigned_categories role').lean();
 
-      const staffAdminTokens = adminsAndStaff
+      const staffAdminIds = adminsAndStaff
         .filter(u => {
           if (u.role === 'Staff') {
             const cats = u.assigned_categories && u.assigned_categories.length > 0 ? u.assigned_categories : (u.assigned_category ? [u.assigned_category] : []);
@@ -374,22 +382,31 @@ router.post('/:id/reply', auth, async (req, res) => {
           }
           return u._id.toString() !== req.user.id; // Exclude sender
         })
-        .map(u => u.expoPushToken);
+        .map(u => u._id);
         
-      tokensToNotify = [...staffAdminTokens];
+      let userIdsToNotify = [...staffAdminIds];
       
       // Also notify resident if the sender is not the resident
       if (req.user.id !== complaint.user.toString()) {
-        const resident = await User.findById(complaint.user).select('expoPushToken');
-        if (resident && resident.expoPushToken) {
-          tokensToNotify.push(resident.expoPushToken);
-        }
+        userIdsToNotify.push(complaint.user);
       }
       
       notificationTitle = role === 'Resident' ? `New Reply on ${complaint.title}` : `Update on ${complaint.title}`;
 
-      if (tokensToNotify.length > 0) {
-        sendPushNotifications(tokensToNotify, notificationTitle, notificationBody, { type: 'complaint', id: complaint._id });
+      if (userIdsToNotify.length > 0) {
+        await User.updateMany({ _id: { $in: userIdsToNotify } }, { $inc: { unread_notifications: 1 } });
+        const updatedUsers = await User.find({ _id: { $in: userIdsToNotify } }).select('expoPushToken unread_notifications').lean();
+        
+        const tokensObjects = [];
+        for (const u of updatedUsers) {
+          if (u.expoPushToken) {
+            tokensObjects.push({ to: u.expoPushToken, badge: u.unread_notifications });
+          }
+        }
+        
+        if (tokensObjects.length > 0) {
+          sendPushNotifications(tokensObjects, notificationTitle, notificationBody, { type: 'complaint', id: complaint._id });
+        }
       }
     } catch (pushErr) {
       console.error('Push notification error on reply:', pushErr.message);

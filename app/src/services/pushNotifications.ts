@@ -91,6 +91,12 @@ export async function sendPushTokenToBackend(token: string) {
 export async function clearAppBadge() {
   try {
     await Notifications.setBadgeCountAsync(0);
+    const authToken = await SecureStore.getItemAsync('userToken');
+    if (authToken) {
+      await axios.put(`${API_URL}/users/clear-badge`, {}, {
+        headers: { 'x-auth-token': authToken }
+      });
+    }
   } catch (error) {
     console.log('Error clearing badge:', error);
   }
