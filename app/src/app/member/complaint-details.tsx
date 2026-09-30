@@ -46,10 +46,27 @@ export default function ComplaintDetails() {
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [fullTextModal, setFullTextModal] = useState<{title: string, text: string} | null>(null);
+  
+  const [userPermissions, setUserPermissions] = useState<string[]>([]);
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     fetchComplaintDetails();
+    loadPermissions();
   }, [id]);
+
+  const loadPermissions = async () => {
+    try {
+      const userDataStr = await SecureStore.getItemAsync('userData');
+      if (userDataStr) {
+        const user = JSON.parse(userDataStr);
+        setUserPermissions(user.permissions || []);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const fetchComplaintDetails = async () => {
     if (!id) return;
@@ -120,6 +137,30 @@ export default function ComplaintDetails() {
       Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to send reply' });
     } finally {
       setIsReplying(false);
+    }
+  };
+
+  const handleUpdateStatus = async (newStatus: string) => {
+    try {
+      setStatusModalVisible(false);
+      setUpdating(true);
+      const token = await SecureStore.getItemAsync('userToken');
+      
+      const res = await axios.patch(`${API_URL}/complaints/${id}`, { status: newStatus }, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      setComplaint(res.data);
+      Toast.show({
+        type: 'success',
+        text1: 'Status Updated',
+        text2: `Complaint marked as ${newStatus.replace('_', ' ')}`
+      });
+    } catch (err) {
+      console.error('Update status error:', err);
+      Toast.show({ type: 'error', text1: 'Update Failed', text2: 'Could not update status' });
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -200,10 +241,21 @@ export default function ComplaintDetails() {
         {/* Title and Badge */}
         <View style={styles.titleRow}>
           <Text style={styles.title}>{t(`categories.${complaint.title}`, { defaultValue: complaint.title })}</Text>
-          <View style={[styles.statusBadge, statusBadgeStyle]}>
+          <TouchableOpacity 
+            style={[styles.statusBadge, statusBadgeStyle]} 
+            onPress={() => {
+              if (userPermissions.includes('Change Complaint Status')) {
+                setStatusModalVisible(true);
+              }
+            }}
+            disabled={!userPermissions.includes('Change Complaint Status')}
+          >
             <Ionicons name={statusIcon as any} size={14} color={statusTextStyle.color} style={{ marginRight: 4 }} />
             <Text style={[styles.statusBadgeText, statusTextStyle]}>{statusLabel}</Text>
-          </View>
+            {userPermissions.includes('Change Complaint Status') && (
+              <Ionicons name="chevron-down" size={14} color={statusTextStyle.color} style={{ marginLeft: 4 }} />
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Location */}
@@ -469,6 +521,43 @@ export default function ComplaintDetails() {
         </View>
       </Modal>
 
+      {/* Status Modal */}
+      <Modal visible={statusModalVisible} transparent={true} animationType="slide" onRequestClose={() => setStatusModalVisible(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.textModalContainer}>
+            <View style={styles.textModalHeader}>
+              <Text style={styles.textModalTitle}>Update Status</Text>
+              <TouchableOpacity onPress={() => setStatusModalVisible(false)}>
+                <Ionicons name="close" size={24} color="#0F172A" />
+              </TouchableOpacity>
+            </View>
+            <View style={{ padding: 16 }}>
+              <TouchableOpacity 
+                style={[styles.statusOptionBtn, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]} 
+                onPress={() => handleUpdateStatus('PENDING')} 
+                disabled={updating}
+              >
+                <Text style={{ color: '#D97706', fontWeight: '700', fontSize: 16 }}>Pending</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.statusOptionBtn, { backgroundColor: '#EFF6FF', borderColor: '#3B82F6', marginTop: 12 }]} 
+                onPress={() => handleUpdateStatus('IN_PROGRESS')} 
+                disabled={updating}
+              >
+                <Text style={{ color: '#2563EB', fontWeight: '700', fontSize: 16 }}>In Progress</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.statusOptionBtn, { backgroundColor: '#ECFDF5', borderColor: '#10B981', marginTop: 12 }]} 
+                onPress={() => handleUpdateStatus('RESOLVED')} 
+                disabled={updating}
+              >
+                <Text style={{ color: '#059669', fontWeight: '700', fontSize: 16 }}>Resolved</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <Toast />
     </SafeAreaView>
   );
@@ -537,4 +626,5 @@ const styles = StyleSheet.create({
   textModalTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
   textModalScroll: { padding: 16 },
   textModalBody: { fontSize: 16, color: '#334155', lineHeight: 24, paddingBottom: 20 },
+  statusOptionBtn: { padding: 16, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }
 });
