@@ -168,7 +168,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <CopilotProvider overlay="svg" animated={true} backdropColor="rgba(0, 0, 0, 0.7)">
-        <Stack screenOptions={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false, gestureEnabled: false }} />
       </CopilotProvider>
       <Toast />
       

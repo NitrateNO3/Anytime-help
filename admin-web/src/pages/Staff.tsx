@@ -25,6 +25,7 @@ export default function Staff() {
 
   // Filter States
   const [filterPhase, setFilterPhase] = useState('All');
+  const [filterStatus, setFilterStatus] = useState('ALL');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
 
@@ -160,18 +161,19 @@ export default function Staff() {
 
   useEffect(() => {
     if (activeTab === 'list') {
-      fetchStaff(page, filterPhase, debouncedSearch);
+      fetchStaff(page, filterPhase, debouncedSearch, filterStatus);
     }
-  }, [activeTab, page, filterPhase, debouncedSearch]);
+  }, [activeTab, page, filterPhase, debouncedSearch, filterStatus]);
 
   const fetchStaff = async (
     currentPage = page, 
     phase = filterPhase,
     searchFilter = debouncedSearch,
+    statusFilter = filterStatus,
     showLoading = true
   ) => {
     try {
-      const cacheKey = `staff_cache_${currentPage}_${phase}_${searchFilter}`;
+      const cacheKey = `staff_cache_${currentPage}_${phase}_${searchFilter}_${statusFilter}`;
       const cachedStr = sessionStorage.getItem(cacheKey);
 
       if (cachedStr) {
@@ -196,6 +198,7 @@ export default function Staff() {
         phase
       });
       if (searchFilter.trim()) params.append('search', searchFilter.trim());
+      if (statusFilter !== 'ALL') params.append('status', statusFilter);
 
       const res = await axios.get(`${API_URL}/users/staff?${params.toString()}`, {
         headers: { 'x-auth-token': token }
@@ -224,6 +227,7 @@ export default function Staff() {
     const token = localStorage.getItem('adminToken');
     const params = new URLSearchParams({ phase: filterPhase });
     if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+    if (filterStatus !== 'ALL') params.append('status', filterStatus);
 
     const res = await axios.get(`${API_URL}/users/staff?${params.toString()}`, {
       headers: { 'x-auth-token': token }
@@ -290,7 +294,7 @@ export default function Staff() {
       
       toast.success('Staff updated successfully!', { id: loadingToast });
       setEditingUser(null);
-      fetchStaff(page, filterPhase, debouncedSearch, false);
+      fetchStaff(page, filterPhase, debouncedSearch, filterStatus, false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update staff', { id: loadingToast });
     }
@@ -319,7 +323,7 @@ export default function Staff() {
       toast.success('Group renamed successfully!', { id: loadId });
       setEditingPhaseName(null);
       fetchDynamicPhases();
-      fetchStaff(page, filterPhase, debouncedSearch, false);
+      fetchStaff(page, filterPhase, debouncedSearch, filterStatus, false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to rename group', { id: loadId });
     }
@@ -348,7 +352,7 @@ export default function Staff() {
                 });
                 toast.success('Group deleted successfully!', { id: loadId });
                 fetchDynamicPhases();
-                fetchStaff(page, filterPhase, debouncedSearch, false);
+                fetchStaff(page, filterPhase, debouncedSearch, filterStatus, false);
               } catch (err: any) {
                 toast.error(err.response?.data?.message || 'Failed to delete group', { id: loadId });
               }
@@ -383,7 +387,7 @@ export default function Staff() {
                   headers: { 'x-auth-token': token }
                 });
                 toast.success('Staff member deleted', { id: loadingToast });
-                fetchStaff(page, filterPhase, debouncedSearch, false);
+                fetchStaff(page, filterPhase, debouncedSearch, filterStatus, false);
               } catch (err) {
                 console.error(err);
                 toast.error('Failed to delete staff', { id: loadingToast });
@@ -540,6 +544,20 @@ export default function Staff() {
                   ))}
                 </select>
               </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+                  Status
+                </label>
+                <select 
+                  value={filterStatus} 
+                  onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', background: '#FFFFFF', fontSize: 13, color: 'var(--text-main)', fontWeight: 500, outline: 'none' }}
+                >
+                  <option value="ALL">All Status</option>
+                  <option value="Active">Active</option>
+                  <option value="Pending">Pending</option>
+                </select>
+              </div>
             </div>
           </div>
           <table>
@@ -595,6 +613,16 @@ export default function Staff() {
                                 🌐 UNIVERSAL
                               </span>
                             )}
+                            <span style={{
+                              background: member.has_logged_in ? '#DCFCE7' : '#FEF3C7',
+                              color: member.has_logged_in ? '#166534' : '#92400E',
+                              padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              whiteSpace: 'nowrap'
+                            }}>
+                              {member.has_logged_in ? 'Active' : 'Pending'}
+                            </span>
                           </div>
                         </td>
                         <td style={{ color: 'var(--text-muted)' }}>{member.phone_number}</td>

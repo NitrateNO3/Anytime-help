@@ -89,7 +89,7 @@ router.get('/staff', auth, async (req, res) => {
     if (!checkAccess(req.user, 'Staff Team')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
-    const { page, limit, phase, search, dateFrom, dateTo } = req.query;
+    const { page, limit, phase, search, dateFrom, dateTo, status } = req.query;
     let query = { role: 'Staff' };
     const andConditions = [];
 
@@ -141,6 +141,14 @@ router.get('/staff', auth, async (req, res) => {
         dateFilter.$lte = end;
       }
       andConditions.push({ createdAt: dateFilter });
+    }
+
+    if (status && status !== 'ALL') {
+      if (status === 'Active') {
+        andConditions.push({ has_logged_in: true });
+      } else if (status === 'Pending') {
+        andConditions.push({ has_logged_in: { $ne: true } });
+      }
     }
 
     if (andConditions.length > 0) {
