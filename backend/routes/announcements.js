@@ -47,12 +47,19 @@ router.get('/', auth, async (req, res) => {
         const parentGroup = user.phase.split(' - ')[0];
         const basePhase = user.phase.split(' - ').slice(0, 2).join(' - ');
         phasesToMatch.push(user.phase, parentGroup, basePhase);
+        query.$or = [
+          { phases: { $in: phasesToMatch } },
+          { targetAudience: 'Members' },
+          { createdBy: req.user.id }
+        ];
+      } else {
+        query.$or = [
+          { phases: { $in: phasesToMatch } },
+          { targetAudience: 'Members' },
+          { targetAudience: 'All' },
+          { createdBy: req.user.id }
+        ];
       }
-      query.$or = [
-        { phases: { $in: phasesToMatch } },
-        { targetAudience: 'Members' },
-        { createdBy: req.user.id }
-      ];
     } else if (req.user.role === 'Admin') {
       const { phase } = req.query;
       if (phase && phase !== 'All Groups (Show Everything)') {
@@ -225,7 +232,7 @@ router.post('/', auth, async (req, res) => {
         userQuery.role = { $in: rolesToNotify };
       } else {
         // Default if no specific role phase is set
-        userQuery.role = { $in: ['Resident', 'Member', 'Staff'] };
+        userQuery.role = { $in: ['Resident', 'Member', 'Staff', 'Admin', 'SubAdmin'] };
       }
 
       const locationPhases = targetPhases.filter(p => p !== 'All' && p !== 'Resident' && p !== 'Members' && p !== 'Staff' && p !== 'Resident + Member');
