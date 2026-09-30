@@ -298,7 +298,7 @@ export default function ComplaintDetails() {
                 
                 <TouchableOpacity 
                   style={{ padding: 12, borderRadius: 10, flexDirection: 'row', alignItems: 'center', backgroundColor: complaint.status === 'RESOLVED' || complaint.status === 'DONE' ? '#ECFDF5' : 'transparent' }} 
-                  onPress={() => handleUpdateStatus('RESOLVED')}
+                  onPress={() => handleUpdateStatus('DONE')}
                   disabled={updating}
                 >
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#10B981', marginRight: 10 }} />
