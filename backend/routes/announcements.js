@@ -21,7 +21,8 @@ router.get('/', auth, async (req, res) => {
       const user = await User.findById(req.user.id);
       if (user && user.phase) {
         const parentGroup = user.phase.split(' - ')[0];
-        query.phases = { $in: [user.phase, parentGroup, 'All', 'Resident', 'Resident + Member'] };
+        const basePhase = user.phase.split(' - ').slice(0, 2).join(' - ');
+        query.phases = { $in: [user.phase, parentGroup, basePhase, 'All', 'Resident', 'Resident + Member'] };
       } else {
         // If user has no phase, fallback to 'All', 'Resident', or empty
         query.$or = [{ phases: 'All' }, { phases: 'Resident' }, { phases: 'Resident + Member' }, { phases: { $size: 0 } }];
@@ -30,7 +31,11 @@ router.get('/', auth, async (req, res) => {
     } else if (req.user.role === 'Staff') {
       const user = await User.findById(req.user.id);
       let phasesToMatch = ['All', 'Staff'];
-      if (user && user.phase) phasesToMatch.push(user.phase);
+      if (user && user.phase) {
+        const parentGroup = user.phase.split(' - ')[0];
+        const basePhase = user.phase.split(' - ').slice(0, 2).join(' - ');
+        phasesToMatch.push(user.phase, parentGroup, basePhase);
+      }
       query.$or = [
         { phases: { $in: phasesToMatch } },
         { createdBy: req.user.id }
@@ -40,10 +45,12 @@ router.get('/', auth, async (req, res) => {
       let phasesToMatch = ['All', 'Members', 'Resident + Member', 'Resident'];
       if (user && user.phase) {
         const parentGroup = user.phase.split(' - ')[0];
-        phasesToMatch.push(user.phase, parentGroup);
+        const basePhase = user.phase.split(' - ').slice(0, 2).join(' - ');
+        phasesToMatch.push(user.phase, parentGroup, basePhase);
       }
       query.$or = [
         { phases: { $in: phasesToMatch } },
+        { targetAudience: 'Members' },
         { createdBy: req.user.id }
       ];
     } else if (req.user.role === 'Admin') {
@@ -149,7 +156,7 @@ router.post('/', auth, async (req, res) => {
     if (!phases || phases.length === 0) {
       if (req.user.role === 'Staff' || req.user.role === 'SubAdmin') {
         if (creatorPhase && creatorPhase !== 'Universal' && creatorPhase !== 'All') {
-          finalPhases = [creatorPhase];
+          finalPhases = [creatorPhase.split(' - ').slice(0, 2).join(' - ')];
         } else {
           finalPhases = ['All'];
         }
