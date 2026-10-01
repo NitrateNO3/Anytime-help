@@ -236,10 +236,19 @@ router.get('/', auth, async (req, res) => {
         // If there was a phase in $or, it might conflict, but usually search is here
       }
 
-      const user = await User.findById(req.user.id);
+      // req.user is already the full User object from auth middleware
+      const user = req.user;
       
+      // Find all staff accounts with the same phone number (one person may manage multiple zones)
+      let allStaffAccounts = [];
       if (user && user.phone_number) {
-        const allStaffAccounts = await User.find({ phone_number: user.phone_number, role: 'Staff' });
+        allStaffAccounts = await User.find({ phone_number: user.phone_number, role: 'Staff' });
+      } else if (user) {
+        // Fallback: no phone number — just use this single account
+        allStaffAccounts = [user];
+      }
+      
+      if (allStaffAccounts.length > 0) {
         const staffOrConditions = [];
         
         for (const account of allStaffAccounts) {
