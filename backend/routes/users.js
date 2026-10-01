@@ -608,8 +608,12 @@ router.put('/push-token', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    user.expoPushToken = expoPushToken;
-    await user.save();
+    if (user.phone_number) {
+      await User.updateMany({ phone_number: user.phone_number }, { expoPushToken });
+    } else {
+      user.expoPushToken = expoPushToken;
+      await user.save();
+    }
 
     res.json({ message: 'Push token updated successfully' });
   } catch (error) {
@@ -627,8 +631,12 @@ router.put('/clear-badge', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    user.unread_notifications = 0;
-    await user.save();
+    if (user.phone_number) {
+      await User.updateMany({ phone_number: user.phone_number }, { unread_notifications: 0 });
+    } else {
+      user.unread_notifications = 0;
+      await user.save();
+    }
 
     res.json({ message: 'Badge cleared successfully' });
   } catch (error) {
