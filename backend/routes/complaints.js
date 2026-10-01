@@ -246,9 +246,10 @@ router.get('/', auth, async (req, res) => {
           let rawCats = account.assigned_categories && account.assigned_categories.length > 0 ? account.assigned_categories : (account.assigned_category ? [account.assigned_category] : []);
           let cats = [];
           for (const rc of rawCats) {
-            if (rc.includes(',')) {
+            if (!rc) continue;
+            if (typeof rc === 'string' && rc.includes(',')) {
               cats.push(...rc.split(',').map(s => s.trim()));
-            } else {
+            } else if (typeof rc === 'string') {
               cats.push(rc.trim());
             }
           }
@@ -265,7 +266,8 @@ router.get('/', auth, async (req, res) => {
               accountCondition.phase = { $in: ['Sushant Lok 2 - F,G', 'Sushant Lok 2 Option 2'] };
             } else {
               const cleanPhase = account.phase.split(':')[0].trim();
-              accountCondition.phase = { $regex: cleanPhase, $options: 'i' };
+              // Use native RegExp object which is universally supported by Mongoose for regex queries
+              accountCondition.phase = new RegExp(cleanPhase, 'i');
             }
           }
           
