@@ -261,25 +261,39 @@ router.get('/', auth, async (req, res) => {
           }
           
           if (account.phase && account.phase !== 'All' && account.phase !== 'Universal' && account.phase !== 'All Groups' && account.phase !== 'All Phases') {
+            let phaseCondition;
             if (account.phase.includes('Sushant Lok 2 - C,D,E') || account.phase.includes('Sushant Lok 2 Option 1')) {
-              accountCondition.phase = { $in: [
+              phaseCondition = { $in: [
                 new RegExp('Sushant Lok 2 - C,D,E', 'i'), 
                 new RegExp('Sushant Lok 2 Option 1', 'i')
               ]};
             } else if (account.phase.includes('Sushant Lok 2 - F,G') || account.phase.includes('Sushant Lok 2 Option 2')) {
-              accountCondition.phase = { $in: [
+              phaseCondition = { $in: [
                 new RegExp('Sushant Lok 2 - F,G', 'i'), 
                 new RegExp('Sushant Lok 2 Option 2', 'i')
               ]};
             } else if (account.phase.includes('Sushant Lok 3')) {
-              accountCondition.phase = new RegExp('Sushant Lok 3', 'i');
+              phaseCondition = new RegExp('Sushant Lok 3', 'i');
             } else {
               let cleanPhase = account.phase.replace(/[-:,].*$/, '').trim();
-              accountCondition.phase = new RegExp(cleanPhase.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&'), 'i');
+              phaseCondition = new RegExp(cleanPhase.replace(/[.*+?^${}()|[\]\\\\]/g, '\\$&'), 'i');
             }
+            
+            // Include complaints that match the phase OR have no phase set (undefined/empty/null)
+            // This ensures unphased complaints (where resident had no phase) are visible to all relevant staff
+            if (Object.keys(accountCondition).length > 0) {
+              // Has category filter too — create two branches: phased + matching category, or unphased + matching category
+              const catCond = accountCondition.category;
+              staffOrConditions.push({ category: catCond, phase: phaseCondition });
+              staffOrConditions.push({ category: catCond, $or: [{ phase: { $exists: false } }, { phase: null }, { phase: '' }, { phase: 'undefined' }] });
+            } else {
+              staffOrConditions.push({ phase: phaseCondition });
+              staffOrConditions.push({ $or: [{ phase: { $exists: false } }, { phase: null }, { phase: '' }, { phase: 'undefined' }] });
+            }
+          } else {
+            // Staff has no phase restriction — show all categories they're assigned to
+            staffOrConditions.push(accountCondition);
           }
-          
-          staffOrConditions.push(accountCondition);
         }
         
         if (staffOrConditions.length > 0) {
