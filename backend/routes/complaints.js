@@ -249,24 +249,31 @@ router.get('/', auth, async (req, res) => {
             if (!rc) continue;
             if (typeof rc === 'string' && rc.includes(',')) {
               cats.push(...rc.split(',').map(s => s.trim()));
-            } else {
-              cats.push(rc); // Do not trim single elements to preserve exact legacy matching if there are trailing spaces
+            } else if (typeof rc === 'string') {
+              cats.push(rc.trim());
             }
           }
           
           let accountCondition = {};
           if (cats.length > 0 && !cats.includes('All')) {
-            accountCondition.category = { $in: cats };
+            // Case-insensitive exact match ignoring extra spaces
+            accountCondition.category = { $in: cats.map(c => new RegExp(`^\\s*${c.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\s*$`, 'i')) };
           }
           
           if (account.phase && account.phase !== 'All' && account.phase !== 'Universal' && account.phase !== 'All Groups' && account.phase !== 'All Phases') {
             const cleanPhase = account.phase.split(':')[0].trim();
             if (cleanPhase === 'Sushant Lok 2 - C,D,E' || cleanPhase === 'Sushant Lok 2 Option 1') {
-              accountCondition.phase = { $in: ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 Option 1'] };
+              accountCondition.phase = { $in: [
+                new RegExp('Sushant Lok 2 - C,D,E', 'i'), 
+                new RegExp('Sushant Lok 2 Option 1', 'i')
+              ]};
             } else if (cleanPhase === 'Sushant Lok 2 - F,G' || cleanPhase === 'Sushant Lok 2 Option 2') {
-              accountCondition.phase = { $in: ['Sushant Lok 2 - F,G', 'Sushant Lok 2 Option 2'] };
+              accountCondition.phase = { $in: [
+                new RegExp('Sushant Lok 2 - F,G', 'i'), 
+                new RegExp('Sushant Lok 2 Option 2', 'i')
+              ]};
             } else {
-              accountCondition.phase = { $regex: cleanPhase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+              accountCondition.phase = new RegExp(cleanPhase.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&'), 'i');
             }
           }
           
