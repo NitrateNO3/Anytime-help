@@ -461,9 +461,9 @@ router.post('/staff', auth, async (req, res) => {
       phone_number = `+91${phone_number}`;
     }
 
-    let user = await User.findOne({ phone_number });
+    let user = await User.findOne({ phone_number, role: 'Staff', phase, assigned_category: legacy_category });
     if (user) {
-      return res.status(400).json({ msg: 'User already exists' });
+      return res.status(400).json({ msg: 'Staff already exists for this phase and category' });
     }
 
     user = new User({
@@ -514,9 +514,9 @@ router.post('/paid-staff', auth, async (req, res) => {
       phone_number = `+91${phone_number}`;
     }
 
-    let user = await User.findOne({ phone_number });
+    let user = await User.findOne({ phone_number, role: 'PaidStaff', assigned_category: legacy_category });
     if (user) {
-      return res.status(400).json({ msg: 'User already exists' });
+      return res.status(400).json({ msg: 'Paid staff already exists for this category' });
     }
 
     user = new User({

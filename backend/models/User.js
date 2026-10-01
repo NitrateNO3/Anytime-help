@@ -2,9 +2,9 @@ const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
   name: { type: String, required: false },
-  email: { type: String, required: false, unique: true, sparse: true },
+  email: { type: String, required: false },
   password: { type: String, required: false },
-  phone_number: { type: String, required: false, unique: true, sparse: true },
+  phone_number: { type: String, required: false },
   firebase_uid: { type: String, required: false },
   expoPushToken: { type: String, required: false },
   role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'SubAdmin', 'PaidStaff', 'Member'], default: 'Resident' },
@@ -31,4 +31,12 @@ userSchema.index({ role: 1, phase: 1 });
 userSchema.index({ firebase_uid: 1 });
 userSchema.index({ assigned_categories: 1 });
 
-module.exports = mongoose.model('User', userSchema);
+const User = mongoose.model('User', userSchema);
+
+// Attempt to drop the unique indexes on startup so MongoDB doesn't block duplicates
+mongoose.connection.once('open', () => {
+  User.collection.dropIndex('phone_number_1').catch(() => {});
+  User.collection.dropIndex('email_1').catch(() => {});
+});
+
+module.exports = User;
