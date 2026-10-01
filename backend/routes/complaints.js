@@ -229,6 +229,13 @@ router.get('/', auth, async (req, res) => {
       }
     } else if (req.user.role === 'Staff') {
       // Staff only sees complaints for their assigned category and phase, across ALL their accounts
+      // Clear frontend filters to prevent conflicts (old behavior overwrote these)
+      delete query.category;
+      delete query.phase;
+      if (query.$or && query.$or.length > 0) {
+        // If there was a phase in $or, it might conflict, but usually search is here
+      }
+
       const user = await User.findById(req.user.id);
       
       if (user && user.phone_number) {
@@ -236,7 +243,15 @@ router.get('/', auth, async (req, res) => {
         const staffOrConditions = [];
         
         for (const account of allStaffAccounts) {
-          const cats = account.assigned_categories && account.assigned_categories.length > 0 ? account.assigned_categories : (account.assigned_category ? [account.assigned_category] : []);
+          let rawCats = account.assigned_categories && account.assigned_categories.length > 0 ? account.assigned_categories : (account.assigned_category ? [account.assigned_category] : []);
+          let cats = [];
+          for (const rc of rawCats) {
+            if (rc.includes(',')) {
+              cats.push(...rc.split(',').map(s => s.trim()));
+            } else {
+              cats.push(rc.trim());
+            }
+          }
           
           let accountCondition = {};
           if (cats.length > 0 && !cats.includes('All')) {
@@ -249,7 +264,8 @@ router.get('/', auth, async (req, res) => {
             } else if (account.phase === 'Sushant Lok 2 - F,G' || account.phase === 'Sushant Lok 2 Option 2') {
               accountCondition.phase = { $in: ['Sushant Lok 2 - F,G', 'Sushant Lok 2 Option 2'] };
             } else {
-              accountCondition.phase = account.phase;
+              const cleanPhase = account.phase.split(':')[0].trim();
+              accountCondition.phase = { $regex: cleanPhase, $options: 'i' };
             }
           }
           
