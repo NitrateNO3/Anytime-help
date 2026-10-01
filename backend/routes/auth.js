@@ -118,10 +118,11 @@ router.post('/firebase-login', async (req, res) => {
   try {
     if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
 
-    let user = await User.findOne({ phone_number });
+    let users = await User.find({ phone_number });
+    let user;
     
     // If user does not exist, auto-register as Resident
-    if (!user) {
+    if (users.length === 0) {
       user = new User({ 
         phone_number, 
         firebase_uid, 
@@ -136,6 +137,10 @@ router.post('/firebase-login', async (req, res) => {
         io.emit('user_created', user);
       }
     } else {
+      user = users.find(u => u.role === 'Staff' || u.role === 'PaidStaff') 
+          || users.find(u => u.role === 'Admin' || u.role === 'SubAdmin') 
+          || users[0];
+          
       // Update firebase_uid if not set
       if (!user.firebase_uid && firebase_uid) {
         user.firebase_uid = firebase_uid;
@@ -295,9 +300,8 @@ router.post('/verify-otp', async (req, res) => {
     // OTP verified successfully, remove from store
     otpStore.delete(phone_number);
 
-    // Find user (primary or family member)
     const dbPhoneNumber = `+91${phone_number}`;
-    let user = await User.findOne({
+    let users = await User.find({
       $or: [
         { phone_number: dbPhoneNumber },
         { "family_members.phone_number": phone_number },
@@ -305,9 +309,14 @@ router.post('/verify-otp', async (req, res) => {
       ]
     });
     
-    if (!user) {
+    if (users.length === 0) {
       return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
     }
+    
+    // Prioritize Staff > Admin > SubAdmin > Resident if multiple exist
+    let user = users.find(u => u.role === 'Staff' || u.role === 'PaidStaff') 
+            || users.find(u => u.role === 'Admin' || u.role === 'SubAdmin') 
+            || users[0];
 
     if (role && user.role !== role) {
       return res.status(403).json({ msg: `Access Denied. You are registered as ${user.role}, not ${role}.` });
