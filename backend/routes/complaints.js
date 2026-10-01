@@ -249,8 +249,8 @@ router.get('/', auth, async (req, res) => {
             if (!rc) continue;
             if (typeof rc === 'string' && rc.includes(',')) {
               cats.push(...rc.split(',').map(s => s.trim()));
-            } else if (typeof rc === 'string') {
-              cats.push(rc.trim());
+            } else {
+              cats.push(rc); // Do not trim single elements to preserve exact legacy matching if there are trailing spaces
             }
           }
           
@@ -260,14 +260,13 @@ router.get('/', auth, async (req, res) => {
           }
           
           if (account.phase && account.phase !== 'All' && account.phase !== 'Universal' && account.phase !== 'All Groups' && account.phase !== 'All Phases') {
-            if (account.phase === 'Sushant Lok 2 - C,D,E' || account.phase === 'Sushant Lok 2 Option 1') {
+            const cleanPhase = account.phase.split(':')[0].trim();
+            if (cleanPhase === 'Sushant Lok 2 - C,D,E' || cleanPhase === 'Sushant Lok 2 Option 1') {
               accountCondition.phase = { $in: ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 Option 1'] };
-            } else if (account.phase === 'Sushant Lok 2 - F,G' || account.phase === 'Sushant Lok 2 Option 2') {
+            } else if (cleanPhase === 'Sushant Lok 2 - F,G' || cleanPhase === 'Sushant Lok 2 Option 2') {
               accountCondition.phase = { $in: ['Sushant Lok 2 - F,G', 'Sushant Lok 2 Option 2'] };
             } else {
-              const cleanPhase = account.phase.split(':')[0].trim();
-              // Use native RegExp object which is universally supported by Mongoose for regex queries
-              accountCondition.phase = new RegExp(cleanPhase, 'i');
+              accountCondition.phase = { $regex: cleanPhase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
             }
           }
           
