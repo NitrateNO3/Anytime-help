@@ -151,6 +151,10 @@ router.post('/firebase-login', async (req, res) => {
     user.has_logged_in = true;
     user.last_login_at = new Date();
     await user.save();
+    // Mark all accounts with same phone as active too
+    if (user.phone_number) {
+      await User.updateMany({ phone_number: user.phone_number, _id: { $ne: user._id } }, { has_logged_in: true, last_login_at: new Date() });
+    }
 
     const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id } };
     
@@ -325,6 +329,10 @@ router.post('/verify-otp', async (req, res) => {
     user.has_logged_in = true;
     user.last_login_at = new Date();
     await user.save();
+    // Mark all accounts with same phone as active too
+    if (user.phone_number) {
+      await User.updateMany({ phone_number: user.phone_number, _id: { $ne: user._id } }, { has_logged_in: true, last_login_at: new Date() });
+    }
 
     const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id, permissions: user.permissions || [] } };
     
@@ -351,6 +359,10 @@ router.post('/logout', async (req, res) => {
 
     user.has_logged_in = false;
     await user.save();
+    // Also reset all linked accounts with same phone
+    if (user.phone_number) {
+      await User.updateMany({ phone_number: user.phone_number, _id: { $ne: user._id } }, { has_logged_in: false });
+    }
 
     res.json({ msg: 'Logged out successfully' });
   } catch (err) {
