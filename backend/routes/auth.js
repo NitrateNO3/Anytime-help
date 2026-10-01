@@ -357,12 +357,8 @@ router.post('/logout', async (req, res) => {
     let user = await User.findById(userId);
     if (!user) return res.status(404).json({ msg: 'User not found' });
 
-    user.has_logged_in = false;
-    await user.save();
-    // Also reset all linked accounts with same phone
-    if (user.phone_number) {
-      await User.updateMany({ phone_number: user.phone_number, _id: { $ne: user._id } }, { has_logged_in: false });
-    }
+    // has_logged_in stays true on logout — Active means "account set up", not "currently online"
+    // Only update last_login_at is not needed on logout
 
     res.json({ msg: 'Logged out successfully' });
   } catch (err) {
