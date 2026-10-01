@@ -299,6 +299,7 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
     });
 
     await category.save();
+    clearCachePrefix('/api/categories');
     if (req.app.get('io')) {
       req.app.get('io').emit('categories_updated');
     }
@@ -369,6 +370,7 @@ router.put('/:id', [auth, upload.single('image')], async (req, res) => {
     }
 
     await category.save();
+    clearCachePrefix('/api/categories');
     if (req.app.get('io')) {
       req.app.get('io').emit('categories_updated');
     }
@@ -391,6 +393,7 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     await Category.findByIdAndDelete(req.params.id);
+    clearCachePrefix('/api/categories');
     if (req.app.get('io')) {
       req.app.get('io').emit('categories_updated');
     }
@@ -419,6 +422,7 @@ router.post('/reorder', auth, async (req, res) => {
 
     if (bulkOps.length > 0) {
       await Category.bulkWrite(bulkOps);
+      clearCachePrefix('/api/categories');
     }
     if (req.app.get('io')) {
       req.app.get('io').emit('categories_updated');
