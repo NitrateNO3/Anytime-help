@@ -261,18 +261,20 @@ router.get('/', auth, async (req, res) => {
           }
           
           if (account.phase && account.phase !== 'All' && account.phase !== 'Universal' && account.phase !== 'All Groups' && account.phase !== 'All Phases') {
-            const cleanPhase = account.phase.split(':')[0].trim();
-            if (cleanPhase === 'Sushant Lok 2 - C,D,E' || cleanPhase === 'Sushant Lok 2 Option 1') {
+            if (account.phase.includes('Sushant Lok 2 - C,D,E') || account.phase.includes('Sushant Lok 2 Option 1')) {
               accountCondition.phase = { $in: [
                 new RegExp('Sushant Lok 2 - C,D,E', 'i'), 
                 new RegExp('Sushant Lok 2 Option 1', 'i')
               ]};
-            } else if (cleanPhase === 'Sushant Lok 2 - F,G' || cleanPhase === 'Sushant Lok 2 Option 2') {
+            } else if (account.phase.includes('Sushant Lok 2 - F,G') || account.phase.includes('Sushant Lok 2 Option 2')) {
               accountCondition.phase = { $in: [
                 new RegExp('Sushant Lok 2 - F,G', 'i'), 
                 new RegExp('Sushant Lok 2 Option 2', 'i')
               ]};
+            } else if (account.phase.includes('Sushant Lok 3')) {
+              accountCondition.phase = new RegExp('Sushant Lok 3', 'i');
             } else {
+              let cleanPhase = account.phase.replace(/[-:,].*$/, '').trim();
               accountCondition.phase = new RegExp(cleanPhase.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&'), 'i');
             }
           }
