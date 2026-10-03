@@ -121,7 +121,7 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/resident/privacy')}>
+            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/staff-privacy' as any)}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>
                   <Ionicons name="shield-checkmark-outline" size={20} color="#4B5563" />
@@ -131,7 +131,7 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/resident/about')}>
+            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/staff-about' as any)}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>
                   <Ionicons name="information-circle-outline" size={20} color="#4B5563" />
@@ -141,7 +141,7 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/resident/support')}>
+            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/staff-support' as any)}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
                   <Ionicons name="help-buoy-outline" size={20} color="#D97706" />
