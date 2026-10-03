@@ -49,6 +49,7 @@ export default function Staff() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [categories, setCategories] = useState<string[]>(['Electricity']);
   const [isCreating, setIsCreating] = useState(false);
+  const [isUpdating, setIsUpdating] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   
   // Custom Category State
@@ -279,6 +280,7 @@ export default function Staff() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsUpdating(true);
     const loadingToast = toast.loading('Updating staff...');
 
     try {
@@ -297,6 +299,8 @@ export default function Staff() {
       fetchStaff(page, filterPhase, debouncedSearch, filterStatus, false);
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update staff', { id: loadingToast });
+    } finally {
+      setIsUpdating(false);
     }
   };
 
@@ -964,11 +968,11 @@ export default function Staff() {
               </div>
               
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
-                <button type="button" onClick={() => setEditingUser(null)} className="btn btn-outline" style={{ flex: 1 }}>
+                <button type="button" onClick={() => setEditingUser(null)} className="btn btn-outline" style={{ flex: 1 }} disabled={isUpdating}>
                   Cancel
                 </button>
-                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>
-                  Save Changes
+                <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={isUpdating}>
+                  {isUpdating ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </form>
