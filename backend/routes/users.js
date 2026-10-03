@@ -392,13 +392,17 @@ router.post('/residents', auth, async (req, res) => {
       return res.status(400).json({ msg: 'User already exists' });
     }
 
+    let existingActiveUser = await User.findOne({ phone_number, has_logged_in: true });
+    let hasLoggedIn = !!existingActiveUser;
+
     user = new User({
       name,
       phone_number,
       role: 'Resident',
       phase,
       address,
-      relation: relation || property_type
+      relation: relation || property_type,
+      has_logged_in: hasLoggedIn
     });
 
     await user.save();
@@ -435,6 +439,9 @@ router.post('/members', auth, async (req, res) => {
 
     let user = await User.findOne({ phone_number });
     if (!user) {
+      let existingActiveUser = await User.findOne({ phone_number, has_logged_in: true });
+      let hasLoggedIn = !!existingActiveUser;
+
       user = new User({
         name,
         phone_number,
@@ -442,7 +449,8 @@ router.post('/members', auth, async (req, res) => {
         designation,
         address,
         member_id,
-        permissions: permissions || []
+        permissions: permissions || [],
+        has_logged_in: hasLoggedIn
       });
     } else {
       user.name = name;
@@ -491,13 +499,17 @@ router.post('/staff', auth, async (req, res) => {
       return res.status(400).json({ msg: 'Staff already exists for this phase and category' });
     }
 
+    let existingActiveUser = await User.findOne({ phone_number, has_logged_in: true });
+    let hasLoggedIn = !!existingActiveUser;
+
     user = new User({
       name,
       phone_number,
       role: 'Staff',
       assigned_category: legacy_category,
       assigned_categories: assigned_categories || [],
-      phase
+      phase,
+      has_logged_in: hasLoggedIn
     });
 
     await user.save();
@@ -544,12 +556,16 @@ router.post('/paid-staff', auth, async (req, res) => {
       return res.status(400).json({ msg: 'Paid staff already exists for this category' });
     }
 
+    let existingActiveUser = await User.findOne({ phone_number, has_logged_in: true });
+    let hasLoggedIn = !!existingActiveUser;
+
     user = new User({
       name,
       phone_number,
       role: 'PaidStaff',
       assigned_category: legacy_category,
-      assigned_categories: assigned_categories || []
+      assigned_categories: assigned_categories || [],
+      has_logged_in: hasLoggedIn
     });
 
     await user.save();

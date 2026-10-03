@@ -71,8 +71,8 @@ export default function Staff() {
   const [newPhaseName, setNewPhaseName] = useState('');
 
   useEffect(() => {
-    // Fetch categories for the dropdown when tab changes
-    if (activeTab === 'create') {
+    // Fetch categories for the dropdown when tab changes or when editing a user
+    if (activeTab === 'create' || editingUser) {
       axios.get(`${API_URL}/categories`)
         .then(res => {
           if (res.data && res.data.length > 0) {
@@ -91,7 +91,7 @@ export default function Staff() {
           if (categories.length === 0) setCategories([defaultCategories[0]]);
         });
     }
-  }, [activeTab]);
+  }, [activeTab, editingUser]);
 
   const fetchDynamicPhases = () => {
     const token = localStorage.getItem('adminToken');
