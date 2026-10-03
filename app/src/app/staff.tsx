@@ -27,6 +27,7 @@ export default function StaffScreen() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [filterCategories, setFilterCategories] = useState<string[]>(['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service']);
   const [activeTab, setActiveTab] = useState<'Tasks' | 'Broadcasts' | 'Announcements'>('Tasks');
+  const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
   const toggleLanguage = async () => {
     const newLang = getNextLanguage(i18n.language);
@@ -90,12 +91,12 @@ export default function StaffScreen() {
       return;
     }
     const delayDebounceFn = setTimeout(() => {
-      fetchComplaints(searchQuery, selectedCategory);
+      fetchComplaints(searchQuery, selectedCategory, selectedStatus);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  const fetchComplaints = async (currentSearch = searchQuery, currentCategory = selectedCategory) => {
+  const fetchComplaints = async (currentSearch = searchQuery, currentCategory = selectedCategory, currentStatus = selectedStatus) => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const userDataStr = await SecureStore.getItemAsync('userData');
@@ -105,7 +106,7 @@ export default function StaffScreen() {
         setUser(userData);
       }
 
-      const res = await axios.get(`${API_URL}/complaints?${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}`, {
+      const res = await axios.get(`${API_URL}/complaints?${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${currentStatus !== 'ALL' ? `&status=${currentStatus}` : ''}`, {
         headers: { 'x-auth-token': token }
       });
       if (Array.isArray(res.data)) {
@@ -336,7 +337,7 @@ export default function StaffScreen() {
         {/* Title Area */}
         <View style={styles.titleArea}>
           <Text style={styles.title}>{t('staff.portal')}</Text>
-          <Text style={styles.subtitle}>{user?.name || 'Staff Member'} • {user?.assigned_category || 'Assigned'}</Text>
+          <Text style={styles.subtitle}>Welcome, {user?.name?.split(' ')[0] || 'Staff'} 👋</Text>
         </View>
 
         {/* Filters */}
@@ -380,12 +381,35 @@ export default function StaffScreen() {
                   onChangeText={setSearchQuery}
                 />
                 {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => { setSearchQuery(''); fetchComplaints('', selectedCategory); }}>
+                  <TouchableOpacity onPress={() => { setSearchQuery(''); fetchComplaints('', selectedCategory, selectedStatus); }}>
                     <Ionicons name="close-circle" size={20} color="#D1D5DB" />
                   </TouchableOpacity>
                 )}
               </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 10 }}>
+
+              {/* Status Filter - Segmented Control */}
+              <View style={styles.statusContainer}>
+                {['ALL', 'PENDING', 'IN_PROGRESS', 'RESOLVED'].map(status => {
+                  const isActive = selectedStatus === status;
+                  const label = status === 'ALL' ? 'All' : status.replace('_', ' ');
+                  return (
+                    <TouchableOpacity 
+                      key={status}
+                      style={[styles.statusTab, isActive && styles.statusTabActive]}
+                      onPress={() => {
+                        setSelectedStatus(status);
+                        setLoading(true);
+                        fetchComplaints(searchQuery, selectedCategory, status);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[styles.statusTabText, isActive && styles.statusTabTextActive]}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 10, paddingBottom: 8 }}>
                 {filterCategories.map(cat => {
                   const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
                   return (
@@ -396,7 +420,7 @@ export default function StaffScreen() {
                         const newCat = cat === 'All' ? '' : cat;
                         setSelectedCategory(newCat);
                         setLoading(true);
-                        fetchComplaints(searchQuery, newCat);
+                        fetchComplaints(searchQuery, newCat, selectedStatus);
                       }}
                     >
                       <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>{cat === 'All' ? 'All' : t(`categories.${cat}`, { defaultValue: cat })}</Text>
@@ -760,6 +784,14 @@ const styles = StyleSheet.create({
   filterText: { fontSize: 15, fontWeight: '600', color: '#4B5563' },
   filterTextActive: { color: '#FFFFFF' },
   searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E5E7EB', height: 44 },
+  
+  // Status Filter Styles
+  statusContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, marginBottom: 16 },
+  statusTab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+  statusTabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  statusTabText: { fontSize: 13, fontWeight: '600', color: '#64748B', textTransform: 'capitalize' },
+  statusTabTextActive: { color: '#1D4ED8', fontWeight: '700' },
+
   catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
   catChipActive: { backgroundColor: '#1E3A8A', borderColor: '#1E3A8A' },
   catChipText: { fontSize: 13, fontWeight: '600', color: '#4B5563', textTransform: 'capitalize' },
