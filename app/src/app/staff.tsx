@@ -153,9 +153,39 @@ export default function StaffScreen() {
 
   const fetchFilterCategories = async () => {
     try {
+      const userDataStr = await SecureStore.getItemAsync('userData');
+      let allowedCats = new Set<string>();
+      let hasAllAccess = false;
+      
+      if (userDataStr) {
+        const u = JSON.parse(userDataStr);
+        if (u.assigned_category && u.assigned_category.toLowerCase() !== 'all complaints') {
+          u.assigned_category.split(',').forEach((c: string) => allowedCats.add(c.trim()));
+        } else if (u.assigned_category?.toLowerCase() === 'all complaints') {
+          hasAllAccess = true;
+        }
+        
+        if (u.accounts) {
+          u.accounts.forEach((acc: any) => {
+            if (acc.role === 'Staff') {
+              if (acc.assigned_category && acc.assigned_category.toLowerCase() !== 'all complaints') {
+                acc.assigned_category.split(',').forEach((c: string) => allowedCats.add(c.trim()));
+              } else if (acc.assigned_category?.toLowerCase() === 'all complaints') {
+                hasAllAccess = true;
+              }
+            }
+          });
+        }
+      }
+
       const res = await axios.get(`${API_URL}/categories`);
       if (res.data && res.data.length > 0) {
-        const catTitles = res.data.map((c: any) => c.title);
+        let catTitles = res.data.map((c: any) => c.title);
+        if (!hasAllAccess && allowedCats.size > 0) {
+          catTitles = catTitles.filter((c: string) => allowedCats.has(c));
+        } else if (!hasAllAccess && allowedCats.size === 0) {
+          catTitles = [];
+        }
         setFilterCategories(['All', ...catTitles]);
       }
     } catch (err) {
@@ -304,7 +334,7 @@ export default function StaffScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F0F4F8" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
       
       {isOffline && (
         <View style={styles.offlineBanner}>
@@ -327,7 +357,7 @@ export default function StaffScreen() {
           <View style={styles.headerRight}>
             <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल, भाषा और सेटिंग्स मैनेज कर सकते हैं।" order={3} name="staff_settings">
               <WalkthroughableTouchableOpacity style={styles.iconBtn} onPress={() => router.push('/staff-settings')}>
-                <Ionicons name="settings-outline" size={22} color="#475569" />
+                <Ionicons name="settings-outline" size={24} color="#3B82F6" />
               </WalkthroughableTouchableOpacity>
             </CopilotStep>
           </View>
@@ -337,6 +367,31 @@ export default function StaffScreen() {
         <View style={styles.titleArea}>
           <Text style={styles.title}>{t('staff.portal')}</Text>
           <Text style={styles.subtitle}>Welcome, {user?.name?.split(' ')[0] || 'Staff'} 👋</Text>
+          
+          {user && (
+            <View style={styles.assignmentBox}>
+              <View style={styles.infoRow}>
+                <Ionicons name="location" size={16} color="#3B82F6" />
+                <Text style={styles.infoText}>{user.phase || 'All Locations'}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Ionicons name="pricetag" size={16} color="#10B981" />
+                <Text style={styles.infoText}>{user.assigned_category || 'All Complaints'}</Text>
+              </View>
+              {user.accounts?.filter((acc: any) => acc.role === 'Staff').map((acc: any, idx: number) => (
+                <View key={idx} style={styles.extraAccountBox}>
+                  <View style={styles.infoRow}>
+                    <Ionicons name="location" size={16} color="#3B82F6" />
+                    <Text style={styles.infoText}>{acc.phase || 'All Locations'}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Ionicons name="pricetag" size={16} color="#10B981" />
+                    <Text style={styles.infoText}>{acc.assigned_category || 'All Complaints'}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Filters */}
@@ -750,12 +805,12 @@ export default function StaffScreen() {
         </View>
       </Modal>
 
-      {/* FAB for Broadcast matched with new theme */}
+      {/* FAB for Broadcast */}
       <TouchableOpacity 
         style={styles.fab} 
         onPress={() => setBroadcastModalVisible(true)}
       >
-        <Ionicons name="megaphone" size={26} color="#7BA4F5" />
+        <Ionicons name="megaphone" size={24} color="#FFF" />
       </TouchableOpacity>
 
     </SafeAreaView>
@@ -763,90 +818,91 @@ export default function StaffScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#E1E9F1' },
+  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
   offlineBanner: { backgroundColor: '#EF4444', paddingVertical: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   offlineText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   container: { flex: 1 },
   contentContainer: { paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   headerRight: { flexDirection: 'row', alignItems: 'center' },
+  langToggle: { backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+  langToggleText: { fontSize: 13, fontWeight: '600', color: '#334155' },
+  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
   
-  // True 3D Convex UI
-  langToggle: { backgroundColor: '#E1E9F1', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, shadowColor: '#A8B7C9', shadowOffset: { width: 8, height: 8 }, shadowOpacity: 0.9, shadowRadius: 12, elevation: 8, borderWidth: 1.5, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
-  langToggleText: { fontSize: 13, fontWeight: '600', color: '#475569' },
-  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#E1E9F1', justifyContent: 'center', alignItems: 'center', shadowColor: '#A8B7C9', shadowOffset: { width: 8, height: 8 }, shadowOpacity: 0.9, shadowRadius: 12, elevation: 8, borderWidth: 1.5, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
+  titleArea: { marginBottom: 24 },
+  title: { fontSize: 20, fontWeight: '600', color: '#64748B', marginBottom: 4 },
+  subtitle: { fontSize: 26, fontWeight: '800', color: '#1E293B', marginBottom: 12 },
   
-  titleArea: { marginBottom: 28 },
-  title: { fontSize: 24, fontWeight: '600', color: '#475569', marginBottom: 4 },
-  subtitle: { fontSize: 26, fontWeight: '800', color: '#1E293B' },
+  assignmentBox: { backgroundColor: '#FFFFFF', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
+  infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  infoText: { fontSize: 14, fontWeight: '600', color: '#475569', marginLeft: 8 },
+  extraAccountBox: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  
   filterScroll: { marginBottom: 20 },
-  filterContainer: { paddingRight: 20, paddingVertical: 15, gap: 12 },
-  
-  filterChip: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 24, backgroundColor: '#E1E9F1', shadowColor: '#A8B7C9', shadowOffset: { width: 8, height: 8 }, shadowOpacity: 0.9, shadowRadius: 12, elevation: 8, borderWidth: 1.5, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
-  filterChipActive: { backgroundColor: '#7BA4F5', borderTopColor: '#9ABDF9', borderLeftColor: '#9ABDF9', borderBottomColor: '#5C82CE', borderRightColor: '#5C82CE', shadowColor: '#5C82CE' },
-  filterText: { fontSize: 15, fontWeight: '700', color: '#475569' },
+  filterContainer: { paddingRight: 20, paddingVertical: 10, gap: 12 },
+  filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 },
+  filterChipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
+  filterText: { fontSize: 15, fontWeight: '600', color: '#475569' },
   filterTextActive: { color: '#FFFFFF' },
   
-  // True 3D Concave (Inset) UI for Search
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#D7E0E9', borderRadius: 20, paddingHorizontal: 16, marginBottom: 20, borderWidth: 2, borderTopColor: '#BDC8D6', borderLeftColor: '#BDC8D6', borderBottomColor: '#FFFFFF', borderRightColor: '#FFFFFF', height: 50 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0', height: 46 },
   
-  // Status Filter Styles
-  statusContainer: { flexDirection: 'row', backgroundColor: '#E1E9F1', borderRadius: 24, padding: 6, marginBottom: 20, shadowColor: '#A8B7C9', shadowOffset: { width: 8, height: 8 }, shadowOpacity: 0.9, shadowRadius: 12, elevation: 8, borderWidth: 1.5, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
-  statusTab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 20 },
-  statusTabActive: { backgroundColor: '#D7E0E9', borderWidth: 2, borderTopColor: '#BDC8D6', borderLeftColor: '#BDC8D6', borderBottomColor: '#FFFFFF', borderRightColor: '#FFFFFF' },
-  statusTabText: { fontSize: 13, fontWeight: '700', color: '#64748B', textTransform: 'capitalize' },
-  statusTabTextActive: { color: '#7BA4F5', fontWeight: '800' },
+  statusContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0' },
+  statusTab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
+  statusTabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  statusTabText: { fontSize: 13, fontWeight: '600', color: '#64748B', textTransform: 'capitalize' },
+  statusTabTextActive: { color: '#3B82F6', fontWeight: '700' },
 
-  catChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: '#E1E9F1', shadowColor: '#A8B7C9', shadowOffset: { width: 8, height: 8 }, shadowOpacity: 0.9, shadowRadius: 12, elevation: 8, borderWidth: 1.5, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
-  catChipActive: { backgroundColor: '#7BA4F5', borderTopColor: '#9ABDF9', borderLeftColor: '#9ABDF9', borderBottomColor: '#5C82CE', borderRightColor: '#5C82CE', shadowColor: '#5C82CE' },
-  catChipText: { fontSize: 13, fontWeight: '700', color: '#475569', textTransform: 'capitalize' },
+  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 },
+  catChipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
+  catChipText: { fontSize: 13, fontWeight: '600', color: '#475569', textTransform: 'capitalize' },
   catChipTextActive: { color: '#FFFFFF' },
   
-  card: { backgroundColor: '#E1E9F1', borderRadius: 24, padding: 20, marginBottom: 24, shadowColor: '#A8B7C9', shadowOffset: { width: 10, height: 10 }, shadowOpacity: 1, shadowRadius: 15, elevation: 10, borderWidth: 2, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4, borderWidth: 1, borderColor: '#F1F5F9' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  badge: { backgroundColor: '#D9E6FC', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12, borderWidth: 1, borderColor: '#FFFFFF' },
-  badgeText: { fontSize: 12, fontWeight: '800', color: '#1E3A8A' },
-  statusText: { fontSize: 13, fontWeight: '800' },
-  cardTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B', marginBottom: 8 },
+  badge: { backgroundColor: '#DBEAFE', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  badgeText: { fontSize: 12, fontWeight: '700', color: '#1D4ED8' },
+  statusText: { fontSize: 13, fontWeight: '700' },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B', marginBottom: 8 },
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  cardLocation: { fontSize: 14, color: '#64748B', marginLeft: 4, fontWeight: '600' },
-  descText: { fontSize: 14, color: '#475569', lineHeight: 22, marginBottom: 16, fontWeight: '500' },
-  imageContainer: { width: '100%', height: 160, borderRadius: 16, overflow: 'hidden', marginBottom: 16, borderWidth: 2, borderTopColor: '#BDC8D6', borderLeftColor: '#BDC8D6', borderBottomColor: '#FFFFFF', borderRightColor: '#FFFFFF' },
+  cardLocation: { fontSize: 14, color: '#64748B', marginLeft: 4, fontWeight: '500' },
+  descText: { fontSize: 14, color: '#475569', lineHeight: 22, marginBottom: 16 },
+  imageContainer: { width: '100%', height: 160, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
   cardImage: { width: '100%', height: '100%' },
   
-  dropdownBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#E1E9F1', padding: 14, borderRadius: 12, marginTop: 4, shadowColor: '#A8B7C9', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.9, shadowRadius: 8, elevation: 5, borderWidth: 1.5, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
-  dropdownBtnText: { color: '#334155', fontSize: 15, fontWeight: '700' },
+  dropdownBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F1F5F9', padding: 14, borderRadius: 12, marginTop: 4 },
+  dropdownBtnText: { color: '#334155', fontSize: 15, fontWeight: '600' },
   
   emptyStateContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60, paddingHorizontal: 40 },
-  emptyTextLarge: { fontSize: 20, fontWeight: '800', color: '#475569', marginTop: 16, textAlign: 'center' },
+  emptyTextLarge: { fontSize: 20, fontWeight: '700', color: '#475569', marginTop: 16, textAlign: 'center' },
   emptyTextSub: { fontSize: 15, color: '#64748B', textAlign: 'center', marginTop: 8, lineHeight: 22 },
   
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(225, 233, 241, 0.8)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: '80%', backgroundColor: '#E1E9F1', borderRadius: 20, padding: 20, shadowColor: '#A8B7C9', shadowOffset: { width: 10, height: 10 }, shadowOpacity: 1, shadowRadius: 20, elevation: 15, borderWidth: 2, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
-  modalTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B', marginBottom: 16, textAlign: 'center' },
-  modalOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#D1DBE5' },
-  modalOptionText: { fontSize: 16, color: '#475569', fontWeight: '700', marginLeft: 12 },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { width: '80%', backgroundColor: 'white', borderRadius: 20, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B', marginBottom: 16, textAlign: 'center' },
+  modalOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+  modalOptionText: { fontSize: 16, color: '#475569', fontWeight: '500', marginLeft: 12 },
   
-  broadcastModalContent: { width: '90%', backgroundColor: '#E1E9F1', borderRadius: 24, padding: 24, shadowColor: '#A8B7C9', shadowOffset: { width: 10, height: 10 }, shadowOpacity: 1, shadowRadius: 20, elevation: 15, borderWidth: 2, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
+  broadcastModalContent: { width: '90%', backgroundColor: 'white', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
   broadcastHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  broadcastHelpText: { fontSize: 14, color: '#64748B', marginBottom: 20, fontWeight: '500' },
-  input: { backgroundColor: '#D7E0E9', borderWidth: 2, borderTopColor: '#BDC8D6', borderLeftColor: '#BDC8D6', borderBottomColor: '#FFFFFF', borderRightColor: '#FFFFFF', borderRadius: 16, padding: 16, fontSize: 16, color: '#1E293B', marginBottom: 16 },
+  broadcastHelpText: { fontSize: 14, color: '#64748B', marginBottom: 20 },
+  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, padding: 16, fontSize: 16, color: '#1E293B', marginBottom: 16 },
   textArea: { height: 120, textAlignVertical: 'top' },
-  broadcastBtn: { backgroundColor: '#7BA4F5', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 8, borderWidth: 1.5, borderTopColor: '#9ABDF9', borderLeftColor: '#9ABDF9', borderBottomColor: '#5C82CE', borderRightColor: '#5C82CE', shadowColor: '#5C82CE', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.8, shadowRadius: 8, elevation: 6 },
-  broadcastBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  broadcastBtn: { backgroundColor: '#3B82F6', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 8 },
+  broadcastBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#E1E9F1', width: 64, height: 64, borderRadius: 32, justifyContent: 'center', alignItems: 'center', shadowColor: '#A8B7C9', shadowOffset: { width: 8, height: 8 }, shadowOpacity: 1, shadowRadius: 15, elevation: 10, borderWidth: 2, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
+  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#3B82F6', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
   
-  deleteModalContainer: { width: '90%', backgroundColor: '#E1E9F1', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#A8B7C9', shadowOffset: { width: 10, height: 10 }, shadowOpacity: 1, shadowRadius: 20, elevation: 15, borderWidth: 2, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
-  deleteIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 16, borderWidth: 2, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF' },
+  deleteModalContainer: { width: '90%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
+  deleteIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   deleteModalTitle: { fontSize: 22, fontWeight: '800', color: '#1E293B', marginBottom: 8 },
-  deleteModalText: { fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 22, fontWeight: '500' },
+  deleteModalText: { fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
   deleteModalActions: { flexDirection: 'row', width: '100%', gap: 12 },
-  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#E1E9F1', alignItems: 'center', shadowColor: '#A8B7C9', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.9, shadowRadius: 8, elevation: 5, borderWidth: 1.5, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
-  cancelBtnText: { fontSize: 16, fontWeight: '800', color: '#475569' },
-  deleteBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#EF4444', alignItems: 'center', shadowColor: '#DC2626', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.6, shadowRadius: 8, elevation: 5, borderWidth: 1.5, borderTopColor: '#FCA5A5', borderLeftColor: '#FCA5A5', borderBottomColor: '#B91C1C', borderRightColor: '#B91C1C' },
-  deleteBtnText: { fontSize: 16, fontWeight: '800', color: '#FFFFFF' },
-
+  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center' },
+  cancelBtnText: { fontSize: 16, fontWeight: '700', color: '#475569' },
+  deleteBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#EF4444', alignItems: 'center' },
+  deleteBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+  
   // Full screen image styles
   fullScreenImageContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
   fullScreenImage: { width: '100%', height: '100%' },
