@@ -229,7 +229,7 @@ router.get('/', auth, async (req, res) => {
       }
     } else if (req.user.role === 'Staff') {
       // Staff only sees complaints for their assigned category and phase, across ALL their accounts
-      // Clear frontend filters to prevent conflicts (old behavior overwrote these)
+      const requestedCategory = query.category;
       delete query.category;
       delete query.phase;
       if (query.$or && query.$or.length > 0) {
@@ -264,7 +264,12 @@ router.get('/', auth, async (req, res) => {
           }
           
           let accountCondition = {};
-          if (cats.length > 0 && !cats.includes('All')) {
+          if (requestedCategory && requestedCategory !== 'ALL') {
+            const reqCatStr = String(requestedCategory);
+            const hasAccess = cats.length === 0 || cats.includes('All') || cats.some(c => c.toLowerCase() === reqCatStr.toLowerCase());
+            if (!hasAccess) continue; // Staff doesn't have access to this requested category for this account
+            accountCondition.category = reqCatStr;
+          } else if (cats.length > 0 && !cats.includes('All')) {
             // Case-insensitive exact match ignoring extra spaces
             accountCondition.category = { $in: cats.map(c => new RegExp(`^\\s*${c.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\s*$`, 'i')) };
           }
@@ -312,6 +317,9 @@ router.get('/', auth, async (req, res) => {
           } else {
             query.$or = staffOrConditions;
           }
+        } else {
+          // If they requested a category they don't have access to across any account, return nothing
+          query._id = null;
         }
       }
     }

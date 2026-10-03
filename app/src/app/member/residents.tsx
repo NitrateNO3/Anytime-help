@@ -21,7 +21,7 @@ export default function ResidentsScreen() {
   const [hasMore, setHasMore] = useState(true);
   
   // Debounce search timeout
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [searchTimeout, setSearchTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   useFocusEffect(
     useCallback(() => {

@@ -78,7 +78,7 @@ export default function StaffScreen() {
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStatus, setSelectedStatus] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [isOffline, setIsOffline] = useState(false);
   
   const mounted = React.useRef(false);
@@ -89,12 +89,12 @@ export default function StaffScreen() {
       return;
     }
     const delayDebounceFn = setTimeout(() => {
-      fetchComplaints(searchQuery, selectedStatus);
+      fetchComplaints(searchQuery, selectedCategory);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  const fetchComplaints = async (currentSearch = searchQuery, currentStatus = selectedStatus) => {
+  const fetchComplaints = async (currentSearch = searchQuery, currentCategory = selectedCategory) => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const userDataStr = await SecureStore.getItemAsync('userData');
@@ -104,7 +104,7 @@ export default function StaffScreen() {
         setUser(userData);
       }
 
-      const res = await axios.get(`${API_URL}/complaints?${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentStatus ? `&status=${encodeURIComponent(currentStatus)}` : ''}`, {
+      const res = await axios.get(`${API_URL}/complaints?${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}`, {
         headers: { 'x-auth-token': token }
       });
       if (Array.isArray(res.data)) {
@@ -363,26 +363,25 @@ export default function StaffScreen() {
                   onChangeText={setSearchQuery}
                 />
                 {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => { setSearchQuery(''); fetchComplaints('', selectedStatus); }}>
+                  <TouchableOpacity onPress={() => { setSearchQuery(''); fetchComplaints('', selectedCategory); }}>
                     <Ionicons name="close-circle" size={20} color="#D1D5DB" />
                   </TouchableOpacity>
                 )}
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 10 }}>
-                {['All', 'PENDING', 'IN_PROGRESS', 'DONE'].map(status => {
-                  const isActive = (status === 'All' && selectedStatus === '') || status === selectedStatus;
-                  const displayStatus = status === 'All' ? 'All' : status === 'DONE' ? 'Resolved' : status.replace('_', ' ');
+                {['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'].map(cat => {
+                  const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
                   return (
                     <TouchableOpacity 
-                      key={status} 
+                      key={cat} 
                       style={[styles.catChip, isActive && styles.catChipActive]}
                       onPress={() => {
-                        const newStatus = status === 'All' ? '' : status;
-                        setSelectedStatus(newStatus);
-                        fetchComplaints(searchQuery, newStatus);
+                        const newCat = cat === 'All' ? '' : cat;
+                        setSelectedCategory(newCat);
+                        fetchComplaints(searchQuery, newCat);
                       }}
                     >
-                      <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>{displayStatus}</Text>
+                      <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>{cat === 'All' ? 'All' : t(`categories.${cat}`, { defaultValue: cat })}</Text>
                     </TouchableOpacity>
                   );
                 })}
