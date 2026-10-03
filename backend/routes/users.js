@@ -21,6 +21,31 @@ const checkAccess = (user, section) => {
   return false;
 };
 
+// @route   GET api/users/me
+// @desc    Get current user profile & linked accounts
+// @access  Private
+router.get('/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('-password');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    // Fetch all accounts associated with this phone number
+    let accounts = [];
+    if (user.phone_number) {
+      accounts = await User.find({ 
+        phone_number: user.phone_number,
+        _id: { $ne: user._id }
+      }).select('-password');
+    }
+    
+    // Return user object with accounts attached
+    const userData = { ...user.toObject(), accounts };
+    res.json(userData);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   GET api/users/phases
 // @desc    Get all distinct phases
 // @access  Admin Private

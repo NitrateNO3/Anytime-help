@@ -96,6 +96,21 @@ export default function StaffScreen() {
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
+  const fetchUserProfile = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) return;
+      const res = await axios.get(`${API_URL}/users/me`, {
+        headers: { 'x-auth-token': token }
+      });
+      const updatedUser = res.data;
+      await SecureStore.setItemAsync('userData', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+    } catch (err) {
+      console.error('Fetch user profile error:', err);
+    }
+  };
+
   const fetchComplaints = async (currentSearch = searchQuery, currentCategory = selectedCategory, currentStatus = selectedStatus) => {
     try {
       const token = await SecureStore.getItemAsync('userToken');
@@ -212,20 +227,26 @@ export default function StaffScreen() {
   const hasFetchedRef = React.useRef(false);
   useFocusEffect(
     React.useCallback(() => {
-      if (!hasFetchedRef.current) {
-        hasFetchedRef.current = true;
-        fetchComplaints();
-        fetchAnnouncements();
-        fetchFilterCategories();
-      }
+      const init = async () => {
+        if (!hasFetchedRef.current) {
+          hasFetchedRef.current = true;
+          await fetchUserProfile();
+          fetchComplaints();
+          fetchAnnouncements();
+          fetchFilterCategories();
+        }
+      };
+      init();
       import('../services/pushNotifications').then(({ clearAppBadge }) => clearAppBadge());
     }, [])
   );
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
+    await fetchUserProfile();
     fetchComplaints();
     fetchAnnouncements();
+    fetchFilterCategories();
   };
 
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
@@ -373,7 +394,12 @@ export default function StaffScreen() {
               <View style={styles.infoRow}>
                 <Ionicons name="location" size={16} color="#3B82F6" />
                 <Text style={styles.infoText}>
-                  {user.phase ? `${user.phase}${user.address ? `: ${user.address}` : ''}` : 'All Locations'}
+                  {(() => {
+                    if (user.phase && user.address) return `${user.phase}: ${user.address}`;
+                    if (user.phase) return user.phase;
+                    if (user.address) return user.address;
+                    return 'All Locations';
+                  })()}
                 </Text>
               </View>
               <View style={styles.infoRow}>
@@ -385,7 +411,12 @@ export default function StaffScreen() {
                   <View style={styles.infoRow}>
                     <Ionicons name="location" size={16} color="#3B82F6" />
                     <Text style={styles.infoText}>
-                      {acc.phase ? `${acc.phase}${acc.address ? `: ${acc.address}` : ''}` : 'All Locations'}
+                      {(() => {
+                        if (acc.phase && acc.address) return `${acc.phase}: ${acc.address}`;
+                        if (acc.phase) return acc.phase;
+                        if (acc.address) return acc.address;
+                        return 'All Locations';
+                      })()}
                     </Text>
                   </View>
                   <View style={styles.infoRow}>
