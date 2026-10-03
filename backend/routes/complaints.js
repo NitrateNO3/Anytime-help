@@ -133,7 +133,7 @@ router.post('/', auth, async (req, res) => {
       const filteredUsers = adminsAndStaff.filter(u => {
         if (u.role === 'Staff') {
           const cats = u.assigned_categories && u.assigned_categories.length > 0 ? u.assigned_categories : (u.assigned_category ? [u.assigned_category] : []);
-          if (cats.length > 0 && !cats.includes('All') && !cats.includes(category)) {
+          if (cats.length > 0 && !cats.includes('All') && !cats.includes(category) && !cats.includes(finalTitle)) {
             return false;
           }
         }
@@ -174,7 +174,14 @@ router.get('/', auth, async (req, res) => {
     }
 
     if (category && category !== 'ALL') {
-      query.category = category;
+      const catRegex = new RegExp(`^\\s*${category.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\s*$`, 'i');
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { category: catRegex },
+          { title: catRegex }
+        ]
+      });
     }
 
     if (status && status !== 'ALL') {
@@ -234,8 +241,8 @@ router.get('/', auth, async (req, res) => {
       const requestedCategory = query.category;
       delete query.category;
       delete query.phase;
-      if (query.$or && query.$or.length > 0) {
-        // If there was a phase in $or, it might conflict, but usually search is here
+      if (query.$and) {
+        // Just keep the existing $and
       }
 
       // req.user is already the full User object from auth middleware
@@ -252,8 +259,7 @@ router.get('/', auth, async (req, res) => {
       
       if (allStaffAccounts.length > 0) {
         const staffOrConditions = [];
-        
-        for (const account of allStaffAccounts) {
+            for (const account of allStaffAccounts) {
           let rawCats = account.assigned_categories && account.assigned_categories.length > 0 ? account.assigned_categories : (account.assigned_category ? [account.assigned_category] : []);
           let cats = [];
           for (const rc of rawCats) {
@@ -265,15 +271,27 @@ router.get('/', auth, async (req, res) => {
             }
           }
           
-          let accountCondition = {};
+          let accountCatCondition = null;
           if (requestedCategory && requestedCategory !== 'ALL') {
             const reqCatStr = String(requestedCategory);
             const hasAccess = cats.length === 0 || cats.includes('All') || cats.some(c => c.toLowerCase() === reqCatStr.toLowerCase());
             if (!hasAccess) continue; // Staff doesn't have access to this requested category for this account
-            accountCondition.category = reqCatStr;
+            
+            const regex = new RegExp(`^\\s*${reqCatStr.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\s*$`, 'i');
+            accountCatCondition = {
+              $or: [
+                { category: regex },
+                { title: regex }
+              ]
+            };
           } else if (cats.length > 0 && !cats.includes('All')) {
-            // Case-insensitive exact match ignoring extra spaces
-            accountCondition.category = { $in: cats.map(c => new RegExp(`^\\s*${c.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\s*$`, 'i')) };
+            const regexes = cats.map(c => new RegExp(`^\\s*${c.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&')}\\s*$`, 'i'));
+            accountCatCondition = {
+              $or: [
+                { category: { $in: regexes } },
+                { title: { $in: regexes } }
+              ]
+            };
           }
           
           if (account.phase && account.phase !== 'All' && account.phase !== 'Universal' && account.phase !== 'All Groups' && account.phase !== 'All Phases') {
@@ -292,33 +310,30 @@ router.get('/', auth, async (req, res) => {
               phaseCondition = new RegExp('Sushant Lok 3', 'i');
             } else {
               let cleanPhase = account.phase.replace(/[-:,].*$/, '').trim();
-              phaseCondition = new RegExp(cleanPhase.replace(/[.*+?^${}()|[\]\\\\]/g, '\\$&'), 'i');
+              phaseCondition = new RegExp(cleanPhase.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&'), 'i');
             }
             
-            // Include complaints that match the phase OR have no phase set (undefined/empty/null)
-            // This ensures unphased complaints (where resident had no phase) are visible to all relevant staff
-            if (Object.keys(accountCondition).length > 0) {
-              // Has category filter too — create two branches: phased + matching category, or unphased + matching category
-              const catCond = accountCondition.category;
-              staffOrConditions.push({ category: catCond, phase: phaseCondition });
-              staffOrConditions.push({ category: catCond, $or: [{ phase: { $exists: false } }, { phase: null }, { phase: '' }, { phase: 'undefined' }] });
+            if (accountCatCondition) {
+              staffOrConditions.push({ ...accountCatCondition, phase: phaseCondition });
+              staffOrConditions.push({ ...accountCatCondition, phase: { $in: [null, '', undefined] } });
             } else {
               staffOrConditions.push({ phase: phaseCondition });
-              staffOrConditions.push({ $or: [{ phase: { $exists: false } }, { phase: null }, { phase: '' }, { phase: 'undefined' }] });
+              staffOrConditions.push({ phase: { $in: [null, '', undefined] } });
             }
           } else {
-            // Staff has no phase restriction — show all categories they're assigned to
-            staffOrConditions.push(accountCondition);
+            if (accountCatCondition) {
+              staffOrConditions.push(accountCatCondition);
+            } else {
+              // No phase restriction and no category restriction (has 'All' access)
+              staffOrConditions.push({});
+            }
           }
         }
         
         if (staffOrConditions.length > 0) {
-          if (query.$or) {
-            query.$and = [{ $or: query.$or }, { $or: staffOrConditions }];
-            delete query.$or;
-          } else {
-            query.$or = staffOrConditions;
-          }
+          // Add the staff conditions to the query
+          query.$and = query.$and || [];
+          query.$and.push({ $or: staffOrConditions });
         } else {
           // If they requested a category they don't have access to across any account, return nothing
           query._id = null;

@@ -378,6 +378,7 @@ export default function StaffScreen() {
                       onPress={() => {
                         const newCat = cat === 'All' ? '' : cat;
                         setSelectedCategory(newCat);
+                        setLoading(true);
                         fetchComplaints(searchQuery, newCat);
                       }}
                     >
