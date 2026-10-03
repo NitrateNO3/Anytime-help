@@ -105,8 +105,7 @@ export default function StaffScreen() {
         userData = JSON.parse(userDataStr);
         setUser(userData);
       }
-
-      const res = await axios.get(`${API_URL}/complaints?${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${currentStatus !== 'ALL' ? `&status=${currentStatus}` : ''}`, {
+      const res = await axios.get(`${API_URL}/complaints?limit=50&stats=false${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${currentStatus !== 'ALL' ? `&status=${currentStatus}` : ''}`, {
         headers: { 'x-auth-token': token }
       });
       if (Array.isArray(res.data)) {

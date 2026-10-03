@@ -356,13 +356,23 @@ router.get('/', auth, async (req, res) => {
     
     complaintsQuery = complaintsQuery.skip(startIndex).limit(limitNum);
     
-    const [complaints, total, pending, inProgress, resolved] = await Promise.all([
-      complaintsQuery,
-      Complaint.countDocuments(query),
-      Complaint.countDocuments({ ...query, status: 'PENDING' }),
-      Complaint.countDocuments({ ...query, status: 'IN_PROGRESS' }),
-      Complaint.countDocuments({ ...query, status: { $in: ['RESOLVED', 'DONE'] } })
-    ]);
+    let complaints;
+    let total = 0, pending = 0, inProgress = 0, resolved = 0;
+    
+    // Check if we can skip heavy count queries (e.g., for staff app)
+    const skipStats = req.query.stats === 'false' || (!page && !limit && !sortOrder);
+    
+    if (skipStats) {
+      complaints = await complaintsQuery;
+    } else {
+      [complaints, total, pending, inProgress, resolved] = await Promise.all([
+        complaintsQuery,
+        Complaint.countDocuments(query),
+        Complaint.countDocuments({ ...query, status: 'PENDING' }),
+        Complaint.countDocuments({ ...query, status: 'IN_PROGRESS' }),
+        Complaint.countDocuments({ ...query, status: { $in: ['RESOLVED', 'DONE'] } })
+      ]);
+    }
 
     let processedComplaints = complaints.map(c => {
       let bImage = c.before_image;
@@ -376,8 +386,8 @@ router.get('/', auth, async (req, res) => {
       return { ...c, before_image: bImage, after_image: aImage };
     });
 
-    if (!page && !limit && !sortOrder) {
-      // Fallback for older mobile app versions not sending pagination/sort
+    if (req.query.stats === 'false' || (!page && !limit && !sortOrder)) {
+      // Fallback for apps not needing stats/pagination info
       return res.json(processedComplaints);
     }
 
