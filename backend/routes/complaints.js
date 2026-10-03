@@ -14,8 +14,10 @@ cloudinary.config({
 // POST /api/complaints
 router.post('/', auth, async (req, res) => {
   try {
-    const { title, description, location, address, category, department, priority, before_image } = req.body;
+    const { title, description, location, address, category, department, priority, before_image, subCategory } = req.body;
     
+    // If subCategory is provided, use it as the title so it displays on the card
+    const finalTitle = subCategory || title;
     if (!before_image) {
       return res.status(400).json({ msg: 'A photo of the issue is mandatory.' });
     }
@@ -83,7 +85,7 @@ router.post('/', auth, async (req, res) => {
     }
 
     const complaint = new Complaint({
-      title,
+      title: finalTitle,
       description,
       location,
       address,
