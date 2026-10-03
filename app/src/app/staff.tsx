@@ -25,6 +25,7 @@ export default function StaffScreen() {
   const { t, i18n } = useTranslation();
   const [complaints, setComplaints] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [filterCategories, setFilterCategories] = useState<string[]>(['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service']);
   const [activeTab, setActiveTab] = useState<'Tasks' | 'Broadcasts' | 'Announcements'>('Tasks');
 
   const toggleLanguage = async () => {
@@ -150,6 +151,18 @@ export default function StaffScreen() {
     }
   };
 
+  const fetchFilterCategories = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/categories`);
+      if (res.data && res.data.length > 0) {
+        const catTitles = res.data.map((c: any) => c.title);
+        setFilterCategories(['All', ...catTitles]);
+      }
+    } catch (err) {
+      console.error('Fetch categories error:', err);
+    }
+  };
+
   useEffect(() => {
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', () => {
@@ -157,6 +170,9 @@ export default function StaffScreen() {
     });
     socket.on('announcement_changed', () => {
       fetchAnnouncements();
+    });
+    socket.on('categories_updated', () => {
+      fetchFilterCategories();
     });
     return () => {
       socket.disconnect();
@@ -170,6 +186,7 @@ export default function StaffScreen() {
         hasFetchedRef.current = true;
         fetchComplaints();
         fetchAnnouncements();
+        fetchFilterCategories();
       }
       import('../services/pushNotifications').then(({ clearAppBadge }) => clearAppBadge());
     }, [])
@@ -369,7 +386,7 @@ export default function StaffScreen() {
                 )}
               </View>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 10 }}>
-                {['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'].map(cat => {
+                {filterCategories.map(cat => {
                   const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
                   return (
                     <TouchableOpacity 
