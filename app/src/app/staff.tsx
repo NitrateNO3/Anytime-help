@@ -408,7 +408,7 @@ export default function StaffScreen() {
                 })}
               </View>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 10, paddingBottom: 8 }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, paddingVertical: 15, gap: 10 }}>
                 {filterCategories.map(cat => {
                   const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
                   return (
@@ -779,8 +779,8 @@ const styles = StyleSheet.create({
   titleArea: { marginBottom: 28 },
   title: { fontSize: 24, fontWeight: '600', color: '#475569', marginBottom: 4 },
   subtitle: { fontSize: 26, fontWeight: '800', color: '#1E293B' },
-  filterScroll: { marginBottom: 30, maxHeight: 50 },
-  filterContainer: { paddingRight: 20, gap: 12 },
+  filterScroll: { marginBottom: 20 },
+  filterContainer: { paddingRight: 20, paddingVertical: 15, gap: 12 },
   
   filterChip: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 24, backgroundColor: '#E1E9F1', shadowColor: '#A8B7C9', shadowOffset: { width: 8, height: 8 }, shadowOpacity: 0.9, shadowRadius: 12, elevation: 8, borderWidth: 1.5, borderTopColor: '#FFFFFF', borderLeftColor: '#FFFFFF', borderBottomColor: '#D1DBE5', borderRightColor: '#D1DBE5' },
   filterChipActive: { backgroundColor: '#7BA4F5', borderTopColor: '#9ABDF9', borderLeftColor: '#9ABDF9', borderBottomColor: '#5C82CE', borderRightColor: '#5C82CE', shadowColor: '#5C82CE' },
