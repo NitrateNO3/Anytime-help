@@ -304,7 +304,7 @@ export default function StaffScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FCFDF6" />
+      <StatusBar barStyle="dark-content" backgroundColor="#F0F4F8" />
       
       {isOffline && (
         <View style={styles.offlineBanner}>
@@ -327,7 +327,7 @@ export default function StaffScreen() {
           <View style={styles.headerRight}>
             <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल, भाषा और सेटिंग्स मैनेज कर सकते हैं।" order={3} name="staff_settings">
               <WalkthroughableTouchableOpacity style={styles.iconBtn} onPress={() => router.push('/staff-settings')}>
-                <Ionicons name="settings-outline" size={24} color="#2563EB" />
+                <Ionicons name="settings-outline" size={22} color="#475569" />
               </WalkthroughableTouchableOpacity>
             </CopilotStep>
           </View>
@@ -371,7 +371,7 @@ export default function StaffScreen() {
           <>
             <View style={{ marginBottom: 16 }}>
               <View style={styles.searchBar}>
-                <Ionicons name="search-outline" size={20} color="#9CA3AF" style={{ marginRight: 8 }} />
+                <Ionicons name="search-outline" size={20} color="#94A3B8" style={{ marginRight: 8 }} />
                 <TextInput
                   style={{ flex: 1, height: 40, color: '#111827' }}
                   placeholder="Search tasks..."
@@ -755,7 +755,7 @@ export default function StaffScreen() {
         style={styles.fab} 
         onPress={() => setBroadcastModalVisible(true)}
       >
-        <Ionicons name="megaphone" size={24} color="#FFF" />
+        <Ionicons name="megaphone" size={26} color="#7BA4F5" />
       </TouchableOpacity>
 
     </SafeAreaView>
@@ -763,44 +763,44 @@ export default function StaffScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FCFDF6' },
+  safeArea: { flex: 1, backgroundColor: '#F0F4F8' },
   offlineBanner: { backgroundColor: '#EF4444', paddingVertical: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   offlineText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   container: { flex: 1 },
   contentContainer: { paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   headerRight: { flexDirection: 'row', alignItems: 'center' },
-  langToggle: { backgroundColor: '#F3F4F6', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
-  langToggleText: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  titleArea: { marginBottom: 24 },
-  title: { fontSize: 24, fontWeight: '600', color: '#111827', marginBottom: 4 },
-  subtitle: { fontSize: 24, fontWeight: '800', color: '#111827' },
-  filterScroll: { marginBottom: 30, maxHeight: 45 },
+  langToggle: { backgroundColor: '#F0F4F8', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, shadowColor: '#A3B1C6', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5, borderWidth: 1, borderColor: '#FFFFFF' },
+  langToggleText: { fontSize: 13, fontWeight: '600', color: '#334155' },
+  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F0F4F8', justifyContent: 'center', alignItems: 'center', shadowColor: '#A3B1C6', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5, borderWidth: 1, borderColor: '#FFFFFF' },
+  titleArea: { marginBottom: 28 },
+  title: { fontSize: 24, fontWeight: '600', color: '#334155', marginBottom: 4 },
+  subtitle: { fontSize: 26, fontWeight: '800', color: '#1E293B' },
+  filterScroll: { marginBottom: 30, maxHeight: 50 },
   filterContainer: { paddingRight: 20, gap: 12 },
-  filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB' },
-  filterChipActive: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
-  filterText: { fontSize: 15, fontWeight: '600', color: '#4B5563' },
+  filterChip: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: 24, backgroundColor: '#F0F4F8', shadowColor: '#A3B1C6', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5, borderWidth: 1, borderColor: '#FFFFFF' },
+  filterChipActive: { backgroundColor: '#7BA4F5', borderColor: '#96B9FF' },
+  filterText: { fontSize: 15, fontWeight: '600', color: '#475569' },
   filterTextActive: { color: '#FFFFFF' },
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E5E7EB', height: 44 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EAEFF5', borderRadius: 20, paddingHorizontal: 16, marginBottom: 20, borderWidth: 1, borderColor: '#D4DBE5', height: 50 },
   
   // Status Filter Styles
-  statusContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, marginBottom: 16 },
-  statusTab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-  statusTabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
+  statusContainer: { flexDirection: 'row', backgroundColor: '#F0F4F8', borderRadius: 24, padding: 6, marginBottom: 20, shadowColor: '#A3B1C6', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5, borderWidth: 1, borderColor: '#FFFFFF' },
+  statusTab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 20 },
+  statusTabActive: { backgroundColor: '#EAEFF5', borderWidth: 1, borderColor: '#D4DBE5' },
   statusTabText: { fontSize: 13, fontWeight: '600', color: '#64748B', textTransform: 'capitalize' },
-  statusTabTextActive: { color: '#1D4ED8', fontWeight: '700' },
+  statusTabTextActive: { color: '#7BA4F5', fontWeight: '700' },
 
-  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#F3F4F6', borderWidth: 1, borderColor: '#E5E7EB' },
-  catChipActive: { backgroundColor: '#1E3A8A', borderColor: '#1E3A8A' },
-  catChipText: { fontSize: 13, fontWeight: '600', color: '#4B5563', textTransform: 'capitalize' },
+  catChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 20, backgroundColor: '#F0F4F8', shadowColor: '#A3B1C6', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 5, borderWidth: 1, borderColor: '#FFFFFF' },
+  catChipActive: { backgroundColor: '#7BA4F5', borderColor: '#96B9FF' },
+  catChipText: { fontSize: 13, fontWeight: '600', color: '#475569', textTransform: 'capitalize' },
   catChipTextActive: { color: '#FFFFFF' },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20, elevation: 4 },
+  card: { backgroundColor: '#F0F4F8', borderRadius: 24, padding: 20, marginBottom: 24, shadowColor: '#A3B1C6', shadowOffset: { width: 6, height: 6 }, shadowOpacity: 0.45, shadowRadius: 12, elevation: 6, borderWidth: 1, borderColor: '#FFFFFF' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  badge: { backgroundColor: '#FEE2E2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  badgeText: { fontSize: 12, fontWeight: '700', color: '#B91C1C' },
+  badge: { backgroundColor: '#D9E6FC', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
+  badgeText: { fontSize: 12, fontWeight: '700', color: '#1E3A8A' },
   statusText: { fontSize: 13, fontWeight: '700' },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  cardTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B', marginBottom: 8 },
   locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   cardLocation: { fontSize: 14, color: '#6B7280', marginLeft: 4, fontWeight: '500' },
   descText: { fontSize: 14, color: '#4B5563', lineHeight: 20, marginBottom: 16 },
@@ -821,9 +821,9 @@ const styles = StyleSheet.create({
   broadcastHelpText: { fontSize: 14, color: '#6B7280', marginBottom: 20 },
   input: { backgroundColor: '#F9FAFB', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 16, padding: 16, fontSize: 16, color: '#111827', marginBottom: 16 },
   textArea: { height: 120, textAlignVertical: 'top' },
-  broadcastBtn: { backgroundColor: '#1D4ED8', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 8 },
+  broadcastBtn: { backgroundColor: '#7BA4F5', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 8 },
   broadcastBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#1D4ED8', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#1D4ED8', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 15, elevation: 6 },
+  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#F0F4F8', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#A3B1C6', shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 6, borderWidth: 1, borderColor: '#FFFFFF' },
   deleteModalContainer: { width: '90%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
   deleteIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
   deleteModalTitle: { fontSize: 22, fontWeight: '800', color: '#111827', marginBottom: 8 },
