@@ -372,7 +372,9 @@ export default function StaffScreen() {
             <View style={styles.assignmentBox}>
               <View style={styles.infoRow}>
                 <Ionicons name="location" size={16} color="#3B82F6" />
-                <Text style={styles.infoText}>{user.phase || 'All Locations'}</Text>
+                <Text style={styles.infoText}>
+                  {user.phase ? `${user.phase}${user.address ? `: ${user.address}` : ''}` : 'All Locations'}
+                </Text>
               </View>
               <View style={styles.infoRow}>
                 <Ionicons name="pricetag" size={16} color="#10B981" />
@@ -382,7 +384,9 @@ export default function StaffScreen() {
                 <View key={idx} style={styles.extraAccountBox}>
                   <View style={styles.infoRow}>
                     <Ionicons name="location" size={16} color="#3B82F6" />
-                    <Text style={styles.infoText}>{acc.phase || 'All Locations'}</Text>
+                    <Text style={styles.infoText}>
+                      {acc.phase ? `${acc.phase}${acc.address ? `: ${acc.address}` : ''}` : 'All Locations'}
+                    </Text>
                   </View>
                   <View style={styles.infoRow}>
                     <Ionicons name="pricetag" size={16} color="#10B981" />
