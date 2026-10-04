@@ -44,7 +44,7 @@ export default function Announcements() {
     if (!user?.permissions) return [{ label: 'All', value: 'All' }];
     const options = [];
     if (user.permissions.includes('Announcements (All)')) options.push({ label: 'All', value: 'All' });
-    if (user.permissions.includes('Announcements (Residents)')) options.push({ label: 'Residents', value: 'Resident' });
+    if (user.permissions.includes('Announcements (Residents)')) options.push({ label: 'Residents', value: 'Residents' });
     if (user.permissions.includes('Announcements (Members)')) options.push({ label: 'Members', value: 'Members' });
     if (options.length === 0) options.push({ label: 'All', value: 'All' }); // Fallback
     return options;

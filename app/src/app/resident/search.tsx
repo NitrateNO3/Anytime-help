@@ -7,13 +7,14 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { io } from 'socket.io-client';
+import { getLocalizedRole, getLocalizedNameWithRole } from '../../utils/localization';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function DirectoryScreen() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -179,9 +180,9 @@ export default function DirectoryScreen() {
                 <Text style={styles.initialsText}>{getInitials(contact.name)}</Text>
               </View>
               <View style={styles.info}>
-                <Text style={styles.name}>{contact.name}</Text>
+                <Text style={styles.name}>{getLocalizedNameWithRole(contact.name, i18n.language)}</Text>
                 {Boolean(contact.role || contact.designation) && (
-                  <Text style={styles.role}>{contact.role || contact.designation}</Text>
+                  <Text style={styles.role}>{getLocalizedRole(contact.role || contact.designation, i18n.language)}</Text>
                 )}
                 {Boolean(contact.phone) && (
                   <Text style={styles.phone}>{contact.phone}</Text>

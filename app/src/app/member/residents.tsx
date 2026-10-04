@@ -5,11 +5,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { useTranslation } from 'react-i18next';
+import { getLocalizedAddress } from '../../utils/localization';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function ResidentsScreen() {
   const router = useRouter();
+  const { t, i18n } = useTranslation();
   
   const [contacts, setContacts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,7 +124,9 @@ export default function ResidentsScreen() {
       <View style={styles.info}>
         <Text style={styles.name}>{contact.name}</Text>
         {Boolean(contact.address) && (
-          <Text style={styles.role}>{contact.address}{contact.phase ? `, ${contact.phase}` : ''}</Text>
+          <Text style={styles.role}>
+            {getLocalizedAddress(`${contact.address}${contact.phase ? `, ${contact.phase}` : ''}`, i18n.language)}
+          </Text>
         )}
         {Boolean(contact.phone_number) && (
           <Text style={styles.phone}>{contact.phone_number}</Text>
@@ -144,7 +149,7 @@ export default function ResidentsScreen() {
         >
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Residents List</Text>
+        <Text style={styles.headerTitle}>{t('member.residentsList', { defaultValue: 'Residents List' })}</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -154,7 +159,7 @@ export default function ResidentsScreen() {
           <Ionicons name="search" size={18} color="#94A3B8" style={{ marginRight: 10 }} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by name, flat, phone..."
+            placeholder={t('member.searchResidents', { defaultValue: 'Search by name, flat, phone...' })}
             placeholderTextColor="#94A3B8"
             value={searchQuery}
             onChangeText={handleSearchChange}
@@ -186,11 +191,11 @@ export default function ResidentsScreen() {
               <View style={styles.emptyIconCircle}>
                 <Ionicons name="people-outline" size={40} color="#94A3B8" />
               </View>
-              <Text style={styles.emptyTitle}>No residents found</Text>
+              <Text style={styles.emptyTitle}>{t('search.noContacts', { defaultValue: 'No residents found' })}</Text>
               <Text style={styles.emptySubtitle}>
                 {searchQuery 
-                  ? 'Try searching with a different name or flat number'
-                  : 'Residents will appear here once added by the administration'}
+                  ? t('search.tryDifferent', { defaultValue: 'Try searching with a different name or flat number' })
+                  : t('search.contactsWillAppear', { defaultValue: 'Residents will appear here once added by the administration' })}
               </Text>
             </View>
           }

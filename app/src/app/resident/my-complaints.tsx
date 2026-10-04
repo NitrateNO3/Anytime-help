@@ -62,7 +62,7 @@ const SkeletonCard = () => {
 
 export default function MyComplaints() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [complaints, setComplaints] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +83,7 @@ export default function MyComplaints() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isOffline, setIsOffline] = useState(false);
+  const [filterCategories, setFilterCategories] = useState<string[]>(['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service']);
   
   const mounted = React.useRef(false);
 
@@ -167,6 +168,23 @@ export default function MyComplaints() {
     }
   };
 
+  const fetchFilterCategories = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/categories`);
+      if (res.data && res.data.length > 0) {
+        res.data.forEach((c: any) => {
+          if (c.title && c.title_hi) {
+            i18n.addResource('hi', 'translation', `categories.${c.title}`, c.title_hi);
+          }
+        });
+        let catTitles = res.data.map((c: any) => c.title);
+        setFilterCategories(['All', ...catTitles]);
+      }
+    } catch (err) {
+      console.error('Fetch categories error:', err);
+    }
+  };
+
 
   const { tab } = useLocalSearchParams();
 
@@ -177,6 +195,9 @@ export default function MyComplaints() {
     });
     socket.on('announcement_changed', () => {
       fetchAnnouncements();
+    });
+    socket.on('categories_updated', () => {
+      fetchFilterCategories();
     });
 
     return () => {
@@ -191,6 +212,7 @@ export default function MyComplaints() {
         hasFetchedRef.current = true;
         fetchComplaints(1, false, searchQuery, selectedCategory, true);
         fetchAnnouncements(true);
+        fetchFilterCategories();
       }
       if (tab === 'Complaints') {
         setActiveTab('Complaints');
@@ -248,6 +270,7 @@ export default function MyComplaints() {
     setRefreshing(true);
     fetchComplaints();
     fetchAnnouncements();
+    fetchFilterCategories();
   };
 
   const parseResolutionData = (afterImageStr: string | null) => {
@@ -312,7 +335,7 @@ export default function MyComplaints() {
             )}
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 8 }}>
-            {['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'].map(cat => {
+            {filterCategories.map(cat => {
               const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
               return (
                 <TouchableOpacity 

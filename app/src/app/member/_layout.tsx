@@ -60,8 +60,8 @@ export default function MemberLayout() {
       <Tabs.Screen
         name="my-complaints"
         options={{
-          tabBarLabel: 'All Complaints',
-          title: 'All Complaints',
+          tabBarLabel: t('member.allComplaints', { defaultValue: 'All Complaints' }),
+          title: t('member.allComplaints', { defaultValue: 'All Complaints' }),
           tabBarIcon: ({ color }) => (
             <Ionicons name="list" size={24} color={color} />
           ),

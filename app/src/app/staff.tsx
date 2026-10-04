@@ -195,6 +195,11 @@ export default function StaffScreen() {
 
       const res = await axios.get(`${API_URL}/categories`);
       if (res.data && res.data.length > 0) {
+        res.data.forEach((c: any) => {
+          if (c.title && c.title_hi) {
+            i18n.addResource('hi', 'translation', `categories.${c.title}`, c.title_hi);
+          }
+        });
         let catTitles = res.data.map((c: any) => c.title);
         if (!hasAllAccess && allowedCats.size > 0) {
           catTitles = catTitles.filter((c: string) => allowedCats.has(c));
@@ -387,7 +392,7 @@ export default function StaffScreen() {
         {/* Title Area */}
         <View style={styles.titleArea}>
           <Text style={styles.title}>{t('staff.portal')}</Text>
-          <Text style={styles.subtitle}>Welcome, {user?.name?.split(' ')[0] || 'Staff'} 👋</Text>
+          <Text style={styles.subtitle}>{t('resident.hello', { defaultValue: 'Welcome,' })} {user?.name?.split(' ')[0] || 'Staff'} 👋</Text>
           
           {user && (
             <View style={styles.assignmentBox}>
@@ -398,13 +403,13 @@ export default function StaffScreen() {
                     if (user.phase && user.address) return `${user.phase}: ${user.address}`;
                     if (user.phase) return user.phase;
                     if (user.address) return user.address;
-                    return 'All Locations';
+                    return t('staff.allLocations', { defaultValue: 'All Locations' });
                   })()}
                 </Text>
               </View>
               <View style={styles.infoRow}>
                 <Ionicons name="pricetag" size={16} color="#10B981" />
-                <Text style={styles.infoText}>{user.assigned_category || 'All Complaints'}</Text>
+                <Text style={styles.infoText}>{user.assigned_category === 'All Complaints' ? t('staff.allComplaints', { defaultValue: 'All Complaints' }) : (user.assigned_category || t('staff.allComplaints', { defaultValue: 'All Complaints' }))}</Text>
               </View>
               {user.accounts?.filter((acc: any) => acc.role === 'Staff').map((acc: any, idx: number) => (
                 <View key={idx} style={styles.extraAccountBox}>
@@ -415,13 +420,13 @@ export default function StaffScreen() {
                         if (acc.phase && acc.address) return `${acc.phase}: ${acc.address}`;
                         if (acc.phase) return acc.phase;
                         if (acc.address) return acc.address;
-                        return 'All Locations';
+                        return t('staff.allLocations', { defaultValue: 'All Locations' });
                       })()}
                     </Text>
                   </View>
                   <View style={styles.infoRow}>
                     <Ionicons name="pricetag" size={16} color="#10B981" />
-                    <Text style={styles.infoText}>{acc.assigned_category || 'All Complaints'}</Text>
+                    <Text style={styles.infoText}>{acc.assigned_category === 'All Complaints' ? t('staff.allComplaints', { defaultValue: 'All Complaints' }) : (acc.assigned_category || t('staff.allComplaints', { defaultValue: 'All Complaints' }))}</Text>
                   </View>
                 </View>
               ))}
@@ -444,7 +449,7 @@ export default function StaffScreen() {
               style={[styles.filterChip, activeTab === 'Announcements' && styles.filterChipActive]}
               onPress={() => setActiveTab('Announcements')}
             >
-              <Text style={[styles.filterText, activeTab === 'Announcements' && styles.filterTextActive]}>Announcements</Text>
+              <Text style={[styles.filterText, activeTab === 'Announcements' && styles.filterTextActive]}>{t('resident.announcements', { defaultValue: 'Announcements' })}</Text>
             </WalkthroughableTouchableOpacity>
           </CopilotStep>
           <CopilotStep text="निवासियों को ज़रूरी अपडेट या घोषणाएँ भेजने के लिए इसका उपयोग करें।" order={3} name="broadcasts_tab">
@@ -452,7 +457,7 @@ export default function StaffScreen() {
               style={[styles.filterChip, activeTab === 'Broadcasts' && styles.filterChipActive]}
               onPress={() => setActiveTab('Broadcasts')}
             >
-              <Text style={[styles.filterText, activeTab === 'Broadcasts' && styles.filterTextActive]}>My Broadcasts</Text>
+              <Text style={[styles.filterText, activeTab === 'Broadcasts' && styles.filterTextActive]}>{t('staff.myBroadcasts', { defaultValue: 'My Broadcasts' })}</Text>
             </WalkthroughableTouchableOpacity>
           </CopilotStep>
         </ScrollView>
@@ -464,7 +469,7 @@ export default function StaffScreen() {
                 <Ionicons name="search-outline" size={20} color="#94A3B8" style={{ marginRight: 8 }} />
                 <TextInput
                   style={{ flex: 1, height: 40, color: '#111827' }}
-                  placeholder="Search tasks..."
+                  placeholder={t('staff.searchTasks', { defaultValue: 'Search tasks...' })}
                   placeholderTextColor="#9CA3AF"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -547,7 +552,7 @@ export default function StaffScreen() {
                     </Text>
                   </View>
 
-                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.cardTitle}>{t(`categories.${item.title}`, { defaultValue: item.title })}</Text>
                   
                   <View style={styles.locationRow}>
                     <Ionicons name="location-outline" size={16} color="#6B7280" />
@@ -591,8 +596,8 @@ export default function StaffScreen() {
                 return (
                   <View style={styles.emptyStateContainer}>
                     <Ionicons name="megaphone-outline" size={64} color="#D1D5DB" />
-                    <Text style={styles.emptyTextLarge}>No Announcements</Text>
-                    <Text style={styles.emptyTextSub}>You have no new announcements from management.</Text>
+                    <Text style={styles.emptyTextLarge}>{t('resident.noAnnouncements', { defaultValue: 'No Announcements' })}</Text>
+                    <Text style={styles.emptyTextSub}>{t('staff.noAnnouncementsSub', { defaultValue: 'You have no new announcements from management.' })}</Text>
                   </View>
                 );
               }
@@ -628,8 +633,8 @@ export default function StaffScreen() {
                 return (
                   <View style={styles.emptyStateContainer}>
                     <Ionicons name="megaphone-outline" size={64} color="#D1D5DB" />
-                    <Text style={styles.emptyTextLarge}>No broadcasts sent yet.</Text>
-                    <Text style={styles.emptyTextSub}>You haven't sent any messages to the residents. Tap the button below to send your first message.</Text>
+                    <Text style={styles.emptyTextLarge}>{t('staff.noBroadcasts', { defaultValue: 'No broadcasts sent yet.' })}</Text>
+                    <Text style={styles.emptyTextSub}>{t('staff.noBroadcastsSub', { defaultValue: "You haven't sent any messages to the residents. Tap the button below to send your first message." })}</Text>
                   </View>
                 );
               }
@@ -718,31 +723,31 @@ export default function StaffScreen() {
               onPress={() => Keyboard.dismiss()}
             >
             <View style={styles.broadcastHeader}>
-              <Text style={styles.modalTitle}>New Announcement</Text>
+              <Text style={styles.modalTitle}>{t('staff.newAnnouncement', { defaultValue: 'New Announcement' })}</Text>
               <TouchableOpacity onPress={() => setBroadcastModalVisible(false)}>
                 <Ionicons name="close" size={24} color="#6B7280" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.broadcastHelpText}>Choose who should receive this announcement.</Text>
+            <Text style={styles.broadcastHelpText}>{t('staff.chooseAudience', { defaultValue: 'Choose who should receive this announcement.' })}</Text>
             
             <View style={{ flexDirection: 'row', marginBottom: 16, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 4 }}>
               <TouchableOpacity 
                 style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: broadcastTarget === 'All' ? '#FFFFFF' : 'transparent', borderRadius: 6, shadowColor: broadcastTarget === 'All' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: broadcastTarget === 'All' ? 2 : 0 }}
                 onPress={() => setBroadcastTarget('All')}
               >
-                <Text style={{ fontWeight: broadcastTarget === 'All' ? '600' : '500', color: broadcastTarget === 'All' ? '#111827' : '#6B7280' }}>Resident (All)</Text>
+                <Text style={{ fontWeight: broadcastTarget === 'All' ? '600' : '500', color: broadcastTarget === 'All' ? '#111827' : '#6B7280' }}>{t('staff.residentAll', { defaultValue: 'Resident (All)' })}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
                 style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: broadcastTarget === 'Members' ? '#FFFFFF' : 'transparent', borderRadius: 6, shadowColor: broadcastTarget === 'Members' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: broadcastTarget === 'Members' ? 2 : 0 }}
                 onPress={() => setBroadcastTarget('Members')}
               >
-                <Text style={{ fontWeight: broadcastTarget === 'Members' ? '600' : '500', color: broadcastTarget === 'Members' ? '#111827' : '#6B7280' }}>RWA (Members)</Text>
+                <Text style={{ fontWeight: broadcastTarget === 'Members' ? '600' : '500', color: broadcastTarget === 'Members' ? '#111827' : '#6B7280' }}>{t('staff.rwaMembers', { defaultValue: 'RWA (Members)' })}</Text>
               </TouchableOpacity>
             </View>
             
             <TextInput
               style={styles.input}
-              placeholder="Broadcast Title (e.g., Power Outage)"
+              placeholder={t('staff.broadcastTitle', { defaultValue: 'Broadcast Title (e.g., Power Outage)' })}
               value={broadcastTitle}
               onChangeText={setBroadcastTitle}
               placeholderTextColor="#9CA3AF"
@@ -750,7 +755,7 @@ export default function StaffScreen() {
             
             <TextInput
               style={[styles.input, styles.textArea]}
-              placeholder="Message details..."
+              placeholder={t('staff.messageDetails', { defaultValue: 'Message details...' })}
               value={broadcastMessage}
               onChangeText={setBroadcastMessage}
               multiline
@@ -759,7 +764,7 @@ export default function StaffScreen() {
             />
             
             <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 }}>Image (Optional)</Text>
+              <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 }}>{t('staff.imageOptional', { defaultValue: 'Image (Optional)' })}</Text>
               {broadcastImage ? (
                 <View style={{ position: 'relative' }}>
                   <Image source={{ uri: broadcastImage }} style={{ width: '100%', height: 150, borderRadius: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
@@ -770,7 +775,7 @@ export default function StaffScreen() {
               ) : (
                 <TouchableOpacity onPress={pickBroadcastImage} style={{ padding: 16, borderWidth: 1, borderColor: '#D1D5DB', borderStyle: 'dashed', borderRadius: 12, alignItems: 'center', backgroundColor: '#F9FAFB' }}>
                   <Ionicons name="image-outline" size={32} color="#9CA3AF" />
-                  <Text style={{ marginTop: 8, color: '#6B7280', fontWeight: '500' }}>Tap to attach an image</Text>
+                  <Text style={{ marginTop: 8, color: '#6B7280', fontWeight: '500' }}>{t('staff.tapToAttach', { defaultValue: 'Tap to attach an image' })}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -785,7 +790,7 @@ export default function StaffScreen() {
               ) : (
                 <>
                   <Ionicons name="megaphone" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.broadcastBtnText}>Send Announcement</Text>
+                  <Text style={styles.broadcastBtnText}>{t('staff.sendAnnouncement', { defaultValue: 'Send Announcement' })}</Text>
                 </>
               )}
             </TouchableOpacity>

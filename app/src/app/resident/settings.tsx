@@ -177,7 +177,7 @@ export default function SettingsScreen() {
 
         {/* Account Sharing (Family) */}
         <View style={styles.settingsGroup}>
-          <Text style={styles.groupTitle}>ACCOUNT SHARING (FAMILY)</Text>
+          <Text style={styles.groupTitle}>{t('settings.accountSharingFamily', { defaultValue: 'ACCOUNT SHARING (FAMILY)' })}</Text>
           <View style={styles.cardGroup}>
             {loadingFamily ? (
               <Text style={{padding: 16, color: '#64748B'}}>Loading family members...</Text>
@@ -204,7 +204,7 @@ export default function SettingsScreen() {
 
         {/* Support & About */}
         <View style={styles.settingsGroup}>
-          <Text style={styles.groupTitle}>SUPPORT & ABOUT</Text>
+          <Text style={styles.groupTitle}>{t('settings.supportAndAbout', { defaultValue: 'SUPPORT & ABOUT' })}</Text>
           <View style={styles.cardGroup}>
             <TouchableOpacity style={styles.settingRow} onPress={async () => {
               await SecureStore.deleteItemAsync('hasViewedResidentTour');
@@ -214,7 +214,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>
                   <Ionicons name="play-circle-outline" size={20} color="#4B5563" />
                 </View>
-                <Text style={styles.settingText}>App Tutorial</Text>
+                <Text style={styles.settingText}>{t('settings.appTutorial', { defaultValue: 'App Tutorial' })}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -224,7 +224,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>
                   <Ionicons name="shield-checkmark-outline" size={20} color="#4B5563" />
                 </View>
-                <Text style={styles.settingText}>Privacy Policy</Text>
+                <Text style={styles.settingText}>{t('settings.privacyPolicy', { defaultValue: 'Privacy Policy' })}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -234,7 +234,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconContainer, { backgroundColor: '#F3F4F6' }]}>
                   <Ionicons name="information-circle-outline" size={20} color="#4B5563" />
                 </View>
-                <Text style={styles.settingText}>About Us</Text>
+                <Text style={styles.settingText}>{t('settings.aboutUs', { defaultValue: 'About Us' })}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -244,7 +244,7 @@ export default function SettingsScreen() {
                 <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
                   <Ionicons name="help-buoy-outline" size={20} color="#D97706" />
                 </View>
-                <Text style={styles.settingText}>Help & Support</Text>
+                <Text style={styles.settingText}>{t('settings.helpSupport', { defaultValue: 'Help & Support' })}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
@@ -255,7 +255,7 @@ export default function SettingsScreen() {
                   <Ionicons name="globe-outline" size={20} color="#2563EB" />
                 </View>
                 <Text style={[styles.settingText, { flexShrink: 1 }]} numberOfLines={2}>
-                  Know more about RWA (www.slerwa.in)
+                  {t('settings.knowRwa', { defaultValue: 'Know more about RWA (www.slerwa.in)' })}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />

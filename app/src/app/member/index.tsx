@@ -220,7 +220,7 @@ export default function ResidentHome() {
                 <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
                   <Ionicons name="add-circle" size={30} color="#2563EB" />
                 </View>
-                <Text style={styles.gridCardTitle}>Raise Complaint</Text>
+                <Text style={styles.gridCardTitle}>{t('member.raiseComplaint', { defaultValue: 'Raise Complaint' })}</Text>
                 <Text style={styles.gridCardSub}>{t('resident.lodgeGrievanceSub')}</Text>
               </WalkthroughableTouchableOpacity>
             </CopilotStep>
@@ -239,7 +239,7 @@ export default function ResidentHome() {
                 <View style={[styles.gridIconCircle, { backgroundColor: user?.permissions?.includes('All Complaints') ? '#FEF3C7' : '#D1FAE5' }]}>
                   <Ionicons name="list" size={30} color={user?.permissions?.includes('All Complaints') ? '#D97706' : '#10B981'} />
                 </View>
-                <Text style={styles.gridCardTitle}>{user?.permissions?.includes('All Complaints') ? 'All Complaints' : t('resident.myComplaints', 'My Complaints')}</Text>
+                <Text style={styles.gridCardTitle}>{user?.permissions?.includes('All Complaints') ? t('member.allComplaints', { defaultValue: 'All Complaints' }) : t('resident.myComplaints', 'My Complaints')}</Text>
                 <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub', 'Track status live')}</Text>
               </WalkthroughableTouchableOpacity>
             </CopilotStep>
@@ -302,8 +302,8 @@ export default function ResidentHome() {
                   <View style={[styles.gridIconCircle, { backgroundColor: '#FCE7F3' }]}>
                     <Ionicons name="people" size={30} color="#DB2777" />
                   </View>
-                  <Text style={styles.gridCardTitle}>Residents</Text>
-                  <Text style={styles.gridCardSub}>View community residents</Text>
+                  <Text style={styles.gridCardTitle}>{t('member.residents', { defaultValue: 'Residents' })}</Text>
+                  <Text style={styles.gridCardSub}>{t('member.viewCommunityResidents', { defaultValue: 'View community residents' })}</Text>
                 </WalkthroughableTouchableOpacity>
               </CopilotStep>
             </View>

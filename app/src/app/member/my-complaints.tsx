@@ -62,7 +62,7 @@ const SkeletonCard = () => {
 
 export default function MyComplaints() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [allFetchedComplaints, setAllFetchedComplaints] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,6 +85,7 @@ export default function MyComplaints() {
   const [selectedCategory, setSelectedCategory] = useState('');
   const [viewMode, setViewMode] = useState<'all' | 'mine'>((view as 'mine' | 'all') || 'all');
   const [isOffline, setIsOffline] = useState(false);
+  const [filterCategories, setFilterCategories] = useState<string[]>(['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service']);
   
   const mounted = React.useRef(false);
   const fetchIdRef = React.useRef(0);
@@ -181,6 +182,23 @@ export default function MyComplaints() {
     }
   };
 
+  const fetchFilterCategories = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/categories`);
+      if (res.data && res.data.length > 0) {
+        res.data.forEach((c: any) => {
+          if (c.title && c.title_hi) {
+            i18n.addResource('hi', 'translation', `categories.${c.title}`, c.title_hi);
+          }
+        });
+        let catTitles = res.data.map((c: any) => c.title);
+        setFilterCategories(['All', ...catTitles]);
+      }
+    } catch (err) {
+      console.error('Fetch categories error:', err);
+    }
+  };
+
 
   const stateRef = React.useRef({ viewMode, searchQuery, selectedCategory });
   React.useEffect(() => {
@@ -202,6 +220,9 @@ export default function MyComplaints() {
     });
     socket.on('announcement_changed', () => {
       fetchAnnouncements();
+    });
+    socket.on('categories_updated', () => {
+      fetchFilterCategories();
     });
     socket.on('user_updated', async (data: any) => {
       const stored = await SecureStore.getItemAsync('userData');
@@ -228,6 +249,7 @@ export default function MyComplaints() {
         hasFetchedRef.current = true;
         fetchComplaints(1, false, currentS, currentC, currentV, true);
         fetchAnnouncements(true);
+        fetchFilterCategories();
       }
       if (tab === 'Complaints') {
         setActiveTab('Complaints');
@@ -285,6 +307,7 @@ export default function MyComplaints() {
     setRefreshing(true);
     fetchComplaints();
     fetchAnnouncements();
+    fetchFilterCategories();
   };
 
   const parseResolutionData = (afterImageStr: string | null) => {
@@ -321,7 +344,7 @@ export default function MyComplaints() {
           <Ionicons name="arrow-back" size={22} color="#FFFFFF" />
         </TouchableOpacity>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Complaints</Text>
+          <Text style={styles.headerTitle}>{t('member.complaints', { defaultValue: 'Complaints' })}</Text>
         </View>
       </View>
 
@@ -336,7 +359,7 @@ export default function MyComplaints() {
             }}
           >
             <Text style={{ fontSize: 15, fontWeight: viewMode === 'all' ? '700' : '500', color: viewMode === 'all' ? '#0F172A' : '#64748B' }}>
-              All Complaints
+              {t('member.allComplaints', { defaultValue: 'All Complaints' })}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity 
@@ -347,7 +370,7 @@ export default function MyComplaints() {
             }}
           >
             <Text style={{ fontSize: 15, fontWeight: viewMode === 'mine' ? '700' : '500', color: viewMode === 'mine' ? '#0F172A' : '#64748B' }}>
-              My Complaints
+              {t('member.myComplaints', { defaultValue: 'My Complaints' })}
             </Text>
           </TouchableOpacity>
         </View>
@@ -379,7 +402,7 @@ export default function MyComplaints() {
             )}
           </View>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, gap: 8 }}>
-            {['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'].map(cat => {
+            {filterCategories.map(cat => {
               const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
               return (
                 <TouchableOpacity 
@@ -408,7 +431,7 @@ export default function MyComplaints() {
         ) : displayedComplaints.length === 0 ? (
           <View style={styles.emptyStateContainer}>
             <Ionicons name="document-text-outline" size={56} color="#CBD5E1" />
-            <Text style={styles.emptyTextLarge}>{viewMode === 'mine' ? 'You have no complaints' : t('resident.noComplaints')}</Text>
+            <Text style={styles.emptyTextLarge}>{viewMode === 'mine' ? t('member.youHaveNoComplaints', { defaultValue: 'You have no complaints' }) : t('resident.noComplaints')}</Text>
           </View>
         ) : (
           displayedComplaints.map((item) => {

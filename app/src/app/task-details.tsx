@@ -9,12 +9,14 @@ import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
 import MapView, { Marker } from 'react-native-maps';
 import * as Location from 'expo-location';
+import { useTranslation } from 'react-i18next';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
 export default function TaskDetailsScreen() {
   const router = useRouter();
   const { id } = useGlobalSearchParams();
+  const { t } = useTranslation();
   
   const [complaint, setComplaint] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -304,7 +306,7 @@ export default function TaskDetailsScreen() {
             </Text>
           </View>
 
-          <Text style={styles.cardTitle}>{complaint.title}</Text>
+          <Text style={styles.cardTitle}>{t(`categories.${complaint.title}`, { defaultValue: complaint.title })}</Text>
           
           <View style={styles.locationContainer}>
             <Ionicons name="location" size={20} color="#1D4ED8" />
