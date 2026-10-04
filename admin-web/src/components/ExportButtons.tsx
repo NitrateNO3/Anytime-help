@@ -83,6 +83,8 @@ export function ExportButtons({ data, columns, filename, fetchAllData, hidePdf }
     doc.setFontSize(10);
     doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 22);
 
+    const useHorizontalBreak = columns.length > 8;
+
     autoTable(doc, {
       head: [headers],
       body: rows,
@@ -92,14 +94,13 @@ export function ExportButtons({ data, columns, filename, fetchAllData, hidePdf }
         fontSize: 8,
         cellPadding: 2,
         overflow: 'linebreak',
-        minCellWidth: 25 // Force minimum width so it triggers horizontal page break instead of squishing
+        ...(useHorizontalBreak ? { minCellWidth: 25 } : {})
       },
       headStyles: { 
         fillColor: [59, 130, 246],
         valign: 'middle'
       },
-      horizontalPageBreak: true,
-      horizontalPageBreakRepeat: 0 // Repeat the first column (e.g. Title) on next pages? No, just 0 for none.
+      ...(useHorizontalBreak ? { horizontalPageBreak: true, horizontalPageBreakRepeat: 0 } : {})
     });
 
     doc.save(`${filename}.pdf`);
