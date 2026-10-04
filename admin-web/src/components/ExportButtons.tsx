@@ -90,13 +90,15 @@ export function ExportButtons({ data, columns, filename, fetchAllData }: ExportB
       styles: { 
         fontSize: 8,
         cellPadding: 2,
-        overflow: 'linebreak'
+        overflow: 'linebreak',
+        minCellWidth: 25 // Force minimum width so it triggers horizontal page break instead of squishing
       },
       headStyles: { 
         fillColor: [59, 130, 246],
         valign: 'middle'
       },
-      horizontalPageBreak: true // allow table to break horizontally if it's too wide
+      horizontalPageBreak: true,
+      horizontalPageBreakRepeat: 0 // Repeat the first column (e.g. Title) on next pages? No, just 0 for none.
     });
 
     doc.save(`${filename}.pdf`);
