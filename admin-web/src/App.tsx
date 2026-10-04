@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import axios from 'axios';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Staff from './pages/Staff';
@@ -14,6 +15,23 @@ import ServiceBookings from './pages/ServiceBookings';
 import Directory from './pages/Directory';
 import Members from './pages/Members';
 import SubAdmins from './pages/SubAdmins';
+
+// Global axios interceptor for 401 Unauthorized errors
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Token is invalid or expired
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminUser');
+      // Redirect to login if not already there
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 function IndexRedirect() {
   const adminUserStr = localStorage.getItem('adminUser');
