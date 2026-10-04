@@ -184,7 +184,11 @@ router.get('/staff', auth, async (req, res) => {
     const limitNum = Math.min(parseInt(limit || '20', 10), 20);
     const skip = (pageNum - 1) * limitNum;
     
-    const staff = await User.find(query).select('-password -__v').sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean();
+    let staffQuery = User.find(query).select('-password -__v').sort({ createdAt: -1 });
+    if (req.query.all !== 'true') {
+      staffQuery = staffQuery.skip(skip).limit(limitNum);
+    }
+    const staff = await staffQuery.lean();
     const total = await User.countDocuments(query);
     
     if (!page && !limit) return res.json(staff);
@@ -298,7 +302,11 @@ router.get('/residents', auth, async (req, res) => {
     const limitNum = Math.min(parseInt(limit || '20', 10), 20);
     const skip = (pageNum - 1) * limitNum;
     
-    const residents = await User.find(query).select('-password -__v').sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean();
+    let residentsQuery = User.find(query).select('-password -__v').sort({ createdAt: -1 });
+    if (req.query.all !== 'true') {
+      residentsQuery = residentsQuery.skip(skip).limit(limitNum);
+    }
+    const residents = await residentsQuery.lean();
     const total = await User.countDocuments(query);
     
     if (!page && !limit) return res.json(residents);
@@ -361,7 +369,11 @@ router.get('/members', auth, async (req, res) => {
     const limitNum = Math.min(parseInt(limit || '20', 10), 20);
     const skip = (pageNum - 1) * limitNum;
     
-    const members = await User.find(query).select('-password -__v').sort({ createdAt: -1 }).skip(skip).limit(limitNum).lean();
+    let membersQuery = User.find(query).select('-password -__v').sort({ createdAt: -1 });
+    if (req.query.all !== 'true') {
+      membersQuery = membersQuery.skip(skip).limit(limitNum);
+    }
+    const members = await membersQuery.lean();
     const total = await User.countDocuments(query);
     
     if (!page && !limit) return res.json(members);

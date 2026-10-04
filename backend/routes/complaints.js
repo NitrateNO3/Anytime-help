@@ -354,7 +354,9 @@ router.get('/', auth, async (req, res) => {
     const limitNum = Math.min(parseInt(limit || '15', 10), 20); // Enforce max limit of 20
     const startIndex = (pageNum - 1) * limitNum;
     
-    complaintsQuery = complaintsQuery.skip(startIndex).limit(limitNum);
+    if (req.query.all !== 'true') {
+      complaintsQuery = complaintsQuery.skip(startIndex).limit(limitNum);
+    }
     
     let complaints;
     let total = 0, pending = 0, inProgress = 0, resolved = 0;

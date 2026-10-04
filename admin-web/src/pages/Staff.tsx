@@ -229,6 +229,7 @@ export default function Staff() {
     const params = new URLSearchParams({ phase: filterPhase });
     if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
     if (filterStatus !== 'ALL') params.append('status', filterStatus);
+    params.append('all', 'true');
 
     const res = await axios.get(`${API_URL}/users/staff?${params.toString()}`, {
       headers: { 'x-auth-token': token }

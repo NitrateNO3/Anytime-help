@@ -113,6 +113,7 @@ export default function Members() {
     const params = new URLSearchParams();
     if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
     if (filterStatus !== 'ALL') params.append('status', filterStatus);
+    params.append('all', 'true');
 
     const res = await axios.get(`${API_URL}/users/members?${params.toString()}`, {
       headers: { 'x-auth-token': token }

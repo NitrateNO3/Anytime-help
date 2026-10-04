@@ -173,11 +173,12 @@ export default function Dashboard() {
     if (categoryFilter !== 'ALL') params.append('category', categoryFilter);
     if (phaseFilter !== 'ALL') params.append('phase', phaseFilter);
     if (sortOrder) params.append('sortOrder', sortOrder);
+    params.append('all', 'true');
     
     const res = await axios.get(`${API_URL}/complaints?${params.toString()}`, {
       headers: { 'x-auth-token': token }
     });
-    return res.data;
+    return Array.isArray(res.data) ? res.data : (res.data.complaints || []);
   };
 
   const openComplaintDetails = async (item: any) => {

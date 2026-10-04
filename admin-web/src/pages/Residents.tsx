@@ -190,6 +190,7 @@ export default function Residents() {
     if (dateTo) params.append('dateTo', dateTo);
     if (filterRole !== 'ALL') params.append('role', filterRole);
     if (filterStatus !== 'ALL') params.append('status', filterStatus);
+    params.append('all', 'true');
 
     const res = await axios.get(`${API_URL}/users/residents?${params.toString()}`, {
       headers: { 'x-auth-token': token }

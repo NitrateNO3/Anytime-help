@@ -104,13 +104,15 @@ router.get('/', auth, async (req, res) => {
     const pageNum = parseInt(page || '1', 10);
     const limitNum = Math.min(parseInt(limit || '20', 10), 20);
     const skip = (pageNum - 1) * limitNum;
-    const announcements = await Announcement.find(query)
+    let announcementsQuery = Announcement.find(query)
       .select('-__v')
       .sort({ date: -1 })
-      .skip(skip)
-      .limit(limitNum)
-      .populate('createdBy', 'name')
-      .lean();
+      .populate('createdBy', 'name');
+      
+    if (req.query.all !== 'true') {
+      announcementsQuery = announcementsQuery.skip(skip).limit(limitNum);
+    }
+    const announcements = await announcementsQuery.lean();
     const total = await Announcement.countDocuments(query);
     
     const processedAnnouncements = announcements.map(a => {
