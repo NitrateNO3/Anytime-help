@@ -14,9 +14,10 @@ interface ExportButtonsProps {
   columns: ExportColumn[];
   filename: string;
   fetchAllData?: () => Promise<any[]>;
+  hidePdf?: boolean;
 }
 
-export function ExportButtons({ data, columns, filename, fetchAllData }: ExportButtonsProps) {
+export function ExportButtons({ data, columns, filename, fetchAllData, hidePdf }: ExportButtonsProps) {
   
   const getRowData = (row: any) => {
     return columns.map(col => {
@@ -163,20 +164,22 @@ export function ExportButtons({ data, columns, filename, fetchAllData }: ExportB
         </button>
       )}
 
-      <button 
-        onClick={handlePDF}
-        style={{ 
-          display: 'flex', alignItems: 'center', gap: '6px', 
-          backgroundColor: '#EF4444', color: '#FFF', 
-          padding: '8px 12px', borderRadius: '6px', 
-          border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px' 
-        }}
-        title="Download PDF (Current Page)"
-      >
-        <Download size={14} /> PDF
-      </button>
+      {!hidePdf && (
+        <button 
+          onClick={handlePDF}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: '6px', 
+            backgroundColor: '#EF4444', color: '#FFF', 
+            padding: '8px 12px', borderRadius: '6px', 
+            border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '13px' 
+          }}
+          title="Download PDF (Current Page)"
+        >
+          <Download size={14} /> PDF
+        </button>
+      )}
 
-      {fetchAllData && (
+      {!hidePdf && fetchAllData && (
         <button 
           onClick={handlePDFAll}
           style={{ 

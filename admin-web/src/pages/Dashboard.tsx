@@ -575,6 +575,7 @@ export default function Dashboard() {
             <ExportButtons 
               data={complaints}
               fetchAllData={fetchAllData}
+              hidePdf={true}
               columns={[
                 { header: 'Title', key: 'title' },
                 { header: 'Description', key: 'description' },
