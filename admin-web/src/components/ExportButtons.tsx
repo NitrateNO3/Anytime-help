@@ -72,7 +72,7 @@ export function ExportButtons({ data, columns, filename, fetchAllData }: ExportB
   const exportPDF = (exportData: any[]) => {
     if (!exportData || exportData.length === 0) throw new Error('No data to export');
 
-    const doc = new jsPDF();
+    const doc = new jsPDF('landscape');
     const headers = columns.map(c => c.header);
     const rows = exportData.map(getRowData);
 
@@ -87,8 +87,16 @@ export function ExportButtons({ data, columns, filename, fetchAllData }: ExportB
       body: rows,
       startY: 28,
       theme: 'grid',
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] }
+      styles: { 
+        fontSize: 8,
+        cellPadding: 2,
+        overflow: 'linebreak'
+      },
+      headStyles: { 
+        fillColor: [59, 130, 246],
+        valign: 'middle'
+      },
+      horizontalPageBreak: true // allow table to break horizontally if it's too wide
     });
 
     doc.save(`${filename}.pdf`);
