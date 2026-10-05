@@ -1,6 +1,6 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Keyboard, Dimensions, Animated, BackHandler, Image } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Keyboard, Dimensions, Animated, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useNavigation, Stack } from 'expo-router';
 import axios from 'axios';
@@ -8,39 +8,18 @@ import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { LinearGradient } from 'expo-linear-gradient';
 import { getNextLanguage, getLanguageBadge } from '../utils/localization';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
-const { width } = Dimensions.get('window');
 
-// Steps:
-// 0: Personal Details (Name, Gender, Phone)
-// 1: Property Details (Type, Phase, Block, House No)
-// 2: Family Members (Add Family + Details)
-// 3: Summary, Terms & Sign Up (Conditional Duplicate Address)
-
-// Custom Animated Input Component for Focus Effects
 const FocusableInput = ({ icon, label, prefix, ...props }: any) => {
   const [isFocused, setIsFocused] = useState(false);
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const borderAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.parallel([
-      Animated.spring(scaleAnim, { toValue: isFocused ? 1.02 : 1, friction: 5, useNativeDriver: false }),
-      Animated.timing(borderAnim, { toValue: isFocused ? 1 : 0, duration: 200, useNativeDriver: false })
-    ]).start();
-  }, [isFocused]);
-
-  const borderColor = borderAnim.interpolate({ inputRange: [0, 1], outputRange: ['#E2E8F0', '#3B82F6'] });
-  const shadowOpacity = borderAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 0.15] });
-
+  
   return (
     <View style={styles.inputWrapper}>
-      <Text style={styles.label}>{label}</Text>
-      <Animated.View style={[styles.inputBox, { borderColor, transform: [{ scale: scaleAnim }], shadowColor: '#3B82F6', shadowOffset: {width: 0, height: 4}, shadowOpacity, shadowRadius: 8, elevation: isFocused ? 4 : 0 }]}>
-        {icon && <Ionicons name={icon} size={20} color={isFocused ? "#3B82F6" : "#64748B"} style={styles.inputIcon} />}
+      {label && <Text style={styles.label}>{label}</Text>}
+      <View style={[styles.inputBox, isFocused && styles.inputBoxFocused]}>
+        {icon && <Ionicons name={icon} size={20} color={isFocused ? "#2563EB" : "#94A3B8"} style={styles.inputIcon} />}
         {prefix && <Text style={styles.prefixText}>{prefix}</Text>}
         <TextInput
           style={styles.input}
@@ -49,7 +28,7 @@ const FocusableInput = ({ icon, label, prefix, ...props }: any) => {
           onBlur={() => setIsFocused(false)}
           {...props}
         />
-      </Animated.View>
+      </View>
     </View>
   );
 };
@@ -86,12 +65,11 @@ export default function RegisterScreen() {
 
   // Constants
   const propertyTypes = ['Owned', 'Rented'];
-  const phasesList = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
+  const phasesList = ['Sushant Lok 2', 'Sushant Lok 3'];
   
   const getBlockOptions = () => {
-    if (phase === 'Sushant Lok 2 - C,D,E' || phase === 'Sushant Lok 2 Option 1') return ['C, D, E'];
-    if (phase === 'Sushant Lok 2 - F,G' || phase === 'Sushant Lok 2 Option 2') return ['F, G'];
-    if (phase === 'Sushant Lok 3') return ['A, B, B1, C, D, E, F, G, H'];
+    if (phase === 'Sushant Lok 2') return ['C', 'D', 'E', 'F', 'G'];
+    if (phase === 'Sushant Lok 3') return ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H'];
     return [];
   };
 
@@ -99,25 +77,6 @@ export default function RegisterScreen() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const floatAnim = useRef(new Animated.Value(0)).current;
-
-  // Floating 3D Avatar Animation
-  useEffect(() => {
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(floatAnim, {
-          toValue: -15,
-          duration: 1500,
-          useNativeDriver: true,
-        }),
-        Animated.timing(floatAnim, {
-          toValue: 0,
-          duration: 1500,
-          useNativeDriver: true,
-        })
-      ])
-    ).start();
-  }, []);
 
   // Persist & Load Draft
   useEffect(() => {
@@ -149,7 +108,7 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     Animated.timing(progressAnim, {
-      toValue: (step / maxStep) * 100,
+      toValue: ((step + 1) / (maxStep + 1)) * 100,
       duration: 350,
       useNativeDriver: false
     }).start();
@@ -181,10 +140,10 @@ export default function RegisterScreen() {
     Keyboard.dismiss();
     Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 0, duration: 150, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: nextStep > step ? -30 : 30, duration: 150, useNativeDriver: true })
+      Animated.timing(slideAnim, { toValue: nextStep > step ? -20 : 20, duration: 150, useNativeDriver: true })
     ]).start(() => {
       setStep(nextStep);
-      slideAnim.setValue(nextStep > step ? 30 : -30);
+      slideAnim.setValue(nextStep > step ? 20 : -20);
       Animated.parallel([
         Animated.timing(fadeAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
         Animated.timing(slideAnim, { toValue: 0, duration: 250, useNativeDriver: true })
@@ -299,20 +258,20 @@ export default function RegisterScreen() {
   // Renders
   const renderStep0 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Let's Get Started 👋</Text>
-      <Text style={styles.stepSubtitle}>Tell us your basic details to create an account.</Text>
+      <Text style={styles.stepTitle}>Create Account</Text>
+      <Text style={styles.stepSubtitle}>Enter your personal details to get started.</Text>
       
       <FocusableInput 
         label={t('register.fullName')}
         icon="person-outline"
-        placeholder="John Doe"
+        placeholder="e.g. John Doe"
         value={name}
         onChangeText={setName}
         autoCapitalize="words"
       />
 
-      <Text style={[styles.label, {marginTop: 8, marginBottom: 8}]}>{t('register.genderLabel')}</Text>
-      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+      <Text style={styles.label}>{t('register.genderLabel')}</Text>
+      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
         {['Male', 'Female'].map((gen) => (
           <TouchableOpacity
             key={gen}
@@ -342,7 +301,7 @@ export default function RegisterScreen() {
 
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Property Details 🏠</Text>
+      <Text style={styles.stepTitle}>Property Details</Text>
       <Text style={styles.stepSubtitle}>Where is your property located?</Text>
       
       <Text style={styles.label}>Property Status</Text>
@@ -354,14 +313,14 @@ export default function RegisterScreen() {
             style={[styles.chip, propertyType === type && styles.chipActive]}
             onPress={() => setPropertyType(type)}
           >
-            <Ionicons name={type === 'Owned' ? 'home' : 'key'} size={24} color={propertyType === type ? '#FFF' : '#3B82F6'} style={{marginBottom: 8}} />
+            <Ionicons name={type === 'Owned' ? 'home-outline' : 'key-outline'} size={24} color={propertyType === type ? '#2563EB' : '#64748B'} />
             <Text style={[styles.chipText, propertyType === type && styles.chipTextActive]}>{t('register.' + type.toLowerCase()) || type}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={[styles.label, {marginTop: 24}]}>{t('register.selectPhase')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 20}}>
+      <Text style={styles.label}>{t('register.selectPhase')}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 24}}>
         {phasesList.map((p) => (
           <TouchableOpacity 
             key={p}
@@ -392,7 +351,7 @@ export default function RegisterScreen() {
         </>
       ) : null}
 
-      <View style={{marginTop: 20}}>
+      <View style={{marginTop: 8}}>
         <FocusableInput 
           label={t('register.houseNo')}
           icon="business-outline"
@@ -407,22 +366,24 @@ export default function RegisterScreen() {
 
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Family Members 👨‍👩‍👧</Text>
+      <Text style={styles.stepTitle}>Family Members</Text>
       <Text style={styles.stepSubtitle}>Add a family member to your account (Optional).</Text>
       
       <View style={styles.chipsContainer}>
-        <TouchableOpacity activeOpacity={0.8} style={[styles.chip, !addFamily && styles.chipActive]} onPress={() => setAddFamily(false)}>
-          <Text style={[styles.chipText, !addFamily && styles.chipTextActive]}>{t('register.no')}</Text>
+        <TouchableOpacity activeOpacity={0.8} style={[styles.chip, {flexDirection: 'row', gap: 8}, !addFamily && styles.chipActive]} onPress={() => setAddFamily(false)}>
+          <Ionicons name="close-circle-outline" size={20} color={!addFamily ? '#2563EB' : '#64748B'} />
+          <Text style={[styles.chipText, {marginTop: 0}, !addFamily && styles.chipTextActive]}>{t('register.no')}</Text>
         </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.8} style={[styles.chip, addFamily && styles.chipActive]} onPress={() => setAddFamily(true)}>
-          <Text style={[styles.chipText, addFamily && styles.chipTextActive]}>{t('register.yes')}</Text>
+        <TouchableOpacity activeOpacity={0.8} style={[styles.chip, {flexDirection: 'row', gap: 8}, addFamily && styles.chipActive]} onPress={() => setAddFamily(true)}>
+          <Ionicons name="add-circle-outline" size={20} color={addFamily ? '#2563EB' : '#64748B'} />
+          <Text style={[styles.chipText, {marginTop: 0}, addFamily && styles.chipTextActive]}>{t('register.yes')}</Text>
         </TouchableOpacity>
       </View>
 
       {addFamily && (
-        <View style={{marginTop: 24}}>
+        <View style={{marginTop: 16}}>
           <Text style={styles.label}>Relation</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 20}}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 24}}>
             {['Mother', 'Father', 'Brother', 'Sister', 'Other'].map((rel) => (
               <TouchableOpacity 
                 key={rel}
@@ -451,16 +412,16 @@ export default function RegisterScreen() {
     <View style={styles.stepContainer}>
       {isDuplicateAddress ? (
         <View style={styles.warningBox}>
-          <Ionicons name="alert-circle" size={24} color="#D97706" />
+          <Ionicons name="alert-circle" size={24} color="#DC2626" />
           <View style={{marginLeft: 12, flex: 1}}>
             <Text style={styles.warningTitle}>Address Already Exists</Text>
-            <Text style={{fontSize: 13, color: '#92400E', marginTop: 4, lineHeight: 18}}>Someone else is registered here. Please specify your relation (e.g. Tenant, Son).</Text>
+            <Text style={{fontSize: 14, color: '#991B1B', marginTop: 4, lineHeight: 20}}>Someone else is registered here. Please specify your relation (e.g. Tenant, Son).</Text>
           </View>
         </View>
       ) : (
         <>
-          <Text style={styles.stepTitle}>Review & Complete ✅</Text>
-          <Text style={styles.stepSubtitle}>Ensure your details are correct before finishing.</Text>
+          <Text style={styles.stepTitle}>Review Details</Text>
+          <Text style={styles.stepSubtitle}>Ensure your information is correct before finishing.</Text>
         </>
       )}
 
@@ -484,7 +445,7 @@ export default function RegisterScreen() {
           <Text style={styles.summaryValue}>{houseNo}, Block {block}, {phase} ({t('register.' + propertyType.toLowerCase()) || propertyType})</Text>
         </View>
         {addFamily && (
-          <View style={styles.summaryRow}>
+          <View style={[styles.summaryRow, { marginBottom: 0 }]}>
             <Text style={styles.summaryLabel}>{t('register.familyLabel')}</Text>
             <Text style={styles.summaryValue}>{familyName} ({t('register.' + familyRelation.toLowerCase()) || familyRelation})</Text>
           </View>
@@ -492,11 +453,11 @@ export default function RegisterScreen() {
       </View>
 
       <TouchableOpacity 
-        style={[styles.termsBox, agreedToTerms && {borderColor: '#3B82F6', backgroundColor: '#EFF6FF'}]}
+        style={[styles.termsBox, agreedToTerms && {borderColor: '#2563EB', backgroundColor: '#EFF6FF'}]}
         onPress={() => setAgreedToTerms(!agreedToTerms)}
         activeOpacity={0.7}
       >
-        <Ionicons name={agreedToTerms ? "checkbox" : "square-outline"} size={26} color={agreedToTerms ? "#3B82F6" : "#64748B"} />
+        <Ionicons name={agreedToTerms ? "checkbox" : "square-outline"} size={24} color={agreedToTerms ? "#2563EB" : "#94A3B8"} />
         <Text style={[styles.termsText, agreedToTerms && {color: '#1E3A8A'}]}>
           I agree to the Anytime Help Community Rules and Terms & Conditions.
         </Text>
@@ -523,172 +484,148 @@ export default function RegisterScreen() {
   };
 
   return (
-    <View style={{flex: 1, backgroundColor: '#F8FAFC'}}>
-      <LinearGradient colors={['#DBEAFE', '#F8FAFC', '#FFFFFF']} style={StyleSheet.absoluteFill} />
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
       
-      {/* Background Orbs for Glassmorphism feel */}
-      <View style={{position: 'absolute', top: -100, right: -50, width: 300, height: 300, borderRadius: 150, backgroundColor: '#BFDBFE', opacity: 0.6, transform: [{scale: 1.2}]}} />
-      <View style={{position: 'absolute', bottom: -50, left: -100, width: 250, height: 250, borderRadius: 125, backgroundColor: '#93C5FD', opacity: 0.4}} />
-      <View style={{position: 'absolute', top: '40%', right: -80, width: 150, height: 150, borderRadius: 75, backgroundColor: '#60A5FA', opacity: 0.2}} />
-      
-      <Stack.Screen options={{ gestureEnabled: false }} />
-      <SafeAreaView style={{ flex: 1 }}>
-        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
-        
-        {/* Header */}
-        <View style={styles.header}>
-          {step > 0 ? (
-            <TouchableOpacity onPress={handleBack} style={styles.iconBtn}>
-              <Ionicons name="arrow-back" size={24} color="#1E293B" />
-            </TouchableOpacity>
-          ) : (
-            <View style={{width: 40}} />
-          )}
-          
-          <TouchableOpacity onPress={toggleLanguage} style={styles.langBtn}>
-            <Ionicons name="language" size={16} color="#3B82F6" />
-            <Text style={styles.langText}>{getLanguageBadge(i18n.language)}</Text>
+      {/* Header */}
+      <View style={styles.header}>
+        {step > 0 ? (
+          <TouchableOpacity onPress={handleBack} style={styles.iconBtn}>
+            <Ionicons name="arrow-back" size={20} color="#0F172A" />
           </TouchableOpacity>
-        </View>
+        ) : (
+          <View style={{width: 38}} />
+        )}
+        
+        <TouchableOpacity onPress={toggleLanguage} style={styles.langBtn}>
+          <Ionicons name="language-outline" size={16} color="#475569" />
+          <Text style={styles.langText}>{getLanguageBadge(i18n.language)}</Text>
+        </TouchableOpacity>
+      </View>
 
-        {/* Dynamic Progress Indicator */}
-        <View style={styles.progressContainerWrapper}>
+      {/* Progress Indicator */}
+      <View style={styles.progressContainerWrapper}>
+        <View style={styles.progressHeader}>
           <Text style={styles.progressText}>Step {step + 1} of {maxStep + 1}</Text>
-          <View style={styles.progressContainer}>
-            <Animated.View style={[styles.progressBar, {
-              width: progressAnim.interpolate({
-                inputRange: [0, 100],
-                outputRange: ['0%', '100%']
-              })
-            }]} />
+        </View>
+        <View style={styles.progressContainer}>
+          <Animated.View style={[styles.progressBar, {
+            width: progressAnim.interpolate({
+              inputRange: [0, 100],
+              outputRange: ['0%', '100%']
+            })
+          }]} />
+        </View>
+      </View>
+
+      {/* Main Content Area */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
+        <ScrollView contentContainerStyle={{flexGrow: 1}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <Animated.View style={[styles.contentArea, {
+            opacity: fadeAnim,
+            transform: [{ translateX: slideAnim }]
+          }]}>
+            {getStepContent()}
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Footer Controls */}
+      <View style={styles.footer}>
+        {step === maxStep ? (
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]} 
+            onPress={handleRegister}
+            disabled={isNextDisabled() || loading}
+          >
+            <Text style={styles.primaryBtnText}>{loading ? 'Setting up...' : 'Complete Registration'}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]} 
+            onPress={handleNext}
+            disabled={isNextDisabled()}
+          >
+            <Text style={styles.primaryBtnText}>Continue</Text>
+          </TouchableOpacity>
+        )}
+        
+        {step === 0 && (
+          <View style={styles.loginLinkRow}>
+            <Text style={styles.loginHintText}>{t('register.alreadyHave')} </Text>
+            <TouchableOpacity onPress={() => router.push('/login' as any)}>
+              <Text style={styles.loginLink}>{t('register.loginHere')}</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-
-        {/* Main Content Area */}
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
-          <ScrollView contentContainerStyle={{flexGrow: 1}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            
-            {/* 3D Animated Floating Avatar */}
-            <View style={{ alignItems: 'center', marginTop: 15, marginBottom: 5 }}>
-              <Animated.View style={{ transform: [{ translateY: floatAnim }] }}>
-                <View style={{
-                  width: 130, height: 130, borderRadius: 65, overflow: 'hidden',
-                  borderWidth: 4, borderColor: '#FFFFFF',
-                  shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.15, shadowRadius: 15, elevation: 6,
-                  backgroundColor: '#FFF'
-                }}>
-                  <Image 
-                    source={require('../../assets/images/3d-avatar.jpg')}
-                    style={{ width: '100%', height: '100%', resizeMode: 'cover' }}
-                  />
-                </View>
-              </Animated.View>
-            </View>
-
-            <Animated.View style={[styles.contentArea, {
-              opacity: fadeAnim,
-              transform: [{ translateX: slideAnim }]
-            }]}>
-              {getStepContent()}
-            </Animated.View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-
-        {/* Footer Controls */}
-        <View style={styles.footer}>
-          {step === maxStep ? (
-            <TouchableOpacity 
-              activeOpacity={0.8}
-              style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]} 
-              onPress={handleRegister}
-              disabled={isNextDisabled() || loading}
-            >
-              <Text style={styles.primaryBtnText}>{loading ? 'Setting up...' : 'Complete Registration'}</Text>
-              {!loading && <Ionicons name="checkmark-circle" size={22} color="#FFF" style={{marginLeft: 8}} />}
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity 
-              activeOpacity={0.8}
-              style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]} 
-              onPress={handleNext}
-              disabled={isNextDisabled()}
-            >
-              <Text style={styles.primaryBtnText}>Continue</Text>
-              <Ionicons name="arrow-forward" size={20} color="#FFF" style={{marginLeft: 8}} />
-            </TouchableOpacity>
-          )}
-          
-          {step === 0 && (
-            <View style={styles.loginLinkRow}>
-              <Text style={styles.loginHintText}>{t('register.alreadyHave')} </Text>
-              <TouchableOpacity onPress={() => router.push('/login' as any)}>
-                <Text style={styles.loginLink}>{t('register.loginHere')}</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </SafeAreaView>
-    </View>
+        )}
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 10 },
-  iconBtn: { padding: 10, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.8)', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  langBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1, borderColor: '#DBEAFE', shadowColor: '#3B82F6', shadowOffset: {width: 0, height: 2}, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
-  langText: { color: '#1D4ED8', fontWeight: '700', fontSize: 13, marginLeft: 6 },
+  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16 },
+  iconBtn: { padding: 10, borderRadius: 12, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#F1F5F9' },
+  langBtn: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#F1F5F9' },
+  langText: { color: '#475569', fontWeight: '600', fontSize: 13, marginLeft: 6 },
   
-  progressContainerWrapper: { paddingHorizontal: 24, marginBottom: 12 },
-  progressContainer: { height: 6, backgroundColor: '#E2E8F0', borderRadius: 3, overflow: 'hidden' },
-  progressBar: { height: '100%', backgroundColor: '#3B82F6', borderRadius: 3 },
-  progressText: { fontSize: 13, color: '#64748B', fontWeight: '700', marginBottom: 8, letterSpacing: 0.5 },
+  progressContainerWrapper: { paddingHorizontal: 24, marginBottom: 32 },
+  progressHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  progressText: { fontSize: 12, color: '#64748B', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  progressContainer: { height: 6, backgroundColor: '#F1F5F9', borderRadius: 3, overflow: 'hidden' },
+  progressBar: { height: '100%', backgroundColor: '#2563EB', borderRadius: 3 },
   
-  contentArea: { flex: 1, paddingHorizontal: 24, paddingBottom: 20 },
-  stepContainer: { flex: 1, paddingTop: 10 },
-  stepTitle: { fontSize: 32, fontWeight: '800', color: '#0F172A', marginBottom: 8, letterSpacing: -0.5 },
-  stepSubtitle: { fontSize: 16, color: '#475569', marginBottom: 32, lineHeight: 24, fontWeight: '500' },
+  contentArea: { flex: 1, paddingHorizontal: 24, paddingBottom: 40 },
+  stepContainer: { flex: 1 },
+  stepTitle: { fontSize: 28, fontWeight: '800', color: '#0F172A', marginBottom: 8 },
+  stepSubtitle: { fontSize: 15, color: '#64748B', marginBottom: 32, lineHeight: 22 },
   
-  label: { fontSize: 14, fontWeight: '700', color: '#1E293B', marginBottom: 8, marginLeft: 4, letterSpacing: 0.2 },
-  inputWrapper: { marginBottom: 20 },
-  inputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 16, height: 60, paddingHorizontal: 16 },
+  label: { fontSize: 13, fontWeight: '700', color: '#475569', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 },
+  inputWrapper: { marginBottom: 24 },
+  inputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: '#F1F5F9', borderRadius: 14, height: 56, paddingHorizontal: 16 },
+  inputBoxFocused: { borderColor: '#2563EB', backgroundColor: '#FFFFFF' },
   inputIcon: { marginRight: 12 },
-  prefixText: { fontSize: 16, color: '#334155', marginRight: 8, fontWeight: '600' },
-  input: { flex: 1, height: '100%', fontSize: 16, color: '#0F172A', fontWeight: '600' },
+  prefixText: { fontSize: 16, color: '#0F172A', marginRight: 8, fontWeight: '600' },
+  input: { flex: 1, height: '100%', fontSize: 16, color: '#0F172A', fontWeight: '500' },
   
-  chipsContainer: { flexDirection: 'row', gap: 16 },
-  chip: { flex: 1, backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 2, borderColor: '#E2E8F0', borderRadius: 24, padding: 20, alignItems: 'center', justifyContent: 'center' },
-  chipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8 },
-  chipText: { fontSize: 16, fontWeight: '700', color: '#475569' },
-  chipTextActive: { color: '#FFFFFF' },
+  chipsContainer: { flexDirection: 'row', gap: 12, marginBottom: 32 },
+  chip: { flex: 1, backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: '#F1F5F9', borderRadius: 16, paddingVertical: 20, alignItems: 'center', justifyContent: 'center' },
+  chipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
+  chipText: { fontSize: 15, fontWeight: '600', color: '#64748B', marginTop: 12 },
+  chipTextActive: { color: '#2563EB' },
 
-  smallChip: { paddingHorizontal: 20, paddingVertical: 14, backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 20, marginRight: 12 },
-  smallChipActive: { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' },
-  smallChipText: { fontSize: 15, fontWeight: '700', color: '#475569' },
-  smallChipTextActive: { color: '#1D4ED8' },
+  smallChip: { paddingHorizontal: 20, paddingVertical: 14, backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: '#F1F5F9', borderRadius: 100, marginRight: 10 },
+  smallChipActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
+  smallChipText: { fontSize: 14, fontWeight: '600', color: '#64748B' },
+  smallChipTextActive: { color: '#2563EB' },
 
-  gridContainer: { flexDirection: 'column', gap: 12 },
-  gridItem: { width: '100%', backgroundColor: 'rgba(255,255,255,0.9)', borderWidth: 1.5, borderColor: '#E2E8F0', borderRadius: 16, paddingVertical: 16, alignItems: 'center' },
-  gridItemActive: { backgroundColor: '#EFF6FF', borderColor: '#3B82F6' },
-  gridItemText: { fontSize: 16, fontWeight: '700', color: '#475569' },
-  gridItemTextActive: { color: '#1D4ED8' },
+  gridContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 32 },
+  gridItem: { width: '30%', backgroundColor: '#F8FAFC', borderWidth: 1.5, borderColor: '#F1F5F9', borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  gridItemActive: { backgroundColor: '#EFF6FF', borderColor: '#2563EB' },
+  gridItemText: { fontSize: 15, fontWeight: '600', color: '#64748B' },
+  gridItemTextActive: { color: '#2563EB' },
 
-  summaryCard: { backgroundColor: 'rgba(255,255,255,0.9)', borderRadius: 20, padding: 24, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 24, shadowColor: '#000', shadowOffset: {width: 0, height: 4}, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
+  summaryCard: { backgroundColor: '#F8FAFC', borderRadius: 16, padding: 20, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 24 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
-  summaryLabel: { fontSize: 15, color: '#64748B', fontWeight: '600' },
-  summaryValue: { fontSize: 15, color: '#0F172A', fontWeight: '700', maxWidth: '65%', textAlign: 'right' },
+  summaryLabel: { fontSize: 14, color: '#64748B', fontWeight: '500' },
+  summaryValue: { fontSize: 14, color: '#0F172A', fontWeight: '600', maxWidth: '60%', textAlign: 'right' },
   
-  termsBox: { flexDirection: 'row', alignItems: 'center', padding: 18, backgroundColor: 'rgba(255,255,255,0.8)', borderRadius: 20, borderWidth: 1.5, borderColor: '#E2E8F0' },
-  termsText: { flex: 1, fontSize: 14, color: '#475569', marginLeft: 16, lineHeight: 22, fontWeight: '500' },
+  termsBox: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1.5, borderColor: '#F1F5F9' },
+  termsText: { flex: 1, fontSize: 13, color: '#475569', marginLeft: 12, lineHeight: 20 },
 
-  warningBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', padding: 16, borderRadius: 16, marginBottom: 24, borderWidth: 1, borderColor: '#FDE68A' },
-  warningTitle: { fontSize: 16, fontWeight: '800', color: '#92400E' },
+  warningBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', padding: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1.5, borderColor: '#FEE2E2' },
+  warningTitle: { fontSize: 15, fontWeight: '700', color: '#991B1B' },
 
-  footer: { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 10 : 24, paddingTop: 16, backgroundColor: 'transparent' },
-  primaryBtn: { backgroundColor: '#0F172A', height: 60, borderRadius: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 8 },
-  disabledBtn: { backgroundColor: '#94A3B8', shadowOpacity: 0, elevation: 0 },
-  primaryBtnText: { color: '#FFF', fontSize: 18, fontWeight: '800', letterSpacing: 0.5 },
+  footer: { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 24 : 32, paddingTop: 16, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F8FAFC' },
+  primaryBtn: { backgroundColor: '#2563EB', height: 56, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  disabledBtn: { backgroundColor: '#94A3B8' },
+  primaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '600' },
   
-  loginLinkRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 20 },
-  loginHintText: { color: '#64748B', fontSize: 15, fontWeight: '500' },
-  loginLink: { color: '#0F172A', fontSize: 15, fontWeight: '800' }
+  loginLinkRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
+  loginHintText: { color: '#64748B', fontSize: 14 },
+  loginLink: { color: '#2563EB', fontSize: 14, fontWeight: '600' }
 });

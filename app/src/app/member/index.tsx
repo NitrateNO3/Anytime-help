@@ -95,9 +95,25 @@ export default function ResidentHome() {
         if (stored) {
           const parsed = JSON.parse(stored);
           if (parsed._id === data.userId || parsed.id === data.userId) {
-            const updatedUser = { ...parsed, permissions: data.permissions, name: data.name, designation: data.designation };
-            await SecureStore.setItemAsync('userData', JSON.stringify(updatedUser));
-            setUser(updatedUser);
+            try {
+              const token = await SecureStore.getItemAsync('userToken');
+              if (token) {
+                const res = await axios.get(`${API_URL}/users/me`, {
+                  headers: { 'x-auth-token': token }
+                });
+                if (res.data) {
+                  const updatedUser = { ...parsed, ...res.data };
+                  await SecureStore.setItemAsync('userData', JSON.stringify(updatedUser));
+                  setUser(updatedUser);
+                }
+              }
+            } catch (err) {
+              console.log('Failed to fetch fresh user data via socket:', err);
+              // Fallback to partial update if API fails
+              const fallbackUser = { ...parsed, permissions: data.permissions, name: data.name, designation: data.designation };
+              await SecureStore.setItemAsync('userData', JSON.stringify(fallbackUser));
+              setUser(fallbackUser);
+            }
           }
         }
       });
@@ -208,6 +224,23 @@ export default function ResidentHome() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0F172A']} />
         }
       >
+        {(!user?.address || user?.address.trim() === '') && (
+          <TouchableOpacity 
+            style={{ backgroundColor: '#FEF2F2', padding: 16, borderRadius: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FCA5A5', flexDirection: 'row', alignItems: 'center' }}
+            onPress={() => router.push('/member/edit-profile' as any)}
+            activeOpacity={0.8}
+          >
+            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+              <Ionicons name="warning" size={24} color="#EF4444" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#991B1B', marginBottom: 2 }}>Complete Your Profile</Text>
+              <Text style={{ fontSize: 13, color: '#B91C1C' }}>Your address is missing. Tap here to add it.</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#EF4444" />
+          </TouchableOpacity>
+        )}
+
         <View style={styles.dashboardGrid}>
           {/* Card 1: Lodge Grievance */}
           <View style={styles.cardWrapper}>

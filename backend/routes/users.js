@@ -46,6 +46,43 @@ router.get('/me', auth, async (req, res) => {
   }
 });
 
+// @route   PUT api/users/me
+// @desc    Update current user profile
+// @access  Private
+router.put('/me', auth, async (req, res) => {
+  try {
+    const { name, phone_number, address, gender, property_type, phase } = req.body;
+    let user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (name !== undefined) user.name = name;
+    if (phone_number !== undefined) {
+      user.phone_number = phone_number.startsWith('+') ? phone_number : `+91${phone_number}`;
+    }
+    if (address !== undefined) user.address = address;
+    if (gender !== undefined) user.gender = gender;
+    
+    if (user.role === 'Resident') {
+      if (property_type !== undefined) user.property_type = property_type;
+      if (phase !== undefined) user.phase = phase;
+    }
+
+    await user.save();
+    
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_updated', { userId: user._id, role: user.role, name: user.name });
+    }
+
+    res.json({ message: 'Profile updated successfully', user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   GET api/users/phases
 // @desc    Get all distinct phases
 // @access  Admin Private

@@ -76,15 +76,16 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={{ paddingBottom: 120, paddingTop: 20, paddingHorizontal: 16 }} showsVerticalScrollIndicator={false}>
       
         {/* Profile Card */}
-        <View style={styles.profileCard}>
+        <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/member/edit-profile' as any)}>
           <View style={styles.avatarBox}>
             <Ionicons name="person" size={36} color="#0F172A" />
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.profileName}>{user?.name || 'Resident'}</Text>
-            <Text style={styles.profileEmail}>{user?.email || 'resident@society.com'}</Text>
+            <Text style={styles.profileName}>{user?.name || 'Member'}</Text>
+            <Text style={styles.profileEmail}>{user?.phone_number || 'Update your profile'}</Text>
           </View>
-        </View>
+          <Ionicons name="chevron-forward" size={24} color="#9CA3AF" />
+        </TouchableOpacity>
 
         {/* Preferences */}
         <View style={styles.settingsGroup}>

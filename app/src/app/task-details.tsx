@@ -40,6 +40,72 @@ export default function TaskDetailsScreen() {
   // Status Modal State
   const [statusModalVisible, setStatusModalVisible] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const typingTimer = React.useRef<NodeJS.Timeout | null>(null);
+
+  const handleSearchChange = (text: string) => {
+    setSearchQuery(text);
+    
+    if (typingTimer.current) clearTimeout(typingTimer.current);
+    
+    if (text.length > 2) {
+      typingTimer.current = setTimeout(async () => {
+        try {
+          const res = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&addressdetails=1&limit=5`, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+          });
+          setSuggestions(res.data);
+          setShowSuggestions(true);
+        } catch (e) {
+          setSuggestions([]);
+        }
+      }, 800);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectSuggestion = (item: any) => {
+    setSearchQuery(item.display_name);
+    setShowSuggestions(false);
+    const coords = { latitude: parseFloat(item.lat), longitude: parseFloat(item.lon) };
+    setStaffLocationObj(coords);
+    const newReg = { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 };
+    setStaffMapRegion(newReg);
+    mapRef.current?.animateToRegion(newReg, 1000);
+    fetchReadableAddress(coords.latitude, coords.longitude);
+  };
+
+  const searchLocationOnMap = async () => {
+    if (!searchQuery.trim()) return;
+    setIsSearchingLocation(true);
+    try {
+      const res = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=1`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+      });
+      const results = res.data;
+      if (results && results.length > 0) {
+        const coords = { latitude: parseFloat(results[0].lat), longitude: parseFloat(results[0].lon) };
+        setStaffLocationObj(coords);
+        const newReg = { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 };
+        setStaffMapRegion(newReg);
+        mapRef.current?.animateToRegion(newReg, 1000);
+        fetchReadableAddress(coords.latitude, coords.longitude);
+      } else {
+        Alert.alert('Not Found', 'Could not find this location on map.');
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Failed to search location.');
+    } finally {
+      setIsSearchingLocation(false);
+    }
+  };
+
   useEffect(() => {
     fetchComplaintDetails();
     initStaffLocation();
@@ -47,18 +113,14 @@ export default function TaskDetailsScreen() {
 
   const initStaffLocation = async () => {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
-        const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-        setStaffLocationObj(coords);
-        setStaffMapRegion({
-          ...coords,
-          latitudeDelta: 0.005,
-          longitudeDelta: 0.005,
-        });
-        fetchReadableAddress(coords.latitude, coords.longitude);
-      }
+      const coords = { latitude: 28.4510, longitude: 77.0784 }; // Default Sushant Lok 2
+      setStaffLocationObj(coords);
+      setStaffMapRegion({
+        ...coords,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      });
+      fetchReadableAddress(coords.latitude, coords.longitude);
     } catch (e) {
       console.log('Error init location:', e);
     }
@@ -418,15 +480,50 @@ export default function TaskDetailsScreen() {
             ) : null
           )}
 
-          <View style={[styles.section, { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9' }]}>
-            <Text style={styles.sectionTitle}>{resolutionData ? 'Resolved at Location' : 'Your Current Location'}</Text>
+          <View style={[styles.section, { backgroundColor: '#F8FAFC', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9', overflow: 'visible', zIndex: 10 }]}>
+            <Text style={styles.sectionTitle}>{resolutionData ? 'Resolved at Location' : 'Select Resolution Location'}</Text>
             {!resolutionData && (
-              <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
-                This location will be saved when you upload a resolution photo. You can drag the map to adjust it if needed.
-              </Text>
+              <>
+                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
+                  Search or drag the map to select where the issue was resolved.
+                </Text>
+                <View style={{ width: '100%', marginBottom: 12, zIndex: 999, elevation: 999 }}>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TextInput
+                      style={{ flex: 1, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 12, height: 44 }}
+                      placeholder="Search location (e.g. Sushant Lok 2)"
+                      placeholderTextColor="#9CA3AF"
+                      value={searchQuery}
+                      onChangeText={handleSearchChange}
+                      onSubmitEditing={searchLocationOnMap}
+                      onFocus={() => { if(suggestions.length > 0) setShowSuggestions(true); }}
+                    />
+                    <TouchableOpacity 
+                      style={{ backgroundColor: '#3B82F6', borderRadius: 8, paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center' }}
+                      onPress={searchLocationOnMap}
+                      disabled={isSearchingLocation}
+                    >
+                      {isSearchingLocation ? <ActivityIndicator color="#FFF" size="small" /> : <Ionicons name="search" size={20} color="#FFF" />}
+                    </TouchableOpacity>
+                  </View>
+                  {showSuggestions && suggestions.length > 0 && (
+                    <View style={{ position: 'absolute', top: 50, left: 0, right: 0, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5, zIndex: 20 }}>
+                      {suggestions.map((item, idx) => (
+                        <TouchableOpacity 
+                          key={idx} 
+                          style={{ padding: 12, borderBottomWidth: idx === suggestions.length - 1 ? 0 : 1, borderBottomColor: '#F1F5F9' }}
+                          onPress={() => handleSelectSuggestion(item)}
+                        >
+                          <Text style={{ fontSize: 13, color: '#1E293B' }} numberOfLines={2}>{item.display_name}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </>
             )}
             
-            <View style={{ width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
+            <View style={{ width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', position: 'relative', zIndex: -1 }}>
               <MapView
                 ref={mapRef}
                 style={{ width: '100%', height: '100%' }}
