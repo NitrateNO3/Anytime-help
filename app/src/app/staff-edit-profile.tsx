@@ -72,7 +72,7 @@ export default function EditProfileScreen() {
         const storedUser = await SecureStore.getItemAsync('userData');
         if (storedUser) {
           const parsed = JSON.parse(storedUser);
-          const updatedUser = { ...parsed, name: res.data.user.name, address: res.data.user.address };
+          const updatedUser = { ...parsed, ...res.data.user };
           await SecureStore.setItemAsync('userData', JSON.stringify(updatedUser));
         }
 
