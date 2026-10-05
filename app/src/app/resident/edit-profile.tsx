@@ -6,8 +6,10 @@ import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -21,6 +23,23 @@ export default function EditProfileScreen() {
 
   useEffect(() => {
     loadUserData();
+    
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socket.on('user_updated', async (data: any) => {
+      const storedUser = await SecureStore.getItemAsync('userData');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        if (parsed._id === data.userId || parsed.id === data.userId) {
+          setTimeout(() => {
+            loadUserData();
+          }, 1500);
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   const loadUserData = async () => {

@@ -4,6 +4,7 @@ import axios from 'axios';
 import { UserPlus, Users, Trash2, Edit2, Search, Filter, RotateCcw, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ExportButtons } from '../components/ExportButtons';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -51,6 +52,29 @@ export default function Members() {
       fetchMembers(page, debouncedSearch, filterStatus);
     }
   }, [activeTab, page, debouncedSearch, filterStatus]);
+
+  useEffect(() => {
+    const socketURL = API_URL.replace('/api', '');
+    const socket = io(socketURL);
+
+    socket.on('user_created', (newUser: any) => {
+      if (newUser.role === 'Member') {
+        fetchMembers(page, debouncedSearch, filterStatus, false);
+      }
+    });
+
+    socket.on('user_deleted', () => {
+      fetchMembers(page, debouncedSearch, filterStatus, false);
+    });
+
+    socket.on('user_updated', () => {
+      fetchMembers(page, debouncedSearch, filterStatus, false);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [page, debouncedSearch, filterStatus]);
 
   const fetchMembers = async (
     currentPage = page, 

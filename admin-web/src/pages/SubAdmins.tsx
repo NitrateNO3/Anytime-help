@@ -5,6 +5,7 @@ import axios from 'axios';
 import { UserPlus, Trash2, Edit2, Search, Filter, RotateCcw, X, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ExportButtons } from '../components/ExportButtons';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -53,6 +54,29 @@ export default function SubAdmins() {
       fetchSubAdmins();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    const socketURL = API_URL.replace('/api', '');
+    const socket = io(socketURL);
+
+    socket.on('user_created', (newUser: any) => {
+      if (newUser.role === 'SubAdmin') {
+        fetchSubAdmins(false);
+      }
+    });
+
+    socket.on('user_deleted', () => {
+      fetchSubAdmins(false);
+    });
+
+    socket.on('user_updated', () => {
+      fetchSubAdmins(false);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const fetchSubAdmins = async (showLoading = true) => {
     try {

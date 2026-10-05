@@ -113,6 +113,10 @@ export default function Residents() {
       fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, filterStatus, false);
     });
 
+    socket.on('user_updated', () => {
+      fetchResidents(page, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, filterStatus, false);
+    });
+
     return () => {
       socket.disconnect();
     };

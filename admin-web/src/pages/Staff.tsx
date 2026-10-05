@@ -4,6 +4,7 @@ import axios from 'axios';
 import { UserPlus, Users, Edit2, Trash2, Search, Filter, RotateCcw, X, Wrench } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ExportButtons } from '../components/ExportButtons';
+import { io } from 'socket.io-client';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -165,6 +166,29 @@ export default function Staff() {
       fetchStaff(page, filterPhase, debouncedSearch, filterStatus);
     }
   }, [activeTab, page, filterPhase, debouncedSearch, filterStatus]);
+
+  useEffect(() => {
+    const socketURL = API_URL.replace('/api', '');
+    const socket = io(socketURL);
+
+    socket.on('user_created', (newUser: any) => {
+      if (newUser.role === 'Staff') {
+        fetchStaff(page, filterPhase, debouncedSearch, filterStatus, false);
+      }
+    });
+
+    socket.on('user_deleted', () => {
+      fetchStaff(page, filterPhase, debouncedSearch, filterStatus, false);
+    });
+
+    socket.on('user_updated', () => {
+      fetchStaff(page, filterPhase, debouncedSearch, filterStatus, false);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [page, filterPhase, debouncedSearch, filterStatus]);
 
   const fetchStaff = async (
     currentPage = page, 

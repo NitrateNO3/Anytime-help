@@ -35,6 +35,20 @@ export default function PaidStaff() {
     socket.on('staff_changed', () => {
       if (activeTab === 'list') fetchStaff(false);
     });
+    
+    socket.on('user_created', (newUser: any) => {
+      if (newUser.role === 'PaidStaff' && activeTab === 'list') {
+        fetchStaff(false);
+      }
+    });
+
+    socket.on('user_updated', () => {
+      if (activeTab === 'list') fetchStaff(false);
+    });
+
+    socket.on('user_deleted', () => {
+      if (activeTab === 'list') fetchStaff(false);
+    });
 
     return () => {
       socket.disconnect();
