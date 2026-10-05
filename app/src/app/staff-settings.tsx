@@ -6,8 +6,11 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { io } from 'socket.io-client';
 
 import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
+
+const API_URL = 'https://anytime-help.onrender.com';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -37,6 +40,26 @@ export default function SettingsScreen() {
     const userData = await SecureStore.getItemAsync('userData');
     if (userData) setUser(JSON.parse(userData));
   };
+
+  useEffect(() => {
+    const socket = io(API_URL, { transports: ['websocket', 'polling'] });
+    socket.on('user_updated', async (data: any) => {
+      const stored = await SecureStore.getItemAsync('userData');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed._id === data.userId || parsed.id === data.userId) {
+          // Add a tiny delay to allow index.tsx to update secure store first
+          setTimeout(() => {
+            loadUser();
+          }, 1500);
+        }
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   const handleLogout = async () => {
     try {
