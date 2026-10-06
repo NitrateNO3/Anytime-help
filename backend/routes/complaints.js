@@ -125,7 +125,8 @@ router.post('/', auth, async (req, res) => {
         $or: [
           { role: 'Admin' },
           { role: 'SubAdmin', permissions: 'Complaints' },
-          { role: 'Staff', $or: phaseConditions }
+          { role: 'Staff', $or: phaseConditions },
+          { role: 'Member', permissions: 'All Complaints' }
         ],
         expoPushToken: { $exists: true, $ne: '' }
       }).select('expoPushToken assigned_category assigned_categories role phase').lean();
@@ -475,7 +476,8 @@ router.post('/:id/reply', auth, async (req, res) => {
         $or: [
           { role: 'Admin' },
           { role: 'SubAdmin', permissions: 'Complaints' },
-          { role: 'Staff', $or: [{ phase: userPhase }, { phase: 'Universal' }, { phase: 'All' }, { phase: { $exists: false } }] }
+          { role: 'Staff', $or: [{ phase: userPhase }, { phase: 'Universal' }, { phase: 'All' }, { phase: { $exists: false } }] },
+          { role: 'Member', permissions: 'All Complaints' }
         ],
         expoPushToken: { $exists: true, $ne: '' }
       }).select('_id expoPushToken assigned_category assigned_categories role').lean();
