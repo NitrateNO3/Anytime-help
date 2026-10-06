@@ -12,6 +12,7 @@ import '../i18n';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { CopilotProvider } from 'react-native-copilot';
 import { Ionicons } from '@expo/vector-icons';
+import * as Notifications from 'expo-notifications';
 
 const API_URL = 'https://anytime-help.onrender.com';
 
@@ -96,6 +97,29 @@ export default function RootLayout() {
     };
     setupPushNotifications();
 
+    // Listen for notification tap
+    const responseListener = Notifications.addNotificationResponseReceivedListener(async response => {
+      const data = response.notification.request.content.data;
+      if (data && data.type === 'complaint' && data.id) {
+        try {
+          const userDataStr = await SecureStore.getItemAsync('userData');
+          if (userDataStr) {
+            const user = JSON.parse(userDataStr);
+            const role = user.role;
+            if (role === 'Staff' || role === 'PaidStaff' || role === 'Admin' || role === 'SubAdmin') {
+              router.push(`/task-details?id=${data.id}` as any);
+            } else if (role === 'Resident') {
+              router.push(`/resident/complaint-details?id=${data.id}` as any);
+            } else if (role === 'Member') {
+              router.push(`/member/complaint-details?id=${data.id}` as any);
+            }
+          }
+        } catch (e) {
+          console.error('Error handling notification tap', e);
+        }
+      }
+    });
+
     console.log('Connecting to socket at:', API_URL);
     const socket = io(API_URL, {
       transports: ['websocket'],
@@ -163,6 +187,9 @@ export default function RootLayout() {
     return () => {
       axios.interceptors.response.eject(interceptor);
       socket.disconnect();
+      if (responseListener && typeof responseListener.remove === 'function') {
+        responseListener.remove();
+      }
     };
   }, []);
 
