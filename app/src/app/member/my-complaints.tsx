@@ -82,6 +82,7 @@ export default function MyComplaints() {
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const { tab, view } = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<string>('All');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [viewMode, setViewMode] = useState<'all' | 'mine'>((view as 'mine' | 'all') || 'all');
   const [isOffline, setIsOffline] = useState(false);
@@ -116,7 +117,7 @@ export default function MyComplaints() {
         setUser(parsedUser);
       }
 
-      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=5${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${(currentViewMode === 'mine' || (parsedUser && !parsedUser.permissions?.includes('All Complaints'))) ? '&mine=true' : ''}`, {
+      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=500${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${(currentViewMode === 'mine' || (parsedUser && !parsedUser.permissions?.includes('All Complaints'))) ? '&mine=true' : ''}`, {
         headers: { 'x-auth-token': token }
       });
       
@@ -320,7 +321,27 @@ export default function MyComplaints() {
     }
   };
 
-  const displayedComplaints = allFetchedComplaints;
+  const stats = {
+    pending: allFetchedComplaints.filter(c => c.status !== 'IN_PROGRESS' && c.status !== 'RESOLVED' && c.status !== 'DONE').length,
+    inProgress: allFetchedComplaints.filter(c => c.status === 'IN_PROGRESS').length,
+    resolved: allFetchedComplaints.filter(c => c.status === 'RESOLVED' || c.status === 'DONE').length,
+  };
+
+  const displayedComplaints = allFetchedComplaints
+    .filter(item => {
+      if (selectedStatus === 'All') return true;
+      if (selectedStatus === 'PENDING' && item.status !== 'IN_PROGRESS' && item.status !== 'RESOLVED' && item.status !== 'DONE') return true;
+      if (selectedStatus === 'IN_PROGRESS' && item.status === 'IN_PROGRESS') return true;
+      if (selectedStatus === 'RESOLVED' && (item.status === 'RESOLVED' || item.status === 'DONE')) return true;
+      return false;
+    })
+    .sort((a, b) => {
+       const statusOrder = { 'PENDING': 0, 'IN_PROGRESS': 1, 'RESOLVED': 2, 'DONE': 2 };
+       const statusA = (statusOrder as any)[a.status] !== undefined ? (statusOrder as any)[a.status] : 0;
+       const statusB = (statusOrder as any)[b.status] !== undefined ? (statusOrder as any)[b.status] : 0;
+       if (statusA !== statusB) return statusA - statusB;
+       return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -422,6 +443,36 @@ export default function MyComplaints() {
               );
             })}
           </ScrollView>
+        </View>
+
+        {/* Status Filter Cards */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 0, marginBottom: 16, gap: 10 }}>
+          <TouchableOpacity 
+            style={[styles.statItem, selectedStatus === 'PENDING' && { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
+            activeOpacity={0.7}
+            onPress={() => setSelectedStatus(selectedStatus === 'PENDING' ? 'All' : 'PENDING')}
+          >
+            <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.pending}</Text>
+            <Text style={styles.statLabel}>{t('staff.pending', { defaultValue: 'Pending' })}</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.statItem, selectedStatus === 'IN_PROGRESS' && { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+            activeOpacity={0.7}
+            onPress={() => setSelectedStatus(selectedStatus === 'IN_PROGRESS' ? 'All' : 'IN_PROGRESS')}
+          >
+            <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{stats.inProgress}</Text>
+            <Text style={styles.statLabel}>{t('staff.inProgress', { defaultValue: 'In Progress' })}</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.statItem, selectedStatus === 'RESOLVED' && { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
+            activeOpacity={0.7}
+            onPress={() => setSelectedStatus(selectedStatus === 'RESOLVED' ? 'All' : 'RESOLVED')}
+          >
+            <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.resolved}</Text>
+            <Text style={styles.statLabel}>{t('staff.resolved', { defaultValue: 'Resolved' })}</Text>
+          </TouchableOpacity>
         </View>
 
         {loading ? (
@@ -569,6 +620,9 @@ export default function MyComplaints() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
+  statItem: { flex: 1, alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+  statNumber: { fontSize: 22, fontWeight: '800', color: '#3B82F6', marginBottom: 2 },
+  statLabel: { fontSize: 12, fontWeight: '600', color: '#64748B' },
   offlineBanner: { backgroundColor: '#EF4444', paddingVertical: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   offlineText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   container: { flex: 1 },

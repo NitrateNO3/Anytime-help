@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, StatusBar, ImageBackground, TouchableWithoutFeedback, Keyboard, Image, FlatList, Dimensions, Animated, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
@@ -18,6 +18,7 @@ const { width } = Dimensions.get('window');
 
 export default function LoginScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ prefillPhone?: string; registered?: string }>();
   const { t, i18n } = useTranslation();
   const [role, setRole] = useState('Resident');
 
@@ -32,6 +33,23 @@ export default function LoginScreen() {
   const [step, setStep] = useState<'PHONE' | 'OTP'>('PHONE');
   const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(0);
+
+  // If redirected from registration, pre-fill phone number and notify user
+  useEffect(() => {
+    if (params?.prefillPhone) {
+      setPhoneNumber(params.prefillPhone);
+      setRole('Resident');
+      setStep('PHONE');
+    }
+    if (params?.registered === '1') {
+      Toast.show({
+        type: 'success',
+        text1: 'Registration Successful',
+        text2: 'Please login with your mobile number.',
+        visibilityTime: 4000
+      });
+    }
+  }, [params?.prefillPhone, params?.registered]);
 
   const [banners, setBanners] = useState<any[]>([]);
   const flatListRef = React.useRef<FlatList>(null);
@@ -72,6 +90,7 @@ export default function LoginScreen() {
     useCallback(() => {
       const checkLogin = async () => {
         try {
+          if (params?.registered === '1') return; // User just registered, do not auto-login
           const token = await SecureStore.getItemAsync('userToken');
           const userDataStr = await SecureStore.getItemAsync('userData');
           if (token && userDataStr) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, Modal, Platform, Linking, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, Modal, Platform, Linking, TextInput, Share } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import axios from 'axios';
@@ -39,6 +39,7 @@ export default function TaskDetailsScreen() {
 
   // Status Modal State
   const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [confirmPhotoPayload, setConfirmPhotoPayload] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
@@ -160,14 +161,35 @@ export default function TaskDetailsScreen() {
         if (found.location || found.address) {
           try {
             const locStr = found.address || found.location;
-            // Check if it's already coords string (from raise.tsx sometimes it falls back to lat,lng)
+            // Check if it's already coords string
             if (locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
                const parts = locStr.split(',');
                setComplaintCoords({ latitude: parseFloat(parts[0]), longitude: parseFloat(parts[1]) });
             } else {
-               const geocoded = await Location.geocodeAsync(locStr);
-               if (geocoded && geocoded.length > 0) {
-                 setComplaintCoords({ latitude: geocoded[0].latitude, longitude: geocoded[0].longitude });
+               let coordsFound = false;
+               try {
+                 const geocoded = await Location.geocodeAsync(locStr);
+                 if (geocoded && geocoded.length > 0) {
+                   setComplaintCoords({ latitude: geocoded[0].latitude, longitude: geocoded[0].longitude });
+                   coordsFound = true;
+                 }
+               } catch(e) {}
+               
+               if (!coordsFound) {
+                  try {
+                    const res = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locStr)}&format=json&limit=1`, {
+                      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                    });
+                    if (res.data && res.data.length > 0) {
+                      setComplaintCoords({ latitude: parseFloat(res.data[0].lat), longitude: parseFloat(res.data[0].lon) });
+                      coordsFound = true;
+                    }
+                  } catch(e) {}
+               }
+               
+               if (!coordsFound) {
+                  // Final fallback: default generic location for the society
+                  setComplaintCoords({ latitude: 28.4510, longitude: 77.0784 });
                }
             }
           } catch(e) {
@@ -261,8 +283,7 @@ export default function TaskDetailsScreen() {
             address: staffLocationAddress,
             note: staffNote.trim()
         });
-        
-        uploadPhoto(payload);
+        setConfirmPhotoPayload(payload);
       }
     } catch (error) {
       console.error("Camera error:", error);
@@ -390,19 +411,46 @@ export default function TaskDetailsScreen() {
                      <Marker coordinate={complaintCoords} />
                   </MapView>
                </View>
-               <TouchableOpacity 
-                 style={[styles.actionBtnPrimary, { marginTop: 12, backgroundColor: '#10B981', flexDirection: 'row', justifyContent: 'center' }]}
-                 onPress={() => {
-                   const url = Platform.select({
-                     ios: `maps:0,0?q=${complaintCoords.latitude},${complaintCoords.longitude}`,
-                     android: `google.navigation:q=${complaintCoords.latitude},${complaintCoords.longitude}`
-                   });
-                   if (url) Linking.openURL(url);
-                 }}
-               >
-                 <Ionicons name="navigate" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                 <Text style={styles.actionBtnPrimaryText}>Start Navigation</Text>
-               </TouchableOpacity>
+               <View style={{ flexDirection: 'row', marginTop: 12, gap: 12 }}>
+                 <TouchableOpacity 
+                   style={[styles.actionBtnPrimary, { flex: 1, backgroundColor: '#10B981', flexDirection: 'row', justifyContent: 'center' }]}
+                   onPress={() => {
+                     let searchQ = `${complaintCoords.latitude},${complaintCoords.longitude}`;
+                     const locStr = complaint.address || complaint.location;
+                     if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
+                       searchQ = encodeURIComponent(locStr);
+                     }
+                     const url = Platform.select({
+                       ios: `maps:0,0?q=${searchQ}`,
+                       android: `google.navigation:q=${searchQ}`
+                     });
+                     if (url) Linking.openURL(url);
+                   }}
+                 >
+                   <Ionicons name="navigate" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                   <Text style={[styles.actionBtnPrimaryText, { fontSize: 13 }]}>Start Navigation</Text>
+                 </TouchableOpacity>
+                 <TouchableOpacity 
+                   style={[styles.actionBtnPrimary, { flex: 1, backgroundColor: '#3B82F6', flexDirection: 'row', justifyContent: 'center' }]}
+                   onPress={async () => {
+                     let searchQ = `${complaintCoords.latitude},${complaintCoords.longitude}`;
+                     const locStr = complaint.address || complaint.location;
+                     if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
+                       searchQ = encodeURIComponent(locStr);
+                     }
+                     const url = `https://www.google.com/maps/search/?api=1&query=${searchQ}`;
+                     try {
+                        await Share.share({ 
+                           message: Platform.OS === 'android' ? `Location for task: ${url}` : 'Location for task',
+                           url: Platform.OS === 'ios' ? url : undefined
+                        });
+                     } catch(e) {}
+                   }}
+                 >
+                   <Ionicons name="share-social" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                   <Text style={[styles.actionBtnPrimaryText, { fontSize: 13 }]}>Share Location</Text>
+                 </TouchableOpacity>
+               </View>
              </View>
           )}
 
@@ -421,9 +469,39 @@ export default function TaskDetailsScreen() {
                 </Text>
               ) : null}
               {complaint.user.phone_number ? (
-                <Text style={[styles.detailText, { fontSize: 14, color: '#6B7280', marginTop: 2 }]}>
-                  {complaint.user.phone_number}
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 12 }}>
+                  <Text style={[styles.detailText, { fontSize: 16, color: '#111827', fontWeight: '600' }]}>
+                    {complaint.user.phone_number}
+                  </Text>
+                  <TouchableOpacity 
+                    style={{ backgroundColor: '#DBEAFE', padding: 8, borderRadius: 8 }}
+                    onPress={() => Linking.openURL(`tel:${complaint.user.phone_number}`)}
+                  >
+                    <Ionicons name="call" size={18} color="#2563EB" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={{ backgroundColor: '#DCFCE7', padding: 8, borderRadius: 8 }}
+                    onPress={() => {
+                       const phone = complaint.user.phone_number.replace(/\D/g, '');
+                       const finalPhone = phone.length === 10 ? `91${phone}` : phone;
+                       Linking.openURL(`whatsapp://send?phone=${finalPhone}&text=Hello, this is regarding your task "${complaint.title}"...`).catch(() => {
+                          Alert.alert('Error', 'WhatsApp is not installed on this device.');
+                       });
+                    }}
+                  >
+                    <Ionicons name="logo-whatsapp" size={18} color="#16A34A" />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={{ backgroundColor: '#F1F5F9', padding: 8, borderRadius: 8 }}
+                    onPress={async () => {
+                       try {
+                         await Share.share({ message: `Contact for task: ${complaint.user.phone_number}` });
+                       } catch(e) {}
+                    }}
+                  >
+                    <Ionicons name="share-social" size={18} color="#475569" />
+                  </TouchableOpacity>
+                </View>
               ) : null}
             </View>
           )}
@@ -629,6 +707,44 @@ export default function TaskDetailsScreen() {
             <Ionicons name="close" size={28} color="#FFFFFF" />
           </TouchableOpacity>
           {fullScreenImage && <Image source={{ uri: fullScreenImage }} style={styles.fullScreenImage} resizeMode="contain" />}
+        </View>
+      </Modal>
+
+      {/* Confirm Photo Upload Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={!!confirmPhotoPayload}
+        onRequestClose={() => setConfirmPhotoPayload(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { alignItems: 'center', paddingVertical: 24 }]}>
+            <View style={{ backgroundColor: '#EFF6FF', padding: 16, borderRadius: 50, marginBottom: 16 }}>
+              <Ionicons name="cloud-upload" size={36} color="#3B82F6" />
+            </View>
+            <Text style={[styles.modalTitle, { marginBottom: 8 }]}>Confirm Upload</Text>
+            <Text style={{ fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 22 }}>
+              Are you sure you want to upload this resolution photo?
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12, width: '100%' }}>
+              <TouchableOpacity 
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#F1F5F9', alignItems: 'center' }}
+                onPress={() => setConfirmPhotoPayload(null)}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#475569' }}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={{ flex: 1, paddingVertical: 14, borderRadius: 12, backgroundColor: '#3B82F6', alignItems: 'center', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }}
+                onPress={() => {
+                   const payload = confirmPhotoPayload;
+                   setConfirmPhotoPayload(null);
+                   if (payload) uploadPhoto(payload);
+                }}
+              >
+                <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>Upload</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
 

@@ -38,6 +38,7 @@ export default function StaffScreen() {
   const [loadingAnnouncements, setLoadingAnnouncements] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
+  const [stats, setStats] = useState({ pending: 0, inProgress: 0, resolved: 0 });
 
   useFocusEffect(
     React.useCallback(() => {
@@ -120,21 +121,67 @@ export default function StaffScreen() {
         userData = JSON.parse(userDataStr);
         setUser(userData);
       }
-      const res = await axios.get(`${API_URL}/complaints?limit=50&stats=false${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${currentStatus !== 'ALL' ? `&status=${currentStatus}` : ''}`, {
+      const res = await axios.get(`${API_URL}/complaints?all=true&stats=true${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${currentStatus !== 'ALL' ? `&status=${currentStatus}` : ''}`, {
         headers: { 'x-auth-token': token }
       });
-      if (Array.isArray(res.data)) {
-        setComplaints(res.data);
-        AsyncStorage.setItem('cached_staff_complaints', JSON.stringify(res.data));
-      } else {
-        setComplaints([]);
+      
+      const sortComplaints = (list: any[]) => {
+        return [...list].sort((a, b) => {
+          const statusOrder: Record<string, number> = { 'PENDING': 1, 'IN_PROGRESS': 2, 'RESOLVED': 3, 'DONE': 3 };
+          const orderA = statusOrder[a.status] || 4;
+          const orderB = statusOrder[b.status] || 4;
+          if (orderA !== orderB) {
+            return orderA - orderB;
+          }
+          return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+        });
+      };
+
+      let fetchedComplaints = [];
+      let fetchedStats = { pending: 0, inProgress: 0, resolved: 0 };
+      if (res.data && res.data.complaints) {
+        fetchedComplaints = res.data.complaints;
+        fetchedStats = res.data.stats || { pending: 0, inProgress: 0, resolved: 0 };
+      } else if (Array.isArray(res.data)) {
+        fetchedComplaints = res.data;
+        
+        const cachedStatsStr = await AsyncStorage.getItem('cached_staff_stats');
+        let fallbackStats = { pending: 0, inProgress: 0, resolved: 0 };
+        if (cachedStatsStr) {
+          try { fallbackStats = JSON.parse(cachedStatsStr); } catch (e) {}
+        }
+        
+        // If we are viewing ALL statuses, we can recalculate the stats from the array
+        if (currentStatus === 'ALL') {
+          fallbackStats = {
+            pending: fetchedComplaints.filter((c: any) => c.status === 'PENDING').length,
+            inProgress: fetchedComplaints.filter((c: any) => c.status === 'IN_PROGRESS').length,
+            resolved: fetchedComplaints.filter((c: any) => c.status === 'RESOLVED' || c.status === 'DONE').length
+          };
+        }
+        
+        fetchedStats = fallbackStats;
+      }
+      
+      setStats(fetchedStats);
+      AsyncStorage.setItem('cached_staff_stats', JSON.stringify(fetchedStats));
+
+      if (fetchedComplaints.length >= 0) {
+        const sortedData = sortComplaints(fetchedComplaints);
+        setComplaints(sortedData);
+        AsyncStorage.setItem('cached_staff_complaints', JSON.stringify(sortedData));
       }
       setIsOffline(false);
     } catch (err) {
       console.error('Fetch complaints error:', err);
       const cachedStr = await AsyncStorage.getItem('cached_staff_complaints');
+      const cachedStatsStr = await AsyncStorage.getItem('cached_staff_stats');
+      if (cachedStatsStr) {
+        try { setStats(JSON.parse(cachedStatsStr)); } catch (e) {}
+      }
       if (cachedStr) {
-        setComplaints(JSON.parse(cachedStr));
+        const parsedCache = JSON.parse(cachedStr);
+        setComplaints(Array.isArray(parsedCache) ? parsedCache : []);
         setIsOffline(true);
       } else {
         setComplaints([]);
@@ -394,6 +441,13 @@ export default function StaffScreen() {
           <Text style={styles.title}>{t('staff.portal')}</Text>
           <Text style={styles.subtitle}>{t('resident.hello', { defaultValue: 'Welcome,' })} {user?.name?.split(' ')[0] || 'Staff'} 👋</Text>
           
+          <View style={{ alignItems: 'center', marginBottom: 16 }}>
+            <Image 
+              source={require('../../assets/image.png')} 
+              style={{ width: '100%', height: 160, borderRadius: 16, resizeMode: 'cover' }}
+            />
+          </View>
+          
           {user && (
             <View style={styles.assignmentBox}>
               <View style={styles.infoRow}>
@@ -430,6 +484,55 @@ export default function StaffScreen() {
                   </View>
                 </View>
               ))}
+            </View>
+          )}
+
+          {user && (
+            <View style={styles.statsBanner}>
+              <TouchableOpacity 
+                style={[styles.statItem, selectedStatus === 'PENDING' && { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  const newStatus = selectedStatus === 'PENDING' ? 'ALL' : 'PENDING';
+                  setSelectedStatus(newStatus);
+                  setLoading(true);
+                  fetchComplaints(searchQuery, selectedCategory, newStatus);
+                  setActiveTab('Tasks');
+                }}
+              >
+                <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.pending}</Text>
+                <Text style={styles.statLabel}>Pending</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.statItem, selectedStatus === 'IN_PROGRESS' && { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  const newStatus = selectedStatus === 'IN_PROGRESS' ? 'ALL' : 'IN_PROGRESS';
+                  setSelectedStatus(newStatus);
+                  setLoading(true);
+                  fetchComplaints(searchQuery, selectedCategory, newStatus);
+                  setActiveTab('Tasks');
+                }}
+              >
+                <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{stats.inProgress}</Text>
+                <Text style={styles.statLabel}>In Progress</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.statItem, selectedStatus === 'RESOLVED' && { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  const newStatus = selectedStatus === 'RESOLVED' ? 'ALL' : 'RESOLVED';
+                  setSelectedStatus(newStatus);
+                  setLoading(true);
+                  fetchComplaints(searchQuery, selectedCategory, newStatus);
+                  setActiveTab('Tasks');
+                }}
+              >
+                <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.resolved}</Text>
+                <Text style={styles.statLabel}>Resolved</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -877,6 +980,12 @@ const styles = StyleSheet.create({
   infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   infoText: { fontSize: 14, fontWeight: '600', color: '#475569', marginLeft: 8 },
   extraAccountBox: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
+  
+  statsBanner: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 10 },
+  statItem: { flex: 1, alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
+  statDivider: { width: 1, backgroundColor: '#E2E8F0', height: '80%', alignSelf: 'center' },
+  statNumber: { fontSize: 22, fontWeight: '800', color: '#3B82F6', marginBottom: 2 },
+  statLabel: { fontSize: 12, fontWeight: '600', color: '#64748B' },
   
   filterScroll: { marginBottom: 20 },
   filterContainer: { paddingRight: 20, paddingVertical: 10, gap: 12 },

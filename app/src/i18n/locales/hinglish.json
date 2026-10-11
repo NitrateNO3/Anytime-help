@@ -114,7 +114,16 @@
     "creating": "Account ban raha hai...",
     "signup": "Sign Up Karein",
     "alreadyHave": "Pehle se account hai? ",
-    "loginHere": "Yahan Login Karein"
+    "loginHere": "Yahan Login Karein",
+    "verifyMobile": "Mobile Number Verify Karein",
+    "otpSentSubtitle": "Apne phone number {{phone}} par bheja gaya 6-digit OTP dalein.",
+    "enterOtp": "6-digit OTP dalein",
+    "resendOtp": "OTP Dobara Bhejein",
+    "resendOtpIn": "{{timer}}s mein OTP dobara bhejein",
+    "changePhone": "Phone Number Badlein",
+    "sendOtpBtn": "OTP Bhejein aur Verify Karein",
+    "completeRegBtn": "Registration Complete Karein",
+    "regSuccessMsg": "Registration successful! Kripya apne mobile number se login karein."
   },
   "categories": {
     "All": "Sabhi",

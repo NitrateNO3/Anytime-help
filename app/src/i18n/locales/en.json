@@ -207,7 +207,16 @@
     "duplicateMsg": "Please tell us your relationship to the primary owner.",
     "tenant": "Tenant",
     "familyMember": "Family Member",
-    "coOwner": "Co-Owner"
+    "coOwner": "Co-Owner",
+    "verifyMobile": "Verify Mobile Number",
+    "otpSentSubtitle": "Enter the 6-digit OTP sent to {{phone}}.",
+    "enterOtp": "Enter 6-digit OTP",
+    "resendOtp": "Resend OTP",
+    "resendOtpIn": "Resend OTP in {{timer}}s",
+    "changePhone": "Change Phone Number",
+    "sendOtpBtn": "Send OTP & Verify",
+    "completeRegBtn": "Complete Registration",
+    "regSuccessMsg": "Registration successful! Please login with your mobile number."
   },
   "categories": {
     "All": "All",

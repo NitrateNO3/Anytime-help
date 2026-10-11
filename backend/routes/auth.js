@@ -13,11 +13,48 @@ const otpStore = new Map();
 // @desc    Register user (Resident or Staff)
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, phone_number, firebase_uid, role, department, address, relation, phase, family_members, gender } = req.body;
+  const { name, phone_number, firebase_uid, role, department, address, relation, phase, family_members, gender, otp } = req.body;
 
   try {
-    let user = await User.findOne({ phone_number });
-    if (user) return res.status(400).json({ msg: 'User already exists' });
+    if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
+    const cleanPhone = phone_number.replace(/^\+91/, '').trim();
+    const isTestAccount = ['9999999999', '8888888888', '7777777777'].includes(cleanPhone);
+
+    // Verify OTP
+    if (!otp) {
+      return res.status(400).json({ msg: 'OTP is required for registration' });
+    }
+
+    if (isTestAccount && otp === '123456') {
+      // Test account OTP bypass
+    } else {
+      const regKey = `reg_${cleanPhone}`;
+      const storedData = otpStore.get(regKey) || otpStore.get(cleanPhone);
+
+      if (!storedData) {
+        return res.status(400).json({ msg: 'OTP not found or expired. Please request a new one.' });
+      }
+
+      if (Date.now() > storedData.expiresAt) {
+        otpStore.delete(regKey);
+        otpStore.delete(cleanPhone);
+        return res.status(400).json({ msg: 'OTP expired. Please request a new one.' });
+      }
+
+      if (storedData.otp !== otp.trim()) {
+        return res.status(400).json({ msg: 'Invalid OTP' });
+      }
+
+      // OTP verified successfully, clear from store
+      otpStore.delete(regKey);
+      otpStore.delete(cleanPhone);
+    }
+
+    const dbPhoneNumber = phone_number.startsWith('+91') ? phone_number : `+91${cleanPhone}`;
+    let user = await User.findOne({ 
+      $or: [{ phone_number: dbPhoneNumber }, { phone_number: cleanPhone }] 
+    });
+    if (user) return res.status(400).json({ msg: 'User already exists with this phone number' });
 
     // Handle address logic for Residents
     if (role === 'Resident' && address) {
@@ -57,7 +94,18 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    user = new User({ name, phone_number, firebase_uid, role, department, address, relation, phase, family_members: family_members || [], gender });
+    user = new User({ 
+      name, 
+      phone_number: dbPhoneNumber, 
+      firebase_uid, 
+      role: role || 'Resident', 
+      department, 
+      address, 
+      relation, 
+      phase, 
+      family_members: family_members || [], 
+      gender 
+    });
 
     await user.save();
 
@@ -67,12 +115,11 @@ router.post('/register', async (req, res) => {
       io.emit('user_created', user);
     }
 
-    // Create JWT Payload
-    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories } };
-    
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
-      if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories } });
+    // Do NOT return JWT token so user is not automatically logged in
+    res.json({ 
+      success: true, 
+      msg: 'Registration successful! Please login.', 
+      user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number } 
     });
   } catch (err) {
     console.error(err.message);
@@ -172,7 +219,7 @@ router.post('/firebase-login', async (req, res) => {
 // @desc    Generate and send OTP via Fast2SMS
 // @access  Public
 router.post('/send-otp', async (req, res) => {
-  let { phone_number, role } = req.body;
+  let { phone_number, role, type, address, relation } = req.body;
   
   try {
     if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
@@ -184,8 +231,105 @@ router.post('/send-otp', async (req, res) => {
       return res.status(400).json({ msg: 'Invalid phone number format' });
     }
 
-    // Check if user is registered (as primary or family member) before sending OTP
     const dbPhoneNumber = `+91${phone_number}`;
+
+    // Handle REGISTRATION flow OTP
+    if (type === 'register') {
+      let existingUser = await User.findOne({
+        $or: [
+          { phone_number: dbPhoneNumber },
+          { phone_number: phone_number },
+          { "family_members.phone_number": phone_number },
+          { "family_members.phone_number": dbPhoneNumber }
+        ]
+      });
+
+      if (existingUser) {
+        return res.status(400).json({ msg: 'Phone number is already registered. Please login instead.' });
+      }
+
+      // Check address duplication if provided during registration
+      if ((role === 'Resident' || !role) && address) {
+        const normalizeAddress = (str) => (str || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const normalizedInputAddress = normalizeAddress(address);
+        const allResidents = await User.find({ role: 'Resident', address: { $exists: true, $ne: null } });
+        const existingAddressUsers = allResidents.filter(u => normalizeAddress(u.address) === normalizedInputAddress);
+
+        if (existingAddressUsers.length > 0) {
+          if (!relation) {
+            return res.status(400).json({ 
+              error_code: 'DUPLICATE_ADDRESS', 
+              msg: 'This address is already registered. Please specify your relation (e.g., Tenant, Family).' 
+            });
+          }
+
+          const isNewRelationOwner = relation.trim().toLowerCase() === 'owner';
+          if (isNewRelationOwner) {
+            const hasExistingOwner = existingAddressUsers.some(u => {
+              if (!u.relation) return true;
+              return u.relation.trim().toLowerCase() === 'owner';
+            });
+            
+            if (hasExistingOwner) {
+              return res.status(400).json({ 
+                msg: 'An Owner is already registered for this address. Please register as Tenant or Family member, or contact admin.' 
+              });
+            }
+          }
+        }
+      }
+
+      // Generate 6 digit OTP for registration
+      const isTestAccount = ['9999999999', '8888888888', '7777777777'].includes(phone_number);
+      const otp = isTestAccount ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
+
+      otpStore.set(`reg_${phone_number}`, {
+        otp,
+        expiresAt: Date.now() + 5 * 60 * 1000
+      });
+
+      if (isTestAccount) {
+        return res.json({ msg: 'OTP sent successfully (Test Account)' });
+      }
+
+      const fast2smsKey = process.env.FAST2SMS_API_KEY;
+      if (!fast2smsKey) {
+        console.warn("Fast2SMS API Key is not set in environment variables! OTP logged for testing: ", otp);
+        return res.json({ msg: 'OTP generated (Dev mode: API key missing)', dev_otp: otp });
+      }
+
+      try {
+        const response = await axios.post(
+          'https://www.fast2sms.com/dev/bulkV2',
+          {
+            route: 'dlt',
+            sender_id: 'ANTHLP',
+            message: '225661',
+            variables_values: String(otp),
+            flash: 0,
+            numbers: phone_number,
+          },
+          {
+            headers: {
+              authorization: fast2smsKey,
+            },
+          }
+        );
+
+        if (response.data.return === false) {
+           console.warn("Fast2SMS DLT API returned false. Fallback to Dev Mode. OTP:", otp, response.data);
+           return res.json({ msg: `Test Mode OTP: ${otp} (Fast2SMS failed)`, dev_otp: otp });
+        }
+
+        console.log("Fast2SMS DLT sent successfully:", response.data);
+        return res.json({ msg: 'OTP sent successfully to your mobile number' });
+      } catch (apiError) {
+        console.warn("Fast2SMS API threw an error. Fallback to Dev Mode. OTP:", otp);
+        return res.json({ msg: `Test Mode OTP: ${otp}`, dev_otp: otp });
+      }
+    }
+
+    // NORMAL LOGIN FLOW: Check if user is registered before sending OTP
     let userExists = await User.findOne({
       $or: [
         { phone_number: dbPhoneNumber },

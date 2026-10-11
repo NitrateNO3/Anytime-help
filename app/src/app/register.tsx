@@ -39,7 +39,7 @@ export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   
   const [step, setStep] = useState(0);
-  const maxStep = 3; 
+  const maxStep = 4; 
   const isCompleteRef = useRef(false);
 
   // Form State
@@ -62,6 +62,10 @@ export default function RegisterScreen() {
   const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
   const [relation, setRelation] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // OTP Verification State
+  const [verificationCode, setVerificationCode] = useState('');
+  const [timer, setTimer] = useState(0);
 
   // Constants
   const propertyTypes = ['Owned', 'Rented'];
@@ -114,6 +118,19 @@ export default function RegisterScreen() {
     }).start();
   }, [step]);
 
+  // Step 4 OTP Countdown Timer
+  useEffect(() => {
+    let interval: any = null;
+    if (step === 4 && timer > 0) {
+      interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
+    } else if (interval) {
+      clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [step, timer]);
+
   useEffect(() => {
     const backAction = () => {
       if (step > 0) {
@@ -151,6 +168,59 @@ export default function RegisterScreen() {
     });
   };
 
+  const handleSendRegisterOTP = async (isResend = false) => {
+    if (!agreedToTerms) {
+      Toast.show({ type: 'error', text1: 'Terms Required', text2: 'Please agree to the terms to continue' });
+      return;
+    }
+
+    if (isDuplicateAddress && !relation) {
+      Toast.show({ type: 'error', text1: 'Relation Required', text2: 'Please specify your relation' });
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let addressParts = [];
+      if (houseNo) addressParts.push(`House/Flat: ${houseNo}`);
+      if (phase) addressParts.push(phase);
+      if (block) addressParts.push(`Block ${block}`);
+      if (propertyType) addressParts.push(`(${propertyType})`);
+      const combinedAddress = addressParts.join(', ');
+
+      const res = await axios.post(`${API_URL}/auth/send-otp`, {
+        phone_number: phoneNumber,
+        type: 'register',
+        role: 'Resident',
+        address: combinedAddress,
+        relation: isDuplicateAddress ? relation : propertyType
+      });
+
+      setTimer(60);
+      if (!isResend) {
+        goToStep(4);
+      }
+      Toast.show({
+        type: 'success',
+        text1: 'OTP Sent',
+        text2: res.data.msg || `Verification code sent to +91 ${phoneNumber}`
+      });
+      if (res.data.dev_otp) {
+        setVerificationCode(res.data.dev_otp);
+      }
+    } catch (err: any) {
+      const errorCode = err.response?.data?.error_code;
+      if (errorCode === 'DUPLICATE_ADDRESS') {
+        setIsDuplicateAddress(true);
+        Toast.show({ type: 'info', text1: 'Address Taken', text2: 'Someone is already registered here. Please specify your relation.' });
+      } else {
+        Toast.show({ type: 'error', text1: 'Failed to send OTP', text2: err.response?.data?.msg || err.message });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleNext = () => {
     if (step === 0) {
       if (!name || !phoneNumber || phoneNumber.length < 10 || !gender) {
@@ -169,6 +239,9 @@ export default function RegisterScreen() {
           return;
         }
       }
+    } else if (step === 3) {
+      handleSendRegisterOTP();
+      return;
     }
     
     if (step < maxStep) goToStep(step + 1);
@@ -179,13 +252,8 @@ export default function RegisterScreen() {
   };
 
   const handleRegister = async () => {
-    if (!agreedToTerms) {
-      Toast.show({ type: 'error', text1: 'Terms Required', text2: 'Please agree to the terms to continue' });
-      return;
-    }
-
-    if (isDuplicateAddress && !relation) {
-      Toast.show({ type: 'error', text1: 'Relation Required', text2: 'Please specify your relation' });
+    if (!verificationCode || verificationCode.length !== 6) {
+      Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter a valid 6-digit OTP' });
       return;
     }
 
@@ -211,6 +279,7 @@ export default function RegisterScreen() {
       const payload: any = { 
         name, 
         phone_number: formattedPhone, 
+        otp: verificationCode.trim(),
         role: 'Resident',
         address: combinedAddress,
         property_type: propertyType,
@@ -221,28 +290,37 @@ export default function RegisterScreen() {
       };
 
       const res = await axios.post(`${API_URL}/auth/register`, payload);
-      const { token, user } = res.data;
       
-      await SecureStore.setItemAsync('userToken', token);
-      await SecureStore.setItemAsync('userData', JSON.stringify(user));
+      // CRITICAL: Do NOT store userToken or userData in SecureStore!
+      // This prevents auto-logging in directly after registration.
+      await SecureStore.deleteItemAsync('userToken').catch(() => {});
+      await SecureStore.deleteItemAsync('userData').catch(() => {});
       await AsyncStorage.removeItem('register_draft'); 
 
-      try {
-        const { registerForPushNotificationsAsync, sendPushTokenToBackend } = await import('../services/pushNotifications');
-        const pushToken = await registerForPushNotificationsAsync();
-        if (pushToken) await sendPushTokenToBackend(pushToken);
-      } catch (pushErr) {}
-
       isCompleteRef.current = true;
-      Toast.show({ type: 'success', text1: 'Welcome', text2: 'Account created successfully!' });
-      router.replace('/login');
+      Toast.show({ 
+        type: 'success', 
+        text1: 'Registration Successful', 
+        text2: res.data.msg || (t('register.regSuccessMsg') || 'Account created! Please login.') 
+      });
+
+      // Redirect user to the login screen with the registered phone number prefilled
+      router.replace({ 
+        pathname: '/login' as any, 
+        params: { prefillPhone: phoneNumber, registered: '1' } 
+      });
     } catch (err: any) {
       const errorCode = err.response?.data?.error_code;
       if (errorCode === 'DUPLICATE_ADDRESS') {
         setIsDuplicateAddress(true);
+        goToStep(3);
         Toast.show({ type: 'info', text1: 'Address Taken', text2: 'Someone is already registered here. Please specify your relation.' });
       } else {
-        Toast.show({ type: 'error', text1: 'Registration Failed', text2: err.response?.data?.msg || 'Please try again.' });
+        Toast.show({ 
+          type: 'error', 
+          text1: 'Registration Failed', 
+          text2: err.response?.data?.msg || err.message || 'Invalid OTP. Please try again.' 
+        });
       }
     } finally {
       setLoading(false);
@@ -465,12 +543,58 @@ export default function RegisterScreen() {
     </View>
   );
 
+  const renderStep4 = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>{t('register.verifyMobile') || 'Verify Mobile Number'}</Text>
+      <Text style={styles.stepSubtitle}>
+        {(t('register.otpSentSubtitle') || 'Enter the 6-digit OTP sent to {{phone}}.').replace('{{phone}}', `+91 ${phoneNumber}`)}
+      </Text>
+
+      <View style={styles.phoneBadgeContainer}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <Ionicons name="call" size={16} color="#2563EB" style={{ marginRight: 8 }} />
+          <Text style={styles.phoneBadgeText}>+91 {phoneNumber}</Text>
+        </View>
+        <TouchableOpacity 
+          onPress={() => goToStep(0)} 
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Text style={styles.editPhoneText}>{t('register.changePhone') || 'Change'}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <FocusableInput 
+        label={t('register.enterOtp') || 'Enter 6-digit OTP'}
+        icon="keypad-outline"
+        placeholder="123456"
+        keyboardType="number-pad"
+        maxLength={6}
+        value={verificationCode}
+        onChangeText={setVerificationCode}
+        autoFocus={true}
+      />
+
+      <View style={styles.resendRow}>
+        {timer > 0 ? (
+          <Text style={styles.timerText}>
+            {(t('register.resendOtpIn') || 'Resend OTP in {{timer}}s').replace('{{timer}}', timer.toString())}
+          </Text>
+        ) : (
+          <TouchableOpacity onPress={() => handleSendRegisterOTP(true)} disabled={loading}>
+            <Text style={styles.resendLink}>{t('register.resendOtp') || 'Resend OTP'}</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+
   const getStepContent = () => {
     switch (step) {
       case 0: return renderStep0();
       case 1: return renderStep1();
       case 2: return renderStep2();
       case 3: return renderStep3();
+      case 4: return renderStep4();
       default: return renderStep0();
     }
   };
@@ -480,6 +604,7 @@ export default function RegisterScreen() {
     if (step === 1) return !propertyType || !phase || !block || !houseNo;
     if (step === 2) return addFamily && (!familyRelation || !familyName || familyPhone.length < 10);
     if (step === 3) return !agreedToTerms || (isDuplicateAddress && !relation);
+    if (step === 4) return verificationCode.length !== 6;
     return false;
   };
 
@@ -540,7 +665,20 @@ export default function RegisterScreen() {
             onPress={handleRegister}
             disabled={isNextDisabled() || loading}
           >
-            <Text style={styles.primaryBtnText}>{loading ? 'Setting up...' : 'Complete Registration'}</Text>
+            <Text style={styles.primaryBtnText}>
+              {loading ? (t('register.creating') || 'Creating Account...') : (t('register.completeRegBtn') || 'Complete Registration')}
+            </Text>
+          </TouchableOpacity>
+        ) : step === 3 ? (
+          <TouchableOpacity 
+            activeOpacity={0.8}
+            style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]} 
+            onPress={handleNext}
+            disabled={isNextDisabled() || loading}
+          >
+            <Text style={styles.primaryBtnText}>
+              {loading ? (t('login.sendingOtp') || 'Sending OTP...') : (t('register.sendOtpBtn') || 'Send OTP & Verify')}
+            </Text>
           </TouchableOpacity>
         ) : (
           <TouchableOpacity 
@@ -549,7 +687,7 @@ export default function RegisterScreen() {
             onPress={handleNext}
             disabled={isNextDisabled()}
           >
-            <Text style={styles.primaryBtnText}>Continue</Text>
+            <Text style={styles.primaryBtnText}>{t('register.continueBtn') || 'Continue'}</Text>
           </TouchableOpacity>
         )}
         
@@ -619,6 +757,13 @@ const styles = StyleSheet.create({
 
   warningBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', padding: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1.5, borderColor: '#FEE2E2' },
   warningTitle: { fontSize: 15, fontWeight: '700', color: '#991B1B' },
+
+  phoneBadgeContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#EFF6FF', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1.5, borderColor: '#DBEAFE' },
+  phoneBadgeText: { fontSize: 15, fontWeight: '700', color: '#1E40AF' },
+  editPhoneText: { fontSize: 13, fontWeight: '700', color: '#2563EB', textDecorationLine: 'underline' },
+  resendRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8, marginBottom: 20 },
+  timerText: { color: '#64748B', fontSize: 14, fontWeight: '500' },
+  resendLink: { color: '#2563EB', fontSize: 14, fontWeight: '700' },
 
   footer: { paddingHorizontal: 24, paddingBottom: Platform.OS === 'ios' ? 24 : 32, paddingTop: 16, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#F8FAFC' },
   primaryBtn: { backgroundColor: '#2563EB', height: 56, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },

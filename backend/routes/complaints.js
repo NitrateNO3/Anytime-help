@@ -352,7 +352,7 @@ router.get('/', auth, async (req, res) => {
       .lean();
     
     const pageNum = parseInt(page || '1', 10);
-    const limitNum = Math.min(parseInt(limit || '15', 10), 20); // Enforce max limit of 20
+    const limitNum = Math.min(parseInt(limit || '15', 10), 100); // Enforce max limit of 100
     const startIndex = (pageNum - 1) * limitNum;
     
     if (req.query.all !== 'true') {
