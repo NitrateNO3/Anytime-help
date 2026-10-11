@@ -114,11 +114,15 @@ router.post('/register', async (req, res) => {
       io.emit('user_created', user);
     }
 
-    // Do NOT return JWT token so user is not automatically logged in
-    res.json({ 
-      success: true, 
-      msg: 'Registration successful! Please login.', 
-      user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number } 
+    // Return token so legacy APKs don't throw on SecureStore.setItemAsync('userToken', token)
+    const payload = { user: { id: user.id, role: user.role } };
+    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (jwtErr, token) => {
+      res.json({ 
+        success: true, 
+        msg: 'Registration successful! Please login.', 
+        token: token || 'registered',
+        user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number } 
+      });
     });
   } catch (err) {
     console.error(err.message);
