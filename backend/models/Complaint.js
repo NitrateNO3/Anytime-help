@@ -96,7 +96,7 @@ const complaintSchema = new mongoose.Schema({
   },
 });
 
-complaintSchema.pre('save', async function (next) {
+complaintSchema.pre('save', async function () {
   if (this.isNew && !this.complaint_id) {
     try {
       const Counter = require('./Counter');
@@ -112,7 +112,6 @@ complaintSchema.pre('save', async function (next) {
       this.complaint_id = `AH-${Date.now().toString().slice(-4)}${randomPart}`;
     }
   }
-  next();
 });
 
 complaintSchema.index({ user: 1 });

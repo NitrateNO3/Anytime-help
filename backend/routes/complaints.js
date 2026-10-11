@@ -458,7 +458,7 @@ router.post('/:id/escalate', auth, async (req, res) => {
       complaint.escalated_at = null;
     } else {
       complaint.is_escalated = true;
-      complaint.escalated_by = req.user.id;
+      complaint.escalated_by = req.user._id || req.user.id;
       complaint.escalated_at = new Date();
       complaint.priority = 'High';
       if (reason) complaint.escalation_reason = reason;
