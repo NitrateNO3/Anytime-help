@@ -54,6 +54,67 @@ export default function ComplaintDetails() {
   const [showDropdown, setShowDropdown] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [complaintCoords, setComplaintCoords] = useState<{latitude: number, longitude: number} | null>(null);
+  const [isEscalating, setIsEscalating] = useState(false);
+
+  const handleEscalate = async () => {
+    if (!complaint) return;
+    if (complaint.is_escalated) {
+      Alert.alert(
+        'Already Escalated',
+        `This complaint was already escalated by ${complaint.escalated_by?.name || 'a member'}. Do you want to de-escalate it?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'De-escalate',
+            style: 'destructive',
+            onPress: async () => {
+              try {
+                setIsEscalating(true);
+                const token = await SecureStore.getItemAsync('userToken');
+                const res = await axios.post(`${API_URL}/complaints/${id}/escalate`, { deescalate: true }, {
+                  headers: { 'x-auth-token': token }
+                });
+                setComplaint(res.data);
+                Toast.show({ type: 'success', text1: 'De-escalated', text2: 'Escalation status removed' });
+              } catch (err: any) {
+                Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to update' });
+              } finally {
+                setIsEscalating(false);
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Escalate Complaint',
+      'Are you sure you want to escalate this complaint? It will be highlighted in red, pinned to the top of task lists, and notify all staff and admins with your name.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: '🔥 Yes, Escalate',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsEscalating(true);
+              const token = await SecureStore.getItemAsync('userToken');
+              const res = await axios.post(`${API_URL}/complaints/${id}/escalate`, {}, {
+                headers: { 'x-auth-token': token }
+              });
+              setComplaint(res.data);
+              Toast.show({ type: 'success', text1: '🔥 Complaint Escalated!', text2: 'Staff and Admins notified.' });
+            } catch (err: any) {
+              Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to escalate' });
+            } finally {
+              setIsEscalating(false);
+            }
+          }
+        }
+      ]
+    );
+  };
 
   useEffect(() => {
     fetchComplaintDetails();
@@ -353,6 +414,43 @@ export default function ComplaintDetails() {
           ) : null}
         </View>
 
+        {/* Escalated Alert Banner */}
+        {complaint.is_escalated && (
+          <View style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#FEF2F2',
+            borderWidth: 1.5,
+            borderColor: '#EF4444',
+            borderRadius: 14,
+            padding: 14,
+            marginBottom: 16,
+            shadowColor: '#EF4444',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 6,
+            elevation: 2,
+            gap: 10
+          }}>
+            <View style={{ backgroundColor: '#EF4444', padding: 8, borderRadius: 20 }}>
+              <Ionicons name="flame" size={20} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 14, fontWeight: '800', color: '#B91C1C', letterSpacing: 0.5 }}>
+                ESCALATED COMPLAINT
+              </Text>
+              <Text style={{ fontSize: 12, fontWeight: '600', color: '#991B1B', marginTop: 2 }}>
+                Escalated by: {complaint.escalated_by?.name || 'Member'}
+              </Text>
+              {complaint.escalated_at && (
+                <Text style={{ fontSize: 11, color: '#DC2626', marginTop: 2 }}>
+                  {new Date(complaint.escalated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
         {/* Title and Badge */}
         <View style={[styles.titleRow, { zIndex: 100, elevation: 10 }]}>
           <Text style={styles.title}>{t(`categories.${complaint.title}`, { defaultValue: complaint.title })}</Text>
@@ -495,6 +593,51 @@ export default function ComplaintDetails() {
             </View>
           </View>
         )}
+
+        {/* Escalate Action Button */}
+        <TouchableOpacity
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: complaint.is_escalated ? '#FEF2F2' : '#DC2626',
+            borderWidth: complaint.is_escalated ? 1.5 : 0,
+            borderColor: '#EF4444',
+            paddingVertical: 14,
+            borderRadius: 14,
+            marginTop: 4,
+            marginBottom: 20,
+            gap: 8,
+            shadowColor: '#DC2626',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: complaint.is_escalated ? 0.05 : 0.25,
+            shadowRadius: 8,
+            elevation: 3
+          }}
+          onPress={handleEscalate}
+          disabled={isEscalating}
+          activeOpacity={0.8}
+        >
+          {isEscalating ? (
+            <ActivityIndicator size="small" color={complaint.is_escalated ? '#DC2626' : '#FFFFFF'} />
+          ) : (
+            <>
+              <Ionicons 
+                name={complaint.is_escalated ? "flame" : "flame-outline"} 
+                size={20} 
+                color={complaint.is_escalated ? '#DC2626' : '#FFFFFF'} 
+              />
+              <Text style={{
+                fontSize: 15,
+                fontWeight: '700',
+                color: complaint.is_escalated ? '#DC2626' : '#FFFFFF',
+                letterSpacing: 0.3
+              }}>
+                {complaint.is_escalated ? 'Escalated (Tap to manage)' : '🔥 Escalate Complaint'}
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         {/* Reported By */}
         {complaint.user?.name ? (

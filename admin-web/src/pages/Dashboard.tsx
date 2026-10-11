@@ -730,27 +730,44 @@ export default function Dashboard() {
                   </tr>
                 ) : (
                   complaints.map(item => (
-                    <tr key={item._id}>
+                    <tr key={item._id} style={{ background: item.is_escalated ? 'rgba(239, 68, 68, 0.04)' : undefined }}>
                       <td 
                         style={{ whiteSpace: 'nowrap', cursor: 'pointer' }}
                         onClick={() => openComplaintDetails(item)}
                         title="Click to view details"
                       >
-                        <span style={{ 
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          fontSize: 12, 
-                          fontFamily: 'monospace', 
-                          fontWeight: 700, 
-                          background: '#EEF2FF', 
-                          color: '#4338CA', 
-                          padding: '3px 8px', 
-                          borderRadius: 6, 
-                          border: '1px solid #C7D2FE',
-                          letterSpacing: '0.5px'
-                        }}>
-                          {item.complaint_id || `#AH-${item._id.slice(-5).toUpperCase()}`}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
+                          <span style={{ 
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            fontSize: 12, 
+                            fontFamily: 'monospace', 
+                            fontWeight: 700, 
+                            background: '#EEF2FF', 
+                            color: '#4338CA', 
+                            padding: '3px 8px', 
+                            borderRadius: 6, 
+                            border: '1px solid #C7D2FE',
+                            letterSpacing: '0.5px'
+                          }}>
+                            {item.complaint_id || `#AH-${item._id.slice(-5).toUpperCase()}`}
+                          </span>
+                          {item.is_escalated && (
+                            <span style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              fontSize: 10,
+                              fontWeight: 800,
+                              background: '#FEF2F2',
+                              color: '#DC2626',
+                              border: '1px solid #FCA5A5',
+                              padding: '2px 6px',
+                              borderRadius: 4
+                            }} title={item.escalated_by?.name ? `Escalated by ${item.escalated_by.name}` : 'Escalated'}>
+                              🔥 ESCALATED
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td 
                         style={{ maxWidth: 280, cursor: 'pointer' }}
@@ -910,6 +927,29 @@ export default function Dashboard() {
               <button className="modal-close" onClick={() => setSelectedComplaint(null)}><X size={20} /></button>
             </div>
             <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '20px' }}>
+              {selectedComplaint.is_escalated && (
+                <div style={{
+                  background: '#FEF2F2',
+                  border: '1px solid #FCA5A5',
+                  borderRadius: 10,
+                  padding: '10px 14px',
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10
+                }}>
+                  <span style={{ fontSize: 20 }}>🔥</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#DC2626' }}>
+                      ESCALATED COMPLAINT
+                    </div>
+                    <div style={{ fontSize: 12, color: '#991B1B', marginTop: 2 }}>
+                      Escalated by Member: {selectedComplaint.escalated_by?.name || 'Member'}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div style={{ marginBottom: 20 }}>
                 <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: 'var(--text-main)' }}>{selectedComplaint.title}</h3>
                 <p style={{ fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6, background: '#f8fafc', padding: 16, borderRadius: 12 }}>

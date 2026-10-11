@@ -457,6 +457,49 @@ export default function TaskDetailsScreen() {
       </View>
 
       <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
+        {/* Escalated Alert Banner for Staff */}
+        {complaint.is_escalated && (
+          <View style={{
+            backgroundColor: '#FEF2F2',
+            borderWidth: 1.5,
+            borderColor: '#EF4444',
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 16,
+            shadowColor: '#EF4444',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.12,
+            shadowRadius: 8,
+            elevation: 3
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{ backgroundColor: '#EF4444', width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' }}>
+                <Ionicons name="flame" size={22} color="#FFFFFF" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: '#B91C1C', letterSpacing: 0.5 }}>
+                  URGENT: TASK ESCALATED
+                </Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#991B1B', marginTop: 2 }}>
+                  Escalated by Member: {complaint.escalated_by?.name || 'Member'}
+                </Text>
+              </View>
+            </View>
+            <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#FCA5A5' }}>
+              {complaint.escalated_at && (
+                <Text style={{ fontSize: 12, color: '#B91C1C', fontWeight: '500' }}>
+                  🕒 Escalated At: {new Date(complaint.escalated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                </Text>
+              )}
+              {complaint.escalated_by?.phone && (
+                <Text style={{ fontSize: 12, color: '#991B1B', fontWeight: '600', marginTop: 3 }}>
+                  📞 Member Phone: {complaint.escalated_by.phone}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
+
         <View style={styles.card}>
           {/* Complaint ID & Date Tag */}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>

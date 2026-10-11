@@ -76,6 +76,20 @@ const complaintSchema = new mongoose.Schema({
     sparse: true,
     index: true
   },
+  is_escalated: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  escalated_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  escalated_at: {
+    type: Date,
+    default: null
+  },
   created_at: {
     type: Date,
     default: Date.now,

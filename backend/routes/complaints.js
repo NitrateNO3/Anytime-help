@@ -354,8 +354,9 @@ router.get('/', auth, async (req, res) => {
       .select('-__v')
       .populate('user', 'name phone_number address room_number phase relation')
       .populate('assigned_staff', 'name phone_number address room_number phase')
+      .populate('escalated_by', 'name phone_number phone role')
       .populate('replies.user', 'name role')
-      .sort({ created_at: sortDirection })
+      .sort({ is_escalated: -1, created_at: sortDirection })
       .lean();
     
     const pageNum = parseInt(page || '1', 10);
@@ -416,6 +417,7 @@ router.get('/:id', auth, async (req, res) => {
       .select('-__v')
       .populate('user', 'name phone_number address room_number phase relation')
       .populate('assigned_staff', 'name phone_number address room_number phase')
+      .populate('escalated_by', 'name phone_number phone role')
       .populate('replies.user', 'name role')
       .lean();
     if (!complaint) {
@@ -432,6 +434,96 @@ router.get('/:id', auth, async (req, res) => {
     }
 
     res.json(complaint);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// POST /api/complaints/:id/escalate
+router.post('/:id/escalate', auth, async (req, res) => {
+  try {
+    const complaint = await Complaint.findById(req.params.id);
+    if (!complaint) return res.status(404).json({ message: 'Complaint not found' });
+
+    // Allow Member, Admin, SubAdmin
+    if (req.user.role !== 'Member' && req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
+      return res.status(403).json({ message: 'Only Members or Admins can escalate complaints' });
+    }
+
+    const { deescalate, reason } = req.body || {};
+
+    if (deescalate) {
+      complaint.is_escalated = false;
+      complaint.escalated_by = null;
+      complaint.escalated_at = null;
+    } else {
+      complaint.is_escalated = true;
+      complaint.escalated_by = req.user.id;
+      complaint.escalated_at = new Date();
+      complaint.priority = 'High';
+      if (reason) complaint.escalation_reason = reason;
+    }
+
+    await complaint.save();
+
+    const populatedComplaint = await Complaint.findById(complaint._id)
+      .select('-__v')
+      .populate('user', 'name phone_number address room_number phase relation')
+      .populate('assigned_staff', 'name phone_number address room_number phase')
+      .populate('escalated_by', 'name phone_number phone role')
+      .populate('replies.user', 'name role')
+      .lean();
+
+    // Emit socket event
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('complaint_changed', { action: 'update', data: populatedComplaint });
+    }
+
+    // If escalated, send push notification to Staff and Admins
+    if (!deescalate) {
+      try {
+        const memberName = req.user.name || 'Member';
+        const targetUsers = await User.find({
+          $or: [
+            { role: 'Admin' },
+            { role: 'SubAdmin' },
+            { role: 'Staff' }
+          ],
+          expoPushToken: { $exists: true, $ne: '' }
+        }).select('expoPushToken role phase assigned_category assigned_categories unread_notifications').lean();
+
+        const eligibleUsers = targetUsers.filter(u => {
+          if (u.role === 'Staff') {
+            const cats = u.assigned_categories && u.assigned_categories.length > 0 ? u.assigned_categories : (u.assigned_category ? [u.assigned_category] : []);
+            if (cats.length > 0 && !cats.includes('All') && !cats.includes(complaint.category)) {
+              return false;
+            }
+          }
+          return true;
+        });
+
+        if (eligibleUsers.length > 0) {
+          const userIds = eligibleUsers.map(u => u._id);
+          await User.updateMany({ _id: { $in: userIds } }, { $inc: { unread_notifications: 1 } });
+          const tokens = eligibleUsers.map(u => ({
+            to: u.expoPushToken,
+            badge: (u.unread_notifications || 0) + 1
+          }));
+          const { sendPushNotifications } = require('../utils/push');
+          sendPushNotifications(
+            tokens,
+            `🔥 ESCALATED: #${complaint.complaint_id || 'AH'} ${complaint.title}`,
+            `Escalated by Member: ${memberName}. Urgent attention requested!`,
+            { type: 'complaint', id: complaint._id }
+          );
+        }
+      } catch (pushErr) {
+        console.error('Push notification error on escalate:', pushErr.message);
+      }
+    }
+
+    res.json(populatedComplaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

@@ -335,6 +335,10 @@ export default function MyComplaints() {
       return false;
     })
     .sort((a, b) => {
+       // Escalated complaints always show first
+       if (a.is_escalated && !b.is_escalated) return -1;
+       if (!a.is_escalated && b.is_escalated) return 1;
+
        const statusOrder = { 'PENDING': 0, 'IN_PROGRESS': 1, 'RESOLVED': 2, 'DONE': 2 };
        const statusA = (statusOrder as any)[a.status] !== undefined ? (statusOrder as any)[a.status] : 0;
        const statusB = (statusOrder as any)[b.status] !== undefined ? (statusOrder as any)[b.status] : 0;
@@ -494,7 +498,10 @@ export default function MyComplaints() {
             return (
               <TouchableOpacity 
                 key={item._id} 
-                style={styles.card} 
+                style={[
+                  styles.card,
+                  item.is_escalated && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FFF5F5' }
+                ]} 
                 activeOpacity={0.8}
                 onPress={() => router.push(`/member/complaint-details?id=${item._id}` as any)}
               >
@@ -507,10 +514,20 @@ export default function MyComplaints() {
                 <View style={styles.cardContent}>
                   {/* Complaint ID & Date Row */}
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                    <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#E0E7FF' }}>
-                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#4338CA', letterSpacing: 0.5 }}>
-                        {item.complaint_id || `#AH-${item._id?.slice(-5).toUpperCase()}`}
-                      </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#E0E7FF' }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#4338CA', letterSpacing: 0.5 }}>
+                          {item.complaint_id || `#AH-${item._id?.slice(-5).toUpperCase()}`}
+                        </Text>
+                      </View>
+                      {item.is_escalated && (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#FCA5A5', gap: 3 }}>
+                          <Ionicons name="flame" size={11} color="#DC2626" />
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: '#DC2626', letterSpacing: 0.5 }}>
+                            ESCALATED
+                          </Text>
+                        </View>
+                      )}
                     </View>
                     {item.created_at ? (
                       <Text style={{ fontSize: 11, color: '#94A3B8' }}>
@@ -518,6 +535,12 @@ export default function MyComplaints() {
                       </Text>
                     ) : null}
                   </View>
+
+                  {item.is_escalated && item.escalated_by?.name ? (
+                    <Text style={{ fontSize: 11, color: '#B91C1C', fontWeight: '700', marginBottom: 4 }}>
+                      ⚠️ Escalated by: {item.escalated_by.name}
+                    </Text>
+                  ) : null}
 
                   {/* Top Row: Title + Status Badge */}
                   <View style={styles.cardTopRow}>

@@ -127,6 +127,10 @@ export default function StaffScreen() {
       
       const sortComplaints = (list: any[]) => {
         return [...list].sort((a, b) => {
+          // Escalated complaints always show first
+          if (a.is_escalated && !b.is_escalated) return -1;
+          if (!a.is_escalated && b.is_escalated) return 1;
+
           const statusOrder: Record<string, number> = { 'PENDING': 1, 'IN_PROGRESS': 2, 'RESOLVED': 3, 'DONE': 3 };
           const orderA = statusOrder[a.status] || 4;
           const orderB = statusOrder[b.status] || 4;
@@ -638,10 +642,28 @@ export default function StaffScreen() {
               complaints.map((item) => (
                 <TouchableOpacity 
                   key={item._id} 
-                  style={styles.card}
+                  style={[
+                    styles.card,
+                    item.is_escalated && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FFF5F5' }
+                  ]}
                   activeOpacity={0.8}
                   onPress={() => router.push(`/task-details?id=${item._id}`)}
                 >
+                  {/* Escalated Header Banner for Staff */}
+                  {item.is_escalated && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: '#FCA5A5', marginBottom: 10, gap: 6 }}>
+                      <Ionicons name="flame" size={15} color="#DC2626" />
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#DC2626', letterSpacing: 0.5 }}>
+                        ESCALATED
+                      </Text>
+                      {item.escalated_by?.name && (
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#991B1B', marginLeft: 'auto' }}>
+                          By: {item.escalated_by.name}
+                        </Text>
+                      )}
+                    </View>
+                  )}
+
                   <View style={[styles.cardHeader, { marginBottom: 10 }]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#E0E7FF' }}>
