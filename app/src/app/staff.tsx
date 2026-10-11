@@ -642,9 +642,16 @@ export default function StaffScreen() {
                   activeOpacity={0.8}
                   onPress={() => router.push(`/task-details?id=${item._id}`)}
                 >
-                  <View style={styles.cardHeader}>
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{item.priority}</Text>
+                  <View style={[styles.cardHeader, { marginBottom: 10 }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#E0E7FF' }}>
+                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#4338CA', letterSpacing: 0.5 }}>
+                          {item.complaint_id || `#AH-${item._id?.slice(-5).toUpperCase()}`}
+                        </Text>
+                      </View>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>{item.priority}</Text>
+                      </View>
                     </View>
                     <Text style={[
                       styles.statusText, 

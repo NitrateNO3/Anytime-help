@@ -505,6 +505,20 @@ export default function MyComplaints() {
                 ) : null}
 
                 <View style={styles.cardContent}>
+                  {/* Complaint ID & Date Row */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: '#E0E7FF' }}>
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#4338CA', letterSpacing: 0.5 }}>
+                        {item.complaint_id || `#AH-${item._id?.slice(-5).toUpperCase()}`}
+                      </Text>
+                    </View>
+                    {item.created_at ? (
+                      <Text style={{ fontSize: 11, color: '#94A3B8' }}>
+                        {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </Text>
+                    ) : null}
+                  </View>
+
                   {/* Top Row: Title + Status Badge */}
                   <View style={styles.cardTopRow}>
                     <View style={{ flex: 1, paddingRight: 8 }}>

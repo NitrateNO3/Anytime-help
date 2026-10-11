@@ -70,10 +70,35 @@ const complaintSchema = new mongoose.Schema({
     ref: 'User'
   }],
   replies: [replySchema],
+  complaint_id: {
+    type: String,
+    unique: true,
+    sparse: true,
+    index: true
+  },
   created_at: {
     type: Date,
     default: Date.now,
   },
+});
+
+complaintSchema.pre('save', async function (next) {
+  if (this.isNew && !this.complaint_id) {
+    try {
+      const Counter = require('./Counter');
+      const counter = await Counter.findByIdAndUpdate(
+        'complaint_id',
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+      this.complaint_id = `AH-${counter.seq}`;
+    } catch (err) {
+      console.error('Counter error in complaint pre-save:', err);
+      const randomPart = Math.floor(1000 + Math.random() * 9000);
+      this.complaint_id = `AH-${Date.now().toString().slice(-4)}${randomPart}`;
+    }
+  }
+  next();
 });
 
 complaintSchema.index({ user: 1 });

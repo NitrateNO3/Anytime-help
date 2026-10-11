@@ -207,7 +207,8 @@ router.get('/', auth, async (req, res) => {
         { title: { $regex: s, $options: 'i' } },
         { description: { $regex: s, $options: 'i' } },
         { location: { $regex: s, $options: 'i' } },
-        { address: { $regex: s, $options: 'i' } }
+        { address: { $regex: s, $options: 'i' } },
+        { complaint_id: { $regex: s, $options: 'i' } }
       ];
 
       try {

@@ -241,7 +241,8 @@ export default function ComplaintDetails() {
       searchQ = encodeURIComponent(locStr);
     }
     const mapUrl = `https://www.google.com/maps/search/?api=1&query=${searchQ}`;
-    const text = `*Anytime Help - Grievance Location*\n📌 *Issue:* ${complaint?.title || 'Complaint'}\n📍 *Address:* ${locStr || 'N/A'}\n🗺️ *Google Maps:* ${mapUrl}`;
+    const compId = complaint?.complaint_id || (complaint?._id ? `#AH-${complaint._id.slice(-5).toUpperCase()}` : '');
+    const text = `*Anytime Help - Grievance Location*\n🆔 *Complaint ID:* ${compId}\n📌 *Issue:* ${complaint?.title || 'Complaint'}\n📍 *Address:* ${locStr || 'N/A'}\n🗺️ *Google Maps:* ${mapUrl}`;
     const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(text)}`;
 
     try {
@@ -337,6 +338,21 @@ export default function ComplaintDetails() {
           keyboardShouldPersistTaps="handled"
         >
         
+        {/* ID & Date Badge */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE' }}>
+            <Ionicons name="pricetag-outline" size={13} color="#4338CA" style={{ marginRight: 5 }} />
+            <Text style={{ fontSize: 13, fontWeight: '800', color: '#4338CA', letterSpacing: 0.5 }}>
+              {complaint.complaint_id || `#AH-${complaint._id?.slice(-5).toUpperCase()}`}
+            </Text>
+          </View>
+          {complaint.created_at ? (
+            <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>
+              {new Date(complaint.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            </Text>
+          ) : null}
+        </View>
+
         {/* Title and Badge */}
         <View style={[styles.titleRow, { zIndex: 100, elevation: 10 }]}>
           <Text style={styles.title}>{t(`categories.${complaint.title}`, { defaultValue: complaint.title })}</Text>
