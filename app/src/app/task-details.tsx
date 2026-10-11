@@ -43,13 +43,17 @@ export default function TaskDetailsScreen() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
+  const [searchNotFound, setSearchNotFound] = useState(false);
+  const [isLocatingUser, setIsLocatingUser] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const manualInputRef = React.useRef<TextInput>(null);
 
   const typingTimer = React.useRef<any>(null);
 
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
+    if (searchNotFound) setSearchNotFound(false);
     
     if (typingTimer.current) clearTimeout(typingTimer.current);
     
@@ -74,6 +78,7 @@ export default function TaskDetailsScreen() {
   const handleSelectSuggestion = (item: any) => {
     setSearchQuery(item.display_name);
     setShowSuggestions(false);
+    setSearchNotFound(false);
     const coords = { latitude: parseFloat(item.lat), longitude: parseFloat(item.lon) };
     setStaffLocationObj(coords);
     const newReg = { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 };
@@ -85,6 +90,7 @@ export default function TaskDetailsScreen() {
   const searchLocationOnMap = async () => {
     if (!searchQuery.trim()) return;
     setIsSearchingLocation(true);
+    setSearchNotFound(false);
     try {
       const res = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(searchQuery)}&format=json&limit=1`, {
         headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
@@ -97,13 +103,61 @@ export default function TaskDetailsScreen() {
         setStaffMapRegion(newReg);
         mapRef.current?.animateToRegion(coords);
         fetchReadableAddress(coords.latitude, coords.longitude);
+        setSearchNotFound(false);
       } else {
-        Alert.alert('Not Found', 'Could not find this location on map.');
+        setSearchNotFound(true);
+        if (!staffLocationAddress.trim()) {
+          setStaffLocationAddress(searchQuery.trim());
+        }
+        Alert.alert(
+          'Location Not Found on Map',
+          'Could not find this place on the map. You can type your exact address manually in the "Resolution Address" field below.',
+          [
+            { 
+              text: 'Type Manually', 
+              onPress: () => {
+                setTimeout(() => manualInputRef.current?.focus(), 300);
+              } 
+            },
+            { text: 'OK' }
+          ]
+        );
       }
     } catch (e) {
-      Alert.alert('Error', 'Failed to search location.');
+      setSearchNotFound(true);
+      if (!staffLocationAddress.trim()) {
+        setStaffLocationAddress(searchQuery.trim());
+      }
+      Alert.alert(
+        'Search Notice',
+        'Could not search location. You can enter your address manually in the field below.'
+      );
     } finally {
       setIsSearchingLocation(false);
+    }
+  };
+
+  const getCurrentStaffLocation = async () => {
+    try {
+      setIsLocatingUser(true);
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Please allow location permission in phone settings to fetch your GPS position.');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+      setStaffLocationObj(coords);
+      setStaffMapRegion(prev => ({ ...prev, ...coords }));
+      mapRef.current?.animateToRegion(coords);
+      fetchReadableAddress(coords.latitude, coords.longitude);
+      setSearchNotFound(false);
+      Toast.show({ type: 'success', text1: 'GPS Located', text2: 'Location updated to current position.' });
+    } catch (err) {
+      console.log('Error getting current location:', err);
+      Alert.alert('GPS Notice', 'Could not get current GPS location. You can enter your address manually below.');
+    } finally {
+      setIsLocatingUser(false);
     }
   };
 
@@ -114,6 +168,17 @@ export default function TaskDetailsScreen() {
 
   const initStaffLocation = async () => {
     try {
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (status === 'granted') {
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null);
+        if (loc) {
+          const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+          setStaffLocationObj(coords);
+          setStaffMapRegion(prev => ({ ...prev, ...coords }));
+          fetchReadableAddress(coords.latitude, coords.longitude);
+          return;
+        }
+      }
       const coords = { latitude: 28.4510, longitude: 77.0784 }; // Default Sushant Lok 2
       setStaffLocationObj(coords);
       setStaffMapRegion({
@@ -156,6 +221,23 @@ export default function TaskDetailsScreen() {
       
       if (found) {
         setComplaint(found);
+        
+        // Populate existing resolution data if present
+        if (found.after_image) {
+          const resData = parseResolutionData(found.after_image);
+          if (resData) {
+            if (resData.location) {
+              setStaffLocationObj(resData.location);
+              setStaffMapRegion(prev => ({ ...prev, ...resData.location }));
+            }
+            if (resData.address) {
+              setStaffLocationAddress(resData.address);
+            }
+            if (resData.note) {
+              setStaffNote(resData.note);
+            }
+          }
+        }
         
         // Attempt to geocode complaint location
         if (found.location || found.address) {
@@ -217,15 +299,15 @@ export default function TaskDetailsScreen() {
       let updatePayload: any = { status: newStatus };
       
       // Always save the latest description and location when marking as DONE
-      if (newStatus === 'DONE' && staffLocationObj) {
+      if (newStatus === 'DONE') {
          const existingResData = parseResolutionData(complaint.after_image);
          updatePayload.after_image = JSON.stringify({
             uri: existingResData ? existingResData.uri : null,
-            location: {
+            location: staffLocationObj ? {
                 latitude: staffLocationObj.latitude,
                 longitude: staffLocationObj.longitude
-            },
-            address: staffLocationAddress,
+            } : null,
+            address: staffLocationAddress.trim(),
             note: staffNote.trim()
          });
       }
@@ -249,8 +331,8 @@ export default function TaskDetailsScreen() {
   };
 
   const handleTakePhoto = async () => {
-    if (!staffLocationObj) {
-       Alert.alert('Location Required', 'Please wait for your location to load or ensure location services are enabled.');
+    if (!staffLocationObj && !staffLocationAddress.trim()) {
+       Alert.alert('Location Required', 'Please select a location on map or enter your address manually.');
        return;
     }
 
@@ -276,11 +358,11 @@ export default function TaskDetailsScreen() {
         // Bundle image and selected location
         const payload = JSON.stringify({
             uri: base64Image,
-            location: {
+            location: staffLocationObj ? {
                 latitude: staffLocationObj.latitude,
                 longitude: staffLocationObj.longitude
-            },
-            address: staffLocationAddress,
+            } : null,
+            address: staffLocationAddress.trim(),
             note: staffNote.trim()
         });
         setConfirmPhotoPayload(payload);
@@ -556,13 +638,15 @@ export default function TaskDetailsScreen() {
             <Text style={styles.sectionTitle}>{resolutionData ? 'Resolved at Location' : 'Select Resolution Location'}</Text>
             {!resolutionData && (
               <>
-                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>
-                  Search or drag the map to select where the issue was resolved.
+                <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 10 }}>
+                  Search on map or drag pin. If location is not found, you can type it manually below.
                 </Text>
-                <View style={{ width: '100%', marginBottom: 12, zIndex: 999, elevation: 999 }}>
+
+                {/* Search Input Row */}
+                <View style={{ width: '100%', marginBottom: 10, zIndex: 999, elevation: 999 }}>
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TextInput
-                      style={{ flex: 1, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 8, paddingHorizontal: 12, height: 44 }}
+                      style={{ flex: 1, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 10, paddingHorizontal: 12, height: 44, fontSize: 14, color: '#111827' }}
                       placeholder="Search location (e.g. Sushant Lok 2)"
                       placeholderTextColor="#9CA3AF"
                       value={searchQuery}
@@ -571,15 +655,16 @@ export default function TaskDetailsScreen() {
                       onFocus={() => { if(suggestions.length > 0) setShowSuggestions(true); }}
                     />
                     <TouchableOpacity 
-                      style={{ backgroundColor: '#3B82F6', borderRadius: 8, paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center' }}
+                      style={{ backgroundColor: '#3B82F6', borderRadius: 10, paddingHorizontal: 16, justifyContent: 'center', alignItems: 'center' }}
                       onPress={searchLocationOnMap}
                       disabled={isSearchingLocation}
                     >
                       {isSearchingLocation ? <ActivityIndicator color="#FFF" size="small" /> : <Ionicons name="search" size={20} color="#FFF" />}
                     </TouchableOpacity>
                   </View>
+
                   {showSuggestions && suggestions.length > 0 && (
-                    <View style={{ position: 'absolute', top: 50, left: 0, right: 0, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5, zIndex: 20 }}>
+                    <View style={{ position: 'absolute', top: 48, left: 0, right: 0, backgroundColor: '#FFF', borderRadius: 8, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 5, zIndex: 20 }}>
                       {suggestions.map((item, idx) => (
                         <TouchableOpacity 
                           key={idx} 
@@ -592,6 +677,42 @@ export default function TaskDetailsScreen() {
                     </View>
                   )}
                 </View>
+
+                {/* Quick GPS & Enter Manually Buttons */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <TouchableOpacity 
+                    onPress={getCurrentStaffLocation}
+                    disabled={isLocatingUser}
+                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, borderColor: '#BFDBFE' }}
+                  >
+                    {isLocatingUser ? (
+                      <ActivityIndicator size="small" color="#2563EB" style={{ marginRight: 6 }} />
+                    ) : (
+                      <Ionicons name="locate" size={16} color="#2563EB" style={{ marginRight: 6 }} />
+                    )}
+                    <Text style={{ fontSize: 12, color: '#1E40AF', fontWeight: '600' }}>
+                      {isLocatingUser ? 'Fetching GPS...' : 'My Current GPS'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    onPress={() => manualInputRef.current?.focus()}
+                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingVertical: 7, paddingHorizontal: 12, borderRadius: 8 }}
+                  >
+                    <Ionicons name="create-outline" size={15} color="#475569" style={{ marginRight: 5 }} />
+                    <Text style={{ fontSize: 12, color: '#475569', fontWeight: '600' }}>Type Manually</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Search not found alert card */}
+                {searchNotFound && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', padding: 10, borderRadius: 10, marginBottom: 12, borderWidth: 1, borderColor: '#FDE68A' }}>
+                    <Ionicons name="alert-circle" size={18} color="#D97706" style={{ marginRight: 8 }} />
+                    <Text style={{ fontSize: 12, color: '#92400E', flex: 1, lineHeight: 16 }}>
+                      Location map pe nahi mili. Aap neeche diye gaye box me apna exact flat/address manually likh sakte hain.
+                    </Text>
+                  </View>
+                )}
               </>
             )}
             
@@ -611,11 +732,65 @@ export default function TaskDetailsScreen() {
               />
             </View>
               
-              {staffLocationAddress ? (
-                <Text style={{ fontSize: 13, color: '#111827', fontWeight: '500', textAlign: 'center', marginTop: 12 }}>
-                  {staffLocationAddress}
+            {complaint.status !== 'DONE' ? (
+              <View style={{ marginTop: 14 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#1E293B' }}>
+                    Resolution Address / Location
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#2563EB', fontWeight: '600' }}>
+                    ✏️ Editable
+                  </Text>
+                </View>
+                
+                <View style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  backgroundColor: '#FFFFFF', 
+                  borderWidth: 1.5, 
+                  borderColor: searchNotFound ? '#F59E0B' : '#E2E8F0', 
+                  borderRadius: 12, 
+                  paddingHorizontal: 12, 
+                  paddingVertical: 8,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 2,
+                  elevation: 1
+                }}>
+                  <Ionicons name="location" size={20} color="#2563EB" style={{ marginRight: 8 }} />
+                  <TextInput
+                    ref={manualInputRef}
+                    style={{ flex: 1, fontSize: 14, color: '#0F172A', minHeight: 38, paddingVertical: 2 }}
+                    placeholder="Enter manual address (e.g. Flat 302, Block C, Gate 1)"
+                    placeholderTextColor="#94A3B8"
+                    value={staffLocationAddress}
+                    onChangeText={setStaffLocationAddress}
+                    multiline
+                  />
+                  {staffLocationAddress ? (
+                    <TouchableOpacity onPress={() => setStaffLocationAddress('')} style={{ padding: 4 }}>
+                      <Ionicons name="close-circle" size={18} color="#94A3B8" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+                <Text style={{ fontSize: 11, color: '#64748B', marginTop: 5, marginLeft: 2 }}>
+                  Map pe location na mile to yahan apna flat, block ya landmark manually type kar sakte hain.
                 </Text>
-              ) : null}
+              </View>
+            ) : (
+              (resolutionData?.address || staffLocationAddress) ? (
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 14, backgroundColor: '#FFFFFF', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#E2E8F0' }}>
+                  <Ionicons name="location" size={20} color="#10B981" style={{ marginRight: 8, marginTop: 2 }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '600', textTransform: 'uppercase' }}>Resolved Address</Text>
+                    <Text style={{ fontSize: 14, color: '#0F172A', fontWeight: '500', marginTop: 2 }}>
+                      {resolutionData?.address || staffLocationAddress}
+                    </Text>
+                  </View>
+                </View>
+              ) : null
+            )}
           </View>
         </View>
         <View style={{ height: 100 }} />
