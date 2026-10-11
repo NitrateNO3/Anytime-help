@@ -56,6 +56,13 @@
         }
       ],
       "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/logo.png",
+          "color": "#2563EB"
+        }
+      ],
       "expo-localization",
       "expo-font",
       "expo-image",

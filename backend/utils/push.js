@@ -24,7 +24,8 @@ const sendPushNotifications = async (tokensOrObjects, title, body, data = {}, de
       badgeVal = item.badge !== undefined ? item.badge : defaultBadge;
     }
 
-    if (tokenStr && tokenStr.startsWith('ExponentPushToken[') && !seenTokens.has(tokenStr)) {
+    const isValidExpoToken = tokenStr && (tokenStr.startsWith('ExponentPushToken[') || tokenStr.startsWith('ExpoPushToken['));
+    if (isValidExpoToken && !seenTokens.has(tokenStr)) {
       seenTokens.add(tokenStr);
       messages.push({
         to: tokenStr,
@@ -32,7 +33,10 @@ const sendPushNotifications = async (tokensOrObjects, title, body, data = {}, de
         title,
         body,
         data,
-        badge: badgeVal
+        badge: badgeVal,
+        channelId: 'default',
+        priority: 'high',
+        _displayInForeground: true
       });
     }
   }
@@ -57,7 +61,7 @@ const sendPushNotifications = async (tokensOrObjects, title, body, data = {}, de
           'Content-Type': 'application/json',
         }
       });
-      console.log(`Push notifications chunk sent (${chunk.length} messages)`);
+      console.log(`Push notifications chunk sent (${chunk.length} messages):`, JSON.stringify(response.data));
     } catch (error) {
       console.error('Error sending push notifications chunk:', error.message);
     }
