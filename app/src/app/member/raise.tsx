@@ -9,7 +9,7 @@ import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import * as SecureStore from 'expo-secure-store';
 import { LinearGradient } from 'expo-linear-gradient';
-import MapView, { Marker, Circle } from 'react-native-maps';
+import FreeMapView, { FreeMapViewRef } from '../../components/FreeMapView';
 import * as Location from 'expo-location';
 import { getLocalizedCategoryTitle, getLocalizedSubCategoryTitle } from '../../utils/localization';
 import { io } from 'socket.io-client';
@@ -56,14 +56,14 @@ export default function RaiseComplaint() {
     latitudeDelta: 0.005,
     longitudeDelta: 0.005,
   });
-  const mapRef = React.useRef<MapView>(null);
+  const mapRef = React.useRef<FreeMapViewRef>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchingLocation, setIsSearchingLocation] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const typingTimer = React.useRef<NodeJS.Timeout | null>(null);
+  const typingTimer = React.useRef<any>(null);
 
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
@@ -95,7 +95,7 @@ export default function RaiseComplaint() {
     setLocationObj(coords);
     const newReg = { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 };
     setMapRegion(newReg);
-    mapRef.current?.animateToRegion(newReg, 1000);
+    mapRef.current?.animateToRegion(coords);
     fetchReadableAddress(coords.latitude, coords.longitude);
   };
 
@@ -112,7 +112,7 @@ export default function RaiseComplaint() {
         setLocationObj(coords);
         const newReg = { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 };
         setMapRegion(newReg);
-        mapRef.current?.animateToRegion(newReg, 1000);
+        mapRef.current?.animateToRegion(coords);
         fetchReadableAddress(coords.latitude, coords.longitude);
       } else {
         Alert.alert('Not Found', 'Could not find this location on map.');
@@ -466,52 +466,37 @@ export default function RaiseComplaint() {
                   Select or search your location
                 </Text>
                 
-                <View style={{ width: '100%', height: 250, position: 'relative' }}>
-                  <MapView
+                <View style={{ width: '100%', height: 260, position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
+                  <FreeMapView
                     ref={mapRef}
-                    style={{ width: '100%', height: '100%' }}
-                    region={mapRegion}
-                    onRegionChangeComplete={(region) => {
-                      setMapRegion(region);
-                      setLocationObj({ latitude: region.latitude, longitude: region.longitude });
-                      fetchReadableAddress(region.latitude, region.longitude);
+                    latitude={locationObj?.latitude || mapRegion.latitude}
+                    longitude={locationObj?.longitude || mapRegion.longitude}
+                    circleRadius={150}
+                    interactive={true}
+                    onLocationChange={(coords) => {
+                      setLocationObj(coords);
+                      setMapRegion(prev => ({ ...prev, ...coords }));
+                      fetchReadableAddress(coords.latitude, coords.longitude);
                     }}
-                  >
-                    {locationObj && (
-                      <>
-                        <Circle
-                          center={locationObj}
-                          radius={150}
-                          fillColor="rgba(59, 130, 246, 0.15)"
-                          strokeColor="#3B82F6"
-                          strokeWidth={2}
-                        />
-                        <Marker coordinate={locationObj} />
-                      </>
-                    )}
-                  </MapView>
+                  />
 
                   {/* Zoom Controls Overlay */}
-                  <View style={{ position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10 }}>
+                  <View style={{ position: 'absolute', top: 10, left: 10, right: 10, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10, pointerEvents: 'box-none' }}>
                     <TouchableOpacity 
-                      style={{ backgroundColor: 'rgba(209, 213, 219, 0.9)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4 }}
+                      style={{ backgroundColor: 'rgba(255, 255, 255, 0.92)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, elevation: 3, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 }}
                       onPress={() => {
-                        const newReg = { ...mapRegion, latitudeDelta: mapRegion.latitudeDelta / 2, longitudeDelta: mapRegion.longitudeDelta / 2 };
-                        setMapRegion(newReg);
-                        mapRef.current?.animateToRegion(newReg, 500);
+                        mapRef.current?.zoomIn();
                       }}
                     >
-                      <Text style={{ color: '#4B5563', fontWeight: '600', fontSize: 14 }}>{t('raise.zoomIn')}</Text>
+                      <Text style={{ color: '#1E293B', fontWeight: '700', fontSize: 13 }}>{t('raise.zoomIn')}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity 
-                      style={{ backgroundColor: 'rgba(209, 213, 219, 0.9)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 4 }}
+                      style={{ backgroundColor: 'rgba(255, 255, 255, 0.92)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, elevation: 3, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2 }}
                       onPress={() => {
-                        const newReg = { ...mapRegion, latitudeDelta: mapRegion.latitudeDelta * 2, longitudeDelta: mapRegion.longitudeDelta * 2 };
-                        setMapRegion(newReg);
-                        mapRef.current?.animateToRegion(newReg, 500);
+                        mapRef.current?.zoomOut();
                       }}
                     >
-                      <Text style={{ color: '#4B5563', fontWeight: '600', fontSize: 14 }}>{t('raise.zoomOut')}</Text>
+                      <Text style={{ color: '#1E293B', fontWeight: '700', fontSize: 13 }}>{t('raise.zoomOut')}</Text>
                     </TouchableOpacity>
                   </View>
                 </View>

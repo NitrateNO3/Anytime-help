@@ -7,7 +7,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
-import MapView, { Marker } from 'react-native-maps';
+import FreeMapView, { FreeMapViewRef } from '../components/FreeMapView';
 import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 
@@ -35,7 +35,7 @@ export default function TaskDetailsScreen() {
     latitudeDelta: 0.005,
     longitudeDelta: 0.005,
   });
-  const mapRef = React.useRef<MapView>(null);
+  const mapRef = React.useRef<FreeMapViewRef>(null);
 
   // Status Modal State
   const [statusModalVisible, setStatusModalVisible] = useState(false);
@@ -46,7 +46,7 @@ export default function TaskDetailsScreen() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
-  const typingTimer = React.useRef<NodeJS.Timeout | null>(null);
+  const typingTimer = React.useRef<any>(null);
 
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
@@ -78,7 +78,7 @@ export default function TaskDetailsScreen() {
     setStaffLocationObj(coords);
     const newReg = { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 };
     setStaffMapRegion(newReg);
-    mapRef.current?.animateToRegion(newReg, 1000);
+    mapRef.current?.animateToRegion(coords);
     fetchReadableAddress(coords.latitude, coords.longitude);
   };
 
@@ -95,7 +95,7 @@ export default function TaskDetailsScreen() {
         setStaffLocationObj(coords);
         const newReg = { ...coords, latitudeDelta: 0.005, longitudeDelta: 0.005 };
         setStaffMapRegion(newReg);
-        mapRef.current?.animateToRegion(newReg, 1000);
+        mapRef.current?.animateToRegion(coords);
         fetchReadableAddress(coords.latitude, coords.longitude);
       } else {
         Alert.alert('Not Found', 'Could not find this location on map.');
@@ -399,17 +399,11 @@ export default function TaskDetailsScreen() {
           {complaintCoords && (
              <View style={{ marginBottom: 20 }}>
                <View style={{ width: '100%', height: 180, borderRadius: 12, overflow: 'hidden' }}>
-                  <MapView
-                     style={{ width: '100%', height: '100%' }}
-                     initialRegion={{
-                        latitude: complaintCoords.latitude,
-                        longitude: complaintCoords.longitude,
-                        latitudeDelta: 0.005,
-                        longitudeDelta: 0.005
-                     }}
-                  >
-                     <Marker coordinate={complaintCoords} />
-                  </MapView>
+                  <FreeMapView
+                    latitude={complaintCoords.latitude}
+                    longitude={complaintCoords.longitude}
+                    interactive={false}
+                  />
                </View>
                <View style={{ flexDirection: 'row', marginTop: 12, gap: 12 }}>
                  <TouchableOpacity 
@@ -601,24 +595,21 @@ export default function TaskDetailsScreen() {
               </>
             )}
             
-            <View style={{ width: '100%', height: 200, borderRadius: 12, overflow: 'hidden', position: 'relative', zIndex: -1 }}>
-              <MapView
+            <View style={{ width: '100%', height: 220, borderRadius: 12, overflow: 'hidden', position: 'relative' }}>
+              <FreeMapView
                 ref={mapRef}
-                style={{ width: '100%', height: '100%' }}
-                region={staffMapRegion}
-                onRegionChangeComplete={(region) => {
+                latitude={staffLocationObj?.latitude || staffMapRegion.latitude}
+                longitude={staffLocationObj?.longitude || staffMapRegion.longitude}
+                interactive={complaint.status !== 'DONE'}
+                onLocationChange={(coords) => {
                   if (complaint.status !== 'DONE') {
-                    setStaffMapRegion(region);
-                    setStaffLocationObj({ latitude: region.latitude, longitude: region.longitude });
-                    fetchReadableAddress(region.latitude, region.longitude);
+                    setStaffLocationObj(coords);
+                    setStaffMapRegion(prev => ({ ...prev, ...coords }));
+                    fetchReadableAddress(coords.latitude, coords.longitude);
                   }
                 }}
-              >
-                  {staffLocationObj && (
-                    <Marker coordinate={staffLocationObj} pinColor="red" />
-                  )}
-                </MapView>
-              </View>
+              />
+            </View>
               
               {staffLocationAddress ? (
                 <Text style={{ fontSize: 13, color: '#111827', fontWeight: '500', textAlign: 'center', marginTop: 12 }}>

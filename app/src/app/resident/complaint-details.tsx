@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-import MapView, { Marker } from 'react-native-maps';
+import FreeMapView from '../../components/FreeMapView';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 
@@ -322,19 +322,11 @@ export default function ComplaintDetails() {
                 ) : null}
 
                 <View style={{ width: '100%', height: 160, borderRadius: 12, overflow: 'hidden' }}>
-                  <MapView
-                    style={{ width: '100%', height: '100%' }}
-                    initialRegion={{
-                      latitude: resolutionData.location.latitude,
-                      longitude: resolutionData.location.longitude,
-                      latitudeDelta: 0.005,
-                      longitudeDelta: 0.005
-                    }}
-                    scrollEnabled={false}
-                    zoomEnabled={false}
-                  >
-                    <Marker coordinate={resolutionData.location} pinColor="green" />
-                  </MapView>
+                  <FreeMapView
+                    latitude={resolutionData.location.latitude}
+                    longitude={resolutionData.location.longitude}
+                    interactive={false}
+                  />
                 </View>
                 
                 <TouchableOpacity 
