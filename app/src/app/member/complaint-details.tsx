@@ -234,6 +234,45 @@ export default function ComplaintDetails() {
     }
   };
 
+  const shareLocationOnWhatsApp = async () => {
+    let searchQ = complaintCoords ? `${complaintCoords.latitude},${complaintCoords.longitude}` : '';
+    const locStr = complaint?.address || complaint?.location;
+    if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
+      searchQ = encodeURIComponent(locStr);
+    }
+    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${searchQ}`;
+    const text = `*Anytime Help - Grievance Location*\n📌 *Issue:* ${complaint?.title || 'Complaint'}\n📍 *Address:* ${locStr || 'N/A'}\n🗺️ *Google Maps:* ${mapUrl}`;
+    const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(text)}`;
+
+    try {
+      const supported = await Linking.canOpenURL(whatsappUrl);
+      if (supported) {
+        await Linking.openURL(whatsappUrl);
+      } else {
+        await Linking.openURL(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`).catch(async () => {
+          await Share.share({ message: text });
+        });
+      }
+    } catch (err) {
+      await Share.share({ message: text });
+    }
+  };
+
+  const shareLocationGeneral = async () => {
+    let searchQ = complaintCoords ? `${complaintCoords.latitude},${complaintCoords.longitude}` : '';
+    const locStr = complaint?.address || complaint?.location;
+    if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
+      searchQ = encodeURIComponent(locStr);
+    }
+    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${searchQ}`;
+    try {
+      await Share.share({ 
+        message: Platform.OS === 'android' ? `Location for grievance: ${mapUrl}` : 'Location for grievance',
+        url: Platform.OS === 'ios' ? mapUrl : undefined
+      });
+    } catch(e) {}
+  };
+
   if (loading || (complaint && complaint._id !== id)) {
     return (
       <SafeAreaView style={styles.safeArea}>
@@ -371,8 +410,27 @@ export default function ComplaintDetails() {
 
         {/* Location */}
         <View style={styles.locationContainer}>
-          <Ionicons name="location" size={20} color="#0F172A" />
-          <Text style={styles.locationText}>{complaint.location || complaint.address}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
+            <Ionicons name="location" size={20} color="#0F172A" />
+            <Text style={styles.locationText}>{complaint.location || complaint.address}</Text>
+          </View>
+          <TouchableOpacity 
+            style={{ 
+              flexDirection: 'row', 
+              alignItems: 'center', 
+              backgroundColor: '#DCFCE7', 
+              paddingHorizontal: 10, 
+              paddingVertical: 6, 
+              borderRadius: 8,
+              borderWidth: 1,
+              borderColor: '#86EFAC'
+            }}
+            onPress={shareLocationOnWhatsApp}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="logo-whatsapp" size={16} color="#16A34A" style={{ marginRight: 4 }} />
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>Share</Text>
+          </TouchableOpacity>
         </View>
 
         {complaintCoords && (
@@ -384,7 +442,7 @@ export default function ComplaintDetails() {
                 interactive={false}
               />
             </View>
-            <View style={{ flexDirection: 'row', marginTop: 12, gap: 12 }}>
+            <View style={{ flexDirection: 'row', marginTop: 12, gap: 8 }}>
               <TouchableOpacity 
                 style={[styles.actionBtnPrimary, { flex: 1, backgroundColor: '#10B981', flexDirection: 'row', justifyContent: 'center', height: 44, borderRadius: 10 }]}
                 onPress={() => {
@@ -400,28 +458,23 @@ export default function ComplaintDetails() {
                   if (url) Linking.openURL(url);
                 }}
               >
-                <Ionicons name="navigate" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 13 }}>Start Navigation</Text>
+                <Ionicons name="navigate" size={17} color="#FFF" style={{ marginRight: 6 }} />
+                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>Navigate</Text>
               </TouchableOpacity>
+
               <TouchableOpacity 
-                style={[styles.actionBtnPrimary, { flex: 1, backgroundColor: '#3B82F6', flexDirection: 'row', justifyContent: 'center', height: 44, borderRadius: 10 }]}
-                onPress={async () => {
-                  let searchQ = `${complaintCoords.latitude},${complaintCoords.longitude}`;
-                  const locStr = complaint.address || complaint.location;
-                  if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
-                    searchQ = encodeURIComponent(locStr);
-                  }
-                  const url = `https://www.google.com/maps/search/?api=1&query=${searchQ}`;
-                  try {
-                    await Share.share({ 
-                      message: Platform.OS === 'android' ? `Location for grievance: ${url}` : 'Location for grievance',
-                      url: Platform.OS === 'ios' ? url : undefined
-                    });
-                  } catch(e) {}
-                }}
+                style={[styles.actionBtnPrimary, { flex: 1.4, backgroundColor: '#25D366', flexDirection: 'row', justifyContent: 'center', height: 44, borderRadius: 10 }]}
+                onPress={shareLocationOnWhatsApp}
               >
-                <Ionicons name="share-social" size={18} color="#FFF" style={{ marginRight: 8 }} />
-                <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 13 }}>Share Location</Text>
+                <Ionicons name="logo-whatsapp" size={18} color="#FFF" style={{ marginRight: 6 }} />
+                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>WhatsApp</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.actionBtnPrimary, { width: 44, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', height: 44, borderRadius: 10 }]}
+                onPress={shareLocationGeneral}
+              >
+                <Ionicons name="share-social" size={18} color="#FFF" />
               </TouchableOpacity>
             </View>
           </View>
