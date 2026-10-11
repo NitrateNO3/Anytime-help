@@ -20,34 +20,33 @@ router.post('/register', async (req, res) => {
     const cleanPhone = phone_number.replace(/^\+91/, '').trim();
     const isTestAccount = ['9999999999', '8888888888', '7777777777'].includes(cleanPhone);
 
-    // Verify OTP
-    if (!otp) {
-      return res.status(400).json({ msg: 'OTP is required for registration' });
-    }
+    // Verify OTP if provided by client (new app versions)
+    // For legacy installed APK versions without OTP step, allow registration to prevent blocking users
+    if (otp) {
+      if (isTestAccount && otp === '123456') {
+        // Test account OTP bypass
+      } else {
+        const regKey = `reg_${cleanPhone}`;
+        const storedData = otpStore.get(regKey) || otpStore.get(cleanPhone);
 
-    if (isTestAccount && otp === '123456') {
-      // Test account OTP bypass
-    } else {
-      const regKey = `reg_${cleanPhone}`;
-      const storedData = otpStore.get(regKey) || otpStore.get(cleanPhone);
+        if (!storedData) {
+          return res.status(400).json({ msg: 'OTP not found or expired. Please request a new one.' });
+        }
 
-      if (!storedData) {
-        return res.status(400).json({ msg: 'OTP not found or expired. Please request a new one.' });
-      }
+        if (Date.now() > storedData.expiresAt) {
+          otpStore.delete(regKey);
+          otpStore.delete(cleanPhone);
+          return res.status(400).json({ msg: 'OTP expired. Please request a new one.' });
+        }
 
-      if (Date.now() > storedData.expiresAt) {
+        if (storedData.otp !== otp.trim()) {
+          return res.status(400).json({ msg: 'Invalid OTP' });
+        }
+
+        // OTP verified successfully, clear from store
         otpStore.delete(regKey);
         otpStore.delete(cleanPhone);
-        return res.status(400).json({ msg: 'OTP expired. Please request a new one.' });
       }
-
-      if (storedData.otp !== otp.trim()) {
-        return res.status(400).json({ msg: 'Invalid OTP' });
-      }
-
-      // OTP verified successfully, clear from store
-      otpStore.delete(regKey);
-      otpStore.delete(cleanPhone);
     }
 
     const dbPhoneNumber = phone_number.startsWith('+91') ? phone_number : `+91${cleanPhone}`;
