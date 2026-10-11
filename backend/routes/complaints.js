@@ -168,10 +168,15 @@ router.post('/', auth, async (req, res) => {
 // GET /api/complaints
 router.get('/', auth, async (req, res) => {
   try {
-    const { departmentId, page, limit, search, category, status, phase, priority, sortOrder } = req.query;
+    const { departmentId, page, limit, search, category, status, phase, priority, sortOrder, complaint_id } = req.query;
     let query = {};
     if (departmentId) {
       query.department = departmentId;
+    }
+
+    if (complaint_id && complaint_id.trim()) {
+      const cleanId = complaint_id.trim().replace(/^#/, '');
+      query.complaint_id = { $regex: cleanId, $options: 'i' };
     }
 
     if (category && category !== 'ALL') {
@@ -203,12 +208,13 @@ router.get('/', auth, async (req, res) => {
 
     if (search && search.trim()) {
       const s = search.trim();
+      const cleanId = s.replace(/^#/, '');
       const orConditions = [
         { title: { $regex: s, $options: 'i' } },
         { description: { $regex: s, $options: 'i' } },
         { location: { $regex: s, $options: 'i' } },
         { address: { $regex: s, $options: 'i' } },
-        { complaint_id: { $regex: s, $options: 'i' } }
+        { complaint_id: { $regex: cleanId, $options: 'i' } }
       ];
 
       try {

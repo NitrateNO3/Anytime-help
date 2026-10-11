@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Activity, CheckCircle, Clock, Trash2, Search, Filter, RotateCcw, X, AlertCircle } from 'lucide-react';
+import { Activity, CheckCircle, Clock, Trash2, Search, Filter, RotateCcw, X, AlertCircle, Hash } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import { ExportButtons } from '../components/ExportButtons';
@@ -32,6 +32,8 @@ export default function Dashboard() {
   // Filter States
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [idFilter, setIdFilter] = useState('');
+  const [debouncedIdFilter, setDebouncedIdFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [phaseFilter, setPhaseFilter] = useState('ALL');
@@ -57,6 +59,15 @@ export default function Dashboard() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Debounce complaint ID filter query
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedIdFilter(idFilter);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [idFilter]);
+
   // Fetch categories for filter dropdown
   useEffect(() => {
     axios.get(`${API_URL}/categories`)
@@ -76,7 +87,7 @@ export default function Dashboard() {
   // Fetch complaints whenever filters or page change
   useEffect(() => {
     fetchComplaints(page, true);
-  }, [page, debouncedSearch, statusFilter, categoryFilter, phaseFilter, sortOrder]);
+  }, [page, debouncedSearch, debouncedIdFilter, statusFilter, categoryFilter, phaseFilter, sortOrder]);
 
   // Live Socket.io updates
   useEffect(() => {
@@ -88,10 +99,10 @@ export default function Dashboard() {
     return () => {
       socket.disconnect();
     };
-  }, [page, debouncedSearch, statusFilter, categoryFilter, phaseFilter, sortOrder]);
+  }, [page, debouncedSearch, debouncedIdFilter, statusFilter, categoryFilter, phaseFilter, sortOrder]);
 
   const fetchComplaints = async (currentPage: number, showLoading: boolean = true) => {
-    const cacheKey = `dashboard_cache_${currentPage}_${debouncedSearch}_${statusFilter}_${categoryFilter}_${phaseFilter}_${sortOrder}`;
+    const cacheKey = `dashboard_cache_${currentPage}_${debouncedSearch}_${debouncedIdFilter}_${statusFilter}_${categoryFilter}_${phaseFilter}_${sortOrder}`;
     const cachedStr = sessionStorage.getItem(cacheKey);
     
     if (cachedStr) {
@@ -117,6 +128,7 @@ export default function Dashboard() {
       });
 
       if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+      if (debouncedIdFilter.trim()) params.append('complaint_id', debouncedIdFilter.trim().replace(/^#/, ''));
       if (statusFilter !== 'ALL') params.append('status', statusFilter);
       if (categoryFilter !== 'ALL') params.append('category', categoryFilter);
       if (phaseFilter !== 'ALL') params.append('phase', phaseFilter);
@@ -169,6 +181,7 @@ export default function Dashboard() {
     const token = localStorage.getItem('adminToken');
     const params = new URLSearchParams();
     if (debouncedSearch.trim()) params.append('search', debouncedSearch.trim());
+    if (debouncedIdFilter.trim()) params.append('complaint_id', debouncedIdFilter.trim().replace(/^#/, ''));
     if (statusFilter !== 'ALL') params.append('status', statusFilter);
     if (categoryFilter !== 'ALL') params.append('category', categoryFilter);
     if (phaseFilter !== 'ALL') params.append('phase', phaseFilter);
@@ -291,6 +304,8 @@ export default function Dashboard() {
   const resetAllFilters = () => {
     setSearch('');
     setDebouncedSearch('');
+    setIdFilter('');
+    setDebouncedIdFilter('');
     setStatusFilter('ALL');
     setCategoryFilter('ALL');
     setPhaseFilter('ALL');
@@ -298,7 +313,7 @@ export default function Dashboard() {
     setPage(1);
   };
 
-  const isFiltered = search !== '' || statusFilter !== 'ALL' || categoryFilter !== 'ALL' || phaseFilter !== 'ALL' || sortOrder !== 'desc';
+  const isFiltered = search !== '' || idFilter !== '' || statusFilter !== 'ALL' || categoryFilter !== 'ALL' || phaseFilter !== 'ALL' || sortOrder !== 'desc';
 
   return (
     <div>
@@ -403,7 +418,7 @@ export default function Dashboard() {
           <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
           <input
             type="text"
-            placeholder="Search by title, description, location, address, or resident name/phone..."
+            placeholder="Search by Complaint ID (e.g. AH-1374), title, resident, address..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
@@ -440,9 +455,59 @@ export default function Dashboard() {
         {/* Filter Dropdowns Grid */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
           gap: 12 
         }}>
+          {/* Complaint ID Filter */}
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+              Complaint ID
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Hash size={15} color={idFilter ? 'var(--primary)' : 'var(--text-muted)'} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+              <input
+                type="text"
+                placeholder="e.g. AH-1042 or 1042"
+                value={idFilter}
+                onChange={(e) => setIdFilter(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '9px 28px 9px 30px',
+                  borderRadius: 8,
+                  border: idFilter ? '1px solid var(--primary)' : '1px solid var(--border-color)',
+                  background: idFilter ? '#EEF2FF' : '#FFFFFF',
+                  fontSize: 13,
+                  color: 'var(--text-main)',
+                  fontWeight: 500,
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+              {idFilter && (
+                <button
+                  onClick={() => setIdFilter('')}
+                  title="Clear ID filter"
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: 2
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Status Filter */}
           <div>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
@@ -577,6 +642,7 @@ export default function Dashboard() {
               fetchAllData={fetchAllData}
               hidePdf={true}
               columns={[
+                { header: 'Complaint ID', key: (c: any) => c.complaint_id || `AH-${c._id.slice(-5).toUpperCase()}` },
                 { header: 'Title', key: 'title' },
                 { header: 'Description', key: 'description' },
                 { header: 'Category', key: (c: any) => c.category?.name || c.category || 'N/A' },
@@ -600,23 +666,25 @@ export default function Dashboard() {
         
         <div className="table-card">
           <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table style={{ width: '100%', minWidth: 1100, tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', minWidth: 1150, tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '20%' }}>Title & Desc</th>
-                  <th style={{ width: '13%' }}>Category</th>
-                  <th style={{ width: '15%' }}>Location / Phase</th>
-                  <th style={{ width: '15%' }}>Complaint Address</th>
-                  <th style={{ width: '15%' }}>Resident Address</th>
-                  <th style={{ width: '15%' }}>Resident Info</th>
-                  <th style={{ width: '10%', minWidth: 105, whiteSpace: 'nowrap' }}>Status</th>
-                  {!isSubAdmin && <th style={{ width: '11%', minWidth: 140, whiteSpace: 'nowrap' }}>Actions</th>}
+                  <th style={{ width: '10%', minWidth: 95 }}>Complaint ID</th>
+                  <th style={{ width: '18%' }}>Title & Desc</th>
+                  <th style={{ width: '12%' }}>Category</th>
+                  <th style={{ width: '14%' }}>Location / Phase</th>
+                  <th style={{ width: '14%' }}>Complaint Address</th>
+                  <th style={{ width: '14%' }}>Resident Address</th>
+                  <th style={{ width: '13%' }}>Resident Info</th>
+                  <th style={{ width: '9%', minWidth: 95, whiteSpace: 'nowrap' }}>Status</th>
+                  {!isSubAdmin && <th style={{ width: '10%', minWidth: 130, whiteSpace: 'nowrap' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   Array.from({ length: 5 }).map((_, idx) => (
                     <tr key={`skeleton-${idx}`}>
+                      <td><div className="skeleton skeleton-row" style={{ height: 16, width: 70, borderRadius: 6 }}></div></td>
                       <td>
                         <div className="skeleton skeleton-row" style={{ height: 16, width: '80%', marginBottom: 8 }}></div>
                         <div className="skeleton skeleton-row" style={{ height: 12, width: '60%' }}></div>
@@ -627,11 +695,12 @@ export default function Dashboard() {
                       <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
                       <td><div className="skeleton skeleton-row" style={{ width: 70, borderRadius: 12 }}></div></td>
                       <td><div className="skeleton skeleton-row" style={{ width: 80 }}></div></td>
+                      {!isSubAdmin && <td><div className="skeleton skeleton-row" style={{ width: 80 }}></div></td>}
                     </tr>
                   ))
                 ) : complaints.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)' }}>
+                    <td colSpan={isSubAdmin ? 8 : 9} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)' }}>
                       <AlertCircle size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px', display: 'block', opacity: 0.6 }} />
                       <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
                         No complaints found
@@ -662,6 +731,27 @@ export default function Dashboard() {
                 ) : (
                   complaints.map(item => (
                     <tr key={item._id}>
+                      <td 
+                        style={{ whiteSpace: 'nowrap', cursor: 'pointer' }}
+                        onClick={() => openComplaintDetails(item)}
+                        title="Click to view details"
+                      >
+                        <span style={{ 
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          fontSize: 12, 
+                          fontFamily: 'monospace', 
+                          fontWeight: 700, 
+                          background: '#EEF2FF', 
+                          color: '#4338CA', 
+                          padding: '3px 8px', 
+                          borderRadius: 6, 
+                          border: '1px solid #C7D2FE',
+                          letterSpacing: '0.5px'
+                        }}>
+                          {item.complaint_id || `#AH-${item._id.slice(-5).toUpperCase()}`}
+                        </span>
+                      </td>
                       <td 
                         style={{ maxWidth: 280, cursor: 'pointer' }}
                         onClick={() => openComplaintDetails(item)}
@@ -801,7 +891,22 @@ export default function Dashboard() {
         <div className="modal-overlay" onClick={() => setSelectedComplaint(null)}>
           <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: 600 }}>
             <div className="modal-header">
-              <h2 className="modal-title">Complaint Details</h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <h2 className="modal-title">Complaint Details</h2>
+                <span style={{ 
+                  fontSize: 13, 
+                  fontFamily: 'monospace', 
+                  fontWeight: 700, 
+                  background: '#EEF2FF', 
+                  color: '#4338CA', 
+                  padding: '3px 8px', 
+                  borderRadius: 6, 
+                  border: '1px solid #C7D2FE',
+                  letterSpacing: '0.5px'
+                }}>
+                  {selectedComplaint.complaint_id || `#AH-${selectedComplaint._id.slice(-5).toUpperCase()}`}
+                </span>
+              </div>
               <button className="modal-close" onClick={() => setSelectedComplaint(null)}><X size={20} /></button>
             </div>
             <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto', padding: '20px' }}>
@@ -832,8 +937,10 @@ export default function Dashboard() {
                 </div>
                 <div style={{ background: '#f8fafc', padding: 16, borderRadius: 12 }}>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Status</div>
-                  <div style={{ fontWeight: 600, color: selectedComplaint.status === 'DONE' ? 'var(--success)' : 'var(--primary)' }}>
-                    {selectedComplaint.status.replace('_', ' ')}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontWeight: 600, color: selectedComplaint.status === 'DONE' ? 'var(--success)' : 'var(--primary)' }}>
+                      {selectedComplaint.status.replace('_', ' ')}
+                    </div>
                   </div>
                 </div>
               </div>
