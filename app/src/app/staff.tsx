@@ -656,9 +656,9 @@ export default function StaffScreen() {
                       <Text style={{ fontSize: 11, fontWeight: '800', color: '#DC2626', letterSpacing: 0.5 }}>
                         ESCALATED
                       </Text>
-                      {item.escalated_by?.name && (
+                      {(item.escalated_by_name || item.escalated_by?.name) && (
                         <Text style={{ fontSize: 11, fontWeight: '700', color: '#991B1B', marginLeft: 'auto' }}>
-                          By: {item.escalated_by.name}
+                          By: {item.escalated_by_name || item.escalated_by?.name}
                         </Text>
                       )}
                     </View>

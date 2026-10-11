@@ -61,7 +61,7 @@ export default function ComplaintDetails() {
     if (complaint.is_escalated) {
       Alert.alert(
         'Already Escalated',
-        `This complaint was already escalated by ${complaint.escalated_by?.name || 'a member'}. Do you want to de-escalate it?`,
+        `This complaint was already escalated by ${complaint.escalated_by_name || complaint.escalated_by?.name || 'a member'}. Do you want to de-escalate it?`,
         [
           { text: 'Cancel', style: 'cancel' },
           {
@@ -100,7 +100,21 @@ export default function ComplaintDetails() {
             try {
               setIsEscalating(true);
               const token = await SecureStore.getItemAsync('userToken');
-              const res = await axios.post(`${API_URL}/complaints/${id}/escalate`, {}, {
+              let memberName = '';
+              let memberPhone = '';
+              try {
+                const userDataStr = await SecureStore.getItemAsync('userData');
+                if (userDataStr) {
+                  const u = JSON.parse(userDataStr);
+                  memberName = u.name || '';
+                  memberPhone = u.phone_number || u.phone || '';
+                }
+              } catch (e) {}
+
+              const res = await axios.post(`${API_URL}/complaints/${id}/escalate`, {
+                memberName,
+                memberPhone
+              }, {
                 headers: { 'x-auth-token': token }
               });
               setComplaint(res.data);
@@ -440,7 +454,7 @@ export default function ComplaintDetails() {
                 ESCALATED COMPLAINT
               </Text>
               <Text style={{ fontSize: 12, fontWeight: '600', color: '#991B1B', marginTop: 2 }}>
-                Escalated by: {complaint.escalated_by?.name || 'Member'}
+                Escalated by: {complaint.escalated_by_name || complaint.escalated_by?.name || 'Member'}
               </Text>
               {complaint.escalated_at && (
                 <Text style={{ fontSize: 11, color: '#DC2626', marginTop: 2 }}>

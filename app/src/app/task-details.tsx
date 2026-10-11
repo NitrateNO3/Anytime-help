@@ -481,7 +481,7 @@ export default function TaskDetailsScreen() {
                   URGENT: TASK ESCALATED
                 </Text>
                 <Text style={{ fontSize: 13, fontWeight: '700', color: '#991B1B', marginTop: 2 }}>
-                  Escalated by Member: {complaint.escalated_by?.name || 'Member'}
+                  Escalated by Member: {complaint.escalated_by_name || complaint.escalated_by?.name || 'Member'}
                 </Text>
               </View>
             </View>
@@ -491,9 +491,9 @@ export default function TaskDetailsScreen() {
                   🕒 Escalated At: {new Date(complaint.escalated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                 </Text>
               )}
-              {complaint.escalated_by?.phone && (
+              {(complaint.escalated_by_phone || complaint.escalated_by?.phone_number || complaint.escalated_by?.phone) && (
                 <Text style={{ fontSize: 12, color: '#991B1B', fontWeight: '600', marginTop: 3 }}>
-                  📞 Member Phone: {complaint.escalated_by.phone}
+                  📞 Member Phone: {complaint.escalated_by_phone || complaint.escalated_by?.phone_number || complaint.escalated_by?.phone}
                 </Text>
               )}
             </View>
@@ -625,6 +625,7 @@ export default function TaskDetailsScreen() {
                     }}
                   >
                     <Ionicons name="logo-whatsapp" size={18} color="#16A34A" />
+                    
                   </TouchableOpacity>
                   <TouchableOpacity 
                     style={{ backgroundColor: '#F1F5F9', padding: 8, borderRadius: 8 }}

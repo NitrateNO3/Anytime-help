@@ -86,6 +86,14 @@ const complaintSchema = new mongoose.Schema({
     ref: 'User',
     default: null
   },
+  escalated_by_name: {
+    type: String,
+    default: null
+  },
+  escalated_by_phone: {
+    type: String,
+    default: null
+  },
   escalated_at: {
     type: Date,
     default: null

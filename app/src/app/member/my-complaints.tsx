@@ -536,9 +536,9 @@ export default function MyComplaints() {
                     ) : null}
                   </View>
 
-                  {item.is_escalated && item.escalated_by?.name ? (
+                  {item.is_escalated && (item.escalated_by_name || item.escalated_by?.name) ? (
                     <Text style={{ fontSize: 11, color: '#B91C1C', fontWeight: '700', marginBottom: 4 }}>
-                      ⚠️ Escalated by: {item.escalated_by.name}
+                      ⚠️ Escalated by: {item.escalated_by_name || item.escalated_by?.name}
                     </Text>
                   ) : null}
 

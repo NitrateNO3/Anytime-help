@@ -450,15 +450,19 @@ router.post('/:id/escalate', auth, async (req, res) => {
       return res.status(403).json({ message: 'Only Members or Admins can escalate complaints' });
     }
 
-    const { deescalate, reason } = req.body || {};
+    const { deescalate, reason, memberName, memberPhone } = req.body || {};
 
     if (deescalate) {
       complaint.is_escalated = false;
       complaint.escalated_by = null;
+      complaint.escalated_by_name = null;
+      complaint.escalated_by_phone = null;
       complaint.escalated_at = null;
     } else {
       complaint.is_escalated = true;
       complaint.escalated_by = req.user._id || req.user.id;
+      complaint.escalated_by_name = (req.user && req.user.name) ? req.user.name : (memberName || 'Member');
+      complaint.escalated_by_phone = (req.user && (req.user.phone_number || req.user.phone)) ? (req.user.phone_number || req.user.phone) : (memberPhone || null);
       complaint.escalated_at = new Date();
       complaint.priority = 'High';
       if (reason) complaint.escalation_reason = reason;
@@ -483,7 +487,7 @@ router.post('/:id/escalate', auth, async (req, res) => {
     // If escalated, send push notification to Staff and Admins
     if (!deescalate) {
       try {
-        const memberName = req.user.name || 'Member';
+        const memberDisplayName = complaint.escalated_by_name || (req.user && req.user.name) || 'Member';
         const targetUsers = await User.find({
           $or: [
             { role: 'Admin' },
@@ -514,7 +518,7 @@ router.post('/:id/escalate', auth, async (req, res) => {
           sendPushNotifications(
             tokens,
             `🔥 ESCALATED: #${complaint.complaint_id || 'AH'} ${complaint.title}`,
-            `Escalated by Member: ${memberName}. Urgent attention requested!`,
+            `Escalated by Member: ${memberDisplayName}. Urgent attention requested!`,
             { type: 'complaint', id: complaint._id }
           );
         }
