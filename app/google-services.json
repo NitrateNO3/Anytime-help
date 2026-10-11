@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "1042641251436",
-    "project_id": "anytime-help-360c3",
-    "storage_bucket": "anytime-help-360c3.firebasestorage.app"
+    "project_number": "211437749131",
+    "project_id": "anytimehelp-a9a46",
+    "storage_bucket": "anytimehelp-a9a46.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:1042641251436:android:30c824be2ff8dd4fbcbc49",
+        "mobilesdk_app_id": "1:211437749131:android:045cdb99e1b164a98b658e",
         "android_client_info": {
           "package_name": "com.aman_mirza.app"
         }
@@ -15,7 +15,26 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBO-GhD3PceAg-Aqp7s5ZOw5BVbKMHetgM"
+          "current_key": "AIzaSyAkGfTNcsrSYuQu6D6FCp8sVyBEb7a0pV8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:211437749131:android:3d3b2e261f46427d8b658e",
+        "android_client_info": {
+          "package_name": "com.anytimehelp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAkGfTNcsrSYuQu6D6FCp8sVyBEb7a0pV8"
         }
       ],
       "services": {

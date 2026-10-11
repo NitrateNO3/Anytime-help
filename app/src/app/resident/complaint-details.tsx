@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Modal, Platform, StatusBar, Animated, Linking, TextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Modal, Platform, StatusBar, Animated, Linking, TextInput, KeyboardAvoidingView, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import FreeMapView from '../../components/FreeMapView';
+import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 
@@ -46,6 +47,7 @@ export default function ComplaintDetails() {
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
   const [fullTextModal, setFullTextModal] = useState<{title: string, text: string} | null>(null);
+  const [complaintCoords, setComplaintCoords] = useState<{latitude: number, longitude: number} | null>(null);
 
   useEffect(() => {
     fetchComplaintDetails();
@@ -62,7 +64,46 @@ export default function ComplaintDetails() {
       });
       
       if (res.data) {
-        setComplaint(res.data);
+        const found = res.data;
+        setComplaint(found);
+
+        // Attempt to geocode complaint location
+        if (found.location || found.address) {
+          try {
+            const locStr = found.address || found.location;
+            if (locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
+              const parts = locStr.split(',');
+              setComplaintCoords({ latitude: parseFloat(parts[0]), longitude: parseFloat(parts[1]) });
+            } else {
+              let coordsFound = false;
+              try {
+                const geocoded = await Location.geocodeAsync(locStr);
+                if (geocoded && geocoded.length > 0) {
+                  setComplaintCoords({ latitude: geocoded[0].latitude, longitude: geocoded[0].longitude });
+                  coordsFound = true;
+                }
+              } catch(e) {}
+              
+              if (!coordsFound) {
+                try {
+                  const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locStr)}&format=json&limit=1`, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                  });
+                  if (geoRes.data && geoRes.data.length > 0) {
+                    setComplaintCoords({ latitude: parseFloat(geoRes.data[0].lat), longitude: parseFloat(geoRes.data[0].lon) });
+                    coordsFound = true;
+                  }
+                } catch(e) {}
+              }
+              
+              if (!coordsFound) {
+                setComplaintCoords({ latitude: 28.4510, longitude: 77.0784 });
+              }
+            }
+          } catch(e) {
+            console.log('Error geocoding:', e);
+          }
+        }
       } else {
         Toast.show({ type: 'error', text1: 'Error', text2: 'Complaint not found' });
       }
@@ -211,6 +252,58 @@ export default function ComplaintDetails() {
           <Ionicons name="location" size={20} color="#1D4ED8" />
           <Text style={styles.locationText}>{complaint.location || complaint.address}</Text>
         </View>
+
+        {complaintCoords && (
+          <View style={{ marginTop: -8, marginBottom: 20 }}>
+            <View style={{ width: '100%', height: 180, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' }}>
+              <FreeMapView
+                latitude={complaintCoords.latitude}
+                longitude={complaintCoords.longitude}
+                interactive={false}
+              />
+            </View>
+            <View style={{ flexDirection: 'row', marginTop: 12, gap: 12 }}>
+              <TouchableOpacity 
+                style={[styles.actionBtnPrimary, { flex: 1, backgroundColor: '#10B981', flexDirection: 'row', justifyContent: 'center', height: 44, borderRadius: 10 }]}
+                onPress={() => {
+                  let searchQ = `${complaintCoords.latitude},${complaintCoords.longitude}`;
+                  const locStr = complaint.address || complaint.location;
+                  if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
+                    searchQ = encodeURIComponent(locStr);
+                  }
+                  const url = Platform.select({
+                    ios: `maps:0,0?q=${searchQ}`,
+                    android: `google.navigation:q=${searchQ}`
+                  });
+                  if (url) Linking.openURL(url);
+                }}
+              >
+                <Ionicons name="navigate" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 13 }}>Start Navigation</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.actionBtnPrimary, { flex: 1, backgroundColor: '#3B82F6', flexDirection: 'row', justifyContent: 'center', height: 44, borderRadius: 10 }]}
+                onPress={async () => {
+                  let searchQ = `${complaintCoords.latitude},${complaintCoords.longitude}`;
+                  const locStr = complaint.address || complaint.location;
+                  if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
+                    searchQ = encodeURIComponent(locStr);
+                  }
+                  const url = `https://www.google.com/maps/search/?api=1&query=${searchQ}`;
+                  try {
+                    await Share.share({ 
+                      message: Platform.OS === 'android' ? `Location for grievance: ${url}` : 'Location for grievance',
+                      url: Platform.OS === 'ios' ? url : undefined
+                    });
+                  } catch(e) {}
+                }}
+              >
+                <Ionicons name="share-social" size={18} color="#FFF" style={{ marginRight: 8 }} />
+                <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 13 }}>Share Location</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
         
         {complaint.assigned_staff ? (
           <View style={[styles.locationContainer, { marginTop: 8, backgroundColor: '#F0FDF4' }]}>
