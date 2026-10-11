@@ -20,33 +20,34 @@ router.post('/register', async (req, res) => {
     const cleanPhone = phone_number.replace(/^\+91/, '').trim();
     const isTestAccount = ['9999999999', '8888888888', '7777777777'].includes(cleanPhone);
 
-    // Verify OTP if provided by client (new app versions)
-    // For legacy installed APK versions without OTP step, allow registration to prevent blocking users
-    if (otp) {
-      if (isTestAccount && otp === '123456') {
-        // Test account OTP bypass
-      } else {
-        const regKey = `reg_${cleanPhone}`;
-        const storedData = otpStore.get(regKey) || otpStore.get(cleanPhone);
+    // Verify OTP - STRICT: Account cannot be created without valid OTP
+    if (!otp) {
+      return res.status(400).json({ msg: 'OTP is required for registration' });
+    }
 
-        if (!storedData) {
-          return res.status(400).json({ msg: 'OTP not found or expired. Please request a new one.' });
-        }
+    if (isTestAccount && otp === '123456') {
+      // Test account OTP bypass
+    } else {
+      const regKey = `reg_${cleanPhone}`;
+      const storedData = otpStore.get(regKey) || otpStore.get(cleanPhone);
 
-        if (Date.now() > storedData.expiresAt) {
-          otpStore.delete(regKey);
-          otpStore.delete(cleanPhone);
-          return res.status(400).json({ msg: 'OTP expired. Please request a new one.' });
-        }
+      if (!storedData) {
+        return res.status(400).json({ msg: 'OTP not found or expired. Please request a new one.' });
+      }
 
-        if (storedData.otp !== otp.trim()) {
-          return res.status(400).json({ msg: 'Invalid OTP' });
-        }
-
-        // OTP verified successfully, clear from store
+      if (Date.now() > storedData.expiresAt) {
         otpStore.delete(regKey);
         otpStore.delete(cleanPhone);
+        return res.status(400).json({ msg: 'OTP expired. Please request a new one.' });
       }
+
+      if (storedData.otp !== otp.trim()) {
+        return res.status(400).json({ msg: 'Invalid OTP' });
+      }
+
+      // OTP verified successfully, clear from store
+      otpStore.delete(regKey);
+      otpStore.delete(cleanPhone);
     }
 
     const dbPhoneNumber = phone_number.startsWith('+91') ? phone_number : `+91${cleanPhone}`;
@@ -114,15 +115,12 @@ router.post('/register', async (req, res) => {
       io.emit('user_created', user);
     }
 
-    // Return token so legacy APKs don't throw on SecureStore.setItemAsync('userToken', token)
-    const payload = { user: { id: user.id, role: user.role } };
-    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (jwtErr, token) => {
-      res.json({ 
-        success: true, 
-        msg: 'Registration successful! Please login.', 
-        token: token || 'registered',
-        user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number } 
-      });
+    // Do NOT return JWT token so user is NOT automatically logged in!
+    // User must be redirected to the login page and login themselves.
+    res.json({ 
+      success: true, 
+      msg: 'Registration successful! Please login.', 
+      user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number } 
     });
   } catch (err) {
     console.error(err.message);
