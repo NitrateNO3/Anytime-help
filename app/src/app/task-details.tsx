@@ -48,6 +48,11 @@ export default function TaskDetailsScreen() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const manualInputRef = React.useRef<TextInput>(null);
+  const [replyText, setReplyText] = useState('');
+  const [replyImage, setReplyImage] = useState<string | null>(null);
+  const [isPhotoLoading, setIsPhotoLoading] = useState(false);
+  const [isReplying, setIsReplying] = useState(false);
+  const [fullTextModal, setFullTextModal] = useState<{title: string, text: string} | null>(null);
 
   const typingTimer = React.useRef<any>(null);
 
@@ -327,6 +332,80 @@ export default function TaskDetailsScreen() {
       Toast.show({ type: 'error', text1: 'Update Failed', text2: 'Could not update status' });
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleTakeReplyPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required to capture photos.');
+        return;
+      }
+      setIsPhotoLoading(true);
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setReplyImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (e) {
+      console.log('Error taking reply photo:', e);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not capture photo' });
+    } finally {
+      setIsPhotoLoading(false);
+    }
+  };
+
+  const handlePickReplyImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Gallery permission is required to select photos.');
+        return;
+      }
+      setIsPhotoLoading(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setReplyImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (e) {
+      console.log('Error picking reply photo:', e);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not select photo' });
+    } finally {
+      setIsPhotoLoading(false);
+    }
+  };
+
+  const handleReply = async () => {
+    if (!replyText.trim() && !replyImage) return;
+    setIsReplying(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      const res = await axios.post(`${API_URL}/complaints/${id}/reply`, { 
+        text: replyText.trim(),
+        image: replyImage
+      }, {
+        headers: { 'x-auth-token': token }
+      });
+      setComplaint(res.data);
+      setReplyText('');
+      setReplyImage(null);
+      Toast.show({ type: 'success', text1: 'Success', text2: 'Reply sent successfully!' });
+    } catch (err: any) {
+      console.error(err);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to send reply' });
+    } finally {
+      setIsReplying(false);
     }
   };
 
@@ -853,6 +932,131 @@ export default function TaskDetailsScreen() {
             )}
           </View>
         </View>
+
+        {/* Replies & Updates Section */}
+        <View style={[styles.card, { marginTop: 16 }]}>
+          <Text style={[styles.sectionTitle, { fontSize: 17, marginBottom: 10 }]}>Replies & Updates</Text>
+          {(!complaint.replies || complaint.replies.length === 0) ? (
+            <Text style={{ color: '#64748B', fontSize: 14, fontStyle: 'italic', textAlign: 'center', marginVertical: 12 }}>
+              No replies yet.
+            </Text>
+          ) : (
+            <View style={{ marginBottom: 16 }}>
+              {complaint.replies.map((reply: any, idx: number) => (
+                <TouchableOpacity key={idx} style={{ 
+                  backgroundColor: reply.role === 'Admin' || reply.role === 'Staff' ? '#F0FDF4' : '#F8FAFC',
+                  borderLeftWidth: 3,
+                  borderLeftColor: reply.role === 'Admin' || reply.role === 'Staff' ? '#16A34A' : '#3B82F6',
+                  padding: 12,
+                  borderRadius: 10,
+                  marginBottom: 12
+                }} onPress={() => {
+                  if (reply.text) {
+                    setFullTextModal({ title: 'Reply', text: reply.text });
+                  } else if (reply.image) {
+                    setFullScreenImage(reply.image);
+                  }
+                }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontWeight: '700', color: reply.role === 'Admin' || reply.role === 'Staff' ? '#16A34A' : '#1D4ED8', fontSize: 13 }}>
+                      {reply.user?.role === 'Member' ? 'Member' : reply.role} {reply.user?.name ? `- ${reply.user.name}` : ''}
+                    </Text>
+                    <Text style={{ color: '#94A3B8', fontSize: 11 }}>
+                      {new Date(reply.created_at).toLocaleString()}
+                    </Text>
+                  </View>
+                  {reply.text ? (
+                    <Text style={{ color: '#334155', fontSize: 14, lineHeight: 20 }} numberOfLines={3}>{reply.text}</Text>
+                  ) : null}
+                  {reply.image ? (
+                    <TouchableOpacity 
+                      activeOpacity={0.85} 
+                      onPress={() => setFullScreenImage(reply.image)}
+                      style={{ marginTop: reply.text ? 8 : 4, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0', height: 160, backgroundColor: '#F1F5F9' }}
+                    >
+                      <Image source={{ uri: reply.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="expand" size={12} color="#FFFFFF" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '600' }}>Tap to view</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : null}
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {complaint.status !== 'DONE' && (
+            <View style={{ marginTop: 4 }}>
+              {replyImage ? (
+                <View style={{ marginBottom: 12, position: 'relative', alignSelf: 'flex-start' }}>
+                  <Image source={{ uri: replyImage }} style={{ width: 110, height: 110, borderRadius: 12, borderWidth: 1.5, borderColor: '#3B82F6' }} />
+                  <TouchableOpacity 
+                    onPress={() => setReplyImage(null)}
+                    style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#EF4444', width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center', elevation: 4 }}
+                  >
+                    <Ionicons name="close" size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              <TextInput
+                style={{
+                  backgroundColor: '#F8FAFC',
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: '#E2E8F0',
+                  padding: 14,
+                  fontSize: 14,
+                  minHeight: 80,
+                  color: '#1E293B',
+                  textAlignVertical: 'top'
+                }}
+                placeholder="Reply to member..."
+                placeholderTextColor="#94A3B8"
+                multiline
+                value={replyText}
+                onChangeText={setReplyText}
+              />
+
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, gap: 8 }}>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <TouchableOpacity 
+                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 }}
+                    onPress={handleTakeReplyPhoto}
+                    disabled={isPhotoLoading || isReplying}
+                  >
+                    {isPhotoLoading ? (
+                      <ActivityIndicator size="small" color="#2563EB" />
+                    ) : (
+                      <>
+                        <Ionicons name="camera" size={16} color="#2563EB" style={{ marginRight: 4 }} />
+                        <Text style={{ color: '#2563EB', fontWeight: '600', fontSize: 12 }}>Camera</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 }}
+                    onPress={handlePickReplyImage}
+                    disabled={isPhotoLoading || isReplying}
+                  >
+                    <Ionicons name="image" size={16} color="#475569" style={{ marginRight: 4 }} />
+                    <Text style={{ color: '#475569', fontWeight: '600', fontSize: 12 }}>Gallery</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity 
+                  style={{ backgroundColor: '#1D4ED8', paddingVertical: 10, paddingHorizontal: 18, borderRadius: 8, opacity: (!replyText.trim() && !replyImage) ? 0.5 : 1 }}
+                  onPress={handleReply}
+                  disabled={(!replyText.trim() && !replyImage) || isReplying}
+                >
+                  {isReplying ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 14 }}>Send Reply</Text>}
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
         <View style={{ height: 100 }} />
       </ScrollView>
 
@@ -970,6 +1174,23 @@ export default function TaskDetailsScreen() {
                 <Text style={{ fontSize: 16, fontWeight: '700', color: '#FFFFFF' }}>Upload</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Full Text Modal */}
+      <Modal visible={!!fullTextModal} transparent={true} animationType="fade" onRequestClose={() => setFullTextModal(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, borderBottomWidth: 1, borderBottomColor: '#F3F4F6', paddingBottom: 10 }}>
+              <Text style={styles.modalTitle}>{fullTextModal?.title}</Text>
+              <TouchableOpacity onPress={() => setFullTextModal(null)}>
+                <Ionicons name="close" size={24} color="#111827" />
+              </TouchableOpacity>
+            </View>
+            <ScrollView>
+              <Text style={{ fontSize: 15, color: '#334155', lineHeight: 22 }}>{fullTextModal?.text}</Text>
+            </ScrollView>
           </View>
         </View>
       </Modal>

@@ -433,6 +433,123 @@ router.get('/:id', auth, async (req, res) => {
       complaint.after_image = aImage.replace('/upload/', '/upload/f_auto,q_auto,w_800,c_limit/');
     }
 
+    // Fetch all staff members responsible for this complaint's category & phase
+    let assignedStaffList = [];
+    try {
+      const rawCat = (complaint.category || complaint.title || '').trim().toLowerCase();
+      const categoryAliases = {
+        'electricity': ['electricity', 'electrical', 'electrician', 'street light', 'light'],
+        'electrical': ['electricity', 'electrical', 'electrician', 'street light', 'light'],
+        'electrician': ['electricity', 'electrical', 'electrician', 'street light', 'light'],
+        'street light': ['street light', 'light', 'electricity', 'electrical'],
+        'rainwater drainage': ['rainwater drainage', 'drainage', 'sewage cleaning', 'drain', 'water logging'],
+        'drainage': ['rainwater drainage', 'drainage', 'sewage cleaning', 'drain', 'water logging'],
+        'sewage cleaning': ['sewage cleaning', 'rainwater drainage', 'drainage', 'drain'],
+        'water supply': ['water supply', 'water', 'plumbing', 'plumber'],
+        'plumbing': ['water supply', 'water', 'plumbing', 'plumber'],
+        'sweeping': ['sweeping', 'sanitation', 'cleaning'],
+        'door to door': ['door to door', 'garbage', 'waste'],
+        'tree trimming': ['tree trimming', 'horticulture', 'gardening'],
+        'park complaints': ['park complaints', 'park', 'gardening']
+      };
+
+      let searchTerms = [rawCat];
+      for (const [key, aliases] of Object.entries(categoryAliases)) {
+        if (rawCat.includes(key) || aliases.some(a => rawCat.includes(a))) {
+          searchTerms.push(key, ...aliases);
+        }
+      }
+      searchTerms = [...new Set(searchTerms.filter(Boolean))];
+
+      // Smart phase detection if complaint.phase is missing or generic
+      let detectedPhase = complaint.phase;
+      if (!detectedPhase || ['all', 'universal', 'all phases', 'all groups'].includes(detectedPhase.toLowerCase())) {
+        const text = [
+          complaint.address || '',
+          complaint.location || '',
+          complaint.user?.phase || '',
+          complaint.user?.address || ''
+        ].join(' ').toLowerCase();
+
+        if (text.includes('sushant lok 3') || text.includes('sl 3') || text.includes('sl-3') || text.includes('sl3')) {
+          detectedPhase = 'Sushant Lok 3';
+        } else if (text.includes('sushant lok 2') || text.includes('sl 2') || text.includes('sl-2') || text.includes('sl2')) {
+          if (text.includes('g-') || text.includes('f-') || text.includes('block g') || text.includes('block f')) {
+            detectedPhase = 'Sushant Lok 2 - F,G';
+          } else if (text.includes('c-') || text.includes('d-') || text.includes('e-') || text.includes('block c') || text.includes('block d') || text.includes('block e')) {
+            detectedPhase = 'Sushant Lok 2 - C,D,E';
+          } else {
+            detectedPhase = 'Sushant Lok 2';
+          }
+        }
+      }
+
+      // Fetch all active staff
+      const allStaff = await User.find({ role: { $in: ['Staff', 'PaidStaff'] } })
+        .select('name phone_number role assigned_category assigned_categories phase')
+        .lean();
+
+      // Filter staff matching category
+      const categoryStaff = allStaff.filter(staff => {
+        let cats = [];
+        if (Array.isArray(staff.assigned_categories) && staff.assigned_categories.length > 0) {
+          cats.push(...staff.assigned_categories);
+        }
+        if (staff.assigned_category) {
+          if (staff.assigned_category.includes(',')) {
+            cats.push(...staff.assigned_category.split(',').map(s => s.trim()));
+          } else {
+            cats.push(staff.assigned_category.trim());
+          }
+        }
+        cats = cats.map(c => c.toLowerCase());
+        if (cats.includes('all')) return true;
+        return cats.some(c => searchTerms.some(st => c.includes(st) || st.includes(c)));
+      });
+
+      // Filter staff by phase
+      const filteredStaff = categoryStaff.filter(staff => {
+        const sPhase = (staff.phase || '').toLowerCase();
+        if (!sPhase || sPhase === 'universal' || sPhase === 'all' || sPhase === 'all groups' || sPhase === 'all phases') {
+          return true;
+        }
+        if (!detectedPhase) return true;
+        const dPhase = detectedPhase.toLowerCase();
+        if (dPhase.includes('sushant lok 2 - f,g')) {
+          return sPhase.includes('f,g') || sPhase.includes('f, g') || sPhase.includes('sl 2 g,f') || sPhase.includes('sushant lok 2');
+        }
+        if (dPhase.includes('sushant lok 2 - c,d,e')) {
+          return sPhase.includes('c,d,e') || sPhase.includes('c, d, e') || sPhase.includes('sushant lok 2');
+        }
+        if (dPhase.includes('sushant lok 3')) {
+          return sPhase.includes('sushant lok 3') || sPhase.includes('sl 3') || sPhase.includes('sl3');
+        }
+        return sPhase.includes(dPhase) || dPhase.includes(sPhase);
+      });
+
+      assignedStaffList = filteredStaff;
+    } catch (e) {
+      console.error('Error fetching staff list for complaint:', e);
+    }
+
+    // If specific assigned_staff is set, prioritize them
+    if (complaint.assigned_staff) {
+      const staffIdStr = (complaint.assigned_staff._id || complaint.assigned_staff).toString();
+      const existingIdx = assignedStaffList.findIndex(s => s._id.toString() === staffIdStr);
+      if (existingIdx !== -1) {
+        assignedStaffList[existingIdx].is_primary = true;
+        const [primary] = assignedStaffList.splice(existingIdx, 1);
+        assignedStaffList.unshift(primary);
+      } else {
+        complaint.assigned_staff.is_primary = true;
+        assignedStaffList.unshift(complaint.assigned_staff);
+      }
+    } else if (assignedStaffList.length === 1) {
+      assignedStaffList[0].is_primary = true;
+    }
+
+    complaint.assigned_staff_list = assignedStaffList;
+
     res.json(complaint);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -546,9 +663,14 @@ router.post('/:id/reply', auth, async (req, res) => {
       role = 'Resident';
     }
     
+    if ((!req.body.text || !req.body.text.trim()) && !req.body.image) {
+      return res.status(400).json({ message: 'Reply must include text or an image' });
+    }
+    
     complaint.replies.push({
       user: req.user.id,
-      text: req.body.text,
+      text: req.body.text ? req.body.text.trim() : '',
+      image: req.body.image || null,
       role: role
     });
     
@@ -569,7 +691,7 @@ router.post('/:id/reply', auth, async (req, res) => {
       const { sendPushNotifications } = require('../utils/push');
       let tokensToNotify = [];
       let notificationTitle = '';
-      let notificationBody = req.body.text;
+      let notificationBody = (req.body.text && req.body.text.trim()) ? req.body.text.trim() : '📷 Sent an image attachment';
       
       // Fetch all relevant admins and staff for this category/phase
       const userPhase = complaint.phase;

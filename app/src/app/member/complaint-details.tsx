@@ -10,6 +10,7 @@ import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import { io } from 'socket.io-client';
+import * as ImagePicker from 'expo-image-picker';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -47,6 +48,8 @@ export default function ComplaintDetails() {
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [replyText, setReplyText] = useState('');
+  const [replyImage, setReplyImage] = useState<string | null>(null);
+  const [isPhotoLoading, setIsPhotoLoading] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [fullTextModal, setFullTextModal] = useState<{title: string, text: string} | null>(null);
   
@@ -55,6 +58,7 @@ export default function ComplaintDetails() {
   const [updating, setUpdating] = useState(false);
   const [complaintCoords, setComplaintCoords] = useState<{latitude: number, longitude: number} | null>(null);
   const [isEscalating, setIsEscalating] = useState(false);
+  const [showAllStaff, setShowAllStaff] = useState(false);
 
   const handleEscalate = async () => {
     if (!complaint) return;
@@ -256,16 +260,71 @@ export default function ComplaintDetails() {
     );
   };
 
+  const handleTakeReplyPhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Camera permission is required to capture photos.');
+        return;
+      }
+      setIsPhotoLoading(true);
+      const result = await ImagePicker.launchCameraAsync({
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setReplyImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (e) {
+      console.log('Error taking reply photo:', e);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not capture photo' });
+    } finally {
+      setIsPhotoLoading(false);
+    }
+  };
+
+  const handlePickReplyImage = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Gallery permission is required to select photos.');
+        return;
+      }
+      setIsPhotoLoading(true);
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.5,
+        base64: true,
+      });
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setReplyImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+      }
+    } catch (e) {
+      console.log('Error picking reply photo:', e);
+      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not select photo' });
+    } finally {
+      setIsPhotoLoading(false);
+    }
+  };
+
   const handleReply = async () => {
-    if (!replyText.trim()) return;
+    if (!replyText.trim() && !replyImage) return;
     setIsReplying(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      const res = await axios.post(`${API_URL}/complaints/${id}/reply`, { text: replyText }, {
+      const res = await axios.post(`${API_URL}/complaints/${id}/reply`, { 
+        text: replyText.trim(),
+        image: replyImage
+      }, {
         headers: { 'x-auth-token': token }
       });
       setComplaint(res.data);
       setReplyText('');
+      setReplyImage(null);
       Toast.show({ type: 'success', text1: 'Success', text2: 'Reply sent successfully!' });
     } catch (err: any) {
       console.error(err);
@@ -309,15 +368,106 @@ export default function ComplaintDetails() {
     }
   };
 
-  const shareLocationOnWhatsApp = async () => {
+  const shareComplaintOnWhatsApp = async () => {
+    if (!complaint) return;
+
+    const compId = complaint.complaint_id || (complaint._id ? `#AH-${complaint._id.slice(-5).toUpperCase()}` : 'N/A');
+    const createdDate = complaint.created_at 
+      ? new Date(complaint.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+      : 'N/A';
+    const createdTime = complaint.created_at 
+      ? new Date(complaint.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+      : 'N/A';
+
     let searchQ = complaintCoords ? `${complaintCoords.latitude},${complaintCoords.longitude}` : '';
-    const locStr = complaint?.address || complaint?.location;
+    const locStr = complaint?.address || complaint?.location || 'N/A';
     if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
       searchQ = encodeURIComponent(locStr);
     }
-    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${searchQ}`;
-    const compId = complaint?.complaint_id || (complaint?._id ? `#AH-${complaint._id.slice(-5).toUpperCase()}` : '');
-    const text = `*Anytime Help - Grievance Location*\n🆔 *Complaint ID:* ${compId}\n📌 *Issue:* ${complaint?.title || 'Complaint'}\n📍 *Address:* ${locStr || 'N/A'}\n🗺️ *Google Maps:* ${mapUrl}`;
+    const mapUrl = searchQ ? `https://www.google.com/maps/search/?api=1&query=${searchQ}` : '';
+
+    const statusMap: Record<string, string> = {
+      'PENDING': 'PENDING ⚠️',
+      'IN_PROGRESS': 'IN PROGRESS ⏳',
+      'DONE': 'RESOLVED ✅',
+      'RESOLVED': 'RESOLVED ✅'
+    };
+    const statusText = statusMap[complaint.status] || complaint.status;
+
+    let text = `📢 *ANYTIME HELP - COMPLAINT DETAILS*\n`;
+    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    text += `🆔 *Complaint ID:* ${compId}\n`;
+    text += `📌 *Issue:* ${complaint.title || 'Complaint'}\n`;
+    if (complaint.category) {
+      text += `🏷️ *Category:* ${complaint.category}\n`;
+    }
+    text += `📊 *Status:* ${statusText}\n`;
+    text += `⚡ *Priority:* ${complaint.priority || 'Medium'}\n`;
+    text += `📅 *Reported Date:* ${createdDate}\n`;
+    text += `⏰ *Reported Time:* ${createdTime}\n`;
+    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
+
+    // Resident / Reporter Details
+    const residentName = complaint.user?.name || 'Resident';
+    const residentPhone = complaint.user?.phone_number || complaint.user?.phone;
+    const residentPhase = complaint.phase || complaint.user?.phase;
+    const residentRoom = complaint.user?.room_number;
+
+    text += `👤 *Reported By:* ${residentName}\n`;
+    if (residentPhone) {
+      text += `📞 *Contact Phone:* ${residentPhone}\n`;
+    }
+    if (residentPhase || residentRoom) {
+      text += `🏠 *Unit:* ${[residentPhase, residentRoom ? `Flat/Room ${residentRoom}` : ''].filter(Boolean).join(' - ')}\n`;
+    }
+    text += `📍 *Location:* ${locStr}\n`;
+
+    // Description
+    if (complaint.description) {
+      text += `\n📝 *Description:*\n${complaint.description.trim()}\n`;
+    }
+
+    // Assigned Staff
+    if (staffMembers && staffMembers.length > 0) {
+      text += `\n🛠️ *Assigned Staff:*\n`;
+      staffMembers.forEach((s: any) => {
+        const phone = s.phone_number || s.phone || 'N/A';
+        text += `• ${s.name || 'Staff'}: ${phone}\n`;
+      });
+    } else if (complaint.assigned_staff?.name) {
+      text += `\n🛠️ *Assigned Staff:* ${complaint.assigned_staff.name} (${complaint.assigned_staff.phone_number || 'N/A'})\n`;
+    }
+
+    // Escalated Details
+    if (complaint.is_escalated) {
+      text += `\n🔥 *ESCALATED STATUS:*\n`;
+      text += `⚠️ *Escalated By:* ${complaint.escalated_by_name || complaint.escalated_by?.name || 'Member'}\n`;
+      if (complaint.escalated_at) {
+        const escDate = new Date(complaint.escalated_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const escTime = new Date(complaint.escalated_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+        text += `⏰ *Escalated Time:* ${escDate} at ${escTime}\n`;
+      }
+    }
+
+    // Resolution Details
+    if ((complaint.status === 'DONE' || complaint.status === 'RESOLVED') && resolutionData) {
+      text += `\n✅ *RESOLUTION:*\n`;
+      if (resolutionData.note) {
+        text += `📋 *Note:* ${resolutionData.note}\n`;
+      }
+      if (resolutionData.address) {
+        text += `📍 *Resolved At:* ${resolutionData.address}\n`;
+      }
+    }
+
+    // Map Link
+    if (mapUrl) {
+      text += `\n🗺️ *Google Maps:* ${mapUrl}\n`;
+    }
+
+    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
+    text += `_Shared from Anytime Help_`;
+
     const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(text)}`;
 
     try {
@@ -334,6 +484,8 @@ export default function ComplaintDetails() {
     }
   };
 
+  const shareLocationOnWhatsApp = shareComplaintOnWhatsApp;
+
   const shareLocationGeneral = async () => {
     let searchQ = complaintCoords ? `${complaintCoords.latitude},${complaintCoords.longitude}` : '';
     const locStr = complaint?.address || complaint?.location;
@@ -348,6 +500,43 @@ export default function ComplaintDetails() {
       });
     } catch(e) {}
   };
+
+  const callStaffPhone = (phoneNumber?: string) => {
+    if (!phoneNumber) {
+      Alert.alert('Phone Unavailable', 'Phone number is not provided for this staff member.');
+      return;
+    }
+    const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
+    Linking.openURL(`tel:${cleanPhone}`).catch(() => {
+      Alert.alert('Error', 'Unable to initiate call on this device.');
+    });
+  };
+
+  const whatsappStaffPhone = (phoneNumber?: string, staffName?: string) => {
+    if (!phoneNumber) {
+      Alert.alert('Phone Unavailable', 'Phone number is not provided for this staff member.');
+      return;
+    }
+    const cleanPhone = phoneNumber.replace(/\D/g, '');
+    const finalPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+    const compId = complaint?.complaint_id || (complaint?._id ? `#AH-${complaint._id.slice(-5).toUpperCase()}` : '');
+    const message = `Hello ${staffName || 'Staff'}, this is regarding complaint "${complaint?.title || ''}" (${compId})...`;
+    const whatsappUrl = `whatsapp://send?phone=${finalPhone}&text=${encodeURIComponent(message)}`;
+    Linking.openURL(whatsappUrl).catch(() => {
+      Alert.alert('Error', 'WhatsApp is not installed on this device.');
+    });
+  };
+
+  const staffMembers: any[] = React.useMemo(() => {
+    if (!complaint) return [];
+    if (Array.isArray(complaint.assigned_staff_list) && complaint.assigned_staff_list.length > 0) {
+      return complaint.assigned_staff_list;
+    }
+    if (complaint.assigned_staff) {
+      return [{ ...complaint.assigned_staff, is_primary: true }];
+    }
+    return [];
+  }, [complaint]);
 
   if (loading || (complaint && complaint._id !== id)) {
     return (
@@ -399,7 +588,24 @@ export default function ComplaintDetails() {
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Details</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity 
+          onPress={shareComplaintOnWhatsApp}
+          style={{ 
+            flexDirection: 'row', 
+            alignItems: 'center', 
+            backgroundColor: '#DCFCE7', 
+            paddingHorizontal: 12, 
+            paddingVertical: 6, 
+            borderRadius: 16,
+            borderWidth: 1,
+            borderColor: '#86EFAC',
+            gap: 4
+          }}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="logo-whatsapp" size={17} color="#16A34A" />
+          <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803D' }}>Share</Text>
+        </TouchableOpacity>
       </View>
 
       <KeyboardAvoidingView 
@@ -413,7 +619,7 @@ export default function ComplaintDetails() {
           keyboardShouldPersistTaps="handled"
         >
         
-        {/* ID & Date Badge */}
+        {/* ID & Date/Time Badge */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE' }}>
             <Ionicons name="pricetag-outline" size={13} color="#4338CA" style={{ marginRight: 5 }} />
@@ -422,9 +628,14 @@ export default function ComplaintDetails() {
             </Text>
           </View>
           {complaint.created_at ? (
-            <Text style={{ fontSize: 12, color: '#64748B', fontWeight: '500' }}>
-              {new Date(complaint.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-            </Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={{ fontSize: 12, color: '#475569', fontWeight: '600' }}>
+                📅 {new Date(complaint.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </Text>
+              <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '600', marginTop: 2 }}>
+                ⏰ {new Date(complaint.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+              </Text>
+            </View>
           ) : null}
         </View>
 
@@ -670,14 +881,178 @@ export default function ComplaintDetails() {
           </View>
         ) : null}
         
-        {complaint.assigned_staff ? (
-          <View style={[styles.locationContainer, { marginTop: 8, backgroundColor: '#F0FDF4' }]}>
-            <Ionicons name="person-circle" size={22} color="#16A34A" />
-            <Text style={[styles.locationText, { color: '#16A34A', fontWeight: '600', marginLeft: 6 }]}>
-              Handled by: {complaint.assigned_staff.name}
-            </Text>
+        {/* Assigned Duty Staff Card */}
+        <View style={styles.section}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ backgroundColor: '#EFF6FF', padding: 6, borderRadius: 10 }}>
+                <Ionicons name="construct" size={18} color="#2563EB" />
+              </View>
+              <View>
+                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
+                  Duty Staff ({staffMembers.length})
+                </Text>
+              </View>
+            </View>
+            {staffMembers.length > 0 && (
+              <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#15803D' }}>Duty On</Text>
+              </View>
+            )}
           </View>
-        ) : null}
+
+          <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 12, marginLeft: 2 }}>
+            Assigned for {complaint.category || complaint.title || 'this category'}
+          </Text>
+
+          {staffMembers.length === 0 ? (
+            <View style={{ backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Ionicons name="time-outline" size={22} color="#D97706" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#B45309' }}>Staff Assignment Pending</Text>
+                <Text style={{ fontSize: 12, color: '#92400E', marginTop: 1 }}>
+                  Duty staff for {complaint.category || 'this category'} will be assigned shortly.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={{ gap: 8 }}>
+              {((staffMembers.length <= 2 || showAllStaff) ? staffMembers : staffMembers.slice(0, 2)).map((staff: any, idx: number) => {
+                const staffPhone = staff.phone_number || staff.phone;
+                const isPrimary = staff.is_primary || (complaint.assigned_staff && (staff._id === complaint.assigned_staff._id || staff._id === complaint.assigned_staff));
+
+                return (
+                  <View 
+                    key={staff._id || idx} 
+                    style={{
+                      backgroundColor: isPrimary ? '#F0FDF4' : '#F8FAFC',
+                      borderWidth: 1,
+                      borderColor: isPrimary ? '#86EFAC' : '#E2E8F0',
+                      borderRadius: 12,
+                      padding: 10,
+                      shadowColor: '#000',
+                      shadowOffset: { width: 0, height: 1 },
+                      shadowOpacity: 0.03,
+                      shadowRadius: 2,
+                      elevation: 1
+                    }}
+                  >
+                    {/* Top Row: Name, Avatar, Phase, Primary Badge */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isPrimary ? '#22C55E' : '#3B82F6', justifyContent: 'center', alignItems: 'center' }}>
+                          <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>
+                            {(staff.name || 'S').charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#0F172A' }} numberOfLines={1}>
+                              {staff.name || 'Staff Member'}
+                            </Text>
+                            {isPrimary ? (
+                              <View style={{ backgroundColor: '#15803D', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>
+                                <Text style={{ fontSize: 9, fontWeight: '800', color: '#FFFFFF' }}>ASSIGNED</Text>
+                              </View>
+                            ) : (
+                              <View style={{ backgroundColor: '#E0E7FF', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>
+                                <Text style={{ fontSize: 9, fontWeight: '700', color: '#3730A3' }}>DUTY</Text>
+                              </View>
+                            )}
+                          </View>
+                          <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '500', marginTop: 1 }} numberOfLines={1}>
+                            {staff.assigned_category || staff.role || 'Staff'} {staff.phase ? `• ${staff.phase}` : ''}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Bottom Row: Clickable Phone Number & Call / WhatsApp Action Buttons */}
+                    {staffPhone ? (
+                      <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: isPrimary ? '#BBF7D0' : '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <TouchableOpacity 
+                          onPress={() => callStaffPhone(staffPhone)} 
+                          activeOpacity={0.7}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}
+                        >
+                          <View style={{ backgroundColor: '#DBEAFE', padding: 4, borderRadius: 5 }}>
+                            <Ionicons name="call" size={11} color="#2563EB" />
+                          </View>
+                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#1D4ED8', textDecorationLine: 'underline' }}>
+                            {staffPhone}
+                          </Text>
+                        </TouchableOpacity>
+
+                        <View style={{ flexDirection: 'row', gap: 6 }}>
+                          <TouchableOpacity 
+                            onPress={() => callStaffPhone(staffPhone)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              backgroundColor: '#2563EB',
+                              paddingVertical: 5,
+                              paddingHorizontal: 9,
+                              borderRadius: 6,
+                              gap: 3
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="call" size={12} color="#FFFFFF" />
+                            <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>Call</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity 
+                            onPress={() => whatsappStaffPhone(staffPhone, staff.name)}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              backgroundColor: '#16A34A',
+                              paddingVertical: 5,
+                              paddingHorizontal: 9,
+                              borderRadius: 6,
+                              gap: 3
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="logo-whatsapp" size={12} color="#FFFFFF" />
+                            <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>WhatsApp</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text style={{ fontSize: 11, color: '#94A3B8', fontStyle: 'italic', marginTop: 6 }}>
+                        No phone number listed
+                      </Text>
+                    )}
+                  </View>
+                );
+              })}
+
+              {/* Show More / Show Less Toggle Button for multiple staff */}
+              {staffMembers.length > 2 && (
+                <TouchableOpacity
+                  onPress={() => setShowAllStaff(!showAllStaff)}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#F1F5F9',
+                    paddingVertical: 8,
+                    borderRadius: 10,
+                    marginTop: 2,
+                    gap: 6
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name={showAllStaff ? "chevron-up" : "chevron-down"} size={15} color="#2563EB" />
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB' }}>
+                    {showAllStaff ? 'Show Less' : `View All ${staffMembers.length} Duty Staff (+${staffMembers.length - 2} more)`}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+        </View>
 
         {/* Description */}
         {complaint.description ? (
@@ -805,6 +1180,33 @@ export default function ComplaintDetails() {
           </View>
         ) : null}
 
+        {/* WhatsApp Full Share Card */}
+        <TouchableOpacity
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#16A34A',
+            paddingVertical: 14,
+            paddingHorizontal: 20,
+            borderRadius: 14,
+            marginBottom: 20,
+            shadowColor: '#16A34A',
+            shadowOffset: { width: 0, height: 3 },
+            shadowOpacity: 0.2,
+            shadowRadius: 6,
+            elevation: 3,
+            gap: 10
+          }}
+          onPress={shareComplaintOnWhatsApp}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="logo-whatsapp" size={22} color="#FFFFFF" />
+          <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF', letterSpacing: 0.3 }}>
+            Share Full Complaint on WhatsApp
+          </Text>
+        </TouchableOpacity>
+
         {/* Replies Section */}
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { marginBottom: 4 }]}>Replies & Updates</Text>
@@ -822,7 +1224,13 @@ export default function ComplaintDetails() {
                   padding: 12,
                   borderRadius: 8,
                   marginBottom: 12
-                }} onPress={() => setFullTextModal({ title: 'Reply', text: reply.text })}>
+                }} onPress={() => {
+                  if (reply.text) {
+                    setFullTextModal({ title: 'Reply', text: reply.text });
+                  } else if (reply.image) {
+                    setFullScreenImage(reply.image);
+                  }
+                }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                     <Text style={{ fontWeight: '600', color: reply.role === 'Admin' || reply.role === 'Staff' ? '#16A34A' : '#334155', fontSize: 13 }}>
                       {reply.user?.role === 'Member' ? 'Member' : reply.role} {reply.user?.name ? `- ${reply.user.name}` : ''}
@@ -831,7 +1239,22 @@ export default function ComplaintDetails() {
                       {new Date(reply.created_at).toLocaleString()}
                     </Text>
                   </View>
-                  <Text style={{ color: '#334155', fontSize: 14, lineHeight: 20 }} numberOfLines={3}>{reply.text}</Text>
+                  {reply.text ? (
+                    <Text style={{ color: '#334155', fontSize: 14, lineHeight: 20 }} numberOfLines={3}>{reply.text}</Text>
+                  ) : null}
+                  {reply.image ? (
+                    <TouchableOpacity 
+                      activeOpacity={0.85} 
+                      onPress={() => setFullScreenImage(reply.image)}
+                      style={{ marginTop: reply.text ? 8 : 4, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0', height: 160, backgroundColor: '#F1F5F9' }}
+                    >
+                      <Image source={{ uri: reply.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                      <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <Ionicons name="expand" size={12} color="#FFFFFF" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '600' }}>Tap to view</Text>
+                      </View>
+                    </TouchableOpacity>
+                  ) : null}
                 </TouchableOpacity>
               ))}
             </View>
@@ -839,6 +1262,19 @@ export default function ComplaintDetails() {
 
           {complaint.status !== 'DONE' && complaint.status !== 'RESOLVED' && (
             <View style={{ marginTop: 8 }}>
+              {/* Selected Image Preview */}
+              {replyImage ? (
+                <View style={{ marginBottom: 12, position: 'relative', alignSelf: 'flex-start' }}>
+                  <Image source={{ uri: replyImage }} style={{ width: 110, height: 110, borderRadius: 12, borderWidth: 1.5, borderColor: '#3B82F6' }} />
+                  <TouchableOpacity 
+                    onPress={() => setReplyImage(null)}
+                    style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#EF4444', width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center', elevation: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.25, shadowRadius: 3 }}
+                  >
+                    <Ionicons name="close" size={16} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
               <TextInput
                 style={{
                   backgroundColor: '#F8FAFC',
@@ -847,7 +1283,7 @@ export default function ComplaintDetails() {
                   borderColor: '#E2E8F0',
                   padding: 16,
                   fontSize: 15,
-                  minHeight: 120,
+                  minHeight: 100,
                   color: '#1E293B',
                   textAlignVertical: 'top'
                 }}
@@ -862,13 +1298,43 @@ export default function ComplaintDetails() {
                   }, 250);
                 }}
               />
-              <TouchableOpacity 
-                style={[styles.actionBtnPrimary, { marginTop: 12, opacity: !replyText.trim() ? 0.5 : 1 }]} 
-                onPress={handleReply}
-                disabled={!replyText.trim() || isReplying}
-              >
-                {isReplying ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.actionBtnPrimaryText}>Send Reply</Text>}
-              </TouchableOpacity>
+
+              {/* Action Buttons: Camera, Gallery & Send Reply */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12, gap: 10 }}>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  <TouchableOpacity 
+                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10 }}
+                    onPress={handleTakeReplyPhoto}
+                    disabled={isPhotoLoading || isReplying}
+                  >
+                    {isPhotoLoading ? (
+                      <ActivityIndicator size="small" color="#2563EB" />
+                    ) : (
+                      <>
+                        <Ionicons name="camera" size={18} color="#2563EB" style={{ marginRight: 5 }} />
+                        <Text style={{ color: '#2563EB', fontWeight: '600', fontSize: 13 }}>Camera</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                    style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10 }}
+                    onPress={handlePickReplyImage}
+                    disabled={isPhotoLoading || isReplying}
+                  >
+                    <Ionicons name="image" size={18} color="#475569" style={{ marginRight: 5 }} />
+                    <Text style={{ color: '#475569', fontWeight: '600', fontSize: 13 }}>Gallery</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <TouchableOpacity 
+                  style={[styles.actionBtnPrimary, { flex: 1, marginTop: 0, opacity: (!replyText.trim() && !replyImage) ? 0.5 : 1 }]} 
+                  onPress={handleReply}
+                  disabled={(!replyText.trim() && !replyImage) || isReplying}
+                >
+                  {isReplying ? <ActivityIndicator size="small" color="#FFF" /> : <Text style={styles.actionBtnPrimaryText}>Send Reply</Text>}
+                </TouchableOpacity>
+              </View>
             </View>
           )}
         </View>

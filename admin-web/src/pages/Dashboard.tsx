@@ -1028,7 +1028,18 @@ export default function Dashboard() {
                             )}
                           </div>
                         </div>
-                        <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{reply.text}</div>
+                        {reply.text ? <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{reply.text}</div> : null}
+                        {reply.image ? (
+                          <div style={{ marginTop: 8 }}>
+                            <img 
+                              src={reply.image} 
+                              alt="Reply Attachment" 
+                              style={{ maxWidth: '240px', maxHeight: '180px', borderRadius: 8, objectFit: 'cover', border: '1px solid #cbd5e1', cursor: 'pointer', display: 'block' }} 
+                              onClick={() => window.open(reply.image, '_blank')} 
+                              title="Click to view full size"
+                            />
+                          </div>
+                        ) : null}
                       </div>
                     ))}
                   </div>
