@@ -160,8 +160,8 @@ router.get('/', auth, async (req, res) => {
 // @desc    Create an announcement (Admin only)
 // @access  Private
 router.post('/', auth, async (req, res) => {
-  const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || 
-    ((req.user.role === 'SubAdmin' || req.user.role === 'Member') && req.user.permissions && req.user.permissions.some(p => p.startsWith('Announcements')));
+  const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || req.user.role === 'Member' || 
+    (req.user.role === 'SubAdmin' && req.user.permissions && req.user.permissions.some(p => p.startsWith('Announcements')));
   if (!hasAccess) {
     return res.status(403).json({ msg: 'Authorization denied' });
   }

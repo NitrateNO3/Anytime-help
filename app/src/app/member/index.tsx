@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Image, Keyboard, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -8,6 +8,7 @@ import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import * as ImagePicker from 'expo-image-picker';
 
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 
@@ -22,6 +23,77 @@ export default function ResidentHome() {
   const [user, setUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Direct Announcement Creation State
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDesc, setNewDesc] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [newTargetAudience, setNewTargetAudience] = useState('All');
+  const [newTargetPhase, setNewTargetPhase] = useState('All');
+  const [newImage, setNewImage] = useState<string | null>(null);
+
+  const pickImage = async () => {
+    let result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.5,
+      base64: true
+    });
+
+    if (!result.canceled && result.assets && result.assets.length > 0) {
+      setNewImage(`data:image/jpeg;base64,${result.assets[0].base64}`);
+    }
+  };
+
+  const audienceOptions = [
+    { label: 'Everyone (All)', value: 'All', icon: 'people' },
+    { label: 'Residents Only', value: 'Residents', icon: 'home' },
+    { label: 'Members Only', value: 'Members', icon: 'shield-checkmark' },
+  ];
+
+  const phaseOptions = [
+    { label: 'All Phases', value: 'All' },
+    { label: 'SL 2 (C,D,E)', value: 'Sushant Lok 2 - C,D,E' },
+    { label: 'SL 2 (F,G)', value: 'Sushant Lok 2 - F,G' },
+    { label: 'Sushant Lok 3', value: 'Sushant Lok 3' },
+  ];
+
+  const handleCreateAnnouncement = async () => {
+    if (!newTitle.trim() || !newDesc.trim()) {
+      Alert.alert('Validation Error', 'Title and description are required.');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      const selectedPhase = newTargetPhase === 'All' ? ['All'] : [newTargetPhase];
+      await axios.post(`${API_URL}/announcements`, {
+        title: newTitle.trim(),
+        message: newDesc.trim(),
+        phases: selectedPhase,
+        targetAudience: newTargetAudience,
+        image: newImage
+      }, {
+        headers: { 'x-auth-token': token }
+      });
+      
+      Alert.alert('Success', 'Announcement broadcasted successfully!');
+      setCreateModalVisible(false);
+      setNewTitle('');
+      setNewDesc('');
+      setNewImage(null);
+      setNewTargetAudience('All');
+      setNewTargetPhase('All');
+      onRefresh();
+    } catch (err: any) {
+      console.log('Error creating announcement:', err);
+      Alert.alert('Error', err.response?.data?.msg || err.response?.data?.message || 'Failed to create announcement');
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const { startTour } = useLocalSearchParams();
   const [lastStartTour, setLastStartTour] = useState<string | null>(null);
@@ -201,15 +273,32 @@ export default function ResidentHome() {
                   {t('resident.societyName')}
                 </Text>
               </View>
-              <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल, सेटिंग्स मैनेज कर सकते हैं और ट्यूटोरियल देख सकते हैं।" order={5} name="profile_avatar">
-                <WalkthroughableTouchableOpacity 
-                  style={[styles.avatarContainer, { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' }]} 
-                  onPress={() => router.push('/member/settings' as any)}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                {/* Direct Announcement Broadcast Icon Button */}
+                <TouchableOpacity 
+                  style={styles.headerAnnouncementBtn} 
+                  onPress={() => setCreateModalVisible(true)}
                   activeOpacity={0.8}
+                  accessibilityLabel="Create Announcement"
                 >
-                  <Ionicons name="person" size={24} color="#1E1B4B" />
-                </WalkthroughableTouchableOpacity>
-              </CopilotStep>
+                  <LinearGradient
+                    colors={['#3B82F6', '#1D4ED8']}
+                    style={styles.headerAnnouncementGradient}
+                  >
+                    <Ionicons name="megaphone" size={20} color="#FFFFFF" />
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल, सेटिंग्स मैनेज कर सकते हैं और ट्यूटोरियल देख सकते हैं।" order={5} name="profile_avatar">
+                  <WalkthroughableTouchableOpacity 
+                    style={[styles.avatarContainer, { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' }]} 
+                    onPress={() => router.push('/member/settings' as any)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="person" size={24} color="#1E1B4B" />
+                  </WalkthroughableTouchableOpacity>
+                </CopilotStep>
+              </View>
             </View>
           </View>
         </LinearGradient>
@@ -240,6 +329,36 @@ export default function ResidentHome() {
             <Ionicons name="chevron-forward" size={20} color="#EF4444" />
           </TouchableOpacity>
         )}
+
+        {/* Quick Announcement Broadcast Banner */}
+        <TouchableOpacity 
+          style={styles.quickBroadcastCard}
+          onPress={() => setCreateModalVisible(true)}
+          activeOpacity={0.85}
+        >
+          <LinearGradient
+            colors={['#1E293B', '#0F172A']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.quickBroadcastGradient}
+          >
+            <View style={styles.quickBroadcastIconBox}>
+              <Ionicons name="megaphone" size={22} color="#38BDF8" />
+            </View>
+            <View style={{ flex: 1, marginLeft: 12 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={styles.quickBroadcastTitle}>Send Announcement</Text>
+                <View style={styles.quickBroadcastNewBadge}>
+                  <Text style={styles.quickBroadcastNewText}>QUICK</Text>
+                </View>
+              </View>
+              <Text style={styles.quickBroadcastSub}>Tap to select audience & broadcast instantly</Text>
+            </View>
+            <View style={styles.quickBroadcastArrowCircle}>
+              <Ionicons name="add" size={20} color="#FFFFFF" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
 
         <View style={styles.dashboardGrid}>
           {/* Card 1: Lodge Grievance */}
@@ -343,6 +462,166 @@ export default function ResidentHome() {
           )}
         </View>
       </ScrollView>
+
+      {/* Direct Announcement Creation Modal */}
+      <Modal
+        visible={createModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setCreateModalVisible(false)}
+      >
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => Keyboard.dismiss()} />
+          <View style={[styles.modalContent, { maxHeight: '90%' }]}>
+            <View style={styles.modalHeader}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center' }}>
+                  <Ionicons name="megaphone" size={18} color="#2563EB" />
+                </View>
+                <Text style={styles.modalTitle}>New Announcement</Text>
+              </View>
+              <TouchableOpacity onPress={() => setCreateModalVisible(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Ionicons name="close-circle" size={26} color="#94A3B8" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              {/* Audience Selection Section */}
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>📢 Send Announcement To:</Text>
+                <View style={{ flexDirection: 'row', gap: 8 }}>
+                  {audienceOptions.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      onPress={() => setNewTargetAudience(opt.value)}
+                      style={[
+                        styles.audienceOption,
+                        newTargetAudience === opt.value ? styles.audienceOptionActive : styles.audienceOptionInactive,
+                        { flex: 1, justifyContent: 'center' }
+                      ]}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons 
+                        name={opt.icon as any} 
+                        size={15} 
+                        color={newTargetAudience === opt.value ? '#2563EB' : '#64748B'} 
+                      />
+                      <Text style={{ 
+                        fontWeight: '700', 
+                        fontSize: 12, 
+                        color: newTargetAudience === opt.value ? '#1D4ED8' : '#64748B',
+                        textAlign: 'center'
+                      }}>
+                        {opt.label.split(' ')[0]}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Target Phase / Block Selector */}
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>📍 Target Block / Phase:</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
+                  {phaseOptions.map((opt) => (
+                    <TouchableOpacity
+                      key={opt.value}
+                      onPress={() => setNewTargetPhase(opt.value)}
+                      style={[
+                        styles.phasePill,
+                        newTargetPhase === opt.value ? styles.phasePillActive : styles.phasePillInactive
+                      ]}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={{ 
+                        fontWeight: '700', 
+                        fontSize: 12, 
+                        color: newTargetPhase === opt.value ? '#1D4ED8' : '#64748B' 
+                      }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Title */}
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Announcement Title *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g. Water Tank Maintenance, Society Meeting"
+                  placeholderTextColor="#94A3B8"
+                  value={newTitle}
+                  onChangeText={setNewTitle}
+                />
+              </View>
+
+              {/* Description */}
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Message Details *</Text>
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder="Enter full details of the announcement..."
+                  placeholderTextColor="#94A3B8"
+                  value={newDesc}
+                  onChangeText={setNewDesc}
+                  multiline
+                  numberOfLines={4}
+                  textAlignVertical="top"
+                />
+              </View>
+
+              {/* Image Upload */}
+              <View style={styles.formGroup}>
+                <Text style={styles.label}>Photo Attachment (Optional)</Text>
+                {newImage ? (
+                  <View style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', borderWidth: 1, borderColor: '#CBD5E1' }}>
+                    <Image source={{ uri: newImage }} style={{ width: '100%', height: 160 }} resizeMode="cover" />
+                    <TouchableOpacity 
+                      onPress={() => setNewImage(null)} 
+                      style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.6)', padding: 6, borderRadius: 16 }}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="close" size={18} color="#FFF" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={pickImage} style={{ padding: 14, borderWidth: 1.5, borderColor: '#CBD5E1', borderStyle: 'dashed', borderRadius: 12, alignItems: 'center', backgroundColor: '#F8FAFC' }}>
+                    <Ionicons name="image-outline" size={28} color="#3B82F6" />
+                    <Text style={{ marginTop: 4, color: '#2563EB', fontWeight: '700', fontSize: 13 }}>Attach Image / Photo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* Send Button */}
+              <TouchableOpacity
+                style={[styles.submitBtn, isCreating && { opacity: 0.7 }]}
+                onPress={handleCreateAnnouncement}
+                disabled={isCreating}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={['#2563EB', '#1D4ED8']}
+                  style={styles.submitBtnGradient}
+                >
+                  {isCreating ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="paper-plane" size={18} color="#FFFFFF" />
+                      <Text style={styles.submitBtnText}>Broadcast Announcement</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -473,5 +752,194 @@ const styles = StyleSheet.create({
     color: '#64748B',
     textAlign: 'center',
     lineHeight: 16,
+  },
+  headerAnnouncementBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    overflow: 'hidden',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  headerAnnouncementGradient: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickBroadcastCard: {
+    borderRadius: 20,
+    marginBottom: 20,
+    overflow: 'hidden',
+    shadowColor: '#1E3A8A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#3B82F6',
+  },
+  quickBroadcastGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  quickBroadcastIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(59, 130, 246, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(96, 165, 250, 0.4)',
+  },
+  quickBroadcastTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  quickBroadcastNewBadge: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  quickBroadcastNewText: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  quickBroadcastSub: {
+    fontSize: 11,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  quickBroadcastArrowCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#2563EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 10,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#334155',
+    marginBottom: 6,
+  },
+  input: {
+    borderWidth: 1.5,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#0F172A',
+    backgroundColor: '#F8FAFC',
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+  },
+  audienceOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 8,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    gap: 5,
+  },
+  audienceOptionActive: {
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+  },
+  audienceOptionInactive: {
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  phasePill: {
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginRight: 6,
+  },
+  phasePillActive: {
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+  },
+  phasePillInactive: {
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+  },
+  submitBtn: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    marginTop: 6,
+    marginBottom: 10,
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  submitBtnGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+  },
+  submitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: 0.3,
   },
 });
