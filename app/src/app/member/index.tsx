@@ -30,7 +30,6 @@ export default function ResidentHome() {
   const [newDesc, setNewDesc] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [newTargetAudience, setNewTargetAudience] = useState('All');
-  const [newTargetPhase, setNewTargetPhase] = useState('All');
   const [newImage, setNewImage] = useState<string | null>(null);
 
   const pickImage = async () => {
@@ -52,13 +51,6 @@ export default function ResidentHome() {
     { label: 'Members Only', value: 'Members', icon: 'shield-checkmark' },
   ];
 
-  const phaseOptions = [
-    { label: 'All Phases', value: 'All' },
-    { label: 'SL 2 (C,D,E)', value: 'Sushant Lok 2 - C,D,E' },
-    { label: 'SL 2 (F,G)', value: 'Sushant Lok 2 - F,G' },
-    { label: 'Sushant Lok 3', value: 'Sushant Lok 3' },
-  ];
-
   const handleCreateAnnouncement = async () => {
     if (!newTitle.trim() || !newDesc.trim()) {
       Alert.alert('Validation Error', 'Title and description are required.');
@@ -68,11 +60,10 @@ export default function ResidentHome() {
     setIsCreating(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      const selectedPhase = newTargetPhase === 'All' ? ['All'] : [newTargetPhase];
       await axios.post(`${API_URL}/announcements`, {
         title: newTitle.trim(),
         message: newDesc.trim(),
-        phases: selectedPhase,
+        phases: ['All'],
         targetAudience: newTargetAudience,
         image: newImage
       }, {
@@ -85,7 +76,6 @@ export default function ResidentHome() {
       setNewDesc('');
       setNewImage(null);
       setNewTargetAudience('All');
-      setNewTargetPhase('All');
       onRefresh();
     } catch (err: any) {
       console.log('Error creating announcement:', err);
@@ -520,32 +510,6 @@ export default function ResidentHome() {
                     </TouchableOpacity>
                   ))}
                 </View>
-              </View>
-
-              {/* Target Phase / Block Selector */}
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>📍 Target Block / Phase:</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row' }}>
-                  {phaseOptions.map((opt) => (
-                    <TouchableOpacity
-                      key={opt.value}
-                      onPress={() => setNewTargetPhase(opt.value)}
-                      style={[
-                        styles.phasePill,
-                        newTargetPhase === opt.value ? styles.phasePillActive : styles.phasePillInactive
-                      ]}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={{ 
-                        fontWeight: '700', 
-                        fontSize: 12, 
-                        color: newTargetPhase === opt.value ? '#1D4ED8' : '#64748B' 
-                      }}>
-                        {opt.label}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
               </View>
 
               {/* Title */}
