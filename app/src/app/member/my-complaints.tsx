@@ -335,9 +335,11 @@ export default function MyComplaints() {
       return false;
     })
     .sort((a, b) => {
-       // Escalated complaints always show first
-       if (a.is_escalated && !b.is_escalated) return -1;
-       if (!a.is_escalated && b.is_escalated) return 1;
+       // Escalated complaints show first ONLY if not resolved
+       const aIsActiveEscalated = a.is_escalated && a.status !== 'RESOLVED' && a.status !== 'DONE';
+       const bIsActiveEscalated = b.is_escalated && b.status !== 'RESOLVED' && b.status !== 'DONE';
+       if (aIsActiveEscalated && !bIsActiveEscalated) return -1;
+       if (!aIsActiveEscalated && bIsActiveEscalated) return 1;
 
        const statusOrder = { 'PENDING': 0, 'IN_PROGRESS': 1, 'RESOLVED': 2, 'DONE': 2 };
        const statusA = (statusOrder as any)[a.status] !== undefined ? (statusOrder as any)[a.status] : 0;

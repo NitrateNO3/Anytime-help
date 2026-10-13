@@ -2,7 +2,7 @@
   "expo": {
     "name": "Anytime-help",
     "slug": "app",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "splash": {
@@ -15,7 +15,7 @@
     "ios": {
       "icon": "./assets/images/logo.png",
       "bundleIdentifier": "com.princesani.app",
-      "buildNumber": "5",
+      "buildNumber": "6",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "Anytime Help requires your location while using the app to identify your residential society and accurately pinpoint civic issues (such as street light faults or water leakages) when you report a complaint.",
@@ -33,7 +33,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.aman_mirza.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {

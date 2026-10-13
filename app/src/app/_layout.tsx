@@ -13,6 +13,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { CopilotProvider } from 'react-native-copilot';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
+import { requireOptionalNativeModule } from 'expo';
 
 const API_URL = 'https://anytime-help.onrender.com';
 
@@ -77,6 +78,15 @@ export default function RootLayout() {
   };
 
   useEffect(() => {
+    try {
+      const DevMenuPreferences = requireOptionalNativeModule('DevMenuPreferences');
+      DevMenuPreferences?.setPreferencesAsync({
+        showFloatingActionButton: false,
+      });
+    } catch (e) {
+      // Ignored if not running inside expo-dev-menu
+    }
+
     checkVersion();
     
     // Setup Push Notifications

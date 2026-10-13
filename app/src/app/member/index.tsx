@@ -263,32 +263,7 @@ export default function ResidentHome() {
                   {t('resident.societyName')}
                 </Text>
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                {/* Direct Announcement Broadcast Icon Button */}
-                <TouchableOpacity 
-                  style={styles.headerAnnouncementBtn} 
-                  onPress={() => setCreateModalVisible(true)}
-                  activeOpacity={0.8}
-                  accessibilityLabel="Create Announcement"
-                >
-                  <LinearGradient
-                    colors={['#3B82F6', '#1D4ED8']}
-                    style={styles.headerAnnouncementGradient}
-                  >
-                    <Ionicons name="megaphone" size={20} color="#FFFFFF" />
-                  </LinearGradient>
-                </TouchableOpacity>
 
-                <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल, सेटिंग्स मैनेज कर सकते हैं और ट्यूटोरियल देख सकते हैं।" order={5} name="profile_avatar">
-                  <WalkthroughableTouchableOpacity 
-                    style={[styles.avatarContainer, { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8, borderWidth: 2, borderColor: 'rgba(255,255,255,0.15)' }]} 
-                    onPress={() => router.push('/member/settings' as any)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="person" size={24} color="#1E1B4B" />
-                  </WalkthroughableTouchableOpacity>
-                </CopilotStep>
-              </View>
             </View>
           </View>
         </LinearGradient>
@@ -718,23 +693,19 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   headerAnnouncementBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    overflow: 'hidden',
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.25)',
-  },
-  headerAnnouncementGradient: {
-    width: '100%',
-    height: '100%',
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#2563EB',
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   quickBroadcastCard: {
     borderRadius: 20,
