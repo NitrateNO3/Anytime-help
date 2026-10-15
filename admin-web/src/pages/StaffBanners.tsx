@@ -10,17 +10,23 @@ import {
   CheckCircle2, 
   XCircle, 
   X,
-  Smartphone
+  Smartphone,
+  Users,
+  Home,
+  ShieldCheck
 } from 'lucide-react';
 import '../index.css';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
-interface StaffBannerItem {
+type AudienceType = 'Staff' | 'Resident' | 'Member';
+
+interface BannerItem {
   _id: string;
   title?: string;
   url: string;
   public_id: string;
+  audience?: AudienceType;
   isActive: boolean;
   link?: string;
   order?: number;
@@ -29,24 +35,27 @@ interface StaffBannerItem {
 }
 
 export default function StaffBanners() {
-  const [banners, setBanners] = useState<StaffBannerItem[]>([]);
+  const [activeTab, setActiveTab] = useState<AudienceType>('Staff');
+  const [banners, setBanners] = useState<BannerItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingBanner, setEditingBanner] = useState<StaffBannerItem | null>(null);
+  const [editingBanner, setEditingBanner] = useState<BannerItem | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Add Form state
   const [newTitle, setNewTitle] = useState('');
+  const [newAudience, setNewAudience] = useState<AudienceType>('Staff');
   const [newIsActive, setNewIsActive] = useState(true);
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
 
   // Edit Form state
   const [editTitle, setEditTitle] = useState('');
+  const [editAudience, setEditAudience] = useState<AudienceType>('Staff');
   const [editIsActive, setEditIsActive] = useState(true);
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
@@ -59,25 +68,17 @@ export default function StaffBanners() {
   const isSubAdmin = adminUser?.role === 'SubAdmin';
 
   useEffect(() => {
-    fetchBanners();
-  }, []);
+    fetchBanners(activeTab);
+  }, [activeTab]);
 
-  const fetchBanners = async () => {
+  const fetchBanners = async (tab: AudienceType) => {
     try {
       setLoading(true);
-      // Fetch all banners (both active and inactive) for admin
-      const res = await axios.get(`${API_URL}/staff-banners?all=true`);
+      const res = await axios.get(`${API_URL}/staff-banners?target=${tab}&all=true`);
       setBanners(res.data);
     } catch (error) {
       console.error(error);
-      // Try fallback route
-      try {
-        const fallbackRes = await axios.get(`${API_URL}/banners?type=staff&all=true`);
-        setBanners(fallbackRes.data);
-      } catch (fallbackErr) {
-        console.error(fallbackErr);
-        toast.error('Failed to load staff banners');
-      }
+      toast.error(`Failed to load ${tab} banners`);
     } finally {
       setLoading(false);
     }
@@ -101,6 +102,7 @@ export default function StaffBanners() {
 
   const handleOpenAddModal = () => {
     setNewTitle('');
+    setNewAudience(activeTab);
     setNewIsActive(true);
     setNewImageFile(null);
     setNewImagePreview(null);
@@ -114,9 +116,10 @@ export default function StaffBanners() {
     setNewTitle('');
   };
 
-  const handleOpenEditModal = (banner: StaffBannerItem) => {
+  const handleOpenEditModal = (banner: BannerItem) => {
     setEditingBanner(banner);
     setEditTitle(banner.title || '');
+    setEditAudience(banner.audience || activeTab);
     setEditIsActive(banner.isActive !== false);
     setEditImageFile(null);
     setEditImagePreview(banner.url);
@@ -137,21 +140,26 @@ export default function StaffBanners() {
     }
 
     setUploading(true);
-    const loadingToast = toast.loading('Uploading staff banner...');
+    const loadingToast = toast.loading(`Uploading ${newAudience} banner...`);
 
     try {
       const formData = new FormData();
       formData.append('image', newImageFile);
       formData.append('title', newTitle.trim());
+      formData.append('audience', newAudience);
       formData.append('isActive', String(newIsActive));
 
       await axios.post(`${API_URL}/staff-banners/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      toast.success('Staff banner uploaded successfully!', { id: loadingToast });
+      toast.success(`${newAudience} banner uploaded successfully!`, { id: loadingToast });
       handleCloseAddModal();
-      fetchBanners();
+      if (newAudience === activeTab) {
+        fetchBanners(activeTab);
+      } else {
+        setActiveTab(newAudience);
+      }
     } catch (error: any) {
       console.error(error);
       toast.error(error.response?.data?.msg || 'Failed to upload banner', { id: loadingToast });
@@ -166,11 +174,12 @@ export default function StaffBanners() {
     if (!editingBanner) return;
 
     setSavingEdit(true);
-    const loadingToast = toast.loading('Updating staff banner...');
+    const loadingToast = toast.loading('Updating banner...');
 
     try {
       const formData = new FormData();
       formData.append('title', editTitle.trim());
+      formData.append('audience', editAudience);
       formData.append('isActive', String(editIsActive));
       if (editImageFile) {
         formData.append('image', editImageFile);
@@ -180,9 +189,9 @@ export default function StaffBanners() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      toast.success('Staff banner modified successfully!', { id: loadingToast });
+      toast.success('Banner modified successfully!', { id: loadingToast });
       handleCloseEditModal();
-      fetchBanners();
+      fetchBanners(activeTab);
     } catch (error: any) {
       console.error(error);
       toast.error(error.response?.data?.msg || 'Failed to update banner', { id: loadingToast });
@@ -192,7 +201,7 @@ export default function StaffBanners() {
   };
 
   // Quick Toggle Active Status
-  const handleToggleActive = async (banner: StaffBannerItem) => {
+  const handleToggleActive = async (banner: BannerItem) => {
     const updatedStatus = !banner.isActive;
     const toastId = toast.loading(updatedStatus ? 'Activating banner...' : 'Deactivating banner...');
     try {
@@ -204,44 +213,69 @@ export default function StaffBanners() {
     } catch (err) {
       console.error(err);
       toast.error('Failed to update status', { id: toastId });
-      fetchBanners();
+      fetchBanners(activeTab);
     }
   };
 
   // Delete Banner
   const executeDelete = async () => {
     if (!deleteId) return;
-    const loadingToast = toast.loading('Deleting staff banner...');
+    const loadingToast = toast.loading('Deleting banner...');
     try {
       await axios.delete(`${API_URL}/staff-banners/${deleteId}`);
-      toast.success('Staff banner deleted successfully!', { id: loadingToast });
+      toast.success('Banner deleted successfully!', { id: loadingToast });
       setDeleteId(null);
-      fetchBanners();
+      fetchBanners(activeTab);
     } catch (error) {
       console.error(error);
-      toast.error('Failed to delete staff banner', { id: loadingToast });
+      toast.error('Failed to delete banner', { id: loadingToast });
     }
   };
+
+  const getPortalInfo = () => {
+    switch (activeTab) {
+      case 'Staff':
+        return {
+          label: 'Staff Portal',
+          icon: <Users size={18} />,
+          desc: 'Appears directly on the Staff dashboard under the greeting. Auto-slides smoothly for staff members.'
+        };
+      case 'Resident':
+        return {
+          label: 'Resident Portal',
+          icon: <Home size={18} />,
+          desc: 'Appears directly on the Resident home screen above the complaints and services grid.'
+        };
+      case 'Member':
+        return {
+          label: 'Member Portal',
+          icon: <ShieldCheck size={18} />,
+          desc: 'Appears on the RWA Committee Members dashboard for announcements and member updates.'
+        };
+    }
+  };
+
+  const portalInfo = getPortalInfo();
 
   return (
     <div className="page-container fade-in">
       <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 className="page-title" style={{ margin: 0 }}>Staff Banners</h1>
+            <h1 className="page-title" style={{ margin: 0 }}>All Banners</h1>
             <span style={{ 
               fontSize: 12, 
-              padding: '3px 8px', 
+              padding: '3px 10px', 
               borderRadius: 12, 
               background: '#EEF2FF', 
               color: '#4F46E5', 
-              fontWeight: 600 
+              fontWeight: 700 
             }}>
-              Staff Portal
+              {portalInfo.label}
             </span>
           </div>
           <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
-            Upload, modify, and manage promotional or instructional banners for the Staff Portal
+            Upload, modify, and manage dynamic banners for Staff, Residents, and Members
           </p>
         </div>
 
@@ -253,36 +287,106 @@ export default function StaffBanners() {
               style={{ display: 'flex', alignItems: 'center', gap: 8 }}
             >
               <Plus size={18} />
-              Add Staff Banner
+              Add {activeTab} Banner
             </button>
           )}
         </div>
       </header>
+
+      {/* 3 Navigation Tabs */}
+      <div style={{ 
+        display: 'flex', 
+        gap: 8, 
+        borderBottom: '2px solid #E2E8F0', 
+        marginBottom: 20 
+      }}>
+        <button
+          onClick={() => setActiveTab('Staff')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '12px 20px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'Staff' ? '3px solid #2563EB' : '3px solid transparent',
+            color: activeTab === 'Staff' ? '#2563EB' : '#64748B',
+            fontWeight: activeTab === 'Staff' ? 700 : 500,
+            fontSize: 15,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            marginBottom: -2
+          }}
+        >
+          <Users size={18} />
+          Staff Banners
+        </button>
+
+        <button
+          onClick={() => setActiveTab('Resident')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '12px 20px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'Resident' ? '3px solid #2563EB' : '3px solid transparent',
+            color: activeTab === 'Resident' ? '#2563EB' : '#64748B',
+            fontWeight: activeTab === 'Resident' ? 700 : 500,
+            fontSize: 15,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            marginBottom: -2
+          }}
+        >
+          <Home size={18} />
+          Resident Banners
+        </button>
+
+        <button
+          onClick={() => setActiveTab('Member')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            padding: '12px 20px',
+            background: 'none',
+            border: 'none',
+            borderBottom: activeTab === 'Member' ? '3px solid #2563EB' : '3px solid transparent',
+            color: activeTab === 'Member' ? '#2563EB' : '#64748B',
+            fontWeight: activeTab === 'Member' ? 700 : 500,
+            fontSize: 15,
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            marginBottom: -2
+          }}
+        >
+          <ShieldCheck size={18} />
+          Member Banners
+        </button>
+      </div>
 
       {/* Info Notice Box */}
       <div style={{ 
         background: 'linear-gradient(135deg, #F8FAFC 0%, #EFF6FF 100%)', 
         border: '1px solid #DBEAFE', 
         borderRadius: 12, 
-        padding: '16px 20px', 
+        padding: '14px 18px', 
         marginBottom: 24,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
         gap: 12
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 20, background: '#DBEAFE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Smartphone size={22} color="#2563EB" />
+        <div style={{ width: 38, height: 38, borderRadius: 19, background: '#DBEAFE', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2563EB', flexShrink: 0 }}>
+          <Smartphone size={20} />
+        </div>
+        <div>
+          <div style={{ fontWeight: 600, color: '#1E293B', fontSize: 13 }}>
+            Live in {portalInfo.label}
           </div>
-          <div>
-            <div style={{ fontWeight: 600, color: '#1E293B', fontSize: 14 }}>
-              Live on Staff Mobile App
-            </div>
-            <div style={{ color: '#64748B', fontSize: 13 }}>
-              Active banners appear right below &quot;Staff Portal / Welcome&quot; greeting on the staff dashboard. If no active banners are uploaded, the default graphic is displayed.
-            </div>
+          <div style={{ color: '#64748B', fontSize: 13 }}>
+            {portalInfo.desc}
           </div>
         </div>
       </div>
@@ -292,7 +396,7 @@ export default function StaffBanners() {
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 20 }}>
           {[1, 2, 3].map((idx) => (
             <div key={`skeleton-${idx}`} className="card" style={{ padding: 0, overflow: 'hidden' }}>
-              <div className="skeleton" style={{ width: '100%', height: '180px' }}></div>
+              <div className="skeleton" style={{ width: '100%', height: '170px' }}></div>
               <div style={{ padding: '16px' }}>
                 <div className="skeleton skeleton-row" style={{ width: '70%', height: 18, marginBottom: 8 }}></div>
                 <div className="skeleton skeleton-row" style={{ width: '40%', height: 14 }}></div>
@@ -307,14 +411,14 @@ export default function StaffBanners() {
               <div style={{ width: 64, height: 64, borderRadius: 32, background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <ImageIcon size={32} color="#94A3B8" />
               </div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E293B', marginBottom: 8 }}>No Staff Banners Found</h3>
-              <p style={{ color: '#64748B', maxWidth: 420, margin: '0 auto 20px', fontSize: 14 }}>
-                You haven&apos;t added any custom staff banners yet. Click &quot;Add Staff Banner&quot; to upload your first custom banner for your staff team.
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E293B', marginBottom: 8 }}>No {activeTab} Banners Found</h3>
+              <p style={{ color: '#64748B', maxWidth: 440, margin: '0 auto 20px', fontSize: 14 }}>
+                You haven&apos;t added any custom banners for the {activeTab} portal yet. Click &quot;Add {activeTab} Banner&quot; to upload your first banner.
               </p>
               {!isSubAdmin && (
                 <button className="btn btn-primary" onClick={handleOpenAddModal} style={{ margin: '0 auto' }}>
                   <Plus size={18} />
-                  Add Staff Banner Now
+                  Add {activeTab} Banner Now
                 </button>
               )}
             </div>
@@ -336,7 +440,7 @@ export default function StaffBanners() {
                 <div style={{ position: 'relative', width: '100%', height: '170px', background: '#0F172A' }}>
                   <img 
                     src={banner.url} 
-                    alt={banner.title || 'Staff Banner'} 
+                    alt={banner.title || `${activeTab} Banner`} 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                   />
                   
@@ -375,7 +479,7 @@ export default function StaffBanners() {
                 <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, flex: 1, justifyContent: 'space-between' }}>
                   <div>
                     <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E293B', margin: '0 0 4px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                      {banner.title || 'Untitled Staff Banner'}
+                      {banner.title || `Untitled ${activeTab} Banner`}
                     </h3>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                       Added on {new Date(banner.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -445,7 +549,7 @@ export default function StaffBanners() {
             <div className="modal-header">
               <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Upload size={20} color="#2563EB" />
-                Add Staff Banner
+                Add {newAudience} Banner
               </h2>
               <button className="btn btn-icon" onClick={handleCloseAddModal}>
                 <X size={18} />
@@ -454,6 +558,35 @@ export default function StaffBanners() {
 
             <form onSubmit={handleCreateBanner}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Audience Selection Tabs */}
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
+                    Target Portal
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(['Staff', 'Resident', 'Member'] as AudienceType[]).map((aud) => (
+                      <button
+                        key={aud}
+                        type="button"
+                        onClick={() => setNewAudience(aud)}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: 8,
+                          border: newAudience === aud ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                          background: newAudience === aud ? '#EFF6FF' : '#FFFFFF',
+                          color: newAudience === aud ? '#1D4ED8' : '#475569',
+                          fontWeight: newAudience === aud ? 700 : 500,
+                          fontSize: 13,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {aud}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Image Picker Box */}
                 <div>
                   <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
@@ -500,7 +633,7 @@ export default function StaffBanners() {
                     >
                       <ImageIcon size={36} color="#94A3B8" style={{ margin: '0 auto 8px' }} />
                       <div style={{ fontWeight: 600, color: '#334155', fontSize: 14 }}>Click to choose banner image</div>
-                      <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>Supports JPG, PNG, WEBP (Recommended ~1200x500)</div>
+                      <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>Supports JPG, PNG, WEBP (Recommended horizontal ~1200x675)</div>
                     </div>
                   )}
 
@@ -521,7 +654,7 @@ export default function StaffBanners() {
                   <input 
                     type="text" 
                     className="form-input" 
-                    placeholder="e.g. Safety Guidelines / Staff Portal Notice"
+                    placeholder="e.g. Society Notice / Event Update"
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
                     style={{ width: '100%' }}
@@ -538,7 +671,7 @@ export default function StaffBanners() {
                     style={{ width: 18, height: 18, cursor: 'pointer' }}
                   />
                   <label htmlFor="newIsActive" style={{ fontSize: 14, fontWeight: 500, color: '#1E293B', cursor: 'pointer' }}>
-                    Make banner active immediately in Staff app
+                    Make banner active immediately in {newAudience} portal
                   </label>
                 </div>
               </div>
@@ -563,7 +696,7 @@ export default function StaffBanners() {
             <div className="modal-header">
               <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Edit2 size={20} color="#2563EB" />
-                Modify Staff Banner
+                Modify Banner
               </h2>
               <button className="btn btn-icon" onClick={handleCloseEditModal}>
                 <X size={18} />
@@ -572,6 +705,35 @@ export default function StaffBanners() {
 
             <form onSubmit={handleUpdateBanner}>
               <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* Target Audience Pill */}
+                <div>
+                  <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
+                    Target Portal
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {(['Staff', 'Resident', 'Member'] as AudienceType[]).map((aud) => (
+                      <button
+                        key={aud}
+                        type="button"
+                        onClick={() => setEditAudience(aud)}
+                        style={{
+                          flex: 1,
+                          padding: '8px 12px',
+                          borderRadius: 8,
+                          border: editAudience === aud ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                          background: editAudience === aud ? '#EFF6FF' : '#FFFFFF',
+                          color: editAudience === aud ? '#1D4ED8' : '#475569',
+                          fontWeight: editAudience === aud ? 700 : 500,
+                          fontSize: 13,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {aud}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* Banner Image Preview / Replace */}
                 <div>
                   <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
@@ -650,7 +812,7 @@ export default function StaffBanners() {
                     style={{ width: 18, height: 18, cursor: 'pointer' }}
                   />
                   <label htmlFor="editIsActive" style={{ fontSize: 14, fontWeight: 500, color: '#1E293B', cursor: 'pointer' }}>
-                    Active (Show in Staff Portal)
+                    Active (Show in {editAudience} Portal)
                   </label>
                 </div>
               </div>
@@ -673,14 +835,14 @@ export default function StaffBanners() {
         <div className="modal-overlay">
           <div className="modal-content" style={{ maxWidth: '400px' }}>
             <div className="modal-header">
-              <h2 className="modal-title" style={{ color: 'var(--danger)' }}>Delete Staff Banner</h2>
+              <h2 className="modal-title" style={{ color: 'var(--danger)' }}>Delete {activeTab} Banner</h2>
             </div>
             <div className="modal-body">
               <p style={{ fontWeight: 600, marginBottom: 8, color: 'var(--text-main)' }}>
-                Are you sure you want to delete this staff banner?
+                Are you sure you want to delete this {activeTab} banner?
               </p>
               <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>
-                This banner will be permanently deleted from the cloud storage and will no longer show in the staff app.
+                This banner will be permanently removed from the cloud storage and will no longer show in the {activeTab} app.
               </p>
             </div>
             <div className="modal-footer">

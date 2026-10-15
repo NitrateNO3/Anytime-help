@@ -40,12 +40,30 @@ const streamUpload = (fileBuffer) => {
   });
 };
 
+const normalizeAudience = (raw) => {
+  if (!raw) return 'Staff';
+  const l = String(raw).trim().toLowerCase();
+  if (l === 'resident' || l === 'residents') return 'Resident';
+  if (l === 'member' || l === 'members') return 'Member';
+  return 'Staff';
+};
+
 // @route   GET /api/staff-banners
-// @desc    Get staff banners (active only by default, all if ?all=true)
+// @desc    Get banners filtered by target audience ('Staff' | 'Resident' | 'Member')
 // @access  Public
-router.get('/', cache(120), async (req, res) => {
+router.get('/', cache(60), async (req, res) => {
   try {
-    const query = req.query.all === 'true' ? {} : { isActive: true };
+    const target = normalizeAudience(req.query.target || req.query.audience);
+    const query = {
+      $or: [
+        { audience: target },
+        ...(target === 'Staff' ? [{ audience: { $exists: false } }] : [])
+      ]
+    };
+    if (req.query.all !== 'true') {
+      query.isActive = true;
+    }
+
     const banners = await StaffBanner.find(query).sort({ order: 1, createdAt: -1 });
     res.json(banners);
   } catch (err) {
@@ -55,7 +73,7 @@ router.get('/', cache(120), async (req, res) => {
 });
 
 // @route   POST /api/staff-banners/upload
-// @desc    Upload a new staff banner
+// @desc    Upload a new banner for Staff, Resident, or Member
 // @access  Public (admin)
 router.post('/upload', upload.single('image'), async (req, res) => {
   try {
@@ -64,11 +82,13 @@ router.post('/upload', upload.single('image'), async (req, res) => {
     }
 
     const result = await streamUpload(req.file.buffer);
+    const audience = normalizeAudience(req.body.audience || req.body.target);
 
     const newBanner = new StaffBanner({
       title: req.body.title || '',
       url: result.secure_url,
       public_id: result.public_id,
+      audience: audience,
       isActive: req.body.isActive === undefined ? true : (req.body.isActive === 'true' || req.body.isActive === true),
       link: req.body.link || '',
       order: req.body.order ? Number(req.body.order) : 0,
@@ -80,6 +100,9 @@ router.post('/upload', upload.single('image'), async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.emit('staff_banner_changed', { action: 'create', banner: savedBanner });
+      io.emit('resident_banner_changed', { action: 'create', banner: savedBanner });
+      io.emit('member_banner_changed', { action: 'create', banner: savedBanner });
+      io.emit('banner_changed', { action: 'create', banner: savedBanner });
     }
 
     res.json(savedBanner);
@@ -90,17 +113,20 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 });
 
 // @route   PUT /api/staff-banners/:id
-// @desc    Update/modify a staff banner
+// @desc    Update/modify a banner
 // @access  Public (admin)
 router.put('/:id', upload.single('image'), async (req, res) => {
   try {
     const banner = await StaffBanner.findById(req.params.id);
     if (!banner) {
-      return res.status(404).json({ msg: 'Staff banner not found' });
+      return res.status(404).json({ msg: 'Banner not found' });
     }
 
     if (req.body.title !== undefined) {
       banner.title = req.body.title;
+    }
+    if (req.body.audience || req.body.target) {
+      banner.audience = normalizeAudience(req.body.audience || req.body.target);
     }
     if (req.body.isActive !== undefined) {
       banner.isActive = req.body.isActive === 'true' || req.body.isActive === true;
@@ -132,6 +158,9 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.emit('staff_banner_changed', { action: 'update', banner: updatedBanner });
+      io.emit('resident_banner_changed', { action: 'update', banner: updatedBanner });
+      io.emit('member_banner_changed', { action: 'update', banner: updatedBanner });
+      io.emit('banner_changed', { action: 'update', banner: updatedBanner });
     }
 
     res.json(updatedBanner);
@@ -142,13 +171,13 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 });
 
 // @route   DELETE /api/staff-banners/:id
-// @desc    Delete a staff banner
+// @desc    Delete a banner
 // @access  Public (admin)
 router.delete('/:id', async (req, res) => {
   try {
     const banner = await StaffBanner.findById(req.params.id);
     if (!banner) {
-      return res.status(404).json({ msg: 'Staff banner not found' });
+      return res.status(404).json({ msg: 'Banner not found' });
     }
 
     if (banner.public_id) {
@@ -165,9 +194,12 @@ router.delete('/:id', async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.emit('staff_banner_changed', { action: 'delete', id: req.params.id });
+      io.emit('resident_banner_changed', { action: 'delete', id: req.params.id });
+      io.emit('member_banner_changed', { action: 'delete', id: req.params.id });
+      io.emit('banner_changed', { action: 'delete', id: req.params.id });
     }
 
-    res.json({ msg: 'Staff banner deleted successfully' });
+    res.json({ msg: 'Banner deleted successfully' });
   } catch (err) {
     console.error('Error deleting staff banner:', err.message);
     res.status(500).send('Server Error');

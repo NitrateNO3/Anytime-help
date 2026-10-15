@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Image, Keyboard, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl, Alert, Modal, TextInput, KeyboardAvoidingView, Image, Keyboard, ActivityIndicator, FlatList, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -23,6 +23,45 @@ export default function ResidentHome() {
   const [user, setUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Member Banners State
+  const [banners, setBanners] = useState<any[]>([]);
+  const [bannerIndex, setBannerIndex] = useState(0);
+  const bannerFlatListRef = useRef<FlatList>(null);
+  const [bannerCardWidth, setBannerCardWidth] = useState(Dimensions.get('window').width - 48);
+  const bannerIndexRef = useRef(0);
+
+  const fetchBanners = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/staff-banners?target=Member`);
+      if (Array.isArray(res.data)) {
+        setBanners(res.data);
+      }
+    } catch (e) {
+      console.log('Error fetching member banners:', e);
+    }
+  };
+
+  useEffect(() => {
+    bannerIndexRef.current = bannerIndex;
+  }, [bannerIndex]);
+
+  useEffect(() => {
+    if (banners.length > 1) {
+      const interval = setInterval(() => {
+        const nextIndex = bannerIndexRef.current >= banners.length - 1 ? 0 : bannerIndexRef.current + 1;
+        bannerIndexRef.current = nextIndex;
+        setBannerIndex(nextIndex);
+        if (bannerCardWidth > 0 && bannerFlatListRef.current) {
+          bannerFlatListRef.current.scrollToOffset({
+            offset: nextIndex * bannerCardWidth,
+            animated: true,
+          });
+        }
+      }, 3500);
+      return () => clearInterval(interval);
+    }
+  }, [banners.length, bannerCardWidth]);
 
   // Direct Announcement Creation State
   const [createModalVisible, setCreateModalVisible] = useState(false);
@@ -147,10 +186,17 @@ export default function ResidentHome() {
         }
       };
       fetchUnreadCount();
+      fetchBanners();
 
       const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
       socket.on('announcement_changed', () => {
         fetchUnreadCount();
+      });
+      socket.on('member_banner_changed', () => {
+        fetchBanners();
+      });
+      socket.on('banner_changed', () => {
+        fetchBanners();
       });
       socket.on('user_updated', async (data: any) => {
         const stored = await SecureStore.getItemAsync('userData');
@@ -195,6 +241,7 @@ export default function ResidentHome() {
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
+    fetchBanners();
     try {
       const token = await SecureStore.getItemAsync('userToken');
       if (token) {
@@ -324,6 +371,91 @@ export default function ResidentHome() {
             </View>
           </LinearGradient>
         </TouchableOpacity>
+
+        {/* Dynamic Member Banner Carousel */}
+        {banners.length > 0 && (
+          <View 
+            style={{ marginBottom: 20 }}
+            onLayout={(e) => setBannerCardWidth(e.nativeEvent.layout.width)}
+          >
+            {banners.length === 1 ? (
+              <View style={{ borderRadius: 16, overflow: 'hidden', height: 160, backgroundColor: '#0F172A', position: 'relative' }}>
+                <Image 
+                  source={{ uri: banners[0].url }} 
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                />
+                {banners[0].title ? (
+                  <LinearGradient
+                    colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
+                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, paddingVertical: 10 }}
+                  >
+                    <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
+                      {banners[0].title}
+                    </Text>
+                  </LinearGradient>
+                ) : null}
+              </View>
+            ) : (
+              <View style={{ borderRadius: 16, overflow: 'hidden', height: 160, backgroundColor: '#0F172A', position: 'relative' }}>
+                <FlatList
+                  ref={bannerFlatListRef}
+                  data={banners}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item) => item._id}
+                  getItemLayout={(_, index) => ({
+                    length: bannerCardWidth,
+                    offset: bannerCardWidth * index,
+                    index,
+                  })}
+                  onMomentumScrollEnd={(e) => {
+                    if (bannerCardWidth > 0) {
+                      const idx = Math.round(e.nativeEvent.contentOffset.x / bannerCardWidth);
+                      const safeIdx = Math.max(0, Math.min(idx, banners.length - 1));
+                      bannerIndexRef.current = safeIdx;
+                      setBannerIndex(safeIdx);
+                    }
+                  }}
+                  renderItem={({ item }) => (
+                    <View style={{ width: bannerCardWidth, height: 160, position: 'relative' }}>
+                      <Image 
+                        source={{ uri: item.url }} 
+                        style={{ width: '100%', height: '100%' }}
+                        resizeMode="cover"
+                      />
+                      {item.title ? (
+                        <LinearGradient
+                          colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
+                          style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, paddingVertical: 10 }}
+                        >
+                          <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
+                            {item.title}
+                          </Text>
+                        </LinearGradient>
+                      ) : null}
+                    </View>
+                  )}
+                />
+                {/* Carousel Dots */}
+                <View style={{ position: 'absolute', bottom: 8, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+                  {banners.map((_, i) => (
+                    <View 
+                      key={i} 
+                      style={{
+                        width: bannerIndex === i ? 18 : 6,
+                        height: 6,
+                        borderRadius: 3,
+                        backgroundColor: bannerIndex === i ? '#38BDF8' : 'rgba(255, 255, 255, 0.5)',
+                      }}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
+          </View>
+        )}
 
         <View style={styles.dashboardGrid}>
           {/* Card 1: Lodge Grievance */}
