@@ -94,6 +94,13 @@ export default function AdminLayout() {
               Banners
             </Link>
           )}
+
+          {(hasAccess('Staff Banner') || hasAccess('Staff Banners') || hasAccess('Banners')) && (
+            <Link to="/staff-banners" className={`nav-link ${location.pathname === '/staff-banners' ? 'active' : ''}`}>
+              <ImageIcon size={20} />
+              Staff Banner
+            </Link>
+          )}
           
           {hasAccess('Directory') && (
             <Link to="/directory" className={`nav-link ${location.pathname === '/directory' ? 'active' : ''}`}>

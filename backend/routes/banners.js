@@ -22,7 +22,25 @@ const upload = multer({ storage });
 // @access  Public
 router.get('/', cache(300), async (req, res) => {
   try {
+    if (req.query.type === 'staff') {
+      const StaffBanner = require('../models/StaffBanner');
+      const query = req.query.all === 'true' ? {} : { isActive: true };
+      const banners = await StaffBanner.find(query).sort({ order: 1, createdAt: -1 });
+      return res.json(banners);
+    }
     const banners = await Banner.find().sort({ createdAt: -1 });
+    res.json(banners);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Server Error');
+  }
+});
+
+router.get('/staff', cache(120), async (req, res) => {
+  try {
+    const StaffBanner = require('../models/StaffBanner');
+    const query = req.query.all === 'true' ? {} : { isActive: true };
+    const banners = await StaffBanner.find(query).sort({ order: 1, createdAt: -1 });
     res.json(banners);
   } catch (err) {
     console.error(err.message);

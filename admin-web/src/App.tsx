@@ -15,6 +15,7 @@ import ServiceBookings from './pages/ServiceBookings';
 import Directory from './pages/Directory';
 import Members from './pages/Members';
 import SubAdmins from './pages/SubAdmins';
+import StaffBanners from './pages/StaffBanners';
 
 // Global axios interceptor for 401 Unauthorized errors
 axios.interceptors.response.use(
@@ -46,6 +47,7 @@ function IndexRedirect() {
     if (perms.includes('Committee Members')) return <Navigate to="/members" replace />;
     if (perms.includes('Announcements')) return <Navigate to="/announcements" replace />;
     if (perms.includes('Banners')) return <Navigate to="/banners" replace />;
+    if (perms.includes('Staff Banner') || perms.includes('Staff Banners')) return <Navigate to="/staff-banners" replace />;
     if (perms.includes('Directory')) return <Navigate to="/directory" replace />;
     return <Navigate to="/residents" replace />;
   }
@@ -68,6 +70,7 @@ function App() {
             <Route path="residents" element={<Residents />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="banners" element={<Banners />} />
+            <Route path="staff-banners" element={<StaffBanners />} />
             <Route path="paid-services" element={<PaidServices />} />
             <Route path="paid-staff" element={<PaidStaff />} />
             <Route path="service-bookings" element={<ServiceBookings />} />

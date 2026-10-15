@@ -47,7 +47,7 @@ export default function SubAdmins() {
   // Edit State
   const [editingUser, setEditingUser] = useState<any>(null);
   
-  const availablePermissions = ['Overview', 'Residents', 'Staff Team', 'Committee Members', 'Announcements', 'Banners', 'Directory'];
+  const availablePermissions = ['Overview', 'Residents', 'Staff Team', 'Committee Members', 'Announcements', 'Banners', 'Staff Banner', 'Directory'];
 
   useEffect(() => {
     if (activeTab === 'list') {

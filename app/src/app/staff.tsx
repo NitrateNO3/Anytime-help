@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput, Platform, BackHandler, KeyboardAvoidingView, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput, Platform, BackHandler, KeyboardAvoidingView, Keyboard, FlatList, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { io } from 'socket.io-client';
 import * as ImagePicker from 'expo-image-picker';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -39,6 +40,52 @@ export default function StaffScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [stats, setStats] = useState({ pending: 0, inProgress: 0, resolved: 0 });
+
+  // Staff Banners State
+  const [banners, setBanners] = useState<any[]>([]);
+  const [bannerIndex, setBannerIndex] = useState(0);
+  const bannerFlatListRef = React.useRef<FlatList>(null);
+  const [bannerCardWidth, setBannerCardWidth] = useState(Dimensions.get('window').width - 40);
+
+  const fetchBanners = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/staff-banners`);
+      if (Array.isArray(res.data) && res.data.length > 0) {
+        setBanners(res.data);
+      } else {
+        const fallback = await axios.get(`${API_URL}/banners?type=staff`);
+        if (Array.isArray(fallback.data) && fallback.data.length > 0) {
+          setBanners(fallback.data);
+        } else {
+          setBanners([]);
+        }
+      }
+    } catch (e) {
+      try {
+        const fallback = await axios.get(`${API_URL}/banners?type=staff`);
+        if (Array.isArray(fallback.data) && fallback.data.length > 0) {
+          setBanners(fallback.data);
+        } else {
+          setBanners([]);
+        }
+      } catch (err) {
+        console.log('Error fetching staff banners:', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (banners.length > 1) {
+      const interval = setInterval(() => {
+        setBannerIndex((prevIndex) => {
+          const nextIndex = prevIndex === banners.length - 1 ? 0 : prevIndex + 1;
+          bannerFlatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
+          return nextIndex;
+        });
+      }, 3500);
+      return () => clearInterval(interval);
+    }
+  }, [banners.length]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -275,6 +322,9 @@ export default function StaffScreen() {
     socket.on('categories_updated', () => {
       fetchFilterCategories();
     });
+    socket.on('staff_banner_changed', () => {
+      fetchBanners();
+    });
     return () => {
       socket.disconnect();
     };
@@ -290,6 +340,7 @@ export default function StaffScreen() {
           fetchComplaints();
           fetchAnnouncements();
           fetchFilterCategories();
+          fetchBanners();
         }
       };
       init();
@@ -303,6 +354,7 @@ export default function StaffScreen() {
     fetchComplaints();
     fetchAnnouncements();
     fetchFilterCategories();
+    fetchBanners();
   };
 
   const [updatingStatus, setUpdatingStatus] = useState<string | null>(null);
@@ -445,11 +497,92 @@ export default function StaffScreen() {
           <Text style={styles.title}>{t('staff.portal')}</Text>
           <Text style={styles.subtitle}>{t('resident.hello', { defaultValue: 'Welcome,' })} {user?.name?.split(' ')[0] || 'Staff'} 👋</Text>
           
-          <View style={{ alignItems: 'center', marginBottom: 16 }}>
-            <Image 
-              source={require('../../assets/image.png')} 
-              style={{ width: '100%', height: 160, borderRadius: 16, resizeMode: 'cover' }}
-            />
+          {/* Dynamic Staff Banner */}
+          <View 
+            style={{ marginBottom: 16 }}
+            onLayout={(e) => setBannerCardWidth(e.nativeEvent.layout.width)}
+          >
+            {banners.length > 0 ? (
+              banners.length === 1 ? (
+                <View style={{ borderRadius: 16, overflow: 'hidden', height: 160, backgroundColor: '#0F172A', position: 'relative' }}>
+                  <Image 
+                    source={{ uri: banners[0].url }} 
+                    style={{ width: '100%', height: '100%' }}
+                    resizeMode="cover"
+                  />
+                  {banners[0].title ? (
+                    <LinearGradient
+                      colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
+                      style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, paddingVertical: 10 }}
+                    >
+                      <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
+                        {banners[0].title}
+                      </Text>
+                    </LinearGradient>
+                  ) : null}
+                </View>
+              ) : (
+                <View style={{ borderRadius: 16, overflow: 'hidden', height: 160, backgroundColor: '#0F172A', position: 'relative' }}>
+                  <FlatList
+                    ref={bannerFlatListRef}
+                    data={banners}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    keyExtractor={(item) => item._id}
+                    getItemLayout={(_, index) => ({
+                      length: bannerCardWidth,
+                      offset: bannerCardWidth * index,
+                      index,
+                    })}
+                    onMomentumScrollEnd={(e) => {
+                      const idx = Math.round(e.nativeEvent.contentOffset.x / bannerCardWidth);
+                      setBannerIndex(idx);
+                    }}
+                    renderItem={({ item }) => (
+                      <View style={{ width: bannerCardWidth, height: 160, position: 'relative' }}>
+                        <Image 
+                          source={{ uri: item.url }} 
+                          style={{ width: '100%', height: '100%' }}
+                          resizeMode="cover"
+                        />
+                        {item.title ? (
+                          <LinearGradient
+                            colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
+                            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, paddingVertical: 10 }}
+                          >
+                            <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
+                              {item.title}
+                            </Text>
+                          </LinearGradient>
+                        ) : null}
+                      </View>
+                    )}
+                  />
+                  {/* Carousel Dots */}
+                  <View style={{ position: 'absolute', bottom: 8, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+                    {banners.map((_, i) => (
+                      <View 
+                        key={i} 
+                        style={{
+                          width: bannerIndex === i ? 18 : 6,
+                          height: 6,
+                          borderRadius: 3,
+                          backgroundColor: bannerIndex === i ? '#38BDF8' : 'rgba(255, 255, 255, 0.5)',
+                        }}
+                      />
+                    ))}
+                  </View>
+                </View>
+              )
+            ) : (
+              <View style={{ alignItems: 'center' }}>
+                <Image 
+                  source={require('../../assets/image.png')} 
+                  style={{ width: '100%', height: 160, borderRadius: 16, resizeMode: 'cover' }}
+                />
+              </View>
+            )}
           </View>
           
           {user && (

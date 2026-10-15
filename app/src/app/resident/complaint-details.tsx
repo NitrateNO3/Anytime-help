@@ -292,15 +292,14 @@ export default function ComplaintDetails() {
       text += `\n📝 *Description:*\n${complaint.description.trim()}\n`;
     }
 
-    // Assigned Staff
+    // Assigned Staff (phone numbers not included for privacy)
     if (staffMembers && staffMembers.length > 0) {
       text += `\n🛠️ *Assigned Staff:*\n`;
       staffMembers.forEach((s: any) => {
-        const phone = s.phone_number || s.phone || 'N/A';
-        text += `• ${s.name || 'Staff'}: ${phone}\n`;
+        text += `• ${s.name || 'Staff'}\n`;
       });
     } else if (complaint.assigned_staff?.name) {
-      text += `\n🛠️ *Assigned Staff:* ${complaint.assigned_staff.name} (${complaint.assigned_staff.phone_number || 'N/A'})\n`;
+      text += `\n🛠️ *Assigned Staff:* ${complaint.assigned_staff.name}\n`;
     }
 
     // Resolution Details
@@ -383,13 +382,27 @@ export default function ComplaintDetails() {
 
   const staffMembers: any[] = React.useMemo(() => {
     if (!complaint) return [];
+    let list: any[] = [];
     if (Array.isArray(complaint.assigned_staff_list) && complaint.assigned_staff_list.length > 0) {
-      return complaint.assigned_staff_list;
+      list = complaint.assigned_staff_list;
+    } else if (complaint.assigned_staff) {
+      list = [{ ...complaint.assigned_staff, is_primary: true }];
     }
-    if (complaint.assigned_staff) {
-      return [{ ...complaint.assigned_staff, is_primary: true }];
+
+    // Filter staff by complaint's phase/address — show Universal staff + matching phase only
+    const complaintPhase = (complaint.phase || complaint.user?.phase || '').toLowerCase().trim();
+    if (complaintPhase && list.length > 0) {
+      const filtered = list.filter((s: any) => {
+        const staffPhase = (s.phase || '').toLowerCase();
+        return (
+          staffPhase.includes('universal') ||
+          staffPhase === complaintPhase
+        );
+      });
+      if (filtered.length > 0) return filtered;
     }
-    return [];
+
+    return list;
   }, [complaint]);
 
   if (loading || (complaint && complaint._id !== id)) {
@@ -660,63 +673,7 @@ export default function ComplaintDetails() {
                       </View>
                     </View>
 
-                    {/* Bottom Row: Clickable Phone Number & Call / WhatsApp Action Buttons */}
-                    {staffPhone ? (
-                      <View style={{ marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: isPrimary ? '#BBF7D0' : '#F1F5F9', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <TouchableOpacity 
-                          onPress={() => callStaffPhone(staffPhone)} 
-                          activeOpacity={0.7}
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flex: 1 }}
-                        >
-                          <View style={{ backgroundColor: '#DBEAFE', padding: 4, borderRadius: 5 }}>
-                            <Ionicons name="call" size={11} color="#2563EB" />
-                          </View>
-                          <Text style={{ fontSize: 13, fontWeight: '700', color: '#1D4ED8', textDecorationLine: 'underline' }}>
-                            {staffPhone}
-                          </Text>
-                        </TouchableOpacity>
-
-                        <View style={{ flexDirection: 'row', gap: 6 }}>
-                          <TouchableOpacity 
-                            onPress={() => callStaffPhone(staffPhone)}
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              backgroundColor: '#2563EB',
-                              paddingVertical: 5,
-                              paddingHorizontal: 9,
-                              borderRadius: 6,
-                              gap: 3
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="call" size={12} color="#FFFFFF" />
-                            <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>Call</Text>
-                          </TouchableOpacity>
-
-                          <TouchableOpacity 
-                            onPress={() => whatsappStaffPhone(staffPhone, staff.name)}
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              backgroundColor: '#16A34A',
-                              paddingVertical: 5,
-                              paddingHorizontal: 9,
-                              borderRadius: 6,
-                              gap: 3
-                            }}
-                            activeOpacity={0.7}
-                          >
-                            <Ionicons name="logo-whatsapp" size={12} color="#FFFFFF" />
-                            <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '700' }}>WhatsApp</Text>
-                          </TouchableOpacity>
-                        </View>
-                      </View>
-                    ) : (
-                      <Text style={{ fontSize: 11, color: '#94A3B8', fontStyle: 'italic', marginTop: 6 }}>
-                        No phone number listed
-                      </Text>
-                    )}
+                    {/* Phone, Call & WhatsApp hidden for privacy */}
                   </View>
                 );
               })}
