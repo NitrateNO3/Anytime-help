@@ -33,18 +33,22 @@ export default function Residents() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [propertyType, setPropertyType] = useState('Owned');
   const [houseNo, setHouseNo] = useState('');
-  const [phase, setPhase] = useState('Sushant Lok 2 - C,D,E');
-  const [block, setBlock] = useState('C, D, E');
+  const STANDARD_PHASE_BLOCKS: Record<string, string[]> = {
+    'Sushant Lok 2': ['C', 'D', 'E', 'F', 'G'],
+    'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
+  };
+
+  const [phase, setPhase] = useState('Sushant Lok 2');
+  const [block, setBlock] = useState('C');
   const [relation, setRelation] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [showCustomPhase, setShowCustomPhase] = useState(false);
   const [showCustomBlock, setShowCustomBlock] = useState(false);
 
-  const [phases, setPhases] = useState<string[]>(['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3']);
+  const [phases, setPhases] = useState<string[]>(['Sushant Lok 2', 'Sushant Lok 3']);
   const [dynamicEntityBlocks, setDynamicEntityBlocks] = useState<Record<string, string[]>>({
-    'Sushant Lok 2 - C,D,E': ['C, D, E'],
-    'Sushant Lok 2 - F,G': ['F, G'],
-    'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
+    'Sushant Lok 2': ['C', 'D', 'E', 'F', 'G'],
+    'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
   });
 
   // Group Management State
@@ -53,6 +57,9 @@ export default function Residents() {
   const [newPhaseName, setNewPhaseName] = useState('');
 
   const getBlockOptions = (selectedPhase: string) => {
+    if (STANDARD_PHASE_BLOCKS[selectedPhase]) {
+      return STANDARD_PHASE_BLOCKS[selectedPhase];
+    }
     return dynamicEntityBlocks[selectedPhase] || [];
   };
 
@@ -74,14 +81,17 @@ export default function Residents() {
     axios.get(`${API_URL}/users/phases`, { headers: { 'x-auth-token': token } })
       .then(res => {
         if (res.data && Array.isArray(res.data)) {
-          const defaultPhases = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
-          const fetchedPhases = res.data.filter(p => p !== 'Universal' && p !== 'All' && p !== 'All Groups (Universal)');
+          const defaultPhases = ['Sushant Lok 2', 'Sushant Lok 3'];
+          const fetchedPhases = res.data.filter(p => 
+            p && 
+            !['Universal', 'All', 'All Groups', 'All Groups (Universal)'].includes(p) &&
+            !p.includes(',') && !p.toLowerCase().includes('option') && !p.includes(' - ')
+          );
           setPhases([...new Set([...defaultPhases, ...fetchedPhases])]);
           
           const newEntityBlocks: Record<string, string[]> = {
-            'Sushant Lok 2 - C,D,E': ['C, D, E'],
-            'Sushant Lok 2 - F,G': ['F, G'],
-            'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
+            'Sushant Lok 2': ['C', 'D', 'E', 'F', 'G'],
+            'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
           };
           fetchedPhases.forEach((p: string) => {
             if (!newEntityBlocks[p]) {
@@ -202,13 +212,31 @@ export default function Residents() {
     return Array.isArray(res.data) ? res.data : (res.data.residents || []);
   };
 
-  const formatAddress = (address: string) => {
-    if (!address) return 'N/A';
+  const formatAddress = (address: string, resident?: any) => {
+    if (!address && !resident?.house_no && !resident?.block) return 'N/A';
     
-    // Address is usually saved as: "House/Flat: G 123A , Sushant Lok 2 - F,G, Block F, G, (Owned)"
-    // The user only wants to see the flat number.
-    const parts = address.split(',');
-    return parts[0].trim();
+    // 1. If explicit block and house_no exist on the resident record
+    const house = resident?.house_no || address?.match(/House\/Flat:\s*([^,]+)/i)?.[1]?.trim() || address?.split(',')?.[0]?.replace(/House\/Flat:\s*/i, '')?.trim();
+    const block = resident?.block || address?.match(/Block\s+([A-H0-9]+)\b/i)?.[1]?.trim();
+
+    if (house && block) {
+      const blockStr = block.toLowerCase().startsWith('block') ? block : `Block ${block}`;
+      return `${house}, ${blockStr}`;
+    }
+
+    // 2. Extract from comma-separated address string
+    if (address) {
+      const parts = address.split(',').map((p: string) => p.trim());
+      const housePart = parts.find((p: string) => /^(House\/Flat|Flat|House)\b/i.test(p)) || parts[0];
+      const blockPart = parts.find((p: string) => /^Block\b/i.test(p));
+
+      if (housePart && blockPart) {
+        return `${housePart}, ${blockPart}`;
+      }
+      return housePart || address;
+    }
+
+    return house || block || 'N/A';
   };
 
   const isFiltered = filterPhase !== 'All Groups (Show Everything)' || filterRelation !== 'ALL' || search !== '' || dateFrom !== '' || dateTo !== '' || filterRole !== 'ALL' || filterStatus !== 'ALL';
@@ -282,17 +310,21 @@ export default function Residents() {
     try {
       const token = localStorage.getItem('adminToken');
       
+      const cleanBlock = block.replace(/^block\s*/i, '').trim();
+      const cleanHouseNo = houseNo.trim();
       let addressParts = [];
-      if (houseNo) addressParts.push(`House/Flat: ${houseNo}`);
+      if (cleanHouseNo) addressParts.push(`House/Flat: ${cleanHouseNo}`);
       if (phase) addressParts.push(phase);
-      if (block) addressParts.push(`Block ${block}`);
+      if (cleanBlock) addressParts.push(`Block ${cleanBlock}`);
       if (propertyType) addressParts.push(`(${propertyType})`);
       const combinedAddress = addressParts.join(', ');
 
       await axios.post(`${API_URL}/users/residents`, {
-        name,
-        phone_number: phoneNumber,
-        phase,
+        name: name.trim(),
+        phone_number: phoneNumber.trim(),
+        phase: phase.trim(),
+        block: cleanBlock,
+        house_no: cleanHouseNo,
         address: combinedAddress,
         property_type: propertyType,
         relation: relation || propertyType
@@ -307,9 +339,12 @@ export default function Residents() {
       setPhoneNumber('');
       setHouseNo('');
       setRelation('');
+      setPhase('Sushant Lok 2');
+      setBlock('C');
       
       // Auto switch back to list
       setActiveTab('list');
+      fetchResidents(1, filterPhase, debouncedSearch, filterRelation, dateFrom, dateTo, filterRole, filterStatus, false);
     } catch (err: any) {
       toast.error(err.response?.data?.msg || err.response?.data?.message || 'Failed to add resident', { id: loadingToast });
     } finally {
@@ -539,9 +574,9 @@ export default function Residents() {
               }}
             >
               <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
-              <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
-              <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
-              <option value="Sushant Lok 3">Sushant Lok 3</option>
+              {phases.map(p => (
+                <option key={p} value={p}>{p}</option>
+              ))}
             </select>
           </div>
 
@@ -700,7 +735,7 @@ export default function Residents() {
               columns={[
                 { header: 'Name', key: 'name' },
                 { header: 'Phone Number', key: 'phone_number' },
-                { header: 'Address', key: (r: any) => r.address || 'N/A' },
+                { header: 'Address', key: (r: any) => formatAddress(r.address, r) },
                 { header: 'Phase', key: 'phase' },
                 { header: 'Relation', key: 'relation' },
                 { header: 'Joined Date', key: (r: any) => new Date(r.createdAt).toLocaleDateString() }
@@ -797,7 +832,7 @@ export default function Residents() {
                     <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{r.phone_number}</td>
                     <td style={{ padding: '16px' }}>
                       <span className="badge" style={{ backgroundColor: '#DBEAFE', color: '#1D4ED8', padding: '6px 12px', fontWeight: 500, fontSize: 12 }}>
-                        {formatAddress(r.address)}
+                        {formatAddress(r.address, r)}
                       </span>
                     </td>
                     <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{r.phase || 'Unassigned'}</td>
@@ -1035,12 +1070,12 @@ export default function Residents() {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '400px', overflowY: 'auto' }}>
-              {phases.filter(p => !['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'].includes(p) && p !== 'Unassigned').length === 0 ? (
+              {phases.filter(p => !['Sushant Lok 2', 'Sushant Lok 3'].includes(p) && p !== 'Unassigned').length === 0 ? (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
                   No custom groups found.
                 </div>
               ) : (
-                phases.filter(p => !['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'].includes(p) && p !== 'Unassigned').map(phase => (
+                phases.filter(p => !['Sushant Lok 2', 'Sushant Lok 3'].includes(p) && p !== 'Unassigned').map(phase => (
                   <div key={phase} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#F8FAFC', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                     
                     {editingPhaseName === phase ? (

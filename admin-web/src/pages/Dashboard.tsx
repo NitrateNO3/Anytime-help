@@ -595,8 +595,7 @@ export default function Dashboard() {
               }}
             >
               <option value="ALL">All Areas / Phases</option>
-              <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
-              <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
+              <option value="Sushant Lok 2">Sushant Lok 2</option>
               <option value="Sushant Lok 3">Sushant Lok 3</option>
             </select>
           </div>

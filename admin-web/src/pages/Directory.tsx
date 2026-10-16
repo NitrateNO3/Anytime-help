@@ -25,7 +25,7 @@ export default function Directory() {
   const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
   const isSubAdmin = adminUser?.role === 'SubAdmin';
 
-  const availablePhases = ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
+  const availablePhases = ['Sushant Lok 2', 'Sushant Lok 3'];
 
   useEffect(() => {
     fetchContacts(page, filterPhase);
@@ -179,8 +179,7 @@ export default function Directory() {
           >
             <option value="All Groups (Show Everything)">All Groups (Show Everything)</option>
             <option value="Universal (Sent to Everyone)">Universal (Sent to Everyone)</option>
-            <option value="Sushant Lok 2 - C,D,E">Sushant Lok 2 - C,D,E</option>
-            <option value="Sushant Lok 2 - F,G">Sushant Lok 2 - F,G</option>
+            <option value="Sushant Lok 2">Sushant Lok 2</option>
             <option value="Sushant Lok 3">Sushant Lok 3</option>
           </select>
           {!isSubAdmin && (

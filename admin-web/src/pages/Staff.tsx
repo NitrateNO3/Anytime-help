@@ -13,7 +13,7 @@ const defaultCategories = [
   'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'
 ];
 
-const defaultPhases = ['All', 'Universal', 'Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 3'];
+const defaultPhases = ['All', 'Universal', 'Sushant Lok 2', 'Sushant Lok 3'];
 
 export default function Staff() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
@@ -44,8 +44,8 @@ export default function Staff() {
   }, [search]);
 
   // Form State
-  const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2 - C,D,E');
-  const [selectedBlock, setSelectedBlock] = useState('C, D, E');
+  const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2');
+  const [selectedBlock, setSelectedBlock] = useState('C');
   const [staffPersonalName, setStaffPersonalName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [categories, setCategories] = useState<string[]>(['Electricity']);
@@ -58,9 +58,8 @@ export default function Staff() {
   const [phases, setPhases] = useState<string[]>(defaultPhases);
   const [dynamicEntityBlocks, setDynamicEntityBlocks] = useState<Record<string, string[]>>({
     'All Groups (Universal)': ['All Blocks (Entire Society)'],
-    'Sushant Lok 2 - C,D,E': ['C, D, E'],
-    'Sushant Lok 2 - F,G': ['F, G'],
-    'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
+    'Sushant Lok 2': ['C', 'D', 'E', 'F', 'G'],
+    'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
   });
   
   // Custom Phase/Block State
@@ -106,9 +105,8 @@ export default function Staff() {
           // Build dynamic entityBlocks mapping
           const newEntityBlocks: Record<string, string[]> = {
             'All Groups (Universal)': ['All Blocks (Entire Society)'],
-            'Sushant Lok 2 - C,D,E': ['C, D, E'],
-            'Sushant Lok 2 - F,G': ['F, G'],
-            'Sushant Lok 3': ['A, B, B1, C, D, E, F, G, H']
+            'Sushant Lok 2': ['C', 'D', 'E', 'F', 'G'],
+            'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
           };
           res.data.forEach((p: string) => {
             if (!newEntityBlocks[p]) {

@@ -91,8 +91,16 @@ router.put('/me', auth, async (req, res) => {
 router.get('/phases', auth, async (req, res) => {
   try {
     const phases = await User.distinct('phase', { phase: { $exists: true, $ne: null } });
-    const validPhases = phases.filter(p => typeof p === 'string' && p.trim() !== '');
-    res.json(validPhases);
+    const canonicalPhases = ['Sushant Lok 2', 'Sushant Lok 3'];
+    const customPhases = (phases || []).filter(p => 
+      typeof p === 'string' && 
+      p.trim() !== '' && 
+      !['Universal', 'All', 'All Groups', 'All Groups (Universal)', 'Unassigned'].includes(p) &&
+      !p.toLowerCase().includes('sushant lok') &&
+      !p.includes(',') && !p.toLowerCase().includes('option') && !p.includes(' - ')
+    );
+    const combined = [...new Set([...canonicalPhases, ...customPhases])];
+    res.json(combined);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -271,7 +279,17 @@ router.get('/residents', auth, async (req, res) => {
     const andConditions = [];
 
     if (phase && phase !== 'All Groups (Show Everything)') {
-      if (phase === 'Sushant Lok 2 - C,D,E') {
+      if (phase === 'Sushant Lok 2') {
+        andConditions.push({ 
+          $or: [
+            { phase: 'Sushant Lok 2' },
+            { phase: 'Sushant Lok 2 - C,D,E' },
+            { phase: 'Sushant Lok 2 - F,G' },
+            { phase: 'Sushant Lok 2 Option 1' },
+            { phase: 'Sushant Lok 2 Option 2' }
+          ] 
+        });
+      } else if (phase === 'Sushant Lok 2 - C,D,E') {
         andConditions.push({ $or: [{ phase: 'Sushant Lok 2 - C,D,E' }, { phase: 'Sushant Lok 2 Option 1' }] });
       } else if (phase === 'Sushant Lok 2 - F,G') {
         andConditions.push({ $or: [{ phase: 'Sushant Lok 2 - F,G' }, { phase: 'Sushant Lok 2 Option 2' }] });
@@ -309,7 +327,9 @@ router.get('/residents', auth, async (req, res) => {
           { name: { $regex: s, $options: 'i' } },
           { phone_number: { $regex: s, $options: 'i' } },
           { address: { $regex: s, $options: 'i' } },
-          { phase: { $regex: s, $options: 'i' } }
+          { phase: { $regex: s, $options: 'i' } },
+          { block: { $regex: s, $options: 'i' } },
+          { house_no: { $regex: s, $options: 'i' } }
         ]
       });
     }
@@ -427,7 +447,7 @@ router.get('/members', auth, async (req, res) => {
 // @desc    Create a new resident member
 // @access  Admin Private
 router.post('/residents', auth, async (req, res) => {
-  let { name, phone_number, phase, address, relation, property_type } = req.body;
+  let { name, phone_number, phase, address, relation, property_type, block, house_no } = req.body;
 
   try {
     if (!checkAccess(req.user, 'Residents')) {
@@ -443,14 +463,27 @@ router.post('/residents', auth, async (req, res) => {
       return res.status(400).json({ msg: 'User already exists' });
     }
 
-    let existingActiveUser = await User.findOne({ phone_number, has_logged_in: true });
-    let hasLoggedIn = !!existingActiveUser;
+    if (block) {
+      block = String(block).replace(/^block\s*/i, '').trim();
+    }
+    if (house_no) {
+      house_no = String(house_no).trim();
+    }
+    if (phase) {
+      phase = String(phase).trim();
+    }
+    if (!address && house_no && block) {
+      address = `House/Flat: ${house_no}, ${phase || 'Sushant Lok 2'}, Block ${block}, (${property_type || 'Owned'})`;
+    }
 
     user = new User({
       name,
       phone_number,
       role: 'Resident',
       phase,
+      block,
+      house_no,
+      property_type,
       address,
       relation: relation || property_type,
       has_logged_in: hasLoggedIn
