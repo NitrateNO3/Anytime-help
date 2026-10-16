@@ -11,6 +11,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
+import WhatsAppFAB from '../components/WhatsAppFAB';
 
 export default function PaidStaffScreen() {
   const router = useRouter();
@@ -331,6 +332,9 @@ export default function PaidStaffScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* WhatsApp Support FAB - Home screen only */}
+      <WhatsAppFAB bottom={30} right={20} />
 
     </SafeAreaView>
   );

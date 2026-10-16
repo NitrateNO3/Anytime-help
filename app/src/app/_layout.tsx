@@ -26,36 +26,6 @@ export default function RootLayout() {
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [isReady, setIsReady] = useState(false);
   
-  // PanResponder logic for Draggable WhatsApp Button
-  const pan = useRef(new Animated.ValueXY()).current;
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => false,
-      onStartShouldSetPanResponderCapture: () => false,
-      onMoveShouldSetPanResponderCapture: () => false,
-      onMoveShouldSetPanResponder: (evt, gestureState) => {
-        // Only claim the gesture if the user drags significantly
-        return Math.abs(gestureState.dx) > 5 || Math.abs(gestureState.dy) > 5;
-      },
-      onPanResponderGrant: () => {
-        pan.setOffset({
-          x: (pan.x as any)._value,
-          y: (pan.y as any)._value
-        });
-        pan.setValue({ x: 0, y: 0 });
-      },
-      onPanResponderMove: Animated.event(
-        [
-          null,
-          { dx: pan.x, dy: pan.y }
-        ],
-        { useNativeDriver: false }
-      ),
-      onPanResponderRelease: () => {
-        pan.flattenOffset();
-      }
-    })
-  ).current;
   const [playStoreUrl, setPlayStoreUrl] = useState('');
 
   const checkVersion = async () => {
@@ -227,27 +197,6 @@ export default function RootLayout() {
           </View>
         </View>
       </Modal>
-
-      {/* Global WhatsApp FAB */}
-      <Animated.View 
-        {...panResponder.panHandlers}
-        style={[styles.globalFab, { transform: [{ translateX: pan.x }, { translateY: pan.y }] }]}
-      >
-        <TouchableOpacity 
-          style={{ flex: 1, width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center' }}
-          activeOpacity={0.8}
-          onPress={() => {
-            const msg = 'Hello Anytime Help Support, I need some assistance. Could you please help me?';
-            const encodedMsg = encodeURIComponent(msg);
-            const url = `whatsapp://send?phone=918882004800&text=${encodedMsg}`;
-            Linking.openURL(url).catch(() => {
-              Linking.openURL(`https://wa.me/918882004800?text=${encodedMsg}`).catch(err => console.error('An error occurred', err));
-            });
-          }}
-        >
-          <Ionicons name="logo-whatsapp" size={30} color="#FFFFFF" />
-        </TouchableOpacity>
-      </Animated.View>
     </GestureHandlerRootView>
   );
 }
@@ -297,22 +246,5 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
-  },
-  globalFab: {
-    position: 'absolute',
-    bottom: 100, // Positioned high enough to avoid bottom tab bars
-    right: 20,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: '#25D366',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#128C7E',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 10,
-    elevation: 8,
-    zIndex: 99999,
   }
 });

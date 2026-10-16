@@ -11,6 +11,7 @@ import { io } from 'socket.io-client';
 
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 import { isProfileBlockUpdateRequired } from '../../components/ForceBlockUpdateModal';
+import WhatsAppFAB from '../../components/WhatsAppFAB';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -373,6 +374,9 @@ export default function ResidentHome() {
           </CopilotStep>
         </View>
       </ScrollView>
+
+      {/* WhatsApp Support FAB - Home screen only */}
+      <WhatsAppFAB bottom={85} />
     </SafeAreaView>
   );
 }

@@ -11,6 +11,7 @@ import { io } from 'socket.io-client';
 import * as ImagePicker from 'expo-image-picker';
 
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
+import WhatsAppFAB from '../../components/WhatsAppFAB';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -693,6 +694,9 @@ export default function ResidentHome() {
           </View>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* WhatsApp Support FAB - Home screen only */}
+      <WhatsAppFAB bottom={85} />
     </SafeAreaView>
   );
 }
