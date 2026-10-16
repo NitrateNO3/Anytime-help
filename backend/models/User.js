@@ -12,6 +12,9 @@ const userSchema = new mongoose.Schema({
   assigned_category: { type: String, required: false }, // Legacy support
   assigned_categories: { type: [String], default: [] }, // New array for multiple categories
   phase: { type: String, required: false }, // For phase/entity-based routing
+  block: { type: String, required: false }, // Specific Block (A, B, C, D, etc.)
+  house_no: { type: String, required: false }, // House/Flat number
+  property_type: { type: String, required: false }, // 'Owned' or 'Rented'
   address: { type: String, required: false }, // For Resident/Member
   relation: { type: String, required: false }, // e.g., 'Tenant', 'Family Member'
   designation: { type: String, required: false }, // For Member (e.g. 'President', 'Secretary')

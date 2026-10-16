@@ -13,7 +13,7 @@ const otpStore = new Map();
 // @desc    Register user (Resident or Staff)
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, phone_number, firebase_uid, role, department, address, relation, phase, family_members, gender, otp } = req.body;
+  const { name, phone_number, firebase_uid, role, department, address, relation, phase, block, house_no, property_type, family_members, gender, otp } = req.body;
 
   try {
     if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
@@ -103,6 +103,9 @@ router.post('/register', async (req, res) => {
       address, 
       relation, 
       phase, 
+      block,
+      house_no,
+      property_type,
       family_members: family_members || [], 
       gender 
     });
@@ -483,7 +486,25 @@ router.post('/verify-otp', async (req, res) => {
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id, permissions: user.permissions || [] } });
+      res.json({ 
+        token, 
+        user: { 
+          id: user.id, 
+          name: user.name, 
+          role: user.role, 
+          phone_number: user.phone_number, 
+          assigned_category: user.assigned_category, 
+          assigned_categories: user.assigned_categories, 
+          member_id: user.member_id, 
+          permissions: user.permissions || [],
+          phase: user.phase,
+          block: user.block,
+          house_no: user.house_no,
+          property_type: user.property_type,
+          address: user.address,
+          gender: user.gender
+        } 
+      });
     });
   } catch (err) {
     console.error(err.message);

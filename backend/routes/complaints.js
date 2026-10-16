@@ -119,6 +119,17 @@ router.post('/', auth, async (req, res) => {
         if (userPhase === 'Sushant Lok 2 - F,G') phaseConditions.push({ phase: 'Sushant Lok 2 Option 2' });
         if (userPhase === 'Sushant Lok 2 Option 1') phaseConditions.push({ phase: 'Sushant Lok 2 - C,D,E' });
         if (userPhase === 'Sushant Lok 2 Option 2') phaseConditions.push({ phase: 'Sushant Lok 2 - F,G' });
+
+        const userBlock = (complaint.address || '').match(/Block\s+([A-H0-9]+)/i)?.[1] || (req.user && req.user.block);
+        if (userPhase === 'Sushant Lok 2') {
+          if (['C', 'D', 'E'].includes(userBlock)) {
+            phaseConditions.push({ phase: 'Sushant Lok 2 - C,D,E' }, { phase: 'Sushant Lok 2 Option 1' });
+          } else if (['F', 'G'].includes(userBlock)) {
+            phaseConditions.push({ phase: 'Sushant Lok 2 - F,G' }, { phase: 'Sushant Lok 2 Option 2' });
+          } else {
+            phaseConditions.push({ phase: 'Sushant Lok 2 - C,D,E' }, { phase: 'Sushant Lok 2 - F,G' });
+          }
+        }
       }
 
       const adminsAndStaff = await User.find({

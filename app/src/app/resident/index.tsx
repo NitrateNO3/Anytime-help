@@ -10,6 +10,7 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
+import { isProfileBlockUpdateRequired } from '../../components/ForceBlockUpdateModal';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -84,24 +85,26 @@ export default function ResidentHome() {
   useFocusEffect(
     useCallback(() => {
       SecureStore.getItemAsync('userData').then((data) => {
-        if (data) setUser(JSON.parse(data));
-      });
-
-      if (!startTour) {
-        SecureStore.getItemAsync('hasViewedResidentTour').then((data) => {
-          if (!data && start) {
-            // Delay starting slightly so UI has time to mount
-            setTimeout(() => {
-              try {
-                start();
-                SecureStore.setItemAsync('hasViewedResidentTour', 'true');
-              } catch (e) {
-                console.log('Copilot start error:', e);
+        if (data) {
+          const parsed = JSON.parse(data);
+          setUser(parsed);
+          
+          if (!startTour && !isProfileBlockUpdateRequired(parsed)) {
+            SecureStore.getItemAsync('hasViewedResidentTour').then((tourData) => {
+              if (!tourData && start) {
+                setTimeout(() => {
+                  try {
+                    start();
+                    SecureStore.setItemAsync('hasViewedResidentTour', 'true');
+                  } catch (e) {
+                    console.log('Copilot start error:', e);
+                  }
+                }, 1000);
               }
-            }, 1000); // increased delay to 1000ms
+            });
           }
-        });
-      }
+        }
+      });
 
       const fetchUnreadCount = async () => {
         try {

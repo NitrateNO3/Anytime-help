@@ -285,6 +285,8 @@ export default function RegisterScreen() {
         property_type: propertyType,
         relation: isDuplicateAddress ? relation : propertyType,
         phase,
+        block,
+        house_no: houseNo,
         family_members,
         gender
       };

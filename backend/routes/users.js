@@ -51,7 +51,7 @@ router.get('/me', auth, async (req, res) => {
 // @access  Private
 router.put('/me', auth, async (req, res) => {
   try {
-    const { name, phone_number, address, gender, property_type, phase } = req.body;
+    const { name, phone_number, address, gender, property_type, phase, block, house_no } = req.body;
     let user = await User.findById(req.user.id);
     
     if (!user) {
@@ -68,6 +68,8 @@ router.put('/me', auth, async (req, res) => {
     if (user.role === 'Resident') {
       if (property_type !== undefined) user.property_type = property_type;
       if (phase !== undefined) user.phase = phase;
+      if (block !== undefined) user.block = block;
+      if (house_no !== undefined) user.house_no = house_no;
     }
 
     await user.save();
