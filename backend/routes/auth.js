@@ -363,7 +363,15 @@ router.post('/send-otp', async (req, res) => {
     }
 
     if (role && userExists.role !== role) {
-      return res.status(403).json({ msg: `Access Denied. You are registered as ${userExists.role}, not ${role}.` });
+      // Check if this phone number is a family member
+      const isFamily = (userExists.family_members || []).some(f => {
+        const cleanF = (f.phone_number || '').replace(/^\+91/, '').trim();
+        return cleanF === phone_number;
+      });
+      const isMemberResidentCross = (role === 'Resident' && userExists.role === 'Member');
+      if (!isFamily && !isMemberResidentCross) {
+        return res.status(403).json({ msg: `Access Denied. You are registered as ${userExists.role}, not ${role}.` });
+      }
     }
 
     // Generate 6 digit OTP (Hardcoded for Review Accounts)
@@ -465,13 +473,24 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
     }
     
-    // Prioritize Staff > Admin > SubAdmin > Resident if multiple exist
+    // Prioritize Staff > Admin > SubAdmin > Member > Resident if multiple exist
     let user = users.find(u => u.role === 'Staff' || u.role === 'PaidStaff') 
             || users.find(u => u.role === 'Admin' || u.role === 'SubAdmin') 
+            || users.find(u => u.role === 'Member')
             || users[0];
 
+    // Check if logging in as family member
+    const matchingFamilyMember = (user.family_members || []).find(f => {
+      const cleanF = (f.phone_number || '').replace(/^\+91/, '').trim();
+      return cleanF === phone_number;
+    });
+
     if (role && user.role !== role) {
-      return res.status(403).json({ msg: `Access Denied. You are registered as ${user.role}, not ${role}.` });
+      const isFamily = !!matchingFamilyMember;
+      const isMemberResidentCross = (role === 'Resident' && user.role === 'Member');
+      if (!isFamily && !isMemberResidentCross) {
+        return res.status(403).json({ msg: `Access Denied. You are registered as ${user.role}, not ${role}.` });
+      }
     }
 
     user.has_logged_in = true;
@@ -484,15 +503,20 @@ router.post('/verify-otp', async (req, res) => {
 
     const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id, permissions: user.permissions || [] } };
     
+    const displayName = matchingFamilyMember ? matchingFamilyMember.name : user.name;
+    const displayPhone = matchingFamilyMember ? dbPhoneNumber : user.phone_number;
+
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
       res.json({ 
         token, 
         user: { 
           id: user.id, 
-          name: user.name, 
+          name: displayName, 
           role: user.role, 
-          phone_number: user.phone_number, 
+          phone_number: displayPhone, 
+          is_family_member: !!matchingFamilyMember,
+          family_relation: matchingFamilyMember ? matchingFamilyMember.relation : undefined,
           assigned_category: user.assigned_category, 
           assigned_categories: user.assigned_categories, 
           member_id: user.member_id, 

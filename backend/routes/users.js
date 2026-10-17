@@ -785,8 +785,142 @@ router.get('/profile/family', auth, async (req, res) => {
   }
 });
 
+// @route   POST api/users/profile/family
+// @desc    Add a single family member
+// @access  Private
+router.post('/profile/family', auth, async (req, res) => {
+  try {
+    const { name, relation, phone_number } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+    if (!relation || !relation.trim()) {
+      return res.status(400).json({ message: 'Relation is required' });
+    }
+    if (!phone_number) {
+      return res.status(400).json({ message: 'Phone number is required' });
+    }
+
+    const cleanPhone = phone_number.replace(/^\+91/, '').trim();
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ message: 'Please enter a valid 10-digit phone number' });
+    }
+    const formattedPhone = `+91${cleanPhone}`;
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if user is trying to add their own phone number
+    if (user.phone_number && user.phone_number.replace(/^\+91/, '').trim() === cleanPhone) {
+      return res.status(400).json({ message: 'Cannot add your own phone number as a family member' });
+    }
+
+    // Check if phone number already exists in this user's family members
+    const alreadyExists = (user.family_members || []).some(m => 
+      (m.phone_number || '').replace(/^\+91/, '').trim() === cleanPhone
+    );
+    if (alreadyExists) {
+      return res.status(400).json({ message: 'This phone number is already added in your family members' });
+    }
+
+    if (!user.family_members) user.family_members = [];
+    user.family_members.push({
+      name: name.trim(),
+      relation: relation.trim(),
+      phone_number: formattedPhone
+    });
+
+    await user.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_updated', { userId: user._id, role: user.role, name: user.name });
+    }
+
+    res.status(201).json({ 
+      message: 'Family member added successfully', 
+      family_members: user.family_members 
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   PUT api/users/profile/family/:memberId
+// @desc    Update a specific family member
+// @access  Private
+router.put('/profile/family/:memberId', auth, async (req, res) => {
+  try {
+    const { name, relation, phone_number } = req.body;
+    const { memberId } = req.params;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const member = user.family_members.id(memberId);
+    if (!member) {
+      return res.status(404).json({ message: 'Family member not found' });
+    }
+
+    if (name !== undefined) member.name = name.trim();
+    if (relation !== undefined) member.relation = relation.trim();
+    if (phone_number !== undefined) {
+      const cleanPhone = phone_number.replace(/^\+91/, '').trim();
+      if (cleanPhone.length !== 10) {
+        return res.status(400).json({ message: 'Please enter a valid 10-digit phone number' });
+      }
+      if (user.phone_number && user.phone_number.replace(/^\+91/, '').trim() === cleanPhone) {
+        return res.status(400).json({ message: 'Cannot add your own phone number as a family member' });
+      }
+      const duplicatePhone = user.family_members.some(m => 
+        m._id.toString() !== memberId && (m.phone_number || '').replace(/^\+91/, '').trim() === cleanPhone
+      );
+      if (duplicatePhone) {
+        return res.status(400).json({ message: 'Another family member already has this phone number' });
+      }
+      member.phone_number = `+91${cleanPhone}`;
+    }
+
+    await user.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_updated', { userId: user._id, role: user.role, name: user.name });
+    }
+
+    res.json({ message: 'Family member updated successfully', family_members: user.family_members });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   DELETE api/users/profile/family/:memberId
+// @desc    Remove a family member
+// @access  Private
+router.delete('/profile/family/:memberId', auth, async (req, res) => {
+  try {
+    const { memberId } = req.params;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.family_members = (user.family_members || []).filter(m => m._id.toString() !== memberId);
+    await user.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_updated', { userId: user._id, role: user.role, name: user.name });
+    }
+
+    res.json({ message: 'Family member removed successfully', family_members: user.family_members });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   PUT api/users/profile/family
-// @desc    Update user's family members
+// @desc    Update user's whole family members array
 // @access  Private
 router.put('/profile/family', auth, async (req, res) => {
   try {
@@ -801,8 +935,24 @@ router.put('/profile/family', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    user.family_members = family_members;
+    // Ensure phone numbers have +91
+    user.family_members = family_members.map(m => {
+      let phone = m.phone_number || '';
+      if (phone && !phone.startsWith('+91')) {
+        phone = `+91${phone.replace(/^\+91/, '').trim()}`;
+      }
+      return {
+        ...m,
+        phone_number: phone
+      };
+    });
+
     await user.save();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_updated', { userId: user._id, role: user.role, name: user.name });
+    }
 
     res.json({ message: 'Family members updated successfully', family_members: user.family_members });
   } catch (error) {

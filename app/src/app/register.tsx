@@ -238,6 +238,10 @@ export default function RegisterScreen() {
           Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please fill in family details correctly' });
           return;
         }
+        if (familyPhone.replace(/^\+91/, '').trim() === phoneNumber.replace(/^\+91/, '').trim()) {
+          Toast.show({ type: 'error', text1: 'Invalid Phone Number', text2: 'Family member phone cannot be the same as your phone number' });
+          return;
+        }
       }
     } else if (step === 3) {
       handleSendRegisterOTP();

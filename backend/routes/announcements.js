@@ -17,16 +17,70 @@ cloudinary.config({
 router.get('/', auth, async (req, res) => {
   try {
     let query = { active: true };
+    const helperGetAllowedPhases = (user, role) => {
+      let userBlock = (user?.block || '').trim().toUpperCase();
+      if (!userBlock && user?.address) {
+        const bMatch = user.address.match(/\bBlock[\s:-]*([A-H](?:1)?)\b/i) || 
+                       user.address.match(/\b([A-H](?:1)?)[\s-]+Block\b/i) || 
+                       user.address.match(/\b([A-H](?:1)?)[- ]?\d+/i);
+        if (bMatch) userBlock = bMatch[1].toUpperCase();
+      }
+
+      const uPhase = (user?.phase || '').trim();
+      let allowed = ['All', 'Universal', 'All Groups'];
+
+      if (role === 'Resident') {
+        allowed.push('Resident', 'Resident + Member');
+      } else if (role === 'Member') {
+        allowed.push('Members', 'Resident + Member', 'Resident');
+      }
+
+      if (uPhase) {
+        allowed.push(uPhase);
+        const parentGroup = uPhase.split(' - ')[0];
+        const basePhase = uPhase.split(' - ').slice(0, 2).join(' - ');
+        allowed.push(parentGroup, basePhase);
+      }
+
+      const isSL2 = !uPhase || uPhase.toLowerCase().includes('sushant lok 2') || (user?.address && user.address.toLowerCase().includes('sushant lok 2'));
+      const isSL3 = (uPhase && uPhase.toLowerCase().includes('sushant lok 3')) || (user?.address && user.address.toLowerCase().includes('sushant lok 3'));
+
+      if (isSL2) {
+        allowed.push('Sushant Lok 2');
+        if (['C', 'D', 'E'].includes(userBlock)) {
+          allowed.push('Sushant Lok 2 - C,D,E', 'Sushant Lok 2 Option 1', `Block ${userBlock}`, userBlock);
+        } else if (['F', 'G'].includes(userBlock)) {
+          allowed.push('Sushant Lok 2 - F,G', 'Sushant Lok 2 Option 2', `Block ${userBlock}`, userBlock);
+        } else if (uPhase.includes('C,D,E') || uPhase.includes('Option 1')) {
+          allowed.push('Sushant Lok 2 - C,D,E', 'Sushant Lok 2 Option 1');
+        } else if (uPhase.includes('F,G') || uPhase.includes('Option 2')) {
+          allowed.push('Sushant Lok 2 - F,G', 'Sushant Lok 2 Option 2');
+        } else {
+          // If block is unknown, include both sub-clusters so resident doesn't miss announcements
+          allowed.push('Sushant Lok 2 - C,D,E', 'Sushant Lok 2 - F,G', 'Sushant Lok 2 Option 1', 'Sushant Lok 2 Option 2');
+        }
+      }
+
+      if (isSL3) {
+        allowed.push('Sushant Lok 3', 'Sushant Lok 3 - A, B, B1, C, D, E, F, G, H');
+        if (userBlock) {
+          allowed.push(`Block ${userBlock}`, userBlock);
+        }
+      }
+
+      return [...new Set(allowed.filter(Boolean))];
+    };
+
     if (req.user.role === 'Resident') {
       const user = await User.findById(req.user.id);
-      if (user && user.phase) {
-        const parentGroup = user.phase.split(' - ')[0];
-        const basePhase = user.phase.split(' - ').slice(0, 2).join(' - ');
-        query.phases = { $in: [user.phase, parentGroup, basePhase, 'All', 'Resident', 'Resident + Member'] };
-      } else {
-        // If user has no phase, fallback to 'All', 'Resident', or empty
-        query.$or = [{ phases: 'All' }, { phases: 'Resident' }, { phases: 'Resident + Member' }, { phases: { $size: 0 } }];
-      }
+      const allowedPhases = helperGetAllowedPhases(user, 'Resident');
+      query.$or = [
+        { phases: { $in: allowedPhases } },
+        { phases: { $size: 0 } },
+        { phases: { $exists: false } },
+        { phases: null },
+        { phases: 'All' }
+      ];
       query.targetAudience = { $ne: 'Members' }; // Residents cannot see 'Members' only announcements
     } else if (req.user.role === 'Staff') {
       const user = await User.findById(req.user.id);
@@ -42,24 +96,16 @@ router.get('/', auth, async (req, res) => {
       ];
     } else if (req.user.role === 'Member') {
       const user = await User.findById(req.user.id);
-      let phasesToMatch = ['All', 'Members', 'Resident + Member', 'Resident'];
-      if (user && user.phase) {
-        const parentGroup = user.phase.split(' - ')[0];
-        const basePhase = user.phase.split(' - ').slice(0, 2).join(' - ');
-        phasesToMatch.push(user.phase, parentGroup, basePhase);
-        query.$or = [
-          { phases: { $in: phasesToMatch } },
-          { targetAudience: 'Members' },
-          { createdBy: req.user.id }
-        ];
-      } else {
-        query.$or = [
-          { phases: { $in: phasesToMatch } },
-          { targetAudience: 'Members' },
-          { targetAudience: 'All' },
-          { createdBy: req.user.id }
-        ];
-      }
+      const allowedPhases = helperGetAllowedPhases(user, 'Member');
+      query.$or = [
+        { phases: { $in: allowedPhases } },
+        { phases: { $size: 0 } },
+        { phases: { $exists: false } },
+        { phases: null },
+        { phases: 'All' },
+        { targetAudience: 'Members' },
+        { createdBy: req.user.id }
+      ];
     } else if (req.user.role === 'Admin') {
       const { phase } = req.query;
       if (phase && phase !== 'All Groups (Show Everything)') {
@@ -259,8 +305,55 @@ router.post('/', auth, async (req, res) => {
       const locationPhases = targetPhases.filter(p => p !== 'All' && p !== 'Resident' && p !== 'Members' && p !== 'Staff' && p !== 'Resident + Member');
       
       if (locationPhases.length > 0) {
-        const phaseRegexes = locationPhases.map(p => new RegExp('^' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
-        userQuery.$or = [{ phase: { $in: phaseRegexes } }, { phase: { $exists: false } }, { phase: '' }];
+        const phaseOrConditions = [];
+        
+        for (const lp of locationPhases) {
+          const lpLower = lp.toLowerCase();
+          
+          if (lpLower.includes('c,d,e') || lpLower.includes('option 1')) {
+            // Sushant Lok 2 - C,D,E cluster (Blocks C, D, E)
+            phaseOrConditions.push({ phase: { $regex: /Sushant Lok 2 - C,D,E|Sushant Lok 2 Option 1/i } });
+            phaseOrConditions.push({
+              $or: [
+                { block: { $in: ['C', 'D', 'E', 'c', 'd', 'e'] } },
+                { address: { $regex: /\bBlock\s*[CDE]\b|\b[CDE]-?\d+/i } }
+              ]
+            });
+          } else if (lpLower.includes('f,g') || lpLower.includes('option 2')) {
+            // Sushant Lok 2 - F,G cluster (Blocks F, G)
+            phaseOrConditions.push({ phase: { $regex: /Sushant Lok 2 - F,G|Sushant Lok 2 Option 2/i } });
+            phaseOrConditions.push({
+              $or: [
+                { block: { $in: ['F', 'G', 'f', 'g'] } },
+                { address: { $regex: /\bBlock\s*[FG]\b|\b[FG]-?\d+/i } }
+              ]
+            });
+          } else if (lpLower === 'sushant lok 2') {
+            phaseOrConditions.push({ phase: { $regex: /Sushant Lok 2/i } });
+            phaseOrConditions.push({ address: { $regex: /Sushant Lok 2/i } });
+          } else if (lpLower.includes('sushant lok 3')) {
+            phaseOrConditions.push({ phase: { $regex: /Sushant Lok 3/i } });
+            phaseOrConditions.push({ address: { $regex: /Sushant Lok 3/i } });
+          } else {
+            // Check for single block target e.g. "Block D", "Block F", "D", "F"
+            const singleBlockMatch = lp.match(/^(?:Block\s*)?([A-H](?:1)?)$/i);
+            if (singleBlockMatch) {
+              const blk = singleBlockMatch[1].toUpperCase();
+              phaseOrConditions.push({ block: new RegExp(`^${blk}$`, 'i') });
+              phaseOrConditions.push({ address: new RegExp(`\\bBlock\\s*${blk}\\b|\\b${blk}-?\\d+`, 'i') });
+            } else {
+              const escaped = lp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              phaseOrConditions.push({ phase: new RegExp('^' + escaped, 'i') });
+            }
+          }
+        }
+        
+        // Include unassigned/blank phase users so nobody is left behind
+        phaseOrConditions.push({ phase: { $in: [null, '', undefined] } });
+        phaseOrConditions.push({ phase: { $exists: false } });
+
+        userQuery.$and = userQuery.$and || [];
+        userQuery.$and.push({ $or: phaseOrConditions });
       }
       
       userQuery.expoPushToken = { $exists: true, $ne: '' };
