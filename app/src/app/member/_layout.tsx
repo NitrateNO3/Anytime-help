@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, StyleSheet, Platform } from 'react-native';
@@ -7,6 +7,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
 import { TouchableOpacity } from 'react-native';
 import { walkthroughable, CopilotStep } from 'react-native-copilot';
+import * as SecureStore from 'expo-secure-store';
+import axios from 'axios';
+import { io } from 'socket.io-client';
+import ForceBlockUpdateModal, { isProfileBlockUpdateRequired } from '../../components/ForceBlockUpdateModal';
+
+const API_URL = 'https://anytime-help.onrender.com/api';
+const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 const WalkthroughableTouchableOpacity = walkthroughable(TouchableOpacity);
 
@@ -14,7 +21,65 @@ export default function MemberLayout() {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   
+  const [userData, setUserData] = useState<any>(null);
+  const [showBlockModal, setShowBlockModal] = useState<boolean>(false);
+
+  const checkUserProfile = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (!token) return;
+
+      try {
+        const res = await axios.get(`${API_URL}/users/me`, {
+          headers: { 'x-auth-token': token }
+        });
+        if (res.data) {
+          const fresh = res.data;
+          setUserData(fresh);
+          await SecureStore.setItemAsync('userData', JSON.stringify(fresh));
+          if (isProfileBlockUpdateRequired(fresh)) {
+            setShowBlockModal(true);
+          } else {
+            setShowBlockModal(false);
+          }
+          return;
+        }
+      } catch (apiErr) {
+        // Fallback to local storage
+      }
+
+      const storedUser = await SecureStore.getItemAsync('userData');
+      if (storedUser) {
+        const parsed = JSON.parse(storedUser);
+        setUserData(parsed);
+        if (isProfileBlockUpdateRequired(parsed)) {
+          setShowBlockModal(true);
+        } else {
+          setShowBlockModal(false);
+        }
+      }
+    } catch (e) {
+      console.log('Error checking member profile in layout:', e);
+    }
+  };
+
+  useEffect(() => {
+    checkUserProfile();
+
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socket.on('user_updated', (data: any) => {
+      if (userData && (userData._id === data.userId || userData.id === data.userId)) {
+        checkUserProfile();
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
   return (
+    <View style={{ flex: 1 }}>
     <Tabs
       backBehavior="initialRoute"
       screenOptions={{
@@ -105,6 +170,16 @@ export default function MemberLayout() {
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
       <Tabs.Screen name="complaint-details" options={{ href: null, tabBarStyle: { display: 'none' } }} />
     </Tabs>
+
+    <ForceBlockUpdateModal
+      visible={showBlockModal}
+      userData={userData}
+      onSuccess={(updatedUser) => {
+        setUserData(updatedUser);
+        setShowBlockModal(false);
+      }}
+    />
+  </View>
   );
 }
 

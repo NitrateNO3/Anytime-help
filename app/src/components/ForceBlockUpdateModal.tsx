@@ -30,7 +30,7 @@ export const PHASE_BLOCKS: Record<string, string[]> = {
  * Checks whether a user account has legacy/grouped block data and requires updating to individual block.
  */
 export function isProfileBlockUpdateRequired(user: any): boolean {
-  if (!user || user.role !== 'Resident') return false;
+  if (!user || (user.role !== 'Resident' && user.role !== 'Member')) return false;
 
   const phase = (user.phase || '').trim();
   const address = (user.address || '').trim();

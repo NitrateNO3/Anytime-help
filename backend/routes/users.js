@@ -65,7 +65,7 @@ router.put('/me', auth, async (req, res) => {
     if (address !== undefined) user.address = address;
     if (gender !== undefined) user.gender = gender;
     
-    if (user.role === 'Resident') {
+    if (user.role === 'Resident' || user.role === 'Member') {
       if (property_type !== undefined) user.property_type = property_type;
       if (phase !== undefined) user.phase = phase;
       if (block !== undefined) user.block = block;
