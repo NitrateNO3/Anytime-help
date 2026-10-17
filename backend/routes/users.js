@@ -476,6 +476,9 @@ router.post('/residents', auth, async (req, res) => {
       address = `House/Flat: ${house_no}, ${phase || 'Sushant Lok 2'}, Block ${block}, (${property_type || 'Owned'})`;
     }
 
+    let existingActiveUser = await User.findOne({ phone_number, has_logged_in: true });
+    let hasLoggedIn = !!existingActiveUser;
+
     user = new User({
       name,
       phone_number,

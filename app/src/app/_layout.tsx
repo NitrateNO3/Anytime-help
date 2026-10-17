@@ -186,7 +186,7 @@ export default function RootLayout() {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Update Required</Text>
             <Text style={styles.modalText}>
-              A new version of Anytime Help is available. Please update your app to the latest version to continue.
+              A new versiorn of Anytime Help is available. Please update your app to the latest version to continue.
             </Text>
             <TouchableOpacity 
               style={styles.updateButton} 
