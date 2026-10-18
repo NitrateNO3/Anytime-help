@@ -101,6 +101,33 @@ export default function Dashboard() {
     };
   }, [page, debouncedSearch, debouncedIdFilter, statusFilter, categoryFilter, phaseFilter, sortOrder]);
 
+  // Stack-wise sorting: Escalated first -> Pending -> In Progress -> Done/Resolved -> Newest Date
+  const sortComplaints = (list: any[], order: string = sortOrder) => {
+    return [...list].sort((a, b) => {
+      // Escalated complaints always show first
+      if (a.is_escalated && !b.is_escalated) return -1;
+      if (!a.is_escalated && b.is_escalated) return 1;
+
+      // Status stack priority: PENDING = 1, IN_PROGRESS = 2, RESOLVED/DONE = 3
+      const statusOrder: Record<string, number> = {
+        'PENDING': 1,
+        'IN_PROGRESS': 2,
+        'RESOLVED': 3,
+        'DONE': 3
+      };
+      const orderA = statusOrder[a.status] || 4;
+      const orderB = statusOrder[b.status] || 4;
+      if (orderA !== orderB) {
+        return orderA - orderB;
+      }
+
+      // Within the same status stack, sort by creation date
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+      return order === 'asc' ? timeA - timeB : timeB - timeA;
+    });
+  };
+
   const fetchComplaints = async (currentPage: number, showLoading: boolean = true) => {
     const cacheKey = `dashboard_cache_${currentPage}_${debouncedSearch}_${debouncedIdFilter}_${statusFilter}_${categoryFilter}_${phaseFilter}_${sortOrder}`;
     const cachedStr = sessionStorage.getItem(cacheKey);
@@ -108,7 +135,7 @@ export default function Dashboard() {
     if (cachedStr) {
       try {
         const cached = JSON.parse(cachedStr);
-        setComplaints(cached.complaints || []);
+        setComplaints(sortComplaints(cached.complaints || []));
         if (cached.stats) setStats(cached.stats);
         setTotalCount(cached.total || 0);
         setTotalPages(Math.ceil((cached.total || 0) / 10) || 1);
@@ -137,9 +164,11 @@ export default function Dashboard() {
         headers: { 'x-auth-token': token }
       });
 
-      sessionStorage.setItem(cacheKey, JSON.stringify(res.data)); // Cache for next time
+      const sortedData = sortComplaints(res.data.complaints || []);
+      const cacheData = { ...res.data, complaints: sortedData };
+      sessionStorage.setItem(cacheKey, JSON.stringify(cacheData)); // Cache for next time
 
-      setComplaints(res.data.complaints || []);
+      setComplaints(sortedData);
       if (res.data.stats) {
         setStats(res.data.stats);
       }
@@ -191,7 +220,8 @@ export default function Dashboard() {
     const res = await axios.get(`${API_URL}/complaints?${params.toString()}`, {
       headers: { 'x-auth-token': token }
     });
-    return Array.isArray(res.data) ? res.data : (res.data.complaints || []);
+    const rawData = Array.isArray(res.data) ? res.data : (res.data.complaints || []);
+    return sortComplaints(rawData);
   };
 
   const openComplaintDetails = async (item: any) => {
@@ -293,7 +323,16 @@ export default function Dashboard() {
         headers: { 'x-auth-token': token }
       });
       toast.success('Status updated successfully', { id: loadingToast });
-      setComplaints(prev => prev.map(c => c._id === id ? { ...c, status: newStatus } : c));
+      setComplaints(prev => {
+        const updated = prev.map(c => c._id === id ? { ...c, status: newStatus } : c);
+        return sortComplaints(updated);
+      });
+      // Invalidate dashboard session cache so future tab/page switches show the updated stack
+      try {
+        Object.keys(sessionStorage).forEach(key => {
+          if (key.startsWith('dashboard_cache_')) sessionStorage.removeItem(key);
+        });
+      } catch (e) {}
       fetchComplaints(page, false);
     } catch (err) {
       console.error(err);

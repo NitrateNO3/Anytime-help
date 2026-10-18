@@ -56,6 +56,11 @@ const complaintSchema = new mongoose.Schema({
     enum: ['PENDING', 'IN_PROGRESS', 'DONE'],
     default: 'PENDING',
   },
+  status_priority: {
+    type: Number,
+    default: 1,
+    index: true,
+  },
   priority: {
     type: String,
     enum: ['Low', 'Medium', 'High'],
@@ -106,6 +111,17 @@ const complaintSchema = new mongoose.Schema({
 });
 
 complaintSchema.pre('save', async function () {
+  // Always calculate status_priority based on status (1: PENDING, 2: IN_PROGRESS, 3: DONE/RESOLVED)
+  if (this.status === 'PENDING') {
+    this.status_priority = 1;
+  } else if (this.status === 'IN_PROGRESS') {
+    this.status_priority = 2;
+  } else if (this.status === 'DONE' || this.status === 'RESOLVED') {
+    this.status_priority = 3;
+  } else {
+    this.status_priority = 4;
+  }
+
   if (this.isNew && !this.complaint_id) {
     try {
       const Counter = require('./Counter');
@@ -125,6 +141,8 @@ complaintSchema.pre('save', async function () {
 
 complaintSchema.index({ user: 1 });
 complaintSchema.index({ status: 1, created_at: -1 });
+complaintSchema.index({ status_priority: 1, created_at: -1 });
+complaintSchema.index({ is_escalated: -1, status_priority: 1, created_at: -1 });
 complaintSchema.index({ department: 1, status: 1 });
 complaintSchema.index({ assigned_staff: 1, status: 1 });
 complaintSchema.index({ category: 1 });

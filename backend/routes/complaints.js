@@ -207,9 +207,35 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
+// One-time auto-backfill helper to ensure legacy complaints have status_priority
+let isStatusPriorityBackfilled = false;
+const ensureStatusPriority = async () => {
+  if (isStatusPriorityBackfilled) return;
+  try {
+    await Promise.all([
+      Complaint.updateMany(
+        { status: 'PENDING', $or: [{ status_priority: { $exists: false } }, { status_priority: { $ne: 1 } }] },
+        { $set: { status_priority: 1 } }
+      ),
+      Complaint.updateMany(
+        { status: 'IN_PROGRESS', $or: [{ status_priority: { $exists: false } }, { status_priority: { $ne: 2 } }] },
+        { $set: { status_priority: 2 } }
+      ),
+      Complaint.updateMany(
+        { status: { $in: ['DONE', 'RESOLVED'] }, $or: [{ status_priority: { $exists: false } }, { status_priority: { $ne: 3 } }] },
+        { $set: { status_priority: 3 } }
+      )
+    ]);
+    isStatusPriorityBackfilled = true;
+  } catch (err) {
+    console.error('Error in ensureStatusPriority:', err.message);
+  }
+};
+
 // GET /api/complaints
 router.get('/', auth, async (req, res) => {
   try {
+    await ensureStatusPriority();
     const { departmentId, page, limit, search, category, status, phase, priority, sortOrder, complaint_id } = req.query;
     let query = {};
     if (departmentId) {
@@ -450,7 +476,7 @@ router.get('/', auth, async (req, res) => {
       .populate('assigned_staff', 'name phone_number address room_number phase')
       .populate('escalated_by', 'name phone_number phone role')
       .populate('replies.user', 'name role')
-      .sort({ is_escalated: -1, created_at: sortDirection })
+      .sort({ is_escalated: -1, status_priority: 1, created_at: sortDirection })
       .lean();
     
     const pageNum = parseInt(page || '1', 10);
@@ -920,6 +946,11 @@ router.patch('/:id', auth, async (req, res) => {
 
     if (status) {
       complaint.status = status;
+      if (status === 'PENDING') complaint.status_priority = 1;
+      else if (status === 'IN_PROGRESS') complaint.status_priority = 2;
+      else if (status === 'DONE' || status === 'RESOLVED') complaint.status_priority = 3;
+      else complaint.status_priority = 4;
+
       // If staff updates the status, mark them as the assigned staff
       if (req.user.role === 'Staff' || req.user.role === 'PaidStaff') {
         complaint.assigned_staff = req.user.id;
