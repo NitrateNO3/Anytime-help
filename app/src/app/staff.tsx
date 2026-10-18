@@ -175,9 +175,11 @@ export default function StaffScreen() {
       
       const sortComplaints = (list: any[]) => {
         return [...list].sort((a, b) => {
-          // Escalated complaints always show first
-          if (a.is_escalated && !b.is_escalated) return -1;
-          if (!a.is_escalated && b.is_escalated) return 1;
+          // Only active escalated complaints (NOT DONE / NOT RESOLVED) show first
+          const isAActiveEscalated = a.is_escalated && a.status !== 'DONE' && a.status !== 'RESOLVED';
+          const isBActiveEscalated = b.is_escalated && b.status !== 'DONE' && b.status !== 'RESOLVED';
+          if (isAActiveEscalated && !isBActiveEscalated) return -1;
+          if (!isAActiveEscalated && isBActiveEscalated) return 1;
 
           const statusOrder: Record<string, number> = { 'PENDING': 1, 'IN_PROGRESS': 2, 'RESOLVED': 3, 'DONE': 3 };
           const orderA = statusOrder[a.status] || 4;

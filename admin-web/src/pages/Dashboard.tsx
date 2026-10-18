@@ -101,12 +101,14 @@ export default function Dashboard() {
     };
   }, [page, debouncedSearch, debouncedIdFilter, statusFilter, categoryFilter, phaseFilter, sortOrder]);
 
-  // Stack-wise sorting: Escalated first -> Pending -> In Progress -> Done/Resolved -> Newest Date
+  // Stack-wise sorting: Active Escalated first -> Pending -> In Progress -> Done/Resolved (escalated done at bottom) -> Newest Date
   const sortComplaints = (list: any[], order: string = sortOrder) => {
     return [...list].sort((a, b) => {
-      // Escalated complaints always show first
-      if (a.is_escalated && !b.is_escalated) return -1;
-      if (!a.is_escalated && b.is_escalated) return 1;
+      // Only active escalated complaints (NOT DONE / NOT RESOLVED) show first
+      const isAActiveEscalated = a.is_escalated && a.status !== 'DONE' && a.status !== 'RESOLVED';
+      const isBActiveEscalated = b.is_escalated && b.status !== 'DONE' && b.status !== 'RESOLVED';
+      if (isAActiveEscalated && !isBActiveEscalated) return -1;
+      if (!isAActiveEscalated && isBActiveEscalated) return 1;
 
       // Status stack priority: PENDING = 1, IN_PROGRESS = 2, RESOLVED/DONE = 3
       const statusOrder: Record<string, number> = {

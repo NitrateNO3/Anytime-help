@@ -111,13 +111,19 @@ const complaintSchema = new mongoose.Schema({
 });
 
 complaintSchema.pre('save', async function () {
-  // Always calculate status_priority based on status (1: PENDING, 2: IN_PROGRESS, 3: DONE/RESOLVED)
-  if (this.status === 'PENDING') {
+  // Always calculate status_priority based on status and is_escalated:
+  // If DONE or RESOLVED: always priority 3 (bottom of stack, even if escalated)
+  // If active (PENDING / IN_PROGRESS) and escalated: priority 0 (top of stack)
+  // If normal PENDING: priority 1
+  // If normal IN_PROGRESS: priority 2
+  if (this.status === 'DONE' || this.status === 'RESOLVED') {
+    this.status_priority = 3;
+  } else if (this.is_escalated) {
+    this.status_priority = 0;
+  } else if (this.status === 'PENDING') {
     this.status_priority = 1;
   } else if (this.status === 'IN_PROGRESS') {
     this.status_priority = 2;
-  } else if (this.status === 'DONE' || this.status === 'RESOLVED') {
-    this.status_priority = 3;
   } else {
     this.status_priority = 4;
   }

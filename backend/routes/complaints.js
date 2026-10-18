@@ -213,17 +213,25 @@ const ensureStatusPriority = async () => {
   if (isStatusPriorityBackfilled) return;
   try {
     await Promise.all([
+      // 1. Any complaint that is DONE or RESOLVED must have status_priority = 3, whether escalated or not!
       Complaint.updateMany(
-        { status: 'PENDING', $or: [{ status_priority: { $exists: false } }, { status_priority: { $ne: 1 } }] },
+        { status: { $in: ['DONE', 'RESOLVED'] }, status_priority: { $ne: 3 } },
+        { $set: { status_priority: 3 } }
+      ),
+      // 2. Active complaints (PENDING or IN_PROGRESS) that are escalated get status_priority = 0 (top of stack)
+      Complaint.updateMany(
+        { status: { $nin: ['DONE', 'RESOLVED'] }, is_escalated: true, status_priority: { $ne: 0 } },
+        { $set: { status_priority: 0 } }
+      ),
+      // 3. Normal PENDING complaints (not escalated) -> status_priority = 1
+      Complaint.updateMany(
+        { status: 'PENDING', is_escalated: { $ne: true }, status_priority: { $ne: 1 } },
         { $set: { status_priority: 1 } }
       ),
+      // 4. Normal IN_PROGRESS complaints (not escalated) -> status_priority = 2
       Complaint.updateMany(
-        { status: 'IN_PROGRESS', $or: [{ status_priority: { $exists: false } }, { status_priority: { $ne: 2 } }] },
+        { status: 'IN_PROGRESS', is_escalated: { $ne: true }, status_priority: { $ne: 2 } },
         { $set: { status_priority: 2 } }
-      ),
-      Complaint.updateMany(
-        { status: { $in: ['DONE', 'RESOLVED'] }, $or: [{ status_priority: { $exists: false } }, { status_priority: { $ne: 3 } }] },
-        { $set: { status_priority: 3 } }
       )
     ]);
     isStatusPriorityBackfilled = true;
@@ -476,7 +484,7 @@ router.get('/', auth, async (req, res) => {
       .populate('assigned_staff', 'name phone_number address room_number phase')
       .populate('escalated_by', 'name phone_number phone role')
       .populate('replies.user', 'name role')
-      .sort({ is_escalated: -1, status_priority: 1, created_at: sortDirection })
+      .sort({ status_priority: 1, created_at: sortDirection })
       .lean();
     
     const pageNum = parseInt(page || '1', 10);
@@ -724,6 +732,7 @@ router.post('/:id/escalate', auth, async (req, res) => {
       complaint.escalated_by_name = null;
       complaint.escalated_by_phone = null;
       complaint.escalated_at = null;
+      complaint.status_priority = (complaint.status === 'DONE' || complaint.status === 'RESOLVED') ? 3 : (complaint.status === 'IN_PROGRESS' ? 2 : 1);
     } else {
       complaint.is_escalated = true;
       complaint.escalated_by = req.user._id || req.user.id;
@@ -732,6 +741,7 @@ router.post('/:id/escalate', auth, async (req, res) => {
       complaint.escalated_at = new Date();
       complaint.priority = 'High';
       if (reason) complaint.escalation_reason = reason;
+      complaint.status_priority = (complaint.status === 'DONE' || complaint.status === 'RESOLVED') ? 3 : 0;
     }
 
     await complaint.save();
@@ -946,10 +956,17 @@ router.patch('/:id', auth, async (req, res) => {
 
     if (status) {
       complaint.status = status;
-      if (status === 'PENDING') complaint.status_priority = 1;
-      else if (status === 'IN_PROGRESS') complaint.status_priority = 2;
-      else if (status === 'DONE' || status === 'RESOLVED') complaint.status_priority = 3;
-      else complaint.status_priority = 4;
+      if (status === 'DONE' || status === 'RESOLVED') {
+        complaint.status_priority = 3;
+      } else if (complaint.is_escalated) {
+        complaint.status_priority = 0;
+      } else if (status === 'PENDING') {
+        complaint.status_priority = 1;
+      } else if (status === 'IN_PROGRESS') {
+        complaint.status_priority = 2;
+      } else {
+        complaint.status_priority = 4;
+      }
 
       // If staff updates the status, mark them as the assigned staff
       if (req.user.role === 'Staff' || req.user.role === 'PaidStaff') {
