@@ -207,7 +207,119 @@ router.post('/', auth, async (req, res) => {
   }
 });
 
-// One-time auto-backfill helper to ensure legacy complaints have status_priority
+const categoryAliases = {
+  'electricity': ['electricity', 'electrical', 'electrician', 'street light', 'light'],
+  'electrical': ['electricity', 'electrical', 'electrician', 'street light', 'light'],
+  'electrician': ['electricity', 'electrical', 'electrician', 'street light', 'light'],
+  'street light': ['street light', 'light', 'electricity', 'electrical'],
+  'rainwater drainage': ['rainwater drainage', 'drainage', 'sewage cleaning', 'drain', 'water logging'],
+  'drainage': ['rainwater drainage', 'drainage', 'sewage cleaning', 'drain', 'water logging'],
+  'sewage cleaning': ['sewage cleaning', 'rainwater drainage', 'drainage', 'drain'],
+  'water supply': ['water supply', 'water', 'plumbing', 'plumber'],
+  'plumbing': ['water supply', 'water', 'plumbing', 'plumber'],
+  'sweeping': ['sweeping', 'sanitation', 'cleaning'],
+  'door to door': ['door to door', 'garbage', 'waste'],
+  'tree trimming': ['tree trimming', 'horticulture', 'gardening'],
+  'park complaints': ['park complaints', 'park', 'gardening']
+};
+
+function matchStaffForComplaint(complaint, allStaff) {
+  if (!complaint || !allStaff || allStaff.length === 0) return null;
+
+  const rawCat = (complaint.category || complaint.title || '').trim().toLowerCase();
+  let searchTerms = [rawCat];
+  for (const [key, aliases] of Object.entries(categoryAliases)) {
+    if (rawCat.includes(key) || aliases.some(a => rawCat.includes(a))) {
+      searchTerms.push(key, ...aliases);
+    }
+  }
+  searchTerms = [...new Set(searchTerms.filter(Boolean))];
+
+  // Smart phase detection
+  let detectedPhase = complaint.phase;
+  if (!detectedPhase || ['all', 'universal', 'all phases', 'all groups'].includes(detectedPhase.toLowerCase())) {
+    const text = [
+      complaint.address || '',
+      complaint.location || '',
+      complaint.user?.phase || '',
+      complaint.user?.address || ''
+    ].join(' ').toLowerCase();
+
+    if (text.includes('sushant lok 3') || text.includes('sl 3') || text.includes('sl-3') || text.includes('sl3')) {
+      detectedPhase = 'Sushant Lok 3';
+    } else if (text.includes('sushant lok 2') || text.includes('sl 2') || text.includes('sl-2') || text.includes('sl2')) {
+      if (text.includes('g-') || text.includes('f-') || text.includes('block g') || text.includes('block f')) {
+        detectedPhase = 'Sushant Lok 2 - F,G';
+      } else if (text.includes('c-') || text.includes('d-') || text.includes('e-') || text.includes('block c') || text.includes('block d') || text.includes('block e')) {
+        detectedPhase = 'Sushant Lok 2 - C,D,E';
+      } else {
+        detectedPhase = 'Sushant Lok 2';
+      }
+    }
+  }
+
+  // Filter staff matching category
+  const categoryStaff = allStaff.filter(staff => {
+    let cats = [];
+    if (Array.isArray(staff.assigned_categories) && staff.assigned_categories.length > 0) {
+      cats.push(...staff.assigned_categories);
+    }
+    if (staff.assigned_category) {
+      if (staff.assigned_category.includes(',')) {
+        cats.push(...staff.assigned_category.split(',').map(s => s.trim()));
+      } else {
+        cats.push(staff.assigned_category.trim());
+      }
+    }
+    cats = cats.map(c => c.toLowerCase());
+    if (cats.includes('all')) return true;
+    return cats.some(c => searchTerms.some(st => c.includes(st) || st.includes(c)));
+  });
+
+  // Extract complaint block if any
+  const complaintText = [
+    complaint.address || '',
+    complaint.location || '',
+    complaint.user?.address || ''
+  ].join(' ').toUpperCase();
+  const cBlockMatch = complaintText.match(/\bBLOCK\s*([A-H0-9]+)\b/i) || complaintText.match(/\b([A-H0-9]+)-?\d+/i);
+  const complaintBlock = cBlockMatch ? cBlockMatch[1].toUpperCase() : '';
+
+  // Filter staff by phase & blocks
+  const filteredStaff = categoryStaff.filter(staff => {
+    if (Array.isArray(staff.assigned_locations) && staff.assigned_locations.length > 0) {
+      return staff.assigned_locations.some(loc => {
+        if (!loc.phase || ['universal', 'all', 'all groups'].includes(loc.phase.toLowerCase())) return true;
+        
+        const lPhase = loc.phase.toLowerCase();
+        const dPhase = (detectedPhase || '').toLowerCase();
+        const phaseMatches = dPhase.includes(lPhase) || lPhase.includes(dPhase) ||
+          (dPhase.includes('sushant lok 2') && lPhase.includes('sushant lok 2')) ||
+          (dPhase.includes('sushant lok 3') && lPhase.includes('sushant lok 3'));
+        
+        if (!phaseMatches) return false;
+
+        if (!complaintBlock || !loc.blocks || loc.blocks.length === 0 || loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks')) {
+          return true;
+        }
+
+        return loc.blocks.some(b => b.toUpperCase().trim() === complaintBlock);
+      });
+    }
+
+    const sPhase = (staff.phase || '').toLowerCase();
+    if (!sPhase || sPhase === 'universal' || sPhase === 'all' || sPhase === 'all groups' || sPhase === 'all phases') {
+      return true;
+    }
+    if (!detectedPhase) return true;
+    const dPhase = detectedPhase.toLowerCase();
+    return sPhase.includes(dPhase) || dPhase.includes(sPhase);
+  });
+
+  return filteredStaff.length > 0 ? filteredStaff[0] : (categoryStaff.length > 0 ? categoryStaff[0] : null);
+}
+
+// One-time auto-backfill helper to ensure legacy complaints have status_priority and assigned staff
 let isStatusPriorityBackfilled = false;
 const ensureStatusPriority = async () => {
   if (isStatusPriorityBackfilled) return;
@@ -514,6 +626,11 @@ router.get('/', auth, async (req, res) => {
       ]);
     }
 
+    // Fetch all active staff to fill any unassigned complaints dynamically
+    const allActiveStaff = await User.find({ role: { $in: ['Staff', 'PaidStaff'] } })
+      .select('name phone_number role assigned_category assigned_categories phase assigned_locations')
+      .lean();
+
     let processedComplaints = complaints.map(c => {
       let bImage = c.before_image;
       let aImage = c.after_image;
@@ -523,7 +640,33 @@ router.get('/', auth, async (req, res) => {
       if (aImage && aImage.includes('cloudinary.com') && !aImage.includes('upload/f_auto,q_auto')) {
         aImage = aImage.replace('/upload/', '/upload/f_auto,q_auto,w_800,c_limit/');
       }
-      return { ...c, before_image: bImage, after_image: aImage };
+
+      let assigned_staff = c.assigned_staff;
+      let resolved_by = c.resolved_by;
+      let resolved_by_name = c.resolved_by_name;
+
+      if (!assigned_staff && !resolved_by) {
+        const matched = matchStaffForComplaint(c, allActiveStaff);
+        if (matched) {
+          assigned_staff = matched;
+          if (c.status === 'DONE' || c.status === 'RESOLVED') {
+            resolved_by = matched;
+            resolved_by_name = matched.name;
+          }
+        }
+      } else if (!resolved_by && (c.status === 'DONE' || c.status === 'RESOLVED') && assigned_staff) {
+        resolved_by = assigned_staff;
+        resolved_by_name = assigned_staff.name;
+      }
+
+      return { 
+        ...c, 
+        before_image: bImage, 
+        after_image: aImage,
+        assigned_staff,
+        resolved_by,
+        resolved_by_name
+      };
     });
 
     if (req.query.stats === 'false' || (!page && !limit && !sortOrder)) {

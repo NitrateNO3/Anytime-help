@@ -130,6 +130,19 @@ export default function Dashboard() {
     });
   };
 
+  // Helper to extract clean staff personal name from "Name (Location...)"
+  const getCleanStaffName = (rawName?: string) => {
+    if (!rawName) return '';
+    const trimmed = rawName.trim();
+    if (trimmed.toLowerCase() === 'staff') return '';
+    // Extract part before parentheses: "Sanju (Sushant Lok 3...)" -> "Sanju"
+    const match = trimmed.match(/^(.*?)\s*\(/);
+    if (match && match[1].trim()) {
+      return match[1].trim();
+    }
+    return trimmed;
+  };
+
   const fetchComplaints = async (currentPage: number, showLoading: boolean = true) => {
     const cacheKey = `dashboard_cache_${currentPage}_${debouncedSearch}_${debouncedIdFilter}_${statusFilter}_${categoryFilter}_${phaseFilter}_${sortOrder}`;
     const cachedStr = sessionStorage.getItem(cacheKey);
@@ -712,19 +725,19 @@ export default function Dashboard() {
         
         <div className="table-card">
           <div style={{ overflowX: 'auto', width: '100%' }}>
-            <table style={{ width: '100%', minWidth: 1150, tableLayout: 'fixed' }}>
+            <table style={{ width: '100%', minWidth: 1280, tableLayout: 'fixed' }}>
               <thead>
                 <tr>
                   <th style={{ width: '9%', minWidth: 90 }}>Complaint ID</th>
-                  <th style={{ width: '16%' }}>Title & Desc</th>
-                  <th style={{ width: '11%' }}>Category</th>
+                  <th style={{ width: '15%' }}>Title & Desc</th>
+                  <th style={{ width: '10%' }}>Category</th>
                   <th style={{ width: '13%' }}>Location / Phase</th>
                   <th style={{ width: '13%' }}>Complaint Address</th>
                   <th style={{ width: '13%' }}>Resident Address</th>
-                  <th style={{ width: '12%' }}>Resident Info</th>
+                  <th style={{ width: '11%' }}>Resident Info</th>
                   <th style={{ width: '8%', minWidth: 85, whiteSpace: 'nowrap' }}>Status</th>
                   <th style={{ width: '12%', minWidth: 120, whiteSpace: 'nowrap' }}>Done By Staff</th>
-                  {!isSubAdmin && <th style={{ width: '10%', minWidth: 125, whiteSpace: 'nowrap' }}>Actions</th>}
+                  {!isSubAdmin && <th style={{ width: '11%', minWidth: 130, whiteSpace: 'nowrap' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -881,34 +894,80 @@ export default function Dashboard() {
                           {item.status.replace('_', ' ')}
                         </span>
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        {(item.status === 'DONE' || item.status === 'RESOLVED') ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: '#15803D', fontSize: 13 }}>
-                              <span style={{ fontSize: 14 }}>👷</span>
-                              <span>{item.resolved_by?.name || item.resolved_by_name || item.assigned_staff?.name || 'Staff'}</span>
-                            </div>
-                            {(item.resolved_by?.phone_number || item.assigned_staff?.phone_number) && (
-                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 19 }}>
-                                {item.resolved_by?.phone_number || item.assigned_staff?.phone_number}
+                      <td style={{ 
+                        maxWidth: 140, 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis', 
+                        whiteSpace: 'nowrap',
+                        paddingRight: 8
+                      }}>
+                        {(item.status === 'DONE' || item.status === 'RESOLVED') ? (() => {
+                          const rawName = item.resolved_by?.name || item.resolved_by_name || item.assigned_staff?.name || '';
+                          const cleanName = getCleanStaffName(rawName);
+                          const isByAdmin = cleanName.toLowerCase().includes('admin') || (!cleanName && !item.assigned_staff);
+                          const displayName = cleanName || (isByAdmin ? 'Admin' : 'Assigned Staff');
+                          const phone = item.resolved_by?.phone_number || item.assigned_staff?.phone_number || item.resolved_by?.phone || '';
+
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+                              <div 
+                                style={{ 
+                                  display: 'inline-flex', 
+                                  alignItems: 'center', 
+                                  gap: 5, 
+                                  fontWeight: 600, 
+                                  color: isByAdmin ? '#4338CA' : '#15803D', 
+                                  fontSize: 13,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title={rawName || displayName}
+                              >
+                                <span style={{ fontSize: 13, flexShrink: 0 }}>{isByAdmin ? '🛡️' : '👷'}</span>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {displayName}
+                                </span>
                               </div>
-                            )}
-                          </div>
-                        ) : item.assigned_staff ? (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text-main)', fontSize: 12 }}>
-                              <span style={{ fontSize: 12 }}>🔧</span>
-                              <span>{item.assigned_staff.name}</span>
+                              {phone ? (
+                                <div style={{ fontSize: 11, color: 'var(--text-muted)', paddingLeft: 18, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {phone}
+                                </div>
+                              ) : null}
                             </div>
-                            <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 16 }}>In Progress</span>
-                          </div>
-                        ) : (
+                          );
+                        })() : item.assigned_staff ? (() => {
+                          const cleanName = getCleanStaffName(item.assigned_staff.name) || item.assigned_staff.name;
+                          return (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+                              <div 
+                                style={{ 
+                                  display: 'inline-flex', 
+                                  alignItems: 'center', 
+                                  gap: 4, 
+                                  color: 'var(--text-main)', 
+                                  fontSize: 12,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap'
+                                }}
+                                title={item.assigned_staff.name}
+                              >
+                                <span style={{ fontSize: 12, flexShrink: 0 }}>🔧</span>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {cleanName}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: 10, color: 'var(--text-muted)', paddingLeft: 16 }}>In Progress</span>
+                            </div>
+                          );
+                        })() : (
                           <span style={{ color: 'var(--text-muted)', fontSize: 13, paddingLeft: 4 }}>-</span>
                         )}
                       </td>
                       {!isSubAdmin && (
-                        <td style={{ whiteSpace: 'nowrap' }}>
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <td style={{ whiteSpace: 'nowrap', minWidth: 130 }}>
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                             <select 
                               value={item.status}
                               onChange={(e) => updateStatus(item._id, e.target.value)}
@@ -916,13 +975,13 @@ export default function Dashboard() {
                                 background: '#F8FAFC', 
                                 color: 'var(--text-main)', 
                                 border: '1px solid var(--border-color)', 
-                                padding: '5px 8px', 
+                                padding: '5px 6px', 
                                 borderRadius: '6px',
                                 outline: 'none',
                                 cursor: 'pointer',
                                 fontSize: '12px',
                                 fontWeight: '500',
-                                minWidth: '95px'
+                                minWidth: '88px'
                               }}
                             >
                               <option value="PENDING">Pending</option>
