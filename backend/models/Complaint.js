@@ -71,6 +71,19 @@ const complaintSchema = new mongoose.Schema({
     ref: 'User',
     default: null
   },
+  resolved_by: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  resolved_by_name: {
+    type: String,
+    default: null
+  },
+  resolved_at: {
+    type: Date,
+    default: null
+  },
   upvotes: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'

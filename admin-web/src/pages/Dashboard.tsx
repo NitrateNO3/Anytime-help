@@ -693,6 +693,12 @@ export default function Dashboard() {
                 { header: 'Resident Address', key: (c: any) => c.user?.address || 'N/A' },
                 { header: 'Resident Phone', key: (c: any) => c.user?.phone_number || c.user?.phone || c.createdBy?.phoneNumber || 'N/A' },
                 { header: 'Status', key: 'status' },
+                { 
+                  header: 'Done By Staff', 
+                  key: (c: any) => (c.status === 'DONE' || c.status === 'RESOLVED') 
+                    ? (c.resolved_by?.name || c.resolved_by_name || c.assigned_staff?.name || 'Staff') 
+                    : (c.assigned_staff?.name ? `Assigned: ${c.assigned_staff.name}` : '-') 
+                },
                 { header: 'Priority', key: 'priority' },
                 { header: 'Created At', key: (c: any) => new Date(c.created_at || c.createdAt).toLocaleString() }
               ]}
@@ -709,15 +715,16 @@ export default function Dashboard() {
             <table style={{ width: '100%', minWidth: 1150, tableLayout: 'fixed' }}>
               <thead>
                 <tr>
-                  <th style={{ width: '10%', minWidth: 95 }}>Complaint ID</th>
-                  <th style={{ width: '18%' }}>Title & Desc</th>
-                  <th style={{ width: '12%' }}>Category</th>
-                  <th style={{ width: '14%' }}>Location / Phase</th>
-                  <th style={{ width: '14%' }}>Complaint Address</th>
-                  <th style={{ width: '14%' }}>Resident Address</th>
-                  <th style={{ width: '13%' }}>Resident Info</th>
-                  <th style={{ width: '9%', minWidth: 95, whiteSpace: 'nowrap' }}>Status</th>
-                  {!isSubAdmin && <th style={{ width: '10%', minWidth: 130, whiteSpace: 'nowrap' }}>Actions</th>}
+                  <th style={{ width: '9%', minWidth: 90 }}>Complaint ID</th>
+                  <th style={{ width: '16%' }}>Title & Desc</th>
+                  <th style={{ width: '11%' }}>Category</th>
+                  <th style={{ width: '13%' }}>Location / Phase</th>
+                  <th style={{ width: '13%' }}>Complaint Address</th>
+                  <th style={{ width: '13%' }}>Resident Address</th>
+                  <th style={{ width: '12%' }}>Resident Info</th>
+                  <th style={{ width: '8%', minWidth: 85, whiteSpace: 'nowrap' }}>Status</th>
+                  <th style={{ width: '12%', minWidth: 120, whiteSpace: 'nowrap' }}>Done By Staff</th>
+                  {!isSubAdmin && <th style={{ width: '10%', minWidth: 125, whiteSpace: 'nowrap' }}>Actions</th>}
                 </tr>
               </thead>
               <tbody>
@@ -735,12 +742,13 @@ export default function Dashboard() {
                       <td><div className="skeleton skeleton-row" style={{ width: '80%' }}></div></td>
                       <td><div className="skeleton skeleton-row" style={{ width: 70, borderRadius: 12 }}></div></td>
                       <td><div className="skeleton skeleton-row" style={{ width: 80 }}></div></td>
+                      <td><div className="skeleton skeleton-row" style={{ width: 90 }}></div></td>
                       {!isSubAdmin && <td><div className="skeleton skeleton-row" style={{ width: 80 }}></div></td>}
                     </tr>
                   ))
                 ) : complaints.length === 0 ? (
                   <tr>
-                    <td colSpan={isSubAdmin ? 8 : 9} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)' }}>
+                    <td colSpan={isSubAdmin ? 9 : 10} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--text-muted)' }}>
                       <AlertCircle size={36} color="var(--text-muted)" style={{ margin: '0 auto 12px', display: 'block', opacity: 0.6 }} />
                       <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>
                         No complaints found
@@ -872,6 +880,31 @@ export default function Dashboard() {
                         }`}>
                           {item.status.replace('_', ' ')}
                         </span>
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {(item.status === 'DONE' || item.status === 'RESOLVED') ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontWeight: 600, color: '#15803D', fontSize: 13 }}>
+                              <span style={{ fontSize: 14 }}>👷</span>
+                              <span>{item.resolved_by?.name || item.resolved_by_name || item.assigned_staff?.name || 'Staff'}</span>
+                            </div>
+                            {(item.resolved_by?.phone_number || item.assigned_staff?.phone_number) && (
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 19 }}>
+                                {item.resolved_by?.phone_number || item.assigned_staff?.phone_number}
+                              </div>
+                            )}
+                          </div>
+                        ) : item.assigned_staff ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--text-main)', fontSize: 12 }}>
+                              <span style={{ fontSize: 12 }}>🔧</span>
+                              <span>{item.assigned_staff.name}</span>
+                            </div>
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 16 }}>In Progress</span>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: 13, paddingLeft: 4 }}>-</span>
+                        )}
                       </td>
                       {!isSubAdmin && (
                         <td style={{ whiteSpace: 'nowrap' }}>
@@ -1009,7 +1042,7 @@ export default function Dashboard() {
                 </div>
               ) : null}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
                 <div style={{ background: '#f8fafc', padding: 16, borderRadius: 12 }}>
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 4 }}>Reported By</div>
                   <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{selectedComplaint.user?.name || 'Unknown'}</div>
@@ -1024,6 +1057,26 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+
+              {(selectedComplaint.status === 'DONE' || selectedComplaint.status === 'RESOLVED') && (
+                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', padding: 16, borderRadius: 12, marginBottom: 20 }}>
+                  <div style={{ fontSize: 12, color: '#166534', fontWeight: 700, marginBottom: 4 }}>Done By Staff</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, color: '#15803D', fontSize: 14 }}>
+                    <span style={{ fontSize: 16 }}>👷</span>
+                    <span>{selectedComplaint.resolved_by?.name || selectedComplaint.resolved_by_name || selectedComplaint.assigned_staff?.name || 'Staff'}</span>
+                  </div>
+                  {(selectedComplaint.resolved_by?.phone_number || selectedComplaint.assigned_staff?.phone_number) && (
+                    <div style={{ fontSize: 12, color: '#166534', marginTop: 4, marginLeft: 22 }}>
+                      📞 {selectedComplaint.resolved_by?.phone_number || selectedComplaint.assigned_staff?.phone_number}
+                    </div>
+                  )}
+                  {selectedComplaint.resolved_at && (
+                    <div style={{ fontSize: 11, color: '#15803D', marginTop: 4, marginLeft: 22 }}>
+                      🕒 Resolved on: {new Date(selectedComplaint.resolved_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div style={{ marginBottom: 20 }}>
                 <h4 style={{ fontSize: 15, fontWeight: 600, marginBottom: 12, color: 'var(--text-main)' }}>Replies & Updates</h4>

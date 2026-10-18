@@ -482,6 +482,7 @@ router.get('/', auth, async (req, res) => {
       .select('-__v')
       .populate('user', 'name phone_number address room_number phase relation')
       .populate('assigned_staff', 'name phone_number address room_number phase')
+      .populate('resolved_by', 'name phone_number role phase')
       .populate('escalated_by', 'name phone_number phone role')
       .populate('replies.user', 'name role')
       .sort({ status_priority: 1, created_at: sortDirection })
@@ -545,6 +546,7 @@ router.get('/:id', auth, async (req, res) => {
       .select('-__v')
       .populate('user', 'name phone_number address room_number phase relation')
       .populate('assigned_staff', 'name phone_number address room_number phase')
+      .populate('resolved_by', 'name phone_number role phase')
       .populate('escalated_by', 'name phone_number phone role')
       .populate('replies.user', 'name role')
       .lean();
@@ -958,19 +960,32 @@ router.patch('/:id', auth, async (req, res) => {
       complaint.status = status;
       if (status === 'DONE' || status === 'RESOLVED') {
         complaint.status_priority = 3;
+        complaint.resolved_at = new Date();
+        complaint.resolved_by = req.user.id || req.user._id;
+        complaint.resolved_by_name = (req.user && req.user.name) ? req.user.name : ((req.user.role === 'Staff' || req.user.role === 'PaidStaff') ? 'Staff' : 'Admin');
+        if (req.user.role === 'Staff' || req.user.role === 'PaidStaff') {
+          complaint.assigned_staff = req.user.id;
+        }
       } else if (complaint.is_escalated) {
         complaint.status_priority = 0;
+        complaint.resolved_by = null;
+        complaint.resolved_by_name = null;
+        complaint.resolved_at = null;
       } else if (status === 'PENDING') {
         complaint.status_priority = 1;
+        complaint.resolved_by = null;
+        complaint.resolved_by_name = null;
+        complaint.resolved_at = null;
       } else if (status === 'IN_PROGRESS') {
         complaint.status_priority = 2;
+        complaint.resolved_by = null;
+        complaint.resolved_by_name = null;
+        complaint.resolved_at = null;
+        if (req.user.role === 'Staff' || req.user.role === 'PaidStaff') {
+          complaint.assigned_staff = req.user.id;
+        }
       } else {
         complaint.status_priority = 4;
-      }
-
-      // If staff updates the status, mark them as the assigned staff
-      if (req.user.role === 'Staff' || req.user.role === 'PaidStaff') {
-        complaint.assigned_staff = req.user.id;
       }
     }
     if (after_image) {
@@ -990,15 +1005,24 @@ router.patch('/:id', auth, async (req, res) => {
       }
     }
 
-    const updatedComplaint = await complaint.save();
+    await complaint.save();
+
+    const populatedComplaint = await Complaint.findById(complaint._id)
+      .select('-__v')
+      .populate('user', 'name phone_number address room_number phase relation')
+      .populate('assigned_staff', 'name phone_number address room_number phase')
+      .populate('resolved_by', 'name phone_number role phase')
+      .populate('escalated_by', 'name phone_number phone role')
+      .populate('replies.user', 'name role')
+      .lean();
 
     // Emit socket event
     const io = req.app.get('io');
     if (io) {
-      io.emit('complaint_changed', { action: 'update', data: updatedComplaint });
+      io.emit('complaint_changed', { action: 'update', data: populatedComplaint });
     }
 
-    res.json(updatedComplaint);
+    res.json(populatedComplaint);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }
