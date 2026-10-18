@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { UserPlus, Users, Edit2, Trash2, Search, Filter, RotateCcw, X, Wrench } from 'lucide-react';
+import { UserPlus, Users, Edit2, Trash2, Search, Filter, RotateCcw, X, Wrench, Plus, MapPin, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ExportButtons } from '../components/ExportButtons';
 import { io } from 'socket.io-client';
@@ -14,6 +14,395 @@ const defaultCategories = [
 ];
 
 const defaultPhases = ['All', 'Universal', 'Sushant Lok 2', 'Sushant Lok 3'];
+
+export interface LocationAssignment {
+  phase: string;
+  blocks: string[];
+}
+
+function LocationAssignmentSection({
+  locations,
+  onChange,
+  dynamicEntityBlocks
+}: {
+  locations: LocationAssignment[];
+  onChange: (locs: LocationAssignment[]) => void;
+  dynamicEntityBlocks: Record<string, string[]>;
+  phases: string[];
+}) {
+  const [customPhaseInputs, setCustomPhaseInputs] = useState<Record<number, string>>({});
+  const [customBlockInputs, setCustomBlockInputs] = useState<Record<number, string>>({});
+  const [showCustomBlockFor, setShowCustomBlockFor] = useState<Record<number, boolean>>({});
+
+  const updateLocation = (index: number, updated: Partial<LocationAssignment>) => {
+    const next = [...locations];
+    next[index] = { ...next[index], ...updated };
+    onChange(next);
+  };
+
+  const removeLocation = (index: number) => {
+    if (locations.length <= 1) return;
+    onChange(locations.filter((_, i) => i !== index));
+  };
+
+  const addLocation = () => {
+    const available = Object.keys(dynamicEntityBlocks).filter(
+      k => k !== 'All Groups (Universal)' && !locations.some(l => l.phase === k)
+    );
+    const newPhase = available[0] || 'Sushant Lok 3';
+    const defaultBlocks = dynamicEntityBlocks[newPhase] && dynamicEntityBlocks[newPhase].length > 0
+      ? [dynamicEntityBlocks[newPhase][0]]
+      : ['ALL'];
+    onChange([...locations, { phase: newPhase, blocks: defaultBlocks }]);
+  };
+
+  const toggleBlock = (locIndex: number, blk: string) => {
+    const loc = locations[locIndex];
+    let nextBlocks = [...(loc.blocks || [])];
+
+    if (blk === 'ALL') {
+      nextBlocks = ['ALL'];
+    } else {
+      nextBlocks = nextBlocks.filter(b => b !== 'ALL');
+      if (nextBlocks.includes(blk)) {
+        nextBlocks = nextBlocks.filter(b => b !== blk);
+        if (nextBlocks.length === 0) {
+          nextBlocks = ['ALL'];
+        }
+      } else {
+        nextBlocks.push(blk);
+      }
+    }
+
+    updateLocation(locIndex, { blocks: nextBlocks });
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {locations.map((loc, idx) => {
+        const isUniversal = loc.phase === 'All Groups (Universal)' || loc.phase === 'Universal';
+        const availableBlocks = dynamicEntityBlocks[loc.phase] || [];
+        const isAllBlocks = !loc.blocks || loc.blocks.length === 0 || loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks');
+
+        return (
+          <div key={idx} style={{
+            background: '#F8FAFC',
+            border: '1px solid var(--border-color)',
+            borderRadius: '12px',
+            padding: '16px',
+            position: 'relative'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MapPin size={16} color="var(--primary)" />
+                <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)' }}>
+                  Assigned Location {locations.length > 1 ? `#${idx + 1}` : ''}
+                </span>
+              </div>
+              {locations.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => removeLocation(idx)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--danger)',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontSize: '12px',
+                    fontWeight: 600
+                  }}
+                  title="Remove location"
+                >
+                  <Trash2 size={14} /> Remove
+                </button>
+              )}
+            </div>
+
+            {/* Society / Phase Select */}
+            <div style={{ marginBottom: '12px' }}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '6px' }}>
+                Select Society / Group
+              </label>
+              <select
+                value={customPhaseInputs[idx] !== undefined ? 'ADD_NEW' : loc.phase}
+                onChange={(e) => {
+                  if (e.target.value === 'ADD_NEW') {
+                    setCustomPhaseInputs({ ...customPhaseInputs, [idx]: '' });
+                  } else {
+                    const newInputs = { ...customPhaseInputs };
+                    delete newInputs[idx];
+                    setCustomPhaseInputs(newInputs);
+                    
+                    const newPhase = e.target.value;
+                    const isNewUniversal = newPhase === 'All Groups (Universal)' || newPhase === 'Universal';
+                    const newBlocks = isNewUniversal 
+                      ? ['ALL'] 
+                      : (dynamicEntityBlocks[newPhase] && dynamicEntityBlocks[newPhase].length > 0 ? [dynamicEntityBlocks[newPhase][0]] : ['ALL']);
+                    updateLocation(idx, { phase: newPhase, blocks: newBlocks });
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px',
+                  background: 'white',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '10px',
+                  fontSize: '14px',
+                  color: 'var(--text-main)',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                {Object.keys(dynamicEntityBlocks).map(entity => (
+                  <option key={entity} value={entity}>
+                    {entity === 'All Groups (Universal)' ? '🌐 All Groups (Universal - Entire Society)' : entity}
+                  </option>
+                ))}
+                <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>+ Add New Custom Group...</option>
+              </select>
+
+              {customPhaseInputs[idx] !== undefined && (
+                <div style={{ marginTop: '8px' }}>
+                  <input
+                    type="text"
+                    placeholder="Enter custom society/group name"
+                    value={customPhaseInputs[idx]}
+                    onChange={(e) => {
+                      setCustomPhaseInputs({ ...customPhaseInputs, [idx]: e.target.value });
+                      updateLocation(idx, { phase: e.target.value });
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      border: '1px dashed var(--primary)',
+                      outline: 'none',
+                      background: 'rgba(59, 130, 246, 0.03)',
+                      fontSize: '13px'
+                    }}
+                    autoFocus
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Block Selection */}
+            {isUniversal ? (
+              <div style={{
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '13px',
+                color: '#1D4ED8'
+              }}>
+                <span>🌐</span>
+                <span>Covers all blocks across all phases in the entire society.</span>
+              </div>
+            ) : (
+              <div>
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '8px' }}>
+                  <span>Assigned Blocks (for {loc.phase})</span>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Multi-select</span>
+                </label>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {/* All Blocks Toggle Chip */}
+                  <button
+                    type="button"
+                    onClick={() => toggleBlock(idx, 'ALL')}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      border: isAllBlocks ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+                      background: isAllBlocks ? 'rgba(59, 130, 246, 0.12)' : 'white',
+                      color: isAllBlocks ? 'var(--primary)' : 'var(--text-main)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {isAllBlocks && <Check size={12} />}
+                    All Blocks ({loc.phase})
+                  </button>
+
+                  {/* Individual Block Chips */}
+                  {availableBlocks.map(blk => {
+                    const isSelected = !isAllBlocks && (loc.blocks || []).includes(blk);
+                    return (
+                      <button
+                        key={blk}
+                        type="button"
+                        onClick={() => toggleBlock(idx, blk)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: isSelected ? 600 : 500,
+                          cursor: 'pointer',
+                          border: isSelected ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+                          background: isSelected ? 'rgba(59, 130, 246, 0.12)' : 'white',
+                          color: isSelected ? 'var(--primary)' : 'var(--text-main)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {isSelected && <Check size={12} />}
+                        Block {blk}
+                      </button>
+                    );
+                  })}
+
+                  {/* Extra custom blocks currently saved on this location */}
+                  {(loc.blocks || [])
+                    .filter(b => b !== 'ALL' && !availableBlocks.includes(b))
+                    .map(b => (
+                      <button
+                        key={b}
+                        type="button"
+                        onClick={() => toggleBlock(idx, b)}
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          border: '1.5px solid var(--primary)',
+                          background: 'rgba(59, 130, 246, 0.12)',
+                          color: 'var(--primary)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <Check size={12} />
+                        {b.startsWith('Block') ? b : `Block ${b}`}
+                      </button>
+                    ))}
+
+                  {/* Add Custom Block Button */}
+                  {!showCustomBlockFor[idx] ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomBlockFor({ ...showCustomBlockFor, [idx]: true })}
+                      style={{
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        border: '1px dashed var(--primary)',
+                        background: 'transparent',
+                        color: 'var(--primary)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <Plus size={12} /> Custom Block
+                    </button>
+                  ) : (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <input
+                        type="text"
+                        placeholder="e.g. Z or Pocket 1"
+                        value={customBlockInputs[idx] || ''}
+                        onChange={(e) => setCustomBlockInputs({ ...customBlockInputs, [idx]: e.target.value })}
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          border: '1px solid var(--primary)',
+                          borderRadius: '6px',
+                          width: '110px',
+                          outline: 'none'
+                        }}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const val = (customBlockInputs[idx] || '').trim();
+                          if (val) {
+                            toggleBlock(idx, val);
+                            setCustomBlockInputs({ ...customBlockInputs, [idx]: '' });
+                            setShowCustomBlockFor({ ...showCustomBlockFor, [idx]: false });
+                          }
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          background: 'var(--primary)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomBlockFor({ ...showCustomBlockFor, [idx]: false })}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          padding: '2px'
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {/* Button to add another location */}
+      <button
+        type="button"
+        onClick={addLocation}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+          padding: '10px 16px',
+          borderRadius: '10px',
+          border: '1.5px dashed var(--primary)',
+          background: 'rgba(59, 130, 246, 0.04)',
+          color: 'var(--primary)',
+          fontSize: '13px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          transition: 'all 0.2s ease'
+        }}
+        onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.08)'}
+        onMouseOut={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.04)'}
+      >
+        <Plus size={16} /> + Add Another Society / Phase (e.g. Sushant Lok 3)
+      </button>
+    </div>
+  );
+}
 
 export default function Staff() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
@@ -44,8 +433,10 @@ export default function Staff() {
   }, [search]);
 
   // Form State
-  const [selectedEntity, setSelectedEntity] = useState('Sushant Lok 2');
-  const [selectedBlock, setSelectedBlock] = useState('C');
+  const [assignedLocations, setAssignedLocations] = useState<LocationAssignment[]>([
+    { phase: 'Sushant Lok 2', blocks: ['C'] }
+  ]);
+  const [editLocations, setEditLocations] = useState<LocationAssignment[]>([]);
   const [staffPersonalName, setStaffPersonalName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [categories, setCategories] = useState<string[]>(['Electricity']);
@@ -62,9 +453,6 @@ export default function Staff() {
     'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
   });
   
-  // Custom Phase/Block State
-  const [showCustomEntity, setShowCustomEntity] = useState(false);
-  const [showCustomBlock, setShowCustomBlock] = useState(false);
   
   // Group Management State
   const [showManageGroupsModal, setShowManageGroupsModal] = useState(false);
@@ -147,17 +535,6 @@ export default function Staff() {
     fetchDynamicPhases();
   }, [activeTab]);
 
-  // Group blocks together into a single option for each entity
-  // (We use dynamicEntityBlocks state now)
-
-  useEffect(() => {
-    // Whenever entity changes, reset block to the single grouped option
-    if (dynamicEntityBlocks[selectedEntity] && dynamicEntityBlocks[selectedEntity].length > 0) {
-      setSelectedBlock(dynamicEntityBlocks[selectedEntity][0]);
-    } else {
-      setSelectedBlock('');
-    }
-  }, [selectedEntity, dynamicEntityBlocks]);
 
   useEffect(() => {
     if (activeTab === 'list') {
@@ -265,35 +642,55 @@ export default function Staff() {
       toast.error('Please select at least one category');
       return;
     }
+    if (assignedLocations.length === 0) {
+      toast.error('Please assign at least one society/location');
+      return;
+    }
     
     setIsCreating(true);
     const loadingToast = toast.loading('Creating account...');
 
     try {
       const token = localStorage.getItem('adminToken');
-      const isUniversal = selectedEntity === 'All Groups (Universal)' || selectedEntity === 'Universal';
-      const defaultStaffName = isUniversal ? 'Universal: All Groups & Blocks' : `${selectedEntity}: Block ${selectedBlock}`;
-      // Fix: If there is a selected block (that is not empty or ADD_NEW), append it to the entity to form the exact phase string
-      const staffPhase = isUniversal ? 'Universal' : (selectedBlock && selectedBlock !== 'ADD_NEW' ? `${selectedEntity} - ${selectedBlock}` : selectedEntity);
+      const hasUniversal = assignedLocations.some(l => l.phase === 'All Groups (Universal)' || l.phase === 'Universal');
+      
+      const locSummary = hasUniversal 
+        ? 'Universal: All Groups & Blocks' 
+        : assignedLocations.map(l => {
+            const blk = !l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL') ? 'All Blocks' : `Block ${l.blocks.join(', ')}`;
+            return `${l.phase} (${blk})`;
+          }).join(' | ');
+
+      const defaultStaffName = locSummary;
       const finalName = staffPersonalName ? `${staffPersonalName} (${defaultStaffName})` : defaultStaffName;
       
+      const cleanLocations = assignedLocations.map(l => ({
+        phase: (l.phase === 'All Groups (Universal)' || l.phase === 'Universal') ? 'Universal' : l.phase,
+        blocks: (!l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL') || l.phase.includes('Universal')) ? ['ALL'] : l.blocks
+      }));
+
+      const staffPhase = hasUniversal ? 'Universal' : locSummary;
+
       await axios.post(`${API_URL}/users/staff`, {
         name: finalName,
         phone_number: phoneNumber,
         assigned_categories: categories,
+        assigned_locations: cleanLocations,
         phase: staffPhase
       }, {
         headers: { 'x-auth-token': token }
       });
       
-      toast.success(isUniversal ? 'Universal staff assigned successfully for all groups!' : 'Staff account assigned successfully!', { id: loadingToast });
+      toast.success(hasUniversal ? 'Universal staff assigned successfully for all groups!' : 'Staff account assigned successfully!', { id: loadingToast });
       
       // Reset form
       setStaffPersonalName('');
       setPhoneNumber('');
+      setAssignedLocations([{ phase: 'Sushant Lok 2', blocks: ['C'] }]);
       
       // Auto switch back to list
       setActiveTab('list');
+      fetchStaff(1, filterPhase, debouncedSearch, filterStatus, false);
     } catch (err: any) {
       toast.error(err.response?.data?.msg || err.response?.data?.message || 'Failed to assign staff', { id: loadingToast });
     } finally {
@@ -308,11 +705,26 @@ export default function Staff() {
 
     try {
       const token = localStorage.getItem('adminToken');
+
+      const cleanLocations = (editLocations || []).map(l => ({
+        phase: (l.phase === 'All Groups (Universal)' || l.phase === 'Universal') ? 'Universal' : l.phase,
+        blocks: (!l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL') || l.phase.includes('Universal')) ? ['ALL'] : l.blocks
+      }));
+
+      const hasUniversal = cleanLocations.some(l => l.phase === 'Universal');
+      const locSummary = hasUniversal 
+        ? 'Universal: All Groups & Blocks' 
+        : cleanLocations.map(l => {
+            const blk = !l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL') ? 'All Blocks' : `Block ${l.blocks.join(', ')}`;
+            return `${l.phase} (${blk})`;
+          }).join(' | ');
+
       await axios.put(`${API_URL}/users/${editingUser._id}`, {
         name: editingUser.name,
         phone_number: editingUser.phone_number,
         assigned_categories: editingUser.assigned_categories || (editingUser.assigned_category ? [editingUser.assigned_category] : []),
-        phase: editingUser.phase
+        assigned_locations: cleanLocations,
+        phase: hasUniversal ? 'Universal' : (locSummary || editingUser.phase)
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -481,8 +893,7 @@ export default function Staff() {
                   { header: 'Name', key: 'name' },
                   { header: 'Phone Number', key: 'phone_number' },
                   { header: 'Categories', key: (r: any) => Array.isArray(r.assigned_categories) && r.assigned_categories.length > 0 ? r.assigned_categories.join(', ') : r.assigned_category || 'N/A' },
-                  { header: 'Phase', key: 'phase' },
-                  { header: 'Block', key: 'block' },
+                  { header: 'Assigned Locations', key: (r: any) => Array.isArray(r.assigned_locations) && r.assigned_locations.length > 0 ? r.assigned_locations.map((l: any) => `${l.phase} (${l.blocks && l.blocks.length > 0 ? (l.blocks.includes('ALL') ? 'All Blocks' : l.blocks.join(', ')) : 'All Blocks'})`).join(' | ') : r.phase || 'N/A' },
                   { header: 'Created At', key: (r: any) => new Date(r.createdAt).toLocaleString() }
                 ]}
                 filename="Staff_Members"
@@ -624,24 +1035,63 @@ export default function Staff() {
                     return (
                       <tr key={member._id}>
                         <td style={{ fontWeight: 600 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>{displayName}</span>
-                            {isUniversal && (
-                              <span style={{ 
-                                background: '#10B98115', 
-                                color: '#059669', 
-                                border: '1px solid #10B98140', 
-                                padding: '2px 8px', 
-                                borderRadius: '12px', 
-                                fontSize: '11px', 
-                                fontWeight: 700,
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}>
-                                🌐 UNIVERSAL
-                              </span>
-                            )}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '15px' }}>{displayName}</span>
+                              {isUniversal && (
+                                <span style={{ 
+                                  background: '#10B98115', 
+                                  color: '#059669', 
+                                  border: '1px solid #10B98140', 
+                                  padding: '2px 8px', 
+                                  borderRadius: '12px', 
+                                  fontSize: '11px', 
+                                  fontWeight: 700,
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}>
+                                  🌐 UNIVERSAL
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                              {Array.isArray(member.assigned_locations) && member.assigned_locations.length > 0 ? (
+                                member.assigned_locations.map((loc: any, idx: number) => {
+                                  const isAll = !loc.blocks || loc.blocks.length === 0 || loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks');
+                                  const blkText = isAll ? 'All Blocks' : loc.blocks.map((b: string) => `Block ${b}`).join(', ');
+                                  return (
+                                    <span key={idx} style={{
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      background: '#EFF6FF',
+                                      color: '#1D4ED8',
+                                      border: '1px solid #BFDBFE',
+                                      padding: '2px 8px',
+                                      borderRadius: '6px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}>
+                                      📍 {loc.phase} ({blkText})
+                                    </span>
+                                  );
+                                })
+                              ) : (
+                                member.phase && (
+                                  <span style={{
+                                    fontSize: '11px',
+                                    fontWeight: 500,
+                                    background: '#F1F5F9',
+                                    color: '#475569',
+                                    padding: '2px 8px',
+                                    borderRadius: '6px'
+                                  }}>
+                                    📍 {member.phase}
+                                  </span>
+                                )
+                              )}
+                            </div>
                           </div>
                         </td>
                         <td style={{ color: 'var(--text-muted)' }}>{member.phone_number}</td>
@@ -679,8 +1129,25 @@ export default function Staff() {
                               <button 
                                 onClick={() => {
                                   setEditingUser({ ...member, password: '' });
-                                  setSelectedEntity(member.phase);
-                                  setSelectedBlock(member.block);
+                                  let initialLocs: LocationAssignment[] = [];
+                                  if (Array.isArray(member.assigned_locations) && member.assigned_locations.length > 0) {
+                                    initialLocs = member.assigned_locations.map((l: any) => ({
+                                      phase: l.phase === 'Universal' ? 'All Groups (Universal)' : l.phase,
+                                      blocks: Array.isArray(l.blocks) && l.blocks.length > 0 ? l.blocks : ['ALL']
+                                    }));
+                                  } else if (member.phase) {
+                                    if (member.phase === 'Universal' || member.phase === 'All') {
+                                      initialLocs = [{ phase: 'All Groups (Universal)', blocks: ['ALL'] }];
+                                    } else if (member.phase.includes(' - ')) {
+                                      const parts = member.phase.split(' - ');
+                                      initialLocs = [{ phase: parts[0].trim(), blocks: [parts[1].trim()] }];
+                                    } else {
+                                      initialLocs = [{ phase: member.phase, blocks: member.block ? [member.block] : ['ALL'] }];
+                                    }
+                                  } else {
+                                    initialLocs = [{ phase: 'Sushant Lok 2', blocks: ['C'] }];
+                                  }
+                                  setEditLocations(initialLocs);
                                 }}
                                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
                                 onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
@@ -721,7 +1188,7 @@ export default function Staff() {
                 <UserPlus size={28} color="var(--primary)" />
               </div>
               <h2 style={{ fontSize: 24, fontWeight: 700 }}>
-                {selectedEntity === 'All Groups (Universal)' ? 'Assign Universal Staff' : 'Assign Staff to Group'}
+                Assign Staff to Societies & Blocks
               </h2>
             </div>
 
@@ -737,124 +1204,17 @@ export default function Staff() {
             </div>
             
             <div className="input-group">
-              <label>Select Entity (Group)</label>
-              <select 
-                  value={showCustomEntity ? 'ADD_NEW' : selectedEntity}
-                  onChange={(e) => {
-                    if (e.target.value === 'ADD_NEW') {
-                      setShowCustomEntity(true);
-                      setSelectedEntity('');
-                      setShowCustomBlock(true); // Auto show custom block since it's a new group
-                      setSelectedBlock('');
-                    } else {
-                      setShowCustomEntity(false);
-                      setSelectedEntity(e.target.value);
-                      setShowCustomBlock(false);
-                    }
-                  }}
-                  style={{ 
-                    width: '100%', 
-                    padding: '14px 16px', 
-                    background: 'white', 
-                    border: '1px solid var(--border-color)', 
-                    borderRadius: '12px',
-                    fontSize: '15px',
-                    color: 'var(--text-main)',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {Object.keys(dynamicEntityBlocks).map(entity => (
-                    <option key={entity} value={entity}>
-                      {entity === 'All Groups (Universal)' ? '🌐 All Groups (Universal - Entire Society)' : entity}
-                    </option>
-                  ))}
-                  <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>+ Add New Custom Group...</option>
-                </select>
+              <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontWeight: 600 }}>Assigned Societies & Blocks</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Can assign to multiple societies</span>
+              </label>
+              <LocationAssignmentSection
+                locations={assignedLocations}
+                onChange={setAssignedLocations}
+                dynamicEntityBlocks={dynamicEntityBlocks}
+                phases={phases}
+              />
             </div>
-
-            {showCustomEntity && (
-              <div className="input-group" style={{ marginTop: '-12px' }}>
-                <input 
-                  type="text"
-                  placeholder="Enter your new custom group name"
-                  value={selectedEntity}
-                  onChange={(e) => setSelectedEntity(e.target.value)}
-                  style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px dashed var(--primary)', outline: 'none', background: 'rgba(59, 130, 246, 0.03)' }}
-                  autoFocus
-                />
-              </div>
-            )}
-
-            {selectedEntity === 'All Groups (Universal)' ? (
-              <div style={{
-                background: 'rgba(59, 130, 246, 0.08)',
-                border: '1px solid rgba(59, 130, 246, 0.25)',
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: '20px',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '12px'
-              }}>
-                <span style={{ fontSize: '24px', lineHeight: 1 }}>🌐</span>
-                <div>
-                  <strong style={{ color: '#2563EB', display: 'block', fontSize: '14px', marginBottom: '4px' }}>
-                    Universal Society Access
-                  </strong>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '13px', lineHeight: 1.4 }}>
-                    Staff member will handle service requests and complaints from all blocks and groups across the entire society.
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="input-group">
-                  <label>Select Block</label>
-                  <select 
-                      value={showCustomBlock ? 'ADD_NEW' : selectedBlock}
-                      onChange={(e) => {
-                        if (e.target.value === 'ADD_NEW') {
-                          setShowCustomBlock(true);
-                          setSelectedBlock('');
-                        } else {
-                          setShowCustomBlock(false);
-                          setSelectedBlock(e.target.value);
-                        }
-                      }}
-                      style={{ 
-                        width: '100%', 
-                        padding: '14px 16px', 
-                        background: 'white', 
-                        border: '1px solid var(--border-color)', 
-                        borderRadius: '12px',
-                        fontSize: '15px',
-                        color: 'var(--text-main)',
-                        outline: 'none',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {!showCustomEntity && dynamicEntityBlocks[selectedEntity] && dynamicEntityBlocks[selectedEntity].map((blk: string) => (
-                        <option key={blk} value={blk}>Block {blk}</option>
-                      ))}
-                      <option value="ADD_NEW" style={{ fontWeight: 'bold', color: 'var(--primary)' }}>+ Add New Custom Block...</option>
-                    </select>
-                </div>
-
-                {showCustomBlock && (
-                  <div className="input-group" style={{ marginTop: '-12px' }}>
-                    <input 
-                      type="text"
-                      placeholder="Enter custom block name (e.g. Block Z)"
-                      value={selectedBlock}
-                      onChange={(e) => setSelectedBlock(e.target.value)}
-                      style={{ width: '100%', padding: '14px 16px', borderRadius: '12px', border: '1px dashed var(--primary)', outline: 'none', background: 'rgba(59, 130, 246, 0.03)' }}
-                      autoFocus
-                    />
-                  </div>
-                )}
-              </>
-            )}
             
             <div className="input-group">
               <label>Phone Number</label>
@@ -909,7 +1269,7 @@ export default function Staff() {
             </div>
 
             <button type="submit" className="btn-primary" disabled={isCreating} style={{ marginTop: '16px', height: '52px' }}>
-              {isCreating ? 'Assigning Staff...' : (selectedEntity === 'All Groups (Universal)' ? 'Assign Universal Staff (All Groups)' : 'Assign Staff')}
+              {isCreating ? 'Assigning Staff...' : 'Assign Staff'}
             </button>
           </form>
         </div>
@@ -919,7 +1279,7 @@ export default function Staff() {
       {/* Edit Modal */}
       {editingUser && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-          <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, padding: 0, borderRadius: 16, maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
+          <div className="card" style={{ width: '100%', maxWidth: 620, margin: 20, padding: 0, borderRadius: 16, maxHeight: '90vh', display: 'flex', flexDirection: 'column', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 className="card-title" style={{ margin: 0, fontSize: 20 }}>Edit Staff Member</h2>
               <button type="button" onClick={() => setEditingUser(null)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, borderRadius: 8 }} title="Close">
@@ -946,6 +1306,20 @@ export default function Staff() {
                   value={editingUser.phone_number} 
                   onChange={(e) => setEditingUser({...editingUser, phone_number: e.target.value})} 
                   required
+                />
+              </div>
+
+              {/* Assigned Locations in Edit Modal */}
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontWeight: 600 }}>Assigned Societies & Blocks</span>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Can assign to multiple societies</span>
+                </label>
+                <LocationAssignmentSection
+                  locations={editLocations}
+                  onChange={setEditLocations}
+                  dynamicEntityBlocks={dynamicEntityBlocks}
+                  phases={phases}
                 />
               </div>
 

@@ -592,6 +592,13 @@ export default function StaffScreen() {
                 <Ionicons name="location" size={16} color="#3B82F6" />
                 <Text style={styles.infoText}>
                   {(() => {
+                    if (Array.isArray(user.assigned_locations) && user.assigned_locations.length > 0) {
+                      return user.assigned_locations.map((loc: any) => {
+                        const isAll = !loc.blocks || loc.blocks.length === 0 || loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks');
+                        const blks = isAll ? 'All Blocks' : loc.blocks.join(', ');
+                        return `${loc.phase}: ${blks}`;
+                      }).join(' | ');
+                    }
                     if (user.phase && user.address) return `${user.phase}: ${user.address}`;
                     if (user.phase) return user.phase;
                     if (user.address) return user.address;

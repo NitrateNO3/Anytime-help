@@ -188,6 +188,7 @@ router.get('/staff', auth, async (req, res) => {
       } else {
         andConditions.push({ $or: [
           { phase },
+          { 'assigned_locations.phase': phase },
           { name: { $regex: phase, $options: 'i' } }
         ]});
       }
@@ -199,7 +200,9 @@ router.get('/staff', auth, async (req, res) => {
         $or: [
           { name: { $regex: s, $options: 'i' } },
           { phone_number: { $regex: s, $options: 'i' } },
-          { assigned_category: { $regex: s, $options: 'i' } }
+          { assigned_category: { $regex: s, $options: 'i' } },
+          { 'assigned_locations.phase': { $regex: s, $options: 'i' } },
+          { 'assigned_locations.blocks': { $regex: s, $options: 'i' } }
         ]
       });
     }
@@ -565,7 +568,7 @@ router.post('/members', auth, async (req, res) => {
 // @desc    Create a new staff member
 // @access  Admin Private
 router.post('/staff', auth, async (req, res) => {
-  let { name, phone_number, assigned_category, assigned_categories, phase } = req.body;
+  let { name, phone_number, assigned_category, assigned_categories, phase, assigned_locations } = req.body;
   
   if (!assigned_categories && assigned_category) {
     assigned_categories = [assigned_category];
@@ -581,9 +584,40 @@ router.post('/staff', auth, async (req, res) => {
       phone_number = `+91${phone_number}`;
     }
 
-    let user = await User.findOne({ phone_number, role: 'Staff', phase, assigned_category: legacy_category });
+    let formattedPhase = phase;
+    if (Array.isArray(assigned_locations) && assigned_locations.length > 0) {
+      formattedPhase = assigned_locations.map(loc => {
+        const blkStr = Array.isArray(loc.blocks) && loc.blocks.length > 0
+          ? (loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks') ? 'All Blocks' : `Block ${loc.blocks.join(', ')}`)
+          : 'All Blocks';
+        return `${loc.phase}: ${blkStr}`;
+      }).join(' | ');
+    }
+
+    let user = await User.findOne({ phone_number, role: 'Staff' });
     if (user) {
-      return res.status(400).json({ msg: 'Staff already exists for this phase and category' });
+      // Update existing staff profile with new locations and categories
+      if (assigned_locations && assigned_locations.length > 0) {
+        user.assigned_locations = assigned_locations;
+      }
+      if (assigned_categories && assigned_categories.length > 0) {
+        user.assigned_categories = assigned_categories;
+        user.assigned_category = legacy_category;
+      }
+      if (formattedPhase) {
+        user.phase = formattedPhase;
+      }
+      if (name) {
+        user.name = name;
+      }
+      await user.save();
+
+      const io = req.app.get('io');
+      if (io) {
+        io.emit('staff_changed', { action: 'update', data: user });
+      }
+
+      return res.status(200).json(user);
     }
 
     let existingActiveUser = await User.findOne({ phone_number, has_logged_in: true });
@@ -595,7 +629,8 @@ router.post('/staff', auth, async (req, res) => {
       role: 'Staff',
       assigned_category: legacy_category,
       assigned_categories: assigned_categories || [],
-      phase,
+      assigned_locations: assigned_locations || [],
+      phase: formattedPhase,
       has_logged_in: hasLoggedIn
     });
 
@@ -606,13 +641,7 @@ router.post('/staff', auth, async (req, res) => {
       io.emit('staff_changed', { action: 'create', data: user });
     }
 
-    res.status(201).json({
-      id: user.id,
-      name: user.name,
-      phone_number: user.phone_number,
-      role: user.role,
-      assigned_category: user.assigned_category
-    });
+    res.status(201).json(user);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -979,7 +1008,7 @@ router.put('/:id', auth, async (req, res) => {
       if (!hasAccess) return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    const { name, phone_number, designation, assigned_category, assigned_categories, phase, permissions, member_id, address } = req.body;
+    const { name, phone_number, designation, assigned_category, assigned_categories, phase, permissions, member_id, address, assigned_locations } = req.body;
     let user = await User.findById(req.params.id);
     
     if (!user) {
@@ -1010,7 +1039,19 @@ router.put('/:id', auth, async (req, res) => {
         user.assigned_categories = finalAssignedCategories;
         user.assigned_category = finalAssignedCategories.join(', ');
       }
-      if (phase !== undefined) user.phase = phase;
+      if (assigned_locations !== undefined) {
+        user.assigned_locations = assigned_locations;
+        if (Array.isArray(assigned_locations) && assigned_locations.length > 0) {
+          user.phase = assigned_locations.map(loc => {
+            const blkStr = Array.isArray(loc.blocks) && loc.blocks.length > 0
+              ? (loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks') ? 'All Blocks' : `Block ${loc.blocks.join(', ')}`)
+              : 'All Blocks';
+            return `${loc.phase}: ${blkStr}`;
+          }).join(' | ');
+        }
+      } else if (phase !== undefined) {
+        user.phase = phase;
+      }
     }
 
     await user.save();
@@ -1019,6 +1060,9 @@ router.put('/:id', auth, async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.emit('user_updated', { userId: user._id, role: user.role, permissions: user.permissions, name: user.name, designation: user.designation });
+      if (user.role === 'Staff') {
+        io.emit('staff_changed', { action: 'update', data: user });
+      }
     }
 
     res.json({ message: 'User updated successfully', user });

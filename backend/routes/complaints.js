@@ -106,12 +106,20 @@ router.post('/', auth, async (req, res) => {
 
     try {
       // Find Admin and Staff to notify
-      // We need to match staff based on exact phase (group + block) or legacy options
-      let phaseConditions = [{ phase: 'Universal' }, { phase: 'All' }, { phase: { $exists: false } }];
+      const userBlockMatch = (complaint.address || '').match(/Block\s+([A-H0-9]+)/i) || 
+                             (complaint.location || '').match(/Block\s+([A-H0-9]+)/i) ||
+                             (complaint.address || '').match(/\b([A-H0-9]+)-?\d+/i);
+      const userBlock = userBlockMatch ? userBlockMatch[1].toUpperCase() : (req.user && req.user.block ? String(req.user.block).toUpperCase() : '');
+
+      let phaseConditions = [
+        { phase: 'Universal' }, 
+        { phase: 'All' }, 
+        { phase: { $exists: false } },
+        { 'assigned_locations.0': { $exists: true } }
+      ];
       if (userPhase) {
         phaseConditions.push({ phase: userPhase });
         // Handle case where resident phase is Sushant Lok 2 - C,D,E but staff phase is Sushant Lok 2
-        // If staff is assigned to the parent group, they should probably get it, or if they are assigned to exact block
         const parentGroupMatch = userPhase.split(' - ')[0];
         phaseConditions.push({ phase: parentGroupMatch });
         
@@ -120,7 +128,6 @@ router.post('/', auth, async (req, res) => {
         if (userPhase === 'Sushant Lok 2 Option 1') phaseConditions.push({ phase: 'Sushant Lok 2 - C,D,E' });
         if (userPhase === 'Sushant Lok 2 Option 2') phaseConditions.push({ phase: 'Sushant Lok 2 - F,G' });
 
-        const userBlock = (complaint.address || '').match(/Block\s+([A-H0-9]+)/i)?.[1] || (req.user && req.user.block);
         if (userPhase === 'Sushant Lok 2') {
           if (['C', 'D', 'E'].includes(userBlock)) {
             phaseConditions.push({ phase: 'Sushant Lok 2 - C,D,E' }, { phase: 'Sushant Lok 2 Option 1' });
@@ -140,13 +147,37 @@ router.post('/', auth, async (req, res) => {
           { role: 'Member', permissions: 'All Complaints' }
         ],
         expoPushToken: { $exists: true, $ne: '' }
-      }).select('expoPushToken assigned_category assigned_categories role phase').lean();
+      }).select('expoPushToken assigned_category assigned_categories role phase assigned_locations').lean();
 
       const filteredUsers = adminsAndStaff.filter(u => {
         if (u.role === 'Staff') {
           const cats = u.assigned_categories && u.assigned_categories.length > 0 ? u.assigned_categories : (u.assigned_category ? [u.assigned_category] : []);
           if (cats.length > 0 && !cats.includes('All') && !cats.includes(category) && !cats.includes(finalTitle)) {
             return false;
+          }
+
+          if (Array.isArray(u.assigned_locations) && u.assigned_locations.length > 0) {
+            const matchesLocation = u.assigned_locations.some(loc => {
+              if (!loc.phase) return false;
+              if (loc.phase === 'Universal' || loc.phase === 'All Groups (Universal)' || loc.phase === 'All') return true;
+              
+              const locPhaseNorm = loc.phase.toLowerCase().trim();
+              const uPhaseNorm = (userPhase || '').toLowerCase().trim();
+              
+              const phaseMatches = locPhaseNorm === uPhaseNorm ||
+                (uPhaseNorm.includes('sushant lok 2') && locPhaseNorm.includes('sushant lok 2')) ||
+                (uPhaseNorm.includes('sushant lok 3') && locPhaseNorm.includes('sushant lok 3')) ||
+                uPhaseNorm.includes(locPhaseNorm) || locPhaseNorm.includes(uPhaseNorm);
+                
+              if (!phaseMatches) return false;
+
+              if (!userBlock) return true;
+              if (!loc.blocks || loc.blocks.length === 0 || loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks')) {
+                return true;
+              }
+              return loc.blocks.some(b => b.toUpperCase().trim() === userBlock);
+            });
+            return matchesLocation;
           }
         }
         return true;
@@ -313,7 +344,59 @@ router.get('/', auth, async (req, res) => {
             };
           }
           
-          if (account.phase && account.phase !== 'All' && account.phase !== 'Universal' && account.phase !== 'All Groups' && account.phase !== 'All Phases') {
+          if (Array.isArray(account.assigned_locations) && account.assigned_locations.length > 0) {
+            for (const loc of account.assigned_locations) {
+              if (!loc.phase || ['universal', 'all', 'all groups'].includes(loc.phase.toLowerCase())) {
+                if (accountCatCondition) staffOrConditions.push(accountCatCondition);
+                else staffOrConditions.push({});
+                continue;
+              }
+
+              let locPhaseCond;
+              if (loc.phase.includes('Sushant Lok 2')) {
+                locPhaseCond = { $in: [
+                  new RegExp('Sushant Lok 2', 'i'),
+                  null, '', undefined
+                ]};
+              } else if (loc.phase.includes('Sushant Lok 3')) {
+                locPhaseCond = { $in: [
+                  new RegExp('Sushant Lok 3', 'i'),
+                  null, '', undefined
+                ]};
+              } else {
+                let cleanPhase = loc.phase.replace(/[-:,].*$/, '').trim();
+                locPhaseCond = { $in: [
+                  new RegExp(cleanPhase.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\$&'), 'i'),
+                  null, '', undefined
+                ]};
+              }
+
+              const hasSpecificBlocks = Array.isArray(loc.blocks) && loc.blocks.length > 0 && 
+                                        !loc.blocks.includes('ALL') && !loc.blocks.includes('All Blocks');
+
+              if (hasSpecificBlocks) {
+                const blockRegexes = loc.blocks.map(b => new RegExp(`(\\bBlock\\s*${b}\\b|\\b${b}-?\\d+)`, 'i'));
+                const blockCond = {
+                  $or: [
+                    { address: { $in: blockRegexes } },
+                    { location: { $in: blockRegexes } }
+                  ]
+                };
+                
+                staffOrConditions.push({
+                  phase: locPhaseCond,
+                  ...blockCond,
+                  ...(accountCatCondition || {})
+                });
+              } else {
+                if (accountCatCondition) {
+                  staffOrConditions.push({ ...accountCatCondition, phase: locPhaseCond });
+                } else {
+                  staffOrConditions.push({ phase: locPhaseCond });
+                }
+              }
+            }
+          } else if (account.phase && account.phase !== 'All' && account.phase !== 'Universal' && account.phase !== 'All Groups' && account.phase !== 'All Phases') {
             let phaseCondition;
             if (account.phase.includes('Sushant Lok 2 - C,D,E') || account.phase.includes('Sushant Lok 2 Option 1')) {
               phaseCondition = { $in: [
@@ -497,7 +580,7 @@ router.get('/:id', auth, async (req, res) => {
 
       // Fetch all active staff
       const allStaff = await User.find({ role: { $in: ['Staff', 'PaidStaff'] } })
-        .select('name phone_number role assigned_category assigned_categories phase')
+        .select('name phone_number role assigned_category assigned_categories phase assigned_locations')
         .lean();
 
       // Filter staff matching category
@@ -518,8 +601,37 @@ router.get('/:id', auth, async (req, res) => {
         return cats.some(c => searchTerms.some(st => c.includes(st) || st.includes(c)));
       });
 
-      // Filter staff by phase
+      // Extract complaint block if any
+      const complaintText = [
+        complaint.address || '',
+        complaint.location || '',
+        complaint.user?.address || ''
+      ].join(' ').toUpperCase();
+      const cBlockMatch = complaintText.match(/\bBLOCK\s*([A-H0-9]+)\b/i) || complaintText.match(/\b([A-H0-9]+)-?\d+/i);
+      const complaintBlock = cBlockMatch ? cBlockMatch[1].toUpperCase() : '';
+
+      // Filter staff by phase & blocks
       const filteredStaff = categoryStaff.filter(staff => {
+        if (Array.isArray(staff.assigned_locations) && staff.assigned_locations.length > 0) {
+          return staff.assigned_locations.some(loc => {
+            if (!loc.phase || ['universal', 'all', 'all groups'].includes(loc.phase.toLowerCase())) return true;
+            
+            const lPhase = loc.phase.toLowerCase();
+            const dPhase = (detectedPhase || '').toLowerCase();
+            const phaseMatches = dPhase.includes(lPhase) || lPhase.includes(dPhase) ||
+              (dPhase.includes('sushant lok 2') && lPhase.includes('sushant lok 2')) ||
+              (dPhase.includes('sushant lok 3') && lPhase.includes('sushant lok 3'));
+            
+            if (!phaseMatches) return false;
+
+            if (!complaintBlock || !loc.blocks || loc.blocks.length === 0 || loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks')) {
+              return true;
+            }
+
+            return loc.blocks.some(b => b.toUpperCase().trim() === complaintBlock);
+          });
+        }
+
         const sPhase = (staff.phase || '').toLowerCase();
         if (!sPhase || sPhase === 'universal' || sPhase === 'all' || sPhase === 'all groups' || sPhase === 'all phases') {
           return true;
