@@ -14,6 +14,7 @@ import { CopilotProvider } from 'react-native-copilot';
 import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import { requireOptionalNativeModule } from 'expo';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 const API_URL = 'https://anytime-help.onrender.com';
 
@@ -174,30 +175,32 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <CopilotProvider overlay="svg" animated={true} backdropColor="rgba(0, 0, 0, 0.7)">
-        <Stack screenOptions={{ headerShown: false, gestureEnabled: false }} />
-      </CopilotProvider>
-      <Toast />
-      
-      {/* Force Update Modal */}
-      <Modal visible={showUpdateModal} transparent={true} animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Update Required</Text>
-            <Text style={styles.modalText}>
-              A new versiorn of Anytime Help is available. Please update your app to the latest version to continue.
-            </Text>
-            <TouchableOpacity 
-              style={styles.updateButton} 
-              onPress={() => Linking.openURL(playStoreUrl)}
-            >
-              <Text style={styles.updateButtonText}>Update Now</Text>
-            </TouchableOpacity>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <CopilotProvider overlay="svg" animated={true} backdropColor="rgba(0, 0, 0, 0.7)">
+          <Stack screenOptions={{ headerShown: false, gestureEnabled: false }} />
+        </CopilotProvider>
+        <Toast />
+        
+        {/* Force Update Modal */}
+        <Modal visible={showUpdateModal} transparent={true} animationType="fade">
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>Update Required</Text>
+              <Text style={styles.modalText}>
+                A new versiorn of Anytime Help is available. Please update your app to the latest version to continue.
+              </Text>
+              <TouchableOpacity 
+                style={styles.updateButton} 
+                onPress={() => Linking.openURL(playStoreUrl)}
+              >
+                <Text style={styles.updateButtonText}>Update Now</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </GestureHandlerRootView>
+        </Modal>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 

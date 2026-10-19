@@ -10,12 +10,14 @@ import {
   Platform,
   ActivityIndicator,
   BackHandler,
-  KeyboardAvoidingView
+  KeyboardAvoidingView,
+  useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -87,15 +89,20 @@ export default function ForceBlockUpdateModal({
   userData,
   onSuccess
 }: ForceBlockUpdateModalProps) {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
+
   const [phase, setPhase] = useState<string>('Sushant Lok 2');
   const [block, setBlock] = useState<string>('');
   const [houseNo, setHouseNo] = useState<string>('');
   const [propertyType, setPropertyType] = useState<string>('Owned');
   const [loading, setLoading] = useState<boolean>(false);
+  const [errorText, setErrorText] = useState<string>('');
 
   // Initialize or pre-fill existing info whenever modal opens or userData changes
   useEffect(() => {
     if (!userData) return;
+    setErrorText('');
 
     // Detect initial Phase
     const userPhase = (userData.phase || '').trim();
@@ -148,6 +155,7 @@ export default function ForceBlockUpdateModal({
     if (!visible) return;
 
     const onBackPress = () => {
+      setErrorText('Please confirm your Block and Flat details to continue.');
       Toast.show({
         type: 'info',
         text1: 'Action Required',
@@ -162,6 +170,7 @@ export default function ForceBlockUpdateModal({
 
   const handlePhaseChange = (selectedPhase: string) => {
     setPhase(selectedPhase);
+    setErrorText('');
     // If current block is not in the new phase, reset block
     const availableBlocks = PHASE_BLOCKS[selectedPhase] || [];
     if (!availableBlocks.includes(block)) {
@@ -171,25 +180,26 @@ export default function ForceBlockUpdateModal({
 
   const handleSave = async () => {
     if (!phase) {
-      Toast.show({ type: 'error', text1: 'Phase Required', text2: 'Please select your Phase.' });
+      setErrorText('Please select your Phase.');
       return;
     }
 
     if (!block) {
-      Toast.show({ type: 'error', text1: 'Block Required', text2: 'Please select your exact Block.' });
+      setErrorText('Please select your exact Block.');
       return;
     }
 
     if (!houseNo.trim()) {
-      Toast.show({ type: 'error', text1: 'House Number Required', text2: 'Please enter your House / Flat number.' });
+      setErrorText('Please enter your House / Flat number.');
       return;
     }
 
+    setErrorText('');
     setLoading(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
       if (!token) {
-        Toast.show({ type: 'error', text1: 'Session Expired', text2: 'Please log in again.' });
+        setErrorText('Session Expired. Please log in again.');
         setLoading(false);
         return;
       }
@@ -226,11 +236,12 @@ export default function ForceBlockUpdateModal({
       onSuccess(mergedUser);
     } catch (err: any) {
       console.log('Update block error:', err.response?.data || err.message);
-      Toast.show({
-        type: 'error',
-        text1: 'Update Failed',
-        text2: err.response?.data?.message || err.response?.data?.msg || 'Could not update details. Please try again.'
-      });
+      const msg =
+        err.response?.data?.message ||
+        err.response?.data?.msg ||
+        err.message ||
+        'Could not update details. Please try again.';
+      setErrorText(msg);
     } finally {
       setLoading(false);
     }
@@ -238,32 +249,51 @@ export default function ForceBlockUpdateModal({
 
   const currentBlocks = PHASE_BLOCKS[phase] || [];
 
+  // Calculate safe paddings that guarantee the card is never covered by the Android system navigation bar
+  const topPadding = Math.max(insets.top, Platform.OS === 'android' ? 24 : 12) + 8;
+  const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 12) + 8;
+  const maxCardHeight = Math.min(windowHeight - topPadding - bottomPadding, 640);
+
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
-      <View style={styles.overlay}>
+      <View
+        style={[
+          styles.overlay,
+          {
+            paddingTop: topPadding,
+            paddingBottom: bottomPadding
+          }
+        ]}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardContainer}
         >
-          <View style={styles.card}>
-            {/* Header / Notice Banner */}
+          <View style={[styles.card, { maxHeight: maxCardHeight }]}>
+            {/* Header / Notice Banner - Compact & Modern */}
             <View style={styles.header}>
-              <View style={styles.iconCircle}>
-                <Ionicons name="location-sharp" size={26} color="#2563EB" />
+              <View style={styles.headerRow}>
+                <View style={styles.iconCircle}>
+                  <Ionicons name="location-sharp" size={20} color="#2563EB" />
+                </View>
+                <View style={styles.headerTextCol}>
+                  <View style={styles.badge}>
+                    <Ionicons name="shield-checkmark" size={11} color="#D97706" />
+                    <Text style={styles.badgeText}>ACTION REQUIRED</Text>
+                  </View>
+                  <Text style={styles.title}>Update Block Details</Text>
+                </View>
               </View>
-              <View style={styles.badge}>
-                <Ionicons name="shield-checkmark" size={13} color="#D97706" />
-                <Text style={styles.badgeText}>ACTION REQUIRED</Text>
-              </View>
-              <Text style={styles.title}>Update Your Block Details</Text>
               <Text style={styles.subtitle}>
-                To ensure maintenance staff can reach your premises promptly and your requests are correctly routed, please confirm your exact Block and House number.
+                Confirm your exact Block and House number so maintenance staff can reach your premises promptly.
               </Text>
             </View>
 
+            {/* Scrollable Form Body */}
             <ScrollView
               style={styles.body}
-              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.bodyContent}
+              showsVerticalScrollIndicator={true}
               keyboardShouldPersistTaps="handled"
             >
               {/* Section 1: Phase */}
@@ -311,7 +341,10 @@ export default function ForceBlockUpdateModal({
                       <TouchableOpacity
                         key={b}
                         style={[styles.blockBox, isSelected && styles.blockBoxActive]}
-                        onPress={() => setBlock(b)}
+                        onPress={() => {
+                          setBlock(b);
+                          if (errorText) setErrorText('');
+                        }}
                         activeOpacity={0.7}
                       >
                         <Text style={[styles.blockBoxText, isSelected && styles.blockBoxTextActive]}>
@@ -335,7 +368,12 @@ export default function ForceBlockUpdateModal({
                     placeholder="e.g. 104, B-12, Flat 302"
                     placeholderTextColor="#94A3B8"
                     value={houseNo}
-                    onChangeText={setHouseNo}
+                    onChangeText={(val) => {
+                      setHouseNo(val);
+                      if (errorText) setErrorText('');
+                    }}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSave}
                   />
                 </View>
               </View>
@@ -378,8 +416,15 @@ export default function ForceBlockUpdateModal({
               </View>
             </ScrollView>
 
-            {/* Footer / CTA */}
+            {/* Footer with Error Banner & Pinned CTA */}
             <View style={styles.footer}>
+              {errorText ? (
+                <View style={styles.errorBox}>
+                  <Ionicons name="alert-circle" size={16} color="#DC2626" style={{ marginRight: 6 }} />
+                  <Text style={styles.errorBoxText}>{errorText}</Text>
+                </View>
+              ) : null}
+
               <TouchableOpacity
                 style={[styles.submitButton, loading && styles.submitButtonDisabled]}
                 onPress={handleSave}
@@ -387,7 +432,10 @@ export default function ForceBlockUpdateModal({
                 activeOpacity={0.8}
               >
                 {loading ? (
-                  <ActivityIndicator color="#FFFFFF" size="small" />
+                  <View style={styles.btnContent}>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <Text style={[styles.submitButtonText, { marginLeft: 8 }]}>Updating details...</Text>
+                  </View>
                 ) : (
                   <View style={styles.btnContent}>
                     <Text style={styles.submitButtonText}>Update & Continue</Text>
@@ -409,17 +457,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.75)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 16
+    paddingHorizontal: 16
   },
   keyboardContainer: {
     width: '100%',
     maxWidth: 420,
-    maxHeight: '92%'
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   card: {
+    width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
+    borderRadius: 22,
     overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
@@ -427,62 +479,72 @@ const styles = StyleSheet.create({
     elevation: 15
   },
   header: {
-    alignItems: 'center',
-    paddingTop: 24,
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    flexShrink: 0,
+    paddingTop: 16,
+    paddingHorizontal: 18,
+    paddingBottom: 12,
     backgroundColor: '#F8FAFC',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9'
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8
+  },
   iconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#EFF6FF',
-    borderWidth: 2,
+    borderWidth: 1.5,
     borderColor: '#BFDBFE',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 10
+    marginRight: 12
+  },
+  headerTextCol: {
+    flex: 1,
+    justifyContent: 'center'
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FEF3C7',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-    marginBottom: 8
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 3
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
     color: '#B45309',
     marginLeft: 4,
     letterSpacing: 0.5
   },
   title: {
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: '800',
-    color: '#0F172A',
-    textAlign: 'center',
-    marginBottom: 6
+    color: '#0F172A'
   },
   subtitle: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 18,
-    paddingHorizontal: 6
+    lineHeight: 16
   },
   body: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    maxHeight: 380
+    flex: 1,
+    flexShrink: 1
+  },
+  bodyContent: {
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 16
   },
   section: {
-    marginBottom: 18
+    marginBottom: 16
   },
   sectionLabel: {
     fontSize: 13,
@@ -513,8 +575,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
     borderRadius: 12,
     backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
@@ -539,8 +601,8 @@ const styles = StyleSheet.create({
     gap: 8
   },
   blockBox: {
-    width: 48,
-    height: 44,
+    width: 46,
+    height: 42,
     borderRadius: 10,
     backgroundColor: '#F8FAFC',
     borderWidth: 1.5,
@@ -568,7 +630,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
     borderRadius: 12,
     paddingHorizontal: 12,
-    height: 48
+    height: 46
   },
   inputIcon: {
     marginRight: 8
@@ -577,7 +639,8 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     color: '#0F172A',
-    fontWeight: '500'
+    fontWeight: '500',
+    height: '100%'
   },
   propertyRow: {
     flexDirection: 'row',
@@ -611,8 +674,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#F1F5F9',
     borderRadius: 12,
     padding: 12,
-    marginTop: 4,
-    marginBottom: 8,
+    marginTop: 2,
+    marginBottom: 4,
     borderLeftWidth: 3,
     borderLeftColor: '#2563EB'
   },
@@ -621,7 +684,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#64748B',
     letterSpacing: 0.5,
-    marginBottom: 4
+    marginBottom: 3
   },
   previewText: {
     fontSize: 13,
@@ -629,14 +692,33 @@ const styles = StyleSheet.create({
     color: '#0F172A'
   },
   footer: {
-    padding: 16,
+    flexShrink: 0,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9'
   },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 10
+  },
+  errorBoxText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#DC2626',
+    fontWeight: '600'
+  },
   submitButton: {
     backgroundColor: '#2563EB',
-    height: 50,
+    height: 48,
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -651,7 +733,8 @@ const styles = StyleSheet.create({
   },
   btnContent: {
     flexDirection: 'row',
-    alignItems: 'center'
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   submitButtonText: {
     color: '#FFFFFF',
