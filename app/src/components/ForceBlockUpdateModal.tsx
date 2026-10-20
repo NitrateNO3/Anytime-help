@@ -82,12 +82,14 @@ interface ForceBlockUpdateModalProps {
   visible: boolean;
   userData: any;
   onSuccess: (updatedUser: any) => void;
+  onClose?: () => void;
 }
 
 export default function ForceBlockUpdateModal({
   visible,
   userData,
-  onSuccess
+  onSuccess,
+  onClose
 }: ForceBlockUpdateModalProps) {
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
@@ -98,6 +100,13 @@ export default function ForceBlockUpdateModal({
   const [propertyType, setPropertyType] = useState<string>('Owned');
   const [loading, setLoading] = useState<boolean>(false);
   const [errorText, setErrorText] = useState<string>('');
+
+  const handleClose = () => {
+    setErrorText('');
+    if (onClose) {
+      onClose();
+    }
+  };
 
   // Initialize or pre-fill existing info whenever modal opens or userData changes
   useEffect(() => {
@@ -150,23 +159,18 @@ export default function ForceBlockUpdateModal({
     }
   }, [userData, visible]);
 
-  // Handle hardware back button on Android to prevent bypassing the update
+  // Handle hardware back button on Android
   useEffect(() => {
     if (!visible) return;
 
     const onBackPress = () => {
-      setErrorText('Please confirm your Block and Flat details to continue.');
-      Toast.show({
-        type: 'info',
-        text1: 'Action Required',
-        text2: 'Please confirm your Block and Flat details to continue.'
-      });
-      return true; // Prevent dismiss
+      handleClose();
+      return true; // Handled back press
     };
 
     const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => backHandler.remove();
-  }, [visible]);
+  }, [visible, onClose]);
 
   const handlePhaseChange = (selectedPhase: string) => {
     setPhase(selectedPhase);
@@ -252,10 +256,18 @@ export default function ForceBlockUpdateModal({
   // Calculate safe paddings that guarantee the card is never covered by the Android system navigation bar
   const topPadding = Math.max(insets.top, Platform.OS === 'android' ? 24 : 12) + 8;
   const bottomPadding = Math.max(insets.bottom, Platform.OS === 'android' ? 24 : 12) + 8;
-  const maxCardHeight = Math.min(windowHeight - topPadding - bottomPadding, 640);
+  const availableHeight = windowHeight - topPadding - bottomPadding;
+  // Bounded card height ensures definite flex calculation (so ScrollView NEVER collapses to 0) and NEVER overflows screen
+  const cardHeight = Math.min(availableHeight, 580);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={handleClose}
+    >
       <View
         style={[
           styles.overlay,
@@ -269,8 +281,8 @@ export default function ForceBlockUpdateModal({
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={styles.keyboardContainer}
         >
-          <View style={[styles.card, { maxHeight: maxCardHeight }]}>
-            {/* Header / Notice Banner - Compact & Modern */}
+          <View style={[styles.card, { height: cardHeight }]}>
+            {/* Header / Notice Banner - Compact & Modern with Close Button */}
             <View style={styles.header}>
               <View style={styles.headerRow}>
                 <View style={styles.iconCircle}>
@@ -283,6 +295,16 @@ export default function ForceBlockUpdateModal({
                   </View>
                   <Text style={styles.title}>Update Block Details</Text>
                 </View>
+                <TouchableOpacity
+                  style={styles.closeBtn}
+                  onPress={handleClose}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Close"
+                  accessibilityRole="button"
+                >
+                  <Ionicons name="close" size={20} color="#64748B" />
+                </TouchableOpacity>
               </View>
               <Text style={styles.subtitle}>
                 Confirm your exact Block and House number so maintenance staff can reach your premises promptly.
@@ -507,6 +529,15 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center'
   },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F1F5F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8
+  },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -535,8 +566,7 @@ const styles = StyleSheet.create({
     lineHeight: 16
   },
   body: {
-    flex: 1,
-    flexShrink: 1
+    flex: 1
   },
   bodyContent: {
     paddingHorizontal: 18,

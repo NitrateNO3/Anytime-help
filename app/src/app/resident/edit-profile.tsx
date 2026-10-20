@@ -18,6 +18,7 @@ import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
 import { io } from 'socket.io-client';
+import ForceBlockUpdateModal from '../../components/ForceBlockUpdateModal';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -34,6 +35,8 @@ export default function EditProfileScreen() {
   const [formattedAddress, setFormattedAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState('');
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [rawUserData, setRawUserData] = useState<any>(null);
 
   useEffect(() => {
     loadUserData();
@@ -70,6 +73,7 @@ export default function EditProfileScreen() {
         });
 
         const u = res.data;
+        setRawUserData(u);
         setName(u.name || '');
         setPhoneNumber(u.phone_number ? u.phone_number.replace('+91', '') : '');
         setPhase(u.phase || '');
@@ -207,17 +211,25 @@ export default function EditProfileScreen() {
             </View>
           </View>
 
-          {/* Registered Society & Address Section (LOCKED / READ ONLY) */}
+          {/* Registered Society & Address Section */}
           <View style={styles.formGroup}>
             <View style={styles.labelRow}>
               <Text style={styles.label}>Registered Address Details</Text>
-              <View style={styles.lockedBadge}>
-                <Ionicons name="lock-closed" size={11} color="#64748B" />
-                <Text style={styles.lockedBadgeText}>Locked</Text>
-              </View>
+              <TouchableOpacity
+                style={styles.editableBadge}
+                onPress={() => setShowBlockModal(true)}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="pencil" size={11} color="#2563EB" />
+                <Text style={styles.editableBadgeText}>Update Block</Text>
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.addressCard}>
+            <TouchableOpacity
+              style={styles.addressCard}
+              onPress={() => setShowBlockModal(true)}
+              activeOpacity={0.85}
+            >
               <View style={styles.addressRow}>
                 <View style={styles.addressCol}>
                   <Text style={styles.addressFieldLabel}>Phase</Text>
@@ -246,15 +258,19 @@ export default function EditProfileScreen() {
                   <Text style={styles.fullAddressText}>{formattedAddress}</Text>
                 </View>
               ) : null}
-            </View>
+            </TouchableOpacity>
 
-            {/* Admin Notice */}
-            <View style={styles.noticeBox}>
-              <Ionicons name="information-circle-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
-              <Text style={styles.noticeText}>
-                Phone number and address are locked. Contact society admin to request any changes.
+            {/* Tap hint */}
+            <TouchableOpacity 
+              style={styles.noticeBox} 
+              onPress={() => setShowBlockModal(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="information-circle-outline" size={16} color="#2563EB" style={{ marginRight: 6 }} />
+              <Text style={[styles.noticeText, { color: '#2563EB', fontWeight: '500' }]}>
+                Tap here to update your Block and Flat details anytime.
               </Text>
-            </View>
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -273,6 +289,16 @@ export default function EditProfileScreen() {
           )}
         </TouchableOpacity>
       </View>
+
+      <ForceBlockUpdateModal
+        visible={showBlockModal}
+        userData={rawUserData}
+        onClose={() => setShowBlockModal(false)}
+        onSuccess={() => {
+          setShowBlockModal(false);
+          loadUserData();
+        }}
+      />
     </SafeAreaView>
   );
 }

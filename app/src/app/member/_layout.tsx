@@ -23,6 +23,7 @@ export default function MemberLayout() {
   
   const [userData, setUserData] = useState<any>(null);
   const [showBlockModal, setShowBlockModal] = useState<boolean>(false);
+  const [hasDismissedModal, setHasDismissedModal] = useState<boolean>(false);
 
   const checkUserProfile = async () => {
     try {
@@ -38,7 +39,9 @@ export default function MemberLayout() {
           setUserData(fresh);
           await SecureStore.setItemAsync('userData', JSON.stringify(fresh));
           if (isProfileBlockUpdateRequired(fresh)) {
-            setShowBlockModal(true);
+            if (!hasDismissedModal) {
+              setShowBlockModal(true);
+            }
           } else {
             setShowBlockModal(false);
           }
@@ -53,7 +56,9 @@ export default function MemberLayout() {
         const parsed = JSON.parse(storedUser);
         setUserData(parsed);
         if (isProfileBlockUpdateRequired(parsed)) {
-          setShowBlockModal(true);
+          if (!hasDismissedModal) {
+            setShowBlockModal(true);
+          }
         } else {
           setShowBlockModal(false);
         }
@@ -174,6 +179,10 @@ export default function MemberLayout() {
     <ForceBlockUpdateModal
       visible={showBlockModal}
       userData={userData}
+      onClose={() => {
+        setHasDismissedModal(true);
+        setShowBlockModal(false);
+      }}
       onSuccess={(updatedUser) => {
         setUserData(updatedUser);
         setShowBlockModal(false);

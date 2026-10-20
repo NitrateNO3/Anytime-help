@@ -512,7 +512,7 @@ router.post('/residents', auth, async (req, res) => {
 // @desc    Create a new member (Committee)
 // @access  Admin Private
 router.post('/members', auth, async (req, res) => {
-  let { name, phone_number, designation, address, member_id, permissions } = req.body;
+  let { name, phone_number, designation, address, member_id, permissions, phase, block, house_no, property_type } = req.body;
 
   if (!member_id) {
     return res.status(400).json({ message: 'Member ID is required' });
@@ -525,6 +525,21 @@ router.post('/members', auth, async (req, res) => {
 
     if (!phone_number.startsWith('+')) {
       phone_number = `+91${phone_number}`;
+    }
+
+    if (!block && address) {
+      const match = address.match(/Block\s+([A-H0-9]+)\b/i);
+      if (match && match[1]) block = match[1].toUpperCase();
+    }
+    if (!house_no && address) {
+      const hMatch =
+        address.match(/House\/Flat:\s*([^,]+)/i) ||
+        address.match(/(?:House|Flat|H\.No|Plot)\s*[:#\-]?\s*([A-Za-z0-9\/-]+)/i);
+      if (hMatch && hMatch[1]) house_no = hMatch[1].trim();
+    }
+    if (!phase && address) {
+      if (address.includes('Sushant Lok 3')) phase = 'Sushant Lok 3';
+      else if (address.includes('Sushant Lok 2')) phase = 'Sushant Lok 2';
     }
 
     let user = await User.findOne({ phone_number });
@@ -540,7 +555,11 @@ router.post('/members', auth, async (req, res) => {
         address,
         member_id,
         permissions: permissions || [],
-        has_logged_in: hasLoggedIn
+        has_logged_in: hasLoggedIn,
+        phase: phase || undefined,
+        block: block || undefined,
+        house_no: house_no || undefined,
+        property_type: property_type || 'Owned'
       });
     } else {
       user.name = name;
@@ -549,6 +568,10 @@ router.post('/members', auth, async (req, res) => {
       user.address = address;
       user.member_id = member_id;
       user.permissions = permissions || [];
+      if (phase !== undefined) user.phase = phase;
+      if (block !== undefined) user.block = block;
+      if (house_no !== undefined) user.house_no = house_no;
+      if (property_type !== undefined) user.property_type = property_type;
     }
 
     await user.save();
@@ -1008,7 +1031,7 @@ router.put('/:id', auth, async (req, res) => {
       if (!hasAccess) return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    const { name, phone_number, designation, assigned_category, assigned_categories, phase, permissions, member_id, address, assigned_locations } = req.body;
+    const { name, phone_number, designation, assigned_category, assigned_categories, phase, block, house_no, property_type, permissions, member_id, address, assigned_locations } = req.body;
     let user = await User.findById(req.params.id);
     
     if (!user) {
@@ -1020,14 +1043,17 @@ router.put('/:id', auth, async (req, res) => {
     if (phone_number !== undefined) user.phone_number = phone_number;
     if (address !== undefined) user.address = address;
     
+    if (user.role === 'Member' || user.role === 'Resident') {
+      if (phase !== undefined) user.phase = phase;
+      if (block !== undefined) user.block = block;
+      if (house_no !== undefined) user.house_no = house_no;
+      if (property_type !== undefined) user.property_type = property_type;
+    }
+
     if (user.role === 'Member') {
       if (designation !== undefined) user.designation = designation;
       if (permissions !== undefined) user.permissions = permissions;
       if (member_id !== undefined) user.member_id = member_id;
-    }
-    
-    if (user.role === 'Resident') {
-      if (phase !== undefined) user.phase = phase;
     }
     
     if (user.role === 'Staff' || user.role === 'PaidStaff') {
