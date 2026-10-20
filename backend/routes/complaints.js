@@ -422,15 +422,15 @@ router.get('/', auth, async (req, res) => {
       query.$or = orConditions;
     }
 
-    // If Resident, only show their own complaints (duplicates won't show in their list)
+    // If Resident, only show their own complaints (where they are the creator)
     // If Member passes mine=true, only show their own complaints
     if (req.user.role === 'Resident' || req.query.mine === 'true') {
-      const userCondition = { $or: [{ user: req.user.id }, { upvotes: req.user.id }] };
+      const userCondition = { user: req.user.id };
       if (query.$or) {
         query.$and = [userCondition, { $or: query.$or }];
         delete query.$or;
       } else {
-        query.$or = userCondition.$or;
+        query.user = req.user.id;
       }
     } else if (req.user.role === 'Staff') {
       // Staff only sees complaints for their assigned category and phase, across ALL their accounts
