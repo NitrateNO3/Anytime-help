@@ -687,11 +687,11 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
       .select('-__v')
-      .populate('user', 'name phone_number address room_number phase relation')
+      .populate('user', 'name phone_number address room_number phase relation role designation')
       .populate('assigned_staff', 'name phone_number address room_number phase')
       .populate('resolved_by', 'name phone_number role phase')
       .populate('escalated_by', 'name phone_number phone role')
-      .populate('replies.user', 'name role')
+      .populate('replies.user', 'name role designation phone_number')
       .lean();
     if (!complaint) {
       return res.status(404).json({ message: 'Complaint not found' });
@@ -963,7 +963,11 @@ router.post('/:id/reply', auth, async (req, res) => {
     let role = req.user.role;
     if (role === 'Admin' || role === 'SubAdmin') {
       role = 'Admin';
-    } else if (role === 'Resident' || role === 'Member') {
+    } else if (role === 'Member') {
+      role = 'Member';
+    } else if (role === 'Staff' || role === 'PaidStaff') {
+      role = 'Staff';
+    } else {
       role = 'Resident';
     }
     
@@ -981,9 +985,9 @@ router.post('/:id/reply', auth, async (req, res) => {
     await complaint.save();
     
     const populatedComplaint = await Complaint.findById(complaint._id)
-      .populate('user', 'name phone_number phase room_number role')
+      .populate('user', 'name phone_number phase room_number role designation')
       .populate('assigned_staff', 'name role')
-      .populate('replies.user', 'name role');
+      .populate('replies.user', 'name role designation phone_number');
     
     const io = req.app.get('io');
     if (io) {
@@ -993,14 +997,38 @@ router.post('/:id/reply', auth, async (req, res) => {
     // Push Notification Logic
     try {
       const { sendPushNotifications } = require('../utils/push');
-      let tokensToNotify = [];
-      let notificationTitle = '';
-      let notificationBody = (req.body.text && req.body.text.trim()) ? req.body.text.trim() : '📷 Sent an image attachment';
+      const senderName = req.user.name || (role === 'Member' ? 'Member' : (role === 'Staff' ? 'Staff' : (role === 'Admin' ? 'Admin' : 'Resident')));
+      const senderDesignation = req.user.designation ? ` (${req.user.designation})` : '';
+      const notificationBody = (req.body.text && req.body.text.trim()) ? req.body.text.trim() : '📷 Sent an image attachment';
       
-      // Fetch all relevant admins and staff for this category/phase
       const userPhase = complaint.phase;
       const category = complaint.category;
       
+      // 1. Notify the complaint creator (the resident / person who raised it) if sender is not them
+      const isComplainantSender = req.user.id === complaint.user.toString();
+      if (!isComplainantSender) {
+        const complainant = await User.findById(complaint.user).select('_id expoPushToken unread_notifications').lean();
+        if (complainant && complainant.expoPushToken) {
+          await User.findByIdAndUpdate(complainant._id, { $inc: { unread_notifications: 1 } });
+          const newBadge = (complainant.unread_notifications || 0) + 1;
+          
+          let residentTitle = `💬 New Reply on ${complaint.title}`;
+          if (role === 'Member') {
+            residentTitle = `💬 Member ${senderName}${senderDesignation} replied to your complaint`;
+          } else if (role === 'Staff' || role === 'Admin') {
+            residentTitle = `🛠️ Update on your complaint: ${complaint.title}`;
+          }
+          
+          sendPushNotifications(
+            [{ to: complainant.expoPushToken, badge: newBadge }],
+            residentTitle,
+            notificationBody,
+            { type: 'complaint', id: complaint._id }
+          );
+        }
+      }
+
+      // 2. Notify staff and admins (and other members with All Complaints permission)
       const adminsAndStaff = await User.find({
         $or: [
           { role: 'Admin' },
@@ -1009,43 +1037,31 @@ router.post('/:id/reply', auth, async (req, res) => {
           { role: 'Member', permissions: 'All Complaints' }
         ],
         expoPushToken: { $exists: true, $ne: '' }
-      }).select('_id expoPushToken assigned_category assigned_categories role').lean();
+      }).select('_id expoPushToken assigned_category assigned_categories role unread_notifications').lean();
 
-      const staffAdminIds = adminsAndStaff
-        .filter(u => {
-          if (u.role === 'Staff') {
-            const cats = u.assigned_categories && u.assigned_categories.length > 0 ? u.assigned_categories : (u.assigned_category ? [u.assigned_category] : []);
-            if (cats.length > 0 && !cats.includes('All') && !cats.includes(category)) {
-              return false;
-            }
-          }
-          return u._id.toString() !== req.user.id; // Exclude sender
-        })
-        .map(u => u._id);
-        
-      let userIdsToNotify = [...staffAdminIds];
-      
-      // Also notify resident if the sender is not the resident
-      if (req.user.id !== complaint.user.toString()) {
-        userIdsToNotify.push(complaint.user);
-      }
-      
-      notificationTitle = role === 'Resident' ? `New Reply on ${complaint.title}` : `Update on ${complaint.title}`;
-
-      if (userIdsToNotify.length > 0) {
-        await User.updateMany({ _id: { $in: userIdsToNotify } }, { $inc: { unread_notifications: 1 } });
-        const updatedUsers = await User.find({ _id: { $in: userIdsToNotify } }).select('expoPushToken unread_notifications').lean();
-        
-        const tokensObjects = [];
-        for (const u of updatedUsers) {
-          if (u.expoPushToken) {
-            tokensObjects.push({ to: u.expoPushToken, badge: u.unread_notifications });
+      const staffAdminToNotify = adminsAndStaff.filter(u => {
+        if (u._id.toString() === req.user.id) return false; // Exclude sender
+        if (!isComplainantSender && u._id.toString() === complaint.user.toString()) return false; // Already notified above
+        if (u.role === 'Staff') {
+          const cats = u.assigned_categories && u.assigned_categories.length > 0 ? u.assigned_categories : (u.assigned_category ? [u.assigned_category] : []);
+          if (cats.length > 0 && !cats.includes('All') && !cats.includes(category)) {
+            return false;
           }
         }
+        return true;
+      });
+
+      if (staffAdminToNotify.length > 0) {
+        const staffIds = staffAdminToNotify.map(u => u._id);
+        await User.updateMany({ _id: { $in: staffIds } }, { $inc: { unread_notifications: 1 } });
         
-        if (tokensObjects.length > 0) {
-          sendPushNotifications(tokensObjects, notificationTitle, notificationBody, { type: 'complaint', id: complaint._id });
-        }
+        const staffTitle = `New Reply on ${complaint.title} by ${senderName}${senderDesignation}`;
+        const staffTokens = staffAdminToNotify.map(u => ({
+          to: u.expoPushToken,
+          badge: (u.unread_notifications || 0) + 1
+        }));
+        
+        sendPushNotifications(staffTokens, staffTitle, notificationBody, { type: 'complaint', id: complaint._id });
       }
     } catch (pushErr) {
       console.error('Push notification error on reply:', pushErr.message);

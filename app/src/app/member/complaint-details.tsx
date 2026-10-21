@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Modal, Platform, StatusBar, Animated, Linking, TextInput, KeyboardAvoidingView, Share } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Modal, Platform, StatusBar, Animated, Linking, TextInput, KeyboardAvoidingView, Share, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter, useGlobalSearchParams } from 'expo-router';
+import { useRouter, useGlobalSearchParams, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import FreeMapView from '../../components/FreeMapView';
@@ -45,6 +45,7 @@ export default function ComplaintDetails() {
   
   const [complaint, setComplaint] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [replyText, setReplyText] = useState('');
@@ -139,6 +140,14 @@ export default function ComplaintDetails() {
     loadPermissions();
 
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socket.on('complaint_changed', (payload: any) => {
+      if (payload && payload.data && (payload.data._id === id || payload.data.id === id)) {
+        setComplaint(payload.data);
+      } else {
+        fetchComplaintDetails(true);
+      }
+    });
+
     socket.on('user_updated', async (data: any) => {
       const stored = await SecureStore.getItemAsync('userData');
       if (stored) {
@@ -156,6 +165,20 @@ export default function ComplaintDetails() {
     };
   }, [id]);
 
+  useFocusEffect(
+    useCallback(() => {
+      fetchComplaintDetails(true);
+      loadPermissions();
+    }, [id])
+  );
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchComplaintDetails(true);
+    await loadPermissions();
+    setRefreshing(false);
+  };
+
   const loadPermissions = async () => {
     try {
       const userDataStr = await SecureStore.getItemAsync('userData');
@@ -168,10 +191,12 @@ export default function ComplaintDetails() {
     }
   };
 
-  const fetchComplaintDetails = async () => {
+  const fetchComplaintDetails = async (silent = false) => {
     if (!id) return;
-    setLoading(true);
-    setComplaint(null);
+    if (!silent) {
+      setLoading(true);
+      setComplaint(null);
+    }
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const res = await axios.get(`${API_URL}/complaints/${id}`, {
@@ -630,6 +655,9 @@ export default function ComplaintDetails() {
           ref={scrollViewRef}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: 20 }]}
           keyboardShouldPersistTaps="handled"
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#2563EB']} tintColor="#2563EB" />
+          }
         >
         
         {/* ID & Date/Time Badge */}
@@ -1173,47 +1201,89 @@ export default function ComplaintDetails() {
             </Text>
           ) : (
             <View style={{ marginTop: 8, marginBottom: 16 }}>
-              {complaint.replies.map((reply: any, idx: number) => (
-                <TouchableOpacity key={idx} style={{ 
-                  backgroundColor: reply.role === 'Admin' || reply.role === 'Staff' ? '#F0FDF4' : '#F8FAFC',
-                  borderLeftWidth: 3,
-                  borderLeftColor: reply.role === 'Admin' || reply.role === 'Staff' ? '#16A34A' : '#94A3B8',
-                  padding: 12,
-                  borderRadius: 8,
-                  marginBottom: 12
-                }} onPress={() => {
-                  if (reply.text) {
-                    setFullTextModal({ title: 'Reply', text: reply.text });
-                  } else if (reply.image) {
-                    setFullScreenImage(reply.image);
-                  }
-                }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
-                    <Text style={{ fontWeight: '600', color: reply.role === 'Admin' || reply.role === 'Staff' ? '#16A34A' : '#334155', fontSize: 13 }}>
-                      {reply.user?.role === 'Member' ? 'Member' : reply.role} {reply.user?.name ? `- ${reply.user.name}` : ''}
-                    </Text>
-                    <Text style={{ color: '#94A3B8', fontSize: 11 }}>
-                      {new Date(reply.created_at).toLocaleString()}
-                    </Text>
-                  </View>
-                  {reply.text ? (
-                    <Text style={{ color: '#334155', fontSize: 14, lineHeight: 20 }} numberOfLines={3}>{reply.text}</Text>
-                  ) : null}
-                  {reply.image ? (
-                    <TouchableOpacity 
-                      activeOpacity={0.85} 
-                      onPress={() => setFullScreenImage(reply.image)}
-                      style={{ marginTop: reply.text ? 8 : 4, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0', height: 160, backgroundColor: '#F1F5F9' }}
-                    >
-                      <Image source={{ uri: reply.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-                      <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                        <Ionicons name="expand" size={12} color="#FFFFFF" />
-                        <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '600' }}>Tap to view</Text>
+              {complaint.replies.map((reply: any, idx: number) => {
+                const isMember = reply.role === 'Member' || reply.user?.role === 'Member';
+                const isAdmin = reply.role === 'Admin' || reply.user?.role === 'Admin' || reply.user?.role === 'SubAdmin';
+                const isStaff = reply.role === 'Staff' || reply.user?.role === 'Staff' || reply.user?.role === 'PaidStaff';
+                const designation = reply.user?.designation ? ` • ${reply.user.designation}` : '';
+
+                let cardBg = '#F8FAFC';
+                let borderLeftColor = '#94A3B8';
+                let badgeBg = '#E2E8F0';
+                let badgeColor = '#475569';
+                let badgeLabel = 'Resident';
+
+                if (isMember) {
+                  cardBg = '#EFF6FF';
+                  borderLeftColor = '#2563EB';
+                  badgeBg = '#DBEAFE';
+                  badgeColor = '#1D4ED8';
+                  badgeLabel = 'RWA Member';
+                } else if (isAdmin) {
+                  cardBg = '#F0FDF4';
+                  borderLeftColor = '#16A34A';
+                  badgeBg = '#DCFCE7';
+                  badgeColor = '#15803D';
+                  badgeLabel = 'Admin';
+                } else if (isStaff) {
+                  cardBg = '#FEF3C7';
+                  borderLeftColor = '#D97706';
+                  badgeBg = '#FDE68A';
+                  badgeColor = '#92400E';
+                  badgeLabel = 'Staff';
+                }
+
+                return (
+                  <TouchableOpacity key={idx} style={{ 
+                    backgroundColor: cardBg,
+                    borderLeftWidth: 3.5,
+                    borderLeftColor: borderLeftColor,
+                    padding: 12,
+                    borderRadius: 10,
+                    marginBottom: 12,
+                    borderWidth: 1,
+                    borderColor: '#E2E8F0'
+                  }} onPress={() => {
+                    if (reply.text) {
+                      setFullTextModal({ title: `${badgeLabel} Reply`, text: reply.text });
+                    } else if (reply.image) {
+                      setFullScreenImage(reply.image);
+                    }
+                  }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flex: 1, flexWrap: 'wrap' }}>
+                        <View style={{ backgroundColor: badgeBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: badgeColor, letterSpacing: 0.5 }}>
+                            {badgeLabel.toUpperCase()}
+                          </Text>
+                        </View>
+                        <Text style={{ fontWeight: '700', color: isMember ? '#1E40AF' : (isAdmin || isStaff ? '#15803D' : '#1E293B'), fontSize: 13 }}>
+                          {reply.user?.name || (isMember ? 'Member' : 'Resident')}{designation}
+                        </Text>
                       </View>
-                    </TouchableOpacity>
-                  ) : null}
-                </TouchableOpacity>
-              ))}
+                      <Text style={{ color: '#94A3B8', fontSize: 11 }}>
+                        {new Date(reply.created_at).toLocaleString()}
+                      </Text>
+                    </View>
+                    {reply.text ? (
+                      <Text style={{ color: '#334155', fontSize: 14, lineHeight: 20 }}>{reply.text}</Text>
+                    ) : null}
+                    {reply.image ? (
+                      <TouchableOpacity 
+                        activeOpacity={0.85} 
+                        onPress={() => setFullScreenImage(reply.image)}
+                        style={{ marginTop: reply.text ? 8 : 4, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0', height: 160, backgroundColor: '#F1F5F9' }}
+                      >
+                        <Image source={{ uri: reply.image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                        <View style={{ position: 'absolute', bottom: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                          <Ionicons name="expand" size={12} color="#FFFFFF" />
+                          <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '600' }}>Tap to view</Text>
+                        </View>
+                      </TouchableOpacity>
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
 

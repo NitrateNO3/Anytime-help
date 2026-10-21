@@ -4,7 +4,7 @@ const replySchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   text: { type: String, required: false, default: '' },
   image: { type: String, default: null },
-  role: { type: String, required: true }, // 'Resident' or 'Staff'
+  role: { type: String, required: true }, // 'Resident', 'Member', 'Staff', or 'Admin'
   created_at: { type: Date, default: Date.now }
 });
 

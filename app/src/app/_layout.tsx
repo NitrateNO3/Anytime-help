@@ -78,27 +78,59 @@ export default function RootLayout() {
     };
     setupPushNotifications();
 
-    // Listen for notification tap
-    const responseListener = Notifications.addNotificationResponseReceivedListener(async response => {
-      const data = response.notification.request.content.data;
-      if (data && data.type === 'complaint' && data.id) {
+    // Function to handle navigating when notification is tapped
+    const handleNotificationNavigation = async (response: Notifications.NotificationResponse) => {
+      try {
+        const data = response?.notification?.request?.content?.data;
+        if (!data) return;
+
+        const complaintId = data.id || data.complaintId || data._id;
+        const type = data.type || (complaintId ? 'complaint' : null);
+
+        let userRole = 'Resident';
         try {
           const userDataStr = await SecureStore.getItemAsync('userData');
           if (userDataStr) {
             const user = JSON.parse(userDataStr);
-            const role = user.role;
-            if (role === 'Staff' || role === 'PaidStaff' || role === 'Admin' || role === 'SubAdmin') {
-              router.push(`/task-details?id=${data.id}` as any);
-            } else if (role === 'Resident') {
-              router.push(`/resident/complaint-details?id=${data.id}` as any);
-            } else if (role === 'Member') {
-              router.push(`/member/complaint-details?id=${data.id}` as any);
-            }
+            userRole = user.role || 'Resident';
           }
         } catch (e) {
-          console.error('Error handling notification tap', e);
+          console.error('Error reading userData for notification tap:', e);
         }
+
+        // Delay slightly so React Navigation / Expo Router is fully initialized
+        setTimeout(() => {
+          if (type === 'complaint' && complaintId) {
+            if (userRole === 'Staff' || userRole === 'PaidStaff' || userRole === 'Admin' || userRole === 'SubAdmin') {
+              router.push(`/task-details?id=${complaintId}` as any);
+            } else if (userRole === 'Member') {
+              router.push(`/member/complaint-details?id=${complaintId}` as any);
+            } else {
+              router.push(`/resident/complaint-details?id=${complaintId}` as any);
+            }
+          } else if (type === 'announcement') {
+            if (userRole === 'Member') {
+              router.push('/member/announcements' as any);
+            } else {
+              router.push('/resident/announcements' as any);
+            }
+          }
+        }, 500);
+      } catch (err) {
+        console.error('Error handling notification tap:', err);
       }
+    };
+
+    // 1. Handle notification tap that opened app from closed / killed state
+    Notifications.getLastNotificationResponseAsync().then(response => {
+      if (response) {
+        handleNotificationNavigation(response);
+      }
+    });
+
+    // 2. Listen for notification tap when app is in background or foreground
+    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
+      handleNotificationNavigation(response);
     });
 
     console.log('Connecting to socket at:', API_URL);

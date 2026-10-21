@@ -569,6 +569,16 @@ export default function MyComplaints() {
                       {item.description}
                     </Text>
                   ) : null}
+
+                  {/* Replies badge if any */}
+                  {item.replies && item.replies.length > 0 && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: '#BFDBFE', gap: 5, marginTop: 8, alignSelf: 'flex-start' }}>
+                      <Ionicons name="chatbubbles" size={13} color="#2563EB" />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: '#1D4ED8' }}>
+                        {item.replies.length} {item.replies.length === 1 ? 'Reply' : 'Replies'}
+                      </Text>
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             );
