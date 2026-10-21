@@ -125,14 +125,20 @@ export default function Announcements() {
     fetchAnnouncements();
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDateTime = (dateStr: string) => {
     try {
       const d = new Date(dateStr);
-      return d.toLocaleDateString('en-IN', {
+      const datePart = d.toLocaleDateString('en-IN', {
         day: 'numeric',
         month: 'short',
         year: 'numeric'
       });
+      const timePart = d.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      return `${datePart} • ${timePart}`;
     } catch (e) {
       return dateStr;
     }
@@ -228,7 +234,10 @@ export default function Announcements() {
               )}
               
               <View style={styles.cardFooter}>
-                <Text style={styles.dateText}>{formatDate(item.date)}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Ionicons name="time-outline" size={13} color="#94A3B8" />
+                  <Text style={styles.dateText}>{formatDateTime(item.date || item.createdAt)}</Text>
+                </View>
                 {item.creatorName && (
                   <View style={styles.creatorBadge}>
                     <Text style={styles.creatorText} numberOfLines={1} ellipsizeMode="tail">By: {formatCreatorName(item.createdBy?.name || item.creatorName)}</Text>

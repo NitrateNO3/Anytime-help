@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { Bell, Plus, Trash2, Edit2, Search, Filter, RotateCcw, X, Megaphone } from 'lucide-react';
+import { Bell, Plus, Trash2, Edit2, Search, Filter, RotateCcw, X, Megaphone, Clock } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ExportButtons } from '../components/ExportButtons';
 import { io } from 'socket.io-client';
@@ -289,7 +289,7 @@ export default function Announcements() {
                 data={announcements}
                 fetchAllData={fetchAllData}
                 columns={[
-                  { header: 'Date', key: (r: any) => new Date(r.date || r.createdAt).toLocaleDateString() },
+                  { header: 'Date & Time', key: (r: any) => new Date(r.date || r.createdAt).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) },
                   { header: 'Title', key: 'title' },
                   { header: 'Message', key: 'message' },
                   { header: 'Created By', key: (r: any) => r.createdBy?.name || r.creatorName || 'Admin' },
@@ -393,7 +393,7 @@ export default function Announcements() {
           <table>
             <thead>
               <tr>
-                <th>Date</th>
+                <th>Date & Time</th>
                 <th>Title</th>
                 <th>Message</th>
                 <th style={{ whiteSpace: 'nowrap' }}>Created By</th>
@@ -424,8 +424,14 @@ export default function Announcements() {
                 ) : (
                   announcements.map(announcement => (
                     <tr key={announcement._id}>
-                      <td style={{ color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                        {new Date(announcement.date).toLocaleDateString()}
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: 13 }}>
+                          {new Date(announcement.date || announcement.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Clock size={12} color="var(--text-muted)" />
+                          {new Date(announcement.date || announcement.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </div>
                       </td>
                       <td style={{ fontWeight: 600 }}>{announcement.title}</td>
                       <td style={{ color: 'var(--text-muted)', maxWidth: '350px' }}>
@@ -714,10 +720,24 @@ export default function Announcements() {
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.75)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
           <div className="card" style={{ width: '100%', maxWidth: 500, margin: 20, padding: 0, borderRadius: 16, maxHeight: '80vh', display: 'flex', flexDirection: 'column', background: '#ffffff', boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: '#F8FAFC', borderRadius: '16px 16px 0 0' }}>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Megaphone size={20} color="var(--primary)" />
-                {viewingMessage.title}
-              </h2>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-main)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Megaphone size={20} color="var(--primary)" />
+                  {viewingMessage.title}
+                </h2>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
+                  <Clock size={12} color="var(--text-muted)" />
+                  <span>
+                    {new Date(viewingMessage.date || viewingMessage.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })} at {new Date(viewingMessage.date || viewingMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                  </span>
+                  {(viewingMessage.createdBy?.name || viewingMessage.creatorName) && (
+                    <>
+                      <span>•</span>
+                      <span>By {viewingMessage.createdBy?.name || viewingMessage.creatorName}</span>
+                    </>
+                  )}
+                </div>
+              </div>
               <button 
                 onClick={() => setViewingMessage(null)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 4, borderRadius: '50%' }}

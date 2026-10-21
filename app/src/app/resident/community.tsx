@@ -62,13 +62,19 @@ export default function CommunityScreen() {
     fetchAnnouncements();
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDateTime = (dateStr: string) => {
     try {
       const d = new Date(dateStr);
-      return d.toLocaleDateString('en-IN', {
+      const datePart = d.toLocaleDateString('en-IN', {
         day: 'numeric',
         month: 'short'
       });
+      const timePart = d.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      return `${datePart} • ${timePart}`;
     } catch (e) {
       return dateStr;
     }
@@ -115,7 +121,7 @@ export default function CommunityScreen() {
               <View style={styles.info}>
                 <View style={styles.titleRow}>
                   <Text style={styles.title} numberOfLines={1}>{notif.title}</Text>
-                  <Text style={styles.time}>{formatDate(notif.date || notif.createdAt)}</Text>
+                  <Text style={styles.time}>{formatDateTime(notif.date || notif.createdAt)}</Text>
                 </View>
                 <Text style={styles.message}>{notif.message}</Text>
               </View>

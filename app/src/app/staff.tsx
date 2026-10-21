@@ -267,6 +267,25 @@ export default function StaffScreen() {
     }
   };
 
+  const formatDateTime = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      const datePart = d.toLocaleDateString('en-IN', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+      });
+      const timePart = d.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      return `${datePart} • ${timePart}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   const fetchFilterCategories = async () => {
     try {
       const userDataStr = await SecureStore.getItemAsync('userData');
@@ -880,7 +899,10 @@ export default function StaffScreen() {
               return filteredAnnouncements.map((item) => (
                 <View key={item._id} style={[styles.card, { padding: 16 }]}>
                   <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 }}>{item.title}</Text>
-                  <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>{new Date(item.date).toLocaleDateString()}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+                    <Ionicons name="time-outline" size={13} color="#6B7280" />
+                    <Text style={{ fontSize: 12, color: '#6B7280' }}>{formatDateTime(item.date || item.createdAt)}</Text>
+                  </View>
                   <Text style={{ fontSize: 15, color: '#4B5563', lineHeight: 22 }}>{item.message}</Text>
                   {item.image && (
                     <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.image)}>
@@ -922,7 +944,10 @@ export default function StaffScreen() {
                       <Ionicons name="trash-outline" size={18} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
-                  <Text style={{ fontSize: 12, color: '#6B7280', marginBottom: 12 }}>{new Date(item.date).toLocaleDateString()}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
+                    <Ionicons name="time-outline" size={13} color="#6B7280" />
+                    <Text style={{ fontSize: 12, color: '#6B7280' }}>{formatDateTime(item.date || item.createdAt)}</Text>
+                  </View>
                   <Text style={{ fontSize: 15, color: '#4B5563', lineHeight: 22 }}>{item.message}</Text>
                   {item.image && (
                     <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.image)}>
