@@ -85,6 +85,37 @@ router.put('/me', auth, async (req, res) => {
   }
 });
 
+// @route   DELETE api/users/me
+// @desc    Self-delete user account (Resident, Member, Staff, PaidStaff)
+// @access  Private
+router.delete('/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.role === 'Admin') {
+      return res.status(403).json({ message: 'Admin account cannot be self-deleted from the app' });
+    }
+
+    await User.findByIdAndDelete(req.user.id);
+
+    // Emit live event for remote logout and realtime update
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_deleted', { id: req.user.id });
+      if (user.role === 'Staff' || user.role === 'PaidStaff') {
+        io.emit('staff_changed', { action: 'delete', id: req.user.id });
+      }
+    }
+
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   GET api/users/phases
 // @desc    Get all distinct phases
 // @access  Admin Private
@@ -731,14 +762,19 @@ router.post('/paid-staff', auth, async (req, res) => {
 // @access  Admin Private
 router.delete('/:id', auth, async (req, res) => {
   try {
-    // For DELETE, we will check if they have permission for the specific user type they are deleting later.
-    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
+    const isSelf = req.user.id === req.params.id;
+    // For DELETE, allow Admin, SubAdmin, or self-deletion
+    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin' && !isSelf) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (isSelf && user.role === 'Admin') {
+      return res.status(403).json({ message: 'Admin account cannot be self-deleted from the app' });
     }
 
     if (req.user.role === 'SubAdmin') {
