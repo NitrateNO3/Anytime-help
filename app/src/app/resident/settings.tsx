@@ -10,6 +10,7 @@ import Toast from 'react-native-toast-message';
 import { io } from 'socket.io-client';
 
 import { getNextLanguage, getLanguageDisplayName } from '../../utils/localization';
+import DeleteAccountModal from '../../components/DeleteAccountModal';
 
 const API_URL = 'https://anytime-help.onrender.com';
 const RELATIONS = ['Spouse', 'Father', 'Mother', 'Son', 'Daughter', 'Brother', 'Sister', 'Other'];
@@ -19,6 +20,7 @@ export default function SettingsScreen() {
   const { t, i18n } = useTranslation();
   const [user, setUser] = useState<any>(null);
   const [token, setToken] = useState<string>('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   
   // Family Management State
   const [familyMembers, setFamilyMembers] = useState<any[]>([]);
@@ -497,13 +499,23 @@ export default function SettingsScreen() {
         <View style={styles.settingsGroup}>
           <Text style={styles.groupTitle}>{t('settings.account') || 'ACCOUNT'}</Text>
           <View style={styles.cardGroup}>
-            <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={handleLogout}>
+            <TouchableOpacity style={styles.settingRow} onPress={handleLogout}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#FEE2E2' }]}>
                   <Ionicons name="log-out-outline" size={20} color="#DC2626" />
                 </View>
                 <Text style={[styles.settingText, { color: '#DC2626', fontWeight: '600' }]}>{t('settings.logout') || 'Logout'}</Text>
               </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={() => setShowDeleteModal(true)}>
+              <View style={styles.settingRowLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: '#FEE2E2' }]}>
+                  <Ionicons name="trash-outline" size={20} color="#DC2626" />
+                </View>
+                <Text style={[styles.settingText, { color: '#DC2626', fontWeight: '600' }]}>{t('settings.deleteAccount') || 'Delete Account'}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -695,6 +707,15 @@ export default function SettingsScreen() {
           </View>
         </View>
       )}
+
+      {/* Delete Account Confirmation Modal */}
+      <DeleteAccountModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        userName={user?.name}
+        userId={user?._id || user?.id}
+        token={token}
+      />
 
     </SafeAreaView>
   );

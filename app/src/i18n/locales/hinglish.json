@@ -22,6 +22,16 @@
     "account": "Account",
     "changePassword": "Password Badlein",
     "logout": "Logout Karein",
+    "deleteAccount": "Account Delete Karein",
+    "deleteAccountModalTitle": "Account Delete Karein",
+    "deleteAccountSubtitle": "Permanent Action",
+    "deleteAccountWarning": "Yeh action undo nahi ho sakta. Aapka account, complaints aur profile permanently delete ho jayega.",
+    "typeToConfirm": "Confirm karne ke liye neeche apna account name likhein:",
+    "deletePermanently": "Mera Account Permanently Delete Karein",
+    "accountDeleted": "Account Delete Ho Gaya",
+    "accountDeletedDesc": "Aapka account permanently delete ho chuka hai.",
+    "deleteFailed": "Delete Nahi Ho Paya",
+    "deleteFailedDesc": "Account delete nahi ho saka. Kripya dobara try karein.",
     "settingsTitle": "Settings"
   },
   "staff": {

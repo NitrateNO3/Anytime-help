@@ -11,7 +11,6 @@ import { io } from 'socket.io-client';
 
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 import { isProfileBlockUpdateRequired } from '../../components/ForceBlockUpdateModal';
-import WhatsAppFAB from '../../components/WhatsAppFAB';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -377,7 +376,7 @@ export default function ResidentHome() {
                   <Text style={styles.fallbackTagText}>24/7 SUPPORT</Text>
                 </View>
                 <Text style={styles.fallbackTitle}>Fast Community Resolution</Text>
-                <Text style={styles.fallbackSub}>Lodge complaints or book services anytime.</Text>
+                <Text style={styles.fallbackSub}>Lodge complaints or stay connected anytime.</Text>
               </View>
               <View style={styles.fallbackIconBox}>
                 <Ionicons name="sparkles" size={28} color="#60A5FA" />
@@ -386,7 +385,7 @@ export default function ResidentHome() {
           )}
         </View>
 
-        {/* 6 Circular Quick Actions (2 Rows of 3) */}
+        {/* Circular Quick Actions */}
         <View style={styles.quickActionsContainer}>
           <View style={styles.sectionHeaderRow}>
             <Text style={styles.sectionTitle}>Quick Services</Text>
@@ -484,22 +483,6 @@ export default function ResidentHome() {
                   </Text>
                 </WalkthroughableTouchableOpacity>
               </CopilotStep>
-            </View>
-
-            {/* 6: Services / Book Service */}
-            <View style={styles.gridItemColumn}>
-              <TouchableOpacity 
-                style={styles.actionTouchable}
-                onPress={() => router.push('/resident/book-service')}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.circleIcon, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]}>
-                  <Ionicons name="construct" size={24} color="#0284C7" />
-                </View>
-                <Text style={styles.actionLabel} numberOfLines={2}>
-                  Services
-                </Text>
-              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -619,8 +602,6 @@ export default function ResidentHome() {
         <View style={{ height: 90 }} />
       </ScrollView>
 
-      {/* WhatsApp Support FAB */}
-      <WhatsAppFAB bottom={85} />
     </SafeAreaView>
   );
 }
@@ -865,11 +846,11 @@ const styles = StyleSheet.create({
   sixGridWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     rowGap: 16,
   },
   gridItemColumn: {
-    width: '32%',
+    width: '33.33%',
     alignItems: 'center',
   },
   actionTouchable: {

@@ -17,7 +17,6 @@ const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
-import WhatsAppFAB from '../components/WhatsAppFAB';
 
 const WalkthroughableTouchableOpacity = walkthroughable(TouchableOpacity);
 
@@ -1153,8 +1152,6 @@ export default function StaffScreen() {
         <Ionicons name="megaphone" size={24} color="#FFF" />
       </TouchableOpacity>
 
-      {/* WhatsApp Support FAB - Staff Home screen only */}
-      <WhatsAppFAB bottom={96} right={24} />
 
     </SafeAreaView>
   );

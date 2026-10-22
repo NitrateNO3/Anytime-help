@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { io } from 'socket.io-client';
 
 import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
+import DeleteAccountModal from '../components/DeleteAccountModal';
 
 const API_URL = 'https://anytime-help.onrender.com';
 
@@ -16,6 +17,8 @@ export default function SettingsScreen() {
   const router = useRouter();
   const { t, i18n } = useTranslation();
   const [user, setUser] = useState<any>(null);
+  const [token, setToken] = useState<string>('');
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const toggleLanguage = async () => {
     const newLang = getNextLanguage(i18n.language);
@@ -38,7 +41,9 @@ export default function SettingsScreen() {
 
   const loadUser = async () => {
     const userData = await SecureStore.getItemAsync('userData');
+    const storedToken = await SecureStore.getItemAsync('userToken');
     if (userData) setUser(JSON.parse(userData));
+    if (storedToken) setToken(storedToken);
   };
 
   useEffect(() => {
@@ -193,7 +198,7 @@ export default function SettingsScreen() {
         <View style={styles.settingsGroup}>
           <Text style={styles.groupTitle}>{t('settings.account') || 'ACCOUNT'}</Text>
           <View style={styles.cardGroup}>
-            <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={handleLogout}>
+            <TouchableOpacity style={styles.settingRow} onPress={handleLogout}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#FEE2E2' }]}>
                   <Ionicons name="log-out-outline" size={20} color="#DC2626" />
@@ -201,10 +206,29 @@ export default function SettingsScreen() {
                 <Text style={[styles.settingText, { color: '#DC2626', fontWeight: '600' }]}>{t('settings.logout') || 'Logout'}</Text>
               </View>
             </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={() => setShowDeleteModal(true)}>
+              <View style={styles.settingRowLeft}>
+                <View style={[styles.iconContainer, { backgroundColor: '#FEE2E2' }]}>
+                  <Ionicons name="trash-outline" size={20} color="#DC2626" />
+                </View>
+                <Text style={[styles.settingText, { color: '#DC2626', fontWeight: '600' }]}>{t('settings.deleteAccount') || 'Delete Account'}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+            </TouchableOpacity>
           </View>
         </View>
 
       </ScrollView>
+
+      {/* Delete Account Confirmation Modal */}
+      <DeleteAccountModal
+        visible={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        userName={user?.name}
+        userId={user?._id || user?.id}
+        token={token}
+      />
     </SafeAreaView>
   );
 }

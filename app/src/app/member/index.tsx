@@ -10,7 +10,6 @@ import axios from 'axios';
 import { io } from 'socket.io-client';
 
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
-import WhatsAppFAB from '../../components/WhatsAppFAB';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -684,8 +683,6 @@ export default function MemberHome() {
         <View style={{ height: 90 }} />
       </ScrollView>
 
-      {/* WhatsApp Support FAB */}
-      <WhatsAppFAB bottom={85} />
     </SafeAreaView>
   );
 }

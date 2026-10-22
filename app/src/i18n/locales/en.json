@@ -43,7 +43,17 @@
     "privacyPolicy": "Privacy Policy",
     "aboutUs": "About Us",
     "helpSupport": "Help & Support",
-    "knowRwa": "Know more about RWA (www.slerwa.in)"
+    "knowRwa": "Know more about RWA (www.slerwa.in)",
+    "deleteAccount": "Delete Account",
+    "deleteAccountModalTitle": "Delete Account",
+    "deleteAccountSubtitle": "Permanent Action",
+    "deleteAccountWarning": "This action cannot be undone. This will permanently delete your profile, complaints history, and account credentials from Anytime Help.",
+    "typeToConfirm": "To verify, type your account name below:",
+    "deletePermanently": "Permanently Delete My Account",
+    "accountDeleted": "Account Deleted",
+    "accountDeletedDesc": "Your account has been deleted permanently.",
+    "deleteFailed": "Deletion Failed",
+    "deleteFailedDesc": "Could not delete account. Please try again."
   },
   "member": {
     "raiseComplaint": "Raise Complaint",
