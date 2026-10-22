@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl, Alert, Image, FlatList, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl, Image, FlatList, Dimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -16,7 +16,7 @@ const API_URL = 'https://anytime-help.onrender.com/api';
 
 const WalkthroughableTouchableOpacity = walkthroughable(TouchableOpacity);
 
-export default function ResidentHome() {
+export default function MemberHome() {
   const { start } = useCopilot();
   const router = useRouter();
   const { t } = useTranslation();
@@ -28,8 +28,12 @@ export default function ResidentHome() {
   const [banners, setBanners] = useState<any[]>([]);
   const [bannerIndex, setBannerIndex] = useState(0);
   const bannerFlatListRef = useRef<FlatList>(null);
-  const [bannerCardWidth, setBannerCardWidth] = useState(Dimensions.get('window').width - 48);
+  const [bannerCardWidth, setBannerCardWidth] = useState(Dimensions.get('window').width - 32);
   const bannerIndexRef = useRef(0);
+
+  // Complaint stats & Latest announcement state
+  const [stats, setStats] = useState({ pending: 0, inProgress: 0, resolved: 0 });
+  const [latestAnnouncement, setLatestAnnouncement] = useState<any>(null);
 
   const fetchBanners = async () => {
     try {
@@ -39,6 +43,64 @@ export default function ResidentHome() {
       }
     } catch (e) {
       console.log('Error fetching member banners:', e);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (token) {
+        const storedUser = await SecureStore.getItemAsync('userData');
+        const parsed = storedUser ? JSON.parse(storedUser) : user;
+        const isAll = parsed?.permissions?.includes('All Complaints');
+        const url = `${API_URL}/complaints?page=1&limit=5${!isAll ? '&mine=true' : ''}`;
+        
+        const res = await axios.get(url, {
+          headers: { 'x-auth-token': token }
+        });
+
+        if (res.data?.stats) {
+          setStats({
+            pending: Number(res.data.stats.pending) || 0,
+            inProgress: Number(res.data.stats.inProgress) || 0,
+            resolved: Number(res.data.stats.resolved) || 0,
+          });
+        } else if (Array.isArray(res.data)) {
+          setStats({
+            pending: res.data.filter((c: any) => c.status === 'PENDING').length,
+            inProgress: res.data.filter((c: any) => c.status === 'IN_PROGRESS').length,
+            resolved: res.data.filter((c: any) => c.status === 'RESOLVED' || c.status === 'DONE').length,
+          });
+        }
+      }
+    } catch (e) {
+      console.log('Error fetching member stats:', e);
+    }
+  };
+
+  const fetchAnnouncementsData = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      if (token) {
+        const res = await axios.get(`${API_URL}/announcements`, {
+          headers: { 'x-auth-token': token }
+        });
+        const announcements = res.data || [];
+        if (announcements.length > 0) {
+          setLatestAnnouncement(announcements[0]);
+        } else {
+          setLatestAnnouncement(null);
+        }
+        const lastCountStr = await SecureStore.getItemAsync('last_announcements_count');
+        const lastCount = lastCountStr ? parseInt(lastCountStr, 10) : 0;
+        if (announcements.length > lastCount) {
+          setUnreadCount(announcements.length - lastCount);
+        } else {
+          setUnreadCount(0);
+        }
+      }
+    } catch (e) {
+      console.log('Error fetching announcements:', e);
     }
   };
 
@@ -62,8 +124,6 @@ export default function ResidentHome() {
       return () => clearInterval(interval);
     }
   }, [banners.length, bannerCardWidth]);
-
-
 
   const { startTour } = useLocalSearchParams();
   const [lastStartTour, setLastStartTour] = useState<string | null>(null);
@@ -93,7 +153,6 @@ export default function ResidentHome() {
       if (!startTour) {
         SecureStore.getItemAsync('hasViewedMemberTour').then((data) => {
           if (!data && start) {
-            // Delay starting slightly so UI has time to mount
             setTimeout(() => {
               try {
                 start();
@@ -101,37 +160,21 @@ export default function ResidentHome() {
               } catch (e) {
                 console.log('Copilot start error:', e);
               }
-            }, 1000); // increased delay to 1000ms
+            }, 1000);
           }
         });
       }
 
-      const fetchUnreadCount = async () => {
-        try {
-          const token = await SecureStore.getItemAsync('userToken');
-          if (token) {
-            const res = await axios.get(`${API_URL}/announcements`, {
-              headers: { 'x-auth-token': token }
-            });
-            const announcements = res.data || [];
-            const lastCountStr = await SecureStore.getItemAsync('last_announcements_count');
-            const lastCount = lastCountStr ? parseInt(lastCountStr, 10) : 0;
-            if (announcements.length > lastCount) {
-              setUnreadCount(announcements.length - lastCount);
-            } else {
-              setUnreadCount(0);
-            }
-          }
-        } catch (e) {
-          console.log('Error fetching unread count:', e);
-        }
-      };
-      fetchUnreadCount();
+      fetchAnnouncementsData();
       fetchBanners();
+      fetchStats();
 
       const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
       socket.on('announcement_changed', () => {
-        fetchUnreadCount();
+        fetchAnnouncementsData();
+      });
+      socket.on('complaint_changed', () => {
+        fetchStats();
       });
       socket.on('member_banner_changed', () => {
         fetchBanners();
@@ -158,7 +201,6 @@ export default function ResidentHome() {
               }
             } catch (err) {
               console.log('Failed to fetch fresh user data via socket:', err);
-              // Fallback to partial update if API fails
               const fallbackUser = { ...parsed, permissions: data.permissions, name: data.name, designation: data.designation };
               await SecureStore.setItemAsync('userData', JSON.stringify(fallbackUser));
               setUser(fallbackUser);
@@ -182,135 +224,153 @@ export default function ResidentHome() {
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    fetchBanners();
-    try {
-      const token = await SecureStore.getItemAsync('userToken');
-      if (token) {
-        const res = await axios.get(`${API_URL}/announcements`, {
-          headers: { 'x-auth-token': token }
-        });
-        const announcements = res.data || [];
-        const lastCountStr = await SecureStore.getItemAsync('last_announcements_count');
-        const lastCount = lastCountStr ? parseInt(lastCountStr, 10) : 0;
-        if (announcements.length > lastCount) {
-          setUnreadCount(announcements.length - lastCount);
-        } else {
-          setUnreadCount(0);
-        }
-      }
-    } catch (e) {
-      console.log('Error refreshing:', e);
-    } finally {
-      setRefreshing(false);
-    }
+    await Promise.all([
+      fetchBanners(),
+      fetchAnnouncementsData(),
+      fetchStats()
+    ]);
+    setRefreshing(false);
   }, []);
+
+  const formatAnnouncementDate = (dateStr: any) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      const now = new Date();
+      const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays === 0) return 'Today';
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return `${diffDays}d ago`;
+      return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    } catch {
+      return '';
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" translucent={true} />
 
-      {/* Curved Premium Header Section */}
+      {/* Modern Compact Branded Header */}
       <View style={styles.headerWrapper}>
         <LinearGradient
-          colors={['#0F172A', '#1E1B4B']}
+          colors={['#0F172A', '#1E1B4B', '#1E293B']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
         >
-          <View style={styles.headerContent}>
-            <View style={styles.greetingRow}>
-              <View style={{ flex: 1, paddingRight: 14 }}>
-                <Text style={styles.greetingText}>
-                  {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Member'} 👋
-                </Text>
-                
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
-                  <LinearGradient 
-                    colors={['#F59E0B', '#D97706']} 
-                    start={{ x: 0, y: 0 }} 
-                    end={{ x: 1, y: 1 }}
-                    style={{ 
-                      flexDirection: 'row', 
-                      alignItems: 'center', 
-                      paddingHorizontal: 12, 
-                      paddingVertical: 5, 
-                      borderRadius: 20, 
-                      shadowColor: '#F59E0B', 
-                      shadowOffset: { width: 0, height: 4 }, 
-                      shadowOpacity: 0.3, 
-                      shadowRadius: 6,
-                      elevation: 6
-                    }}
-                  >
-                    <Ionicons name="star" size={12} color="#FFFFFF" style={{ marginRight: 4 }} />
-                    <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800', letterSpacing: 0.5 }}>
-                      MEMBER ID: {user?.member_id ? user.member_id : 'PENDING'}
-                    </Text>
-                  </LinearGradient>
-                </View>
-
-                <Text style={styles.exploreText} numberOfLines={1} adjustsFontSizeToFit>
-                  {t('resident.societyName')}
-                </Text>
+          {/* Top Row: App Branding + Profile Settings */}
+          <View style={styles.headerTopRow}>
+            <View style={styles.brandContainer}>
+              <View style={styles.brandLogoCircle}>
+                <Ionicons name="shield-checkmark" size={18} color="#FFFFFF" />
               </View>
+              <View style={styles.brandTextGroup}>
+                <Text style={styles.brandName}>ANYTIME HELP</Text>
+                <View style={styles.portalPill}>
+                  <Text style={styles.portalPillText}>MEMBER PORTAL</Text>
+                </View>
+              </View>
+            </View>
 
+            <TouchableOpacity 
+              style={styles.avatarContainer} 
+              onPress={() => router.push('/member/settings')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="person" size={20} color="#1E1B4B" />
+            </TouchableOpacity>
+          </View>
+
+          {/* User Welcome Row with Member ID */}
+          <View style={styles.userWelcomeRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.greetingText} numberOfLines={1}>
+                {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Member'} 👋
+              </Text>
+
+              <View style={styles.badgeRow}>
+                {/* Member ID Pill */}
+                <LinearGradient 
+                  colors={['#F59E0B', '#D97706']} 
+                  start={{ x: 0, y: 0 }} 
+                  end={{ x: 1, y: 1 }}
+                  style={styles.memberIdBadge}
+                >
+                  <Ionicons name="star" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.memberIdText}>
+                    MEMBER ID: {user?.member_id ? user.member_id : 'PENDING'}
+                  </Text>
+                </LinearGradient>
+
+                {/* Optional Designation Badge */}
+                {user?.designation ? (
+                  <View style={styles.designationBadge}>
+                    <Text style={styles.designationText} numberOfLines={1}>
+                      {user.designation}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
             </View>
           </View>
         </LinearGradient>
       </View>
 
-      {/* Centered 2x2 Grid Dashboard */}
+      {/* Main Content Body */}
       <ScrollView 
         style={styles.bodyScroll}
-        contentContainerStyle={styles.gridContentContainer}
+        contentContainerStyle={styles.scrollContentContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0F172A']} />
         }
       >
+        {/* Profile incomplete warning */}
         {(!user?.address || user?.address.trim() === '') && (
           <TouchableOpacity 
-            style={{ backgroundColor: '#FEF2F2', padding: 16, borderRadius: 16, marginBottom: 20, borderWidth: 1, borderColor: '#FCA5A5', flexDirection: 'row', alignItems: 'center' }}
+            style={styles.incompleteProfileBanner}
             onPress={() => router.push('/member/edit-profile' as any)}
             activeOpacity={0.8}
           >
-            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
-              <Ionicons name="warning" size={24} color="#EF4444" />
+            <View style={styles.warningIconCircle}>
+              <Ionicons name="warning" size={20} color="#EF4444" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: '700', color: '#991B1B', marginBottom: 2 }}>Complete Your Profile</Text>
-              <Text style={{ fontSize: 13, color: '#B91C1C' }}>Your address is missing. Tap here to add it.</Text>
+              <Text style={styles.warningTitle}>Complete Your Profile</Text>
+              <Text style={styles.warningSub}>Your address is missing. Tap here to add it.</Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color="#EF4444" />
+            <Ionicons name="chevron-forward" size={18} color="#EF4444" />
           </TouchableOpacity>
         )}
 
-
-
         {/* Dynamic Member Banner Carousel */}
-        {banners.length > 0 && (
-          <View 
-            style={{ marginBottom: 20 }}
-            onLayout={(e) => setBannerCardWidth(e.nativeEvent.layout.width)}
-          >
-            {banners.length === 1 ? (
-              <View style={{ borderRadius: 16, overflow: 'hidden', height: 160, backgroundColor: '#0F172A', position: 'relative' }}>
+        <View 
+          style={styles.bannerSection}
+          onLayout={(e) => setBannerCardWidth(e.nativeEvent.layout.width)}
+        >
+          {banners.length > 0 ? (
+            banners.length === 1 ? (
+              <View style={styles.bannerCardWrapper}>
                 <Image 
                   source={{ uri: banners[0].url }} 
-                  style={{ width: '100%', height: '100%' }}
+                  style={styles.bannerImage}
                   resizeMode="cover"
                 />
                 {banners[0].title ? (
                   <LinearGradient
                     colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
-                    style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, paddingVertical: 10 }}
+                    style={styles.bannerTitleGradient}
                   >
-                    <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
+                    <Text style={styles.bannerTitleText} numberOfLines={1}>
                       {banners[0].title}
                     </Text>
                   </LinearGradient>
                 ) : null}
               </View>
             ) : (
-              <View style={{ borderRadius: 16, overflow: 'hidden', height: 160, backgroundColor: '#0F172A', position: 'relative' }}>
+              <View style={styles.bannerCardWrapper}>
                 <FlatList
                   ref={bannerFlatListRef}
                   data={banners}
@@ -332,18 +392,18 @@ export default function ResidentHome() {
                     }
                   }}
                   renderItem={({ item }) => (
-                    <View style={{ width: bannerCardWidth, height: 160, position: 'relative' }}>
+                    <View style={{ width: bannerCardWidth, height: 145, position: 'relative' }}>
                       <Image 
                         source={{ uri: item.url }} 
-                        style={{ width: '100%', height: '100%' }}
+                        style={styles.bannerImage}
                         resizeMode="cover"
                       />
                       {item.title ? (
                         <LinearGradient
                           colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
-                          style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, paddingVertical: 10 }}
+                          style={styles.bannerTitleGradient}
                         >
-                          <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
+                          <Text style={styles.bannerTitleText} numberOfLines={1}>
                             {item.title}
                           </Text>
                         </LinearGradient>
@@ -352,261 +412,778 @@ export default function ResidentHome() {
                   )}
                 />
                 {/* Carousel Dots */}
-                <View style={{ position: 'absolute', bottom: 8, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
+                <View style={styles.bannerDotsContainer}>
                   {banners.map((_, i) => (
                     <View 
                       key={i} 
-                      style={{
-                        width: bannerIndex === i ? 18 : 6,
-                        height: 6,
-                        borderRadius: 3,
-                        backgroundColor: bannerIndex === i ? '#38BDF8' : 'rgba(255, 255, 255, 0.5)',
-                      }}
+                      style={[
+                        styles.bannerDot, 
+                        bannerIndex === i ? styles.bannerDotActive : styles.bannerDotInactive
+                      ]}
                     />
                   ))}
                 </View>
               </View>
-            )}
-          </View>
-        )}
-
-        <View style={styles.dashboardGrid}>
-          {/* Card 1: Lodge Grievance */}
-          <View style={styles.cardWrapper}>
-            <CopilotStep text="यहाँ से किसी भी निवासी (resident) के लिए एक नई शिकायत दर्ज करें।" order={1} name="raise_complaint">
-              <WalkthroughableTouchableOpacity 
-                style={[styles.gridCard, { width: '100%', marginBottom: 0 }]}
-                onPress={() => router.push('/member/raise' as any)}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="add-circle" size={30} color="#2563EB" />
+            )
+          ) : (
+            /* Fallback sleek member notice card */
+            <LinearGradient
+              colors={['#1E1B4B', '#312E81']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.fallbackBanner}
+            >
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <View style={styles.fallbackTag}>
+                  <Text style={styles.fallbackTagText}>MANAGEMENT PORTAL</Text>
                 </View>
-                <Text style={styles.gridCardTitle}>{t('member.raiseComplaint', { defaultValue: 'Raise Complaint' })}</Text>
-                <Text style={styles.gridCardSub}>{t('resident.lodgeGrievanceSub')}</Text>
-              </WalkthroughableTouchableOpacity>
-            </CopilotStep>
+                <Text style={styles.fallbackTitle}>Community Oversight</Text>
+                <Text style={styles.fallbackSub}>Manage complaints, notices, and resident queries.</Text>
+              </View>
+              <View style={styles.fallbackIconBox}>
+                <Ionicons name="shield-checkmark" size={28} color="#A5B4FC" />
+              </View>
+            </LinearGradient>
+          )}
+        </View>
+
+        {/* 6 Circular Quick Actions (2 Rows of 3) */}
+        <View style={styles.quickActionsContainer}>
+          <View style={styles.sectionHeaderRow}>
+            <Text style={styles.sectionTitle}>Quick Services</Text>
           </View>
 
-          {/* Card 2: All / My Complaints */}
-          <View style={styles.cardWrapper}>
-            <CopilotStep text="शिकायतें देखें" order={2} name="all_complaints">
-              <WalkthroughableTouchableOpacity 
-                style={[styles.gridCard, { width: '100%', marginBottom: 0 }]}
-                onPress={() => {
-                  router.push('/member/my-complaints' as any);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.gridIconCircle, { backgroundColor: user?.permissions?.includes('All Complaints') ? '#FEF3C7' : '#D1FAE5' }]}>
-                  <Ionicons name="list" size={30} color={user?.permissions?.includes('All Complaints') ? '#D97706' : '#10B981'} />
-                </View>
-                <Text style={styles.gridCardTitle}>{user?.permissions?.includes('All Complaints') ? t('member.allComplaints', { defaultValue: 'All Complaints' }) : t('resident.myComplaints', 'My Complaints')}</Text>
-                <Text style={styles.gridCardSub}>{t('resident.myComplaintsSub', 'Track status live')}</Text>
-              </WalkthroughableTouchableOpacity>
-            </CopilotStep>
-          </View>
-
-          {/* Card 3: Announcements */}
-          <View style={styles.cardWrapper}>
-            <CopilotStep text="यहाँ से नई सूचनाएँ पोस्ट करें या ज़रूरी घोषणाएँ देखें।" order={3} name="announcements">
-              <WalkthroughableTouchableOpacity 
-                style={[styles.gridCard, { width: '100%', marginBottom: 0 }]}
-                onPress={() => {
-                  router.push('/member/announcements' as any);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.gridIconCircle, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="notifications" size={30} color="#2563EB" />
-                  {unreadCount > 0 && (
-                    <View style={styles.badgeContainer}>
-                      <Text style={styles.badgeText}>{unreadCount}</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.gridCardTitle}>{t('resident.announcements')}</Text>
-                <Text style={styles.gridCardSub}>{t('resident.announcementsSub')}</Text>
-              </WalkthroughableTouchableOpacity>
-            </CopilotStep>
-          </View>
-
-          {/* Card 4: Directory */}
-          <View style={styles.cardWrapper}>
-            <CopilotStep text="निवासियों को खोजने और उनसे संपर्क करने के लिए कम्युनिटी डायरेक्टरी का उपयोग करें।" order={4} name="directory">
-              <WalkthroughableTouchableOpacity 
-                style={[styles.gridCard, { width: '100%', marginBottom: 0 }]}
-                onPress={() => {
-                  router.push('/member/search' as any);
-                }}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.gridIconCircle, { backgroundColor: '#EDE9FE' }]}>
-                  <Ionicons name="call" size={30} color="#7C3AED" />
-                </View>
-                <Text style={styles.gridCardTitle}>{t('resident.directory', 'Directory')}</Text>
-                <Text style={styles.gridCardSub}>{t('resident.directorySub', 'Important contacts')}</Text>
-              </WalkthroughableTouchableOpacity>
-            </CopilotStep>
-          </View>
-
-          {/* Card 5: Residents List (Only if has permission) */}
-          {user?.permissions?.some((p: string) => ['Resident', 'Residents', 'Residents List'].includes(p)) && (
-            <View style={styles.cardWrapper}>
-              <CopilotStep text="सभी निवासियों की सूची देखें।" order={5} name="residents_list">
+          <View style={styles.sixGridWrapper}>
+            {/* 1: Raise Complaint */}
+            <View style={styles.gridItemColumn}>
+              <CopilotStep text="यहाँ से किसी भी निवासी (resident) के लिए एक नई शिकायत दर्ज करें।" order={1} name="raise_complaint">
                 <WalkthroughableTouchableOpacity 
-                  style={[styles.gridCard, { width: '100%', marginBottom: 0 }]}
-                  onPress={() => {
-                    router.push('/member/residents' as any);
-                  }}
-                  activeOpacity={0.8}
+                  style={styles.actionTouchable}
+                  onPress={() => router.push('/member/raise' as any)}
+                  activeOpacity={0.75}
                 >
-                  <View style={[styles.gridIconCircle, { backgroundColor: '#FCE7F3' }]}>
-                    <Ionicons name="people" size={30} color="#DB2777" />
+                  <View style={[styles.circleIcon, { backgroundColor: '#DBEAFE', borderColor: '#BFDBFE' }]}>
+                    <Ionicons name="add-circle" size={25} color="#2563EB" />
                   </View>
-                  <Text style={styles.gridCardTitle}>{t('member.residents', { defaultValue: 'Residents' })}</Text>
-                  <Text style={styles.gridCardSub}>{t('member.viewCommunityResidents', { defaultValue: 'View community residents' })}</Text>
+                  <Text style={styles.actionLabel} numberOfLines={2}>
+                    {t('member.raiseComplaint', { defaultValue: 'Raise Issue' })}
+                  </Text>
                 </WalkthroughableTouchableOpacity>
               </CopilotStep>
             </View>
+
+            {/* 2: All / My Complaints */}
+            <View style={styles.gridItemColumn}>
+              <CopilotStep text="शिकायतें देखें" order={2} name="all_complaints">
+                <WalkthroughableTouchableOpacity 
+                  style={styles.actionTouchable}
+                  onPress={() => router.push('/member/my-complaints' as any)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.circleIcon, { backgroundColor: '#D1FAE5', borderColor: '#A7F3D0' }]}>
+                    <Ionicons name="list" size={24} color="#059669" />
+                  </View>
+                  <Text style={styles.actionLabel} numberOfLines={2}>
+                    {user?.permissions?.includes('All Complaints') 
+                      ? t('member.allComplaints', { defaultValue: 'Complaints' }) 
+                      : t('resident.myComplaints', 'My Complaints')}
+                  </Text>
+                </WalkthroughableTouchableOpacity>
+              </CopilotStep>
+            </View>
+
+            {/* 3: Announcements */}
+            <View style={styles.gridItemColumn}>
+              <CopilotStep text="यहाँ से नई सूचनाएँ पोस्ट करें या ज़रूरी घोषणाएँ देखें।" order={3} name="announcements">
+                <WalkthroughableTouchableOpacity 
+                  style={styles.actionTouchable}
+                  onPress={() => router.push('/member/announcements' as any)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.circleIcon, { backgroundColor: '#EDE9FE', borderColor: '#DDD6FE' }]}>
+                    <Ionicons name="notifications" size={24} color="#7C3AED" />
+                    {unreadCount > 0 && (
+                      <View style={styles.badgeContainer}>
+                        <Text style={styles.badgeText}>{unreadCount}</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={styles.actionLabel} numberOfLines={2}>
+                    {t('resident.announcements', 'Notices')}
+                  </Text>
+                </WalkthroughableTouchableOpacity>
+              </CopilotStep>
+            </View>
+
+            {/* 4: Residents List */}
+            <View style={styles.gridItemColumn}>
+              <CopilotStep text="सभी निवासियों की सूची देखें।" order={5} name="residents_list">
+                <WalkthroughableTouchableOpacity 
+                  style={styles.actionTouchable}
+                  onPress={() => router.push('/member/residents' as any)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.circleIcon, { backgroundColor: '#FCE7F3', borderColor: '#FBCFE8' }]}>
+                    <Ionicons name="people" size={24} color="#DB2777" />
+                  </View>
+                  <Text style={styles.actionLabel} numberOfLines={2}>
+                    {t('member.residents', { defaultValue: 'Residents' })}
+                  </Text>
+                </WalkthroughableTouchableOpacity>
+              </CopilotStep>
+            </View>
+
+            {/* 5: Directory */}
+            <View style={styles.gridItemColumn}>
+              <CopilotStep text="निवासियों को खोजने और उनसे संपर्क करने के लिए कम्युनिटी डायरेक्टरी का उपयोग करें।" order={4} name="directory">
+                <WalkthroughableTouchableOpacity 
+                  style={styles.actionTouchable}
+                  onPress={() => router.push('/member/search' as any)}
+                  activeOpacity={0.75}
+                >
+                  <View style={[styles.circleIcon, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+                    <Ionicons name="call" size={24} color="#D97706" />
+                  </View>
+                  <Text style={styles.actionLabel} numberOfLines={2}>
+                    {t('resident.directory', 'Directory')}
+                  </Text>
+                </WalkthroughableTouchableOpacity>
+              </CopilotStep>
+            </View>
+
+            {/* 6: Community */}
+            <View style={styles.gridItemColumn}>
+              <TouchableOpacity 
+                style={styles.actionTouchable}
+                onPress={() => router.push('/member/community' as any)}
+                activeOpacity={0.75}
+              >
+                <View style={[styles.circleIcon, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]}>
+                  <Ionicons name="chatbubbles" size={24} color="#0284C7" />
+                </View>
+                <Text style={styles.actionLabel} numberOfLines={2}>
+                  Community
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Status Tracker: Pending | Progress | Done */}
+        <View style={styles.trackerContainer}>
+          <View style={styles.trackerHeader}>
+            <View style={styles.trackerTitleGroup}>
+              <Ionicons name="stats-chart" size={17} color="#1E293B" style={{ marginRight: 6 }} />
+              <Text style={styles.trackerTitle}>Complaints Overview</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => router.push('/member/my-complaints' as any)}
+              style={styles.trackerSeeAllBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.trackerSeeAllText}>View All</Text>
+              <Ionicons name="chevron-forward" size={14} color="#2563EB" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.trackerStatsRow}>
+            {/* Pending Stat */}
+            <TouchableOpacity 
+              style={[styles.statBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
+              onPress={() => router.push('/member/my-complaints' as any)}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.statIconBadge, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="time" size={14} color="#D97706" />
+              </View>
+              <Text style={[styles.statNumber, { color: '#B45309' }]}>{stats.pending}</Text>
+              <Text style={styles.statLabel}>Pending</Text>
+            </TouchableOpacity>
+
+            {/* In Progress Stat */}
+            <TouchableOpacity 
+              style={[styles.statBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
+              onPress={() => router.push('/member/my-complaints' as any)}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.statIconBadge, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="sync" size={14} color="#2563EB" />
+              </View>
+              <Text style={[styles.statNumber, { color: '#1D4ED8' }]}>{stats.inProgress}</Text>
+              <Text style={styles.statLabel}>In Progress</Text>
+            </TouchableOpacity>
+
+            {/* Done / Resolved Stat */}
+            <TouchableOpacity 
+              style={[styles.statBox, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
+              onPress={() => router.push('/member/my-complaints' as any)}
+              activeOpacity={0.75}
+            >
+              <View style={[styles.statIconBadge, { backgroundColor: '#D1FAE5' }]}>
+                <Ionicons name="checkmark-done" size={14} color="#059669" />
+              </View>
+              <Text style={[styles.statNumber, { color: '#047857' }]}>{stats.resolved}</Text>
+              <Text style={styles.statLabel}>Resolved</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Latest Announcement Section */}
+        <View style={styles.announcementSection}>
+          <View style={styles.sectionHeaderRow}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="megaphone-outline" size={18} color="#1E293B" style={{ marginRight: 6 }} />
+              <Text style={styles.sectionTitle}>Latest Notice</Text>
+            </View>
+            <TouchableOpacity 
+              onPress={() => router.push('/member/announcements' as any)}
+              style={styles.trackerSeeAllBtn}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.trackerSeeAllText}>See All</Text>
+              <Ionicons name="chevron-forward" size={14} color="#2563EB" />
+            </TouchableOpacity>
+          </View>
+
+          {latestAnnouncement ? (
+            <TouchableOpacity 
+              style={styles.announcementCard}
+              onPress={() => router.push('/member/announcements' as any)}
+              activeOpacity={0.8}
+            >
+              <View style={styles.announcementCardHeader}>
+                <View style={styles.noticeTag}>
+                  <Ionicons name="notifications" size={12} color="#7C3AED" style={{ marginRight: 4 }} />
+                  <Text style={styles.noticeTagText}>Notice</Text>
+                </View>
+                <Text style={styles.announcementDate}>
+                  {formatAnnouncementDate(latestAnnouncement.date || latestAnnouncement.createdAt)}
+                </Text>
+              </View>
+              <Text style={styles.announcementTitle} numberOfLines={1}>
+                {latestAnnouncement.title}
+              </Text>
+              <Text style={styles.announcementSnippet} numberOfLines={2}>
+                {latestAnnouncement.message}
+              </Text>
+              <View style={styles.announcementFooter}>
+                <Text style={styles.readMoreText}>Tap to manage notices</Text>
+                <Ionicons name="arrow-forward" size={13} color="#2563EB" />
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.emptyAnnouncementCard}>
+              <Ionicons name="checkmark-circle-outline" size={28} color="#94A3B8" />
+              <Text style={styles.emptyAnnouncementText}>No active announcements</Text>
+              <Text style={styles.emptyAnnouncementSub}>You can broadcast new announcements anytime.</Text>
+            </View>
           )}
         </View>
+
+        {/* Bottom padding */}
+        <View style={{ height: 90 }} />
       </ScrollView>
 
-
-
-      {/* WhatsApp Support FAB - Home screen only */}
+      {/* WhatsApp Support FAB */}
       <WhatsAppFAB bottom={85} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
+  safeArea: { 
+    flex: 1, 
+    backgroundColor: '#F8FAFC' 
+  },
   headerWrapper: {
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
     overflow: 'hidden',
     backgroundColor: '#0F172A',
-    elevation: 8,
-    shadowColor: '#1E3A8A',
-    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
-    shadowRadius: 12,
+    shadowRadius: 10,
   },
   headerGradient: {
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 16 : 38) : 52,
-    paddingBottom: 36,
-    paddingHorizontal: 24,
-    minHeight: 230,
-    justifyContent: 'center',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 32) : 44,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
   },
-  headerContent: {
-    justifyContent: 'center',
-  },
-  greetingRow: {
+  headerTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 14,
   },
-  greetingText: {
-    fontSize: 17,
-    color: '#BFDBFE',
-    marginBottom: 6,
-    fontWeight: '500',
-    letterSpacing: 0.2,
+  brandContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
-  exploreText: {
-    fontSize: 26,
-    fontWeight: '800',
+  brandLogoCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  brandTextGroup: {
+    justifyContent: 'center',
+  },
+  brandName: {
+    fontSize: 18,
+    fontWeight: '900',
     color: '#FFFFFF',
-    letterSpacing: -0.3,
+    letterSpacing: 1.1,
+  },
+  portalPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  portalPillText: {
+    color: '#FCD34D',
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
   avatarContainer: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  userWelcomeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  greetingText: {
+    fontSize: 18,
+    color: '#FFFFFF',
+    fontWeight: '700',
+    letterSpacing: 0.2,
+    marginBottom: 6,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  memberIdBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  memberIdText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  designationBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 9,
+    paddingVertical: 3.5,
+    borderRadius: 12,
+  },
+  designationText: {
+    color: '#E2E8F0',
+    fontSize: 11,
+    fontWeight: '600',
   },
   bodyScroll: {
     flex: 1,
   },
-  gridContentContainer: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 20,
+  scrollContentContainer: {
+    paddingTop: 16,
+    paddingHorizontal: 16,
   },
-  dashboardGrid: {
+  incompleteProfileBanner: {
+    backgroundColor: '#FEF2F2',
+    padding: 12,
+    borderRadius: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  warningIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FEE2E2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  warningTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#991B1B',
+  },
+  warningSub: {
+    fontSize: 11,
+    color: '#B91C1C',
+  },
+  bannerSection: {
+    marginBottom: 18,
+  },
+  bannerCardWrapper: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    height: 145,
+    backgroundColor: '#0F172A',
+    position: 'relative',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerTitleGradient: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  bannerTitleText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  bannerDotsContainer: {
+    position: 'absolute',
+    bottom: 7,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 5,
+  },
+  bannerDot: {
+    height: 5,
+    borderRadius: 2.5,
+  },
+  bannerDotActive: {
+    width: 16,
+    backgroundColor: '#F59E0B',
+  },
+  bannerDotInactive: {
+    width: 5,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  fallbackBanner: {
+    borderRadius: 16,
+    padding: 16,
+    height: 135,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 2,
+    shadowColor: '#1E1B4B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+  },
+  fallbackTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginBottom: 6,
+  },
+  fallbackTagText: {
+    color: '#FCD34D',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  fallbackTitle: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    marginBottom: 4,
+  },
+  fallbackSub: {
+    color: '#C7D2FE',
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  fallbackIconBox: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quickActionsContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    paddingHorizontal: 4,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1E293B',
+    letterSpacing: -0.2,
+  },
+  sixGridWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
+    rowGap: 16,
   },
-  cardWrapper: {
-    width: '48%',
-    marginBottom: 16,
-  },
-  gridCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 22,
-    paddingVertical: 22,
-    paddingHorizontal: 16,
+  gridItemColumn: {
+    width: '32%',
     alignItems: 'center',
+  },
+  actionTouchable: {
+    alignItems: 'center',
+    width: '100%',
+  },
+  circleIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     justifyContent: 'center',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
+    alignItems: 'center',
+    marginBottom: 6,
+    borderWidth: 1.5,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.06,
-    shadowRadius: 14,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
+    shadowRadius: 4,
+    position: 'relative',
   },
-  gridIconCircle: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 14,
+  actionLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#334155',
+    textAlign: 'center',
+    lineHeight: 15,
   },
   badgeContainer: {
     position: 'absolute',
     top: -2,
     right: -2,
     backgroundColor: '#EF4444',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 5,
     borderWidth: 2,
     borderColor: '#FFFFFF',
   },
   badgeText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
-  gridCardTitle: {
+  trackerContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+  },
+  trackerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  trackerTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trackerTitle: {
     fontSize: 15,
+    fontWeight: '800',
+    color: '#1E293B',
+  },
+  trackerSeeAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  trackerSeeAllText: {
+    fontSize: 13,
     fontWeight: '700',
+    color: '#2563EB',
+    marginRight: 2,
+  },
+  trackerStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  statBox: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  statIconBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  announcementSection: {
+    marginBottom: 16,
+  },
+  announcementCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 2,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+  },
+  announcementCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  noticeTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FAF5FF',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+  },
+  noticeTagText: {
+    color: '#7C3AED',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  announcementDate: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '500',
+  },
+  announcementTitle: {
+    fontSize: 15,
+    fontWeight: '800',
     color: '#0F172A',
-    textAlign: 'center',
     marginBottom: 4,
   },
-  gridCardSub: {
-    fontSize: 12,
+  announcementSnippet: {
+    fontSize: 13,
     color: '#64748B',
-    textAlign: 'center',
-    lineHeight: 16,
+    lineHeight: 18,
+    marginBottom: 10,
   },
-
+  announcementFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 8,
+  },
+  readMoreText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#2563EB',
+    marginRight: 4,
+  },
+  emptyAnnouncementCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 18,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  emptyAnnouncementText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#475569',
+    marginTop: 8,
+    marginBottom: 2,
+  },
+  emptyAnnouncementSub: {
+    fontSize: 12,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
 });
