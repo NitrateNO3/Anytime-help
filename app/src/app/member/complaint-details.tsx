@@ -59,7 +59,6 @@ export default function ComplaintDetails() {
   const [updating, setUpdating] = useState(false);
   const [complaintCoords, setComplaintCoords] = useState<{latitude: number, longitude: number} | null>(null);
   const [isEscalating, setIsEscalating] = useState(false);
-  const [showAllStaff, setShowAllStaff] = useState(false);
 
   const handleEscalate = async () => {
     if (!complaint) return;
@@ -99,7 +98,7 @@ export default function ComplaintDetails() {
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: '🔥 Yes, Escalate',
+          text: 'Yes, Escalate',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -123,7 +122,7 @@ export default function ComplaintDetails() {
                 headers: { 'x-auth-token': token }
               });
               setComplaint(res.data);
-              Toast.show({ type: 'success', text1: '🔥 Complaint Escalated!', text2: 'Staff and Admins notified.' });
+              Toast.show({ type: 'success', text1: 'Complaint Escalated!', text2: 'Staff and Admins notified.' });
             } catch (err: any) {
               Toast.show({ type: 'error', text1: 'Error', text2: err.response?.data?.message || 'Failed to escalate' });
             } finally {
@@ -435,17 +434,17 @@ export default function ComplaintDetails() {
     // Resident / Reporter Details
     const residentName = complaint.user?.name || 'Resident';
     const residentPhone = complaint.user?.phone_number || complaint.user?.phone;
-    const residentPhase = complaint.phase || complaint.user?.phase;
-    const residentRoom = complaint.user?.room_number;
+    const isReporterMember = complaint.user?.role === 'Member' || Boolean(complaint.user?.member_id);
+    const reporterAddress = complaint.user?.address || [complaint.user?.house_no, complaint.user?.phase || complaint.phase].filter(Boolean).join(', ') || 'N/A';
 
     text += `👤 *Reported By:* ${residentName}\n`;
+    if (isReporterMember && (complaint.user?.member_id || complaint.user?._id)) {
+      text += `🆔 *Member ID:* ${complaint.user?.member_id || `#MEM-${complaint.user?._id?.slice(-5).toUpperCase()}`}\n`;
+    }
     if (residentPhone) {
       text += `📞 *Contact Phone:* ${residentPhone}\n`;
     }
-    if (residentPhase || residentRoom) {
-      text += `🏠 *Unit:* ${[residentPhase, residentRoom ? `Flat/Room ${residentRoom}` : ''].filter(Boolean).join(' - ')}\n`;
-    }
-    text += `📍 *Location:* ${locStr}\n`;
+    text += `🏠 *Address:* ${reporterAddress}\n`;
 
     // Description
     if (complaint.description) {
@@ -512,7 +511,7 @@ export default function ComplaintDetails() {
 
   const shareLocationGeneral = async () => {
     let searchQ = complaintCoords ? `${complaintCoords.latitude},${complaintCoords.longitude}` : '';
-    const locStr = complaint?.address || complaint?.location;
+    const locStr = complaint.user?.address || complaint?.address || complaint?.location;
     if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
       searchQ = encodeURIComponent(locStr);
     }
@@ -525,9 +524,9 @@ export default function ComplaintDetails() {
     } catch(e) {}
   };
 
-  const callStaffPhone = (phoneNumber?: string) => {
+  const callUserPhone = (phoneNumber?: string) => {
     if (!phoneNumber) {
-      Alert.alert('Phone Unavailable', 'Phone number is not provided for this staff member.');
+      Alert.alert('Phone Unavailable', 'Phone number is not provided.');
       return;
     }
     const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
@@ -536,15 +535,15 @@ export default function ComplaintDetails() {
     });
   };
 
-  const whatsappStaffPhone = (phoneNumber?: string, staffName?: string) => {
+  const whatsappUserPhone = (phoneNumber?: string, userName?: string) => {
     if (!phoneNumber) {
-      Alert.alert('Phone Unavailable', 'Phone number is not provided for this staff member.');
+      Alert.alert('Phone Unavailable', 'Phone number is not provided.');
       return;
     }
     const cleanPhone = phoneNumber.replace(/\D/g, '');
     const finalPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
     const compId = complaint?.complaint_id || (complaint?._id ? `#AH-${complaint._id.slice(-5).toUpperCase()}` : '');
-    const message = `Hello ${staffName || 'Staff'}, this is regarding complaint "${complaint?.title || ''}" (${compId})...`;
+    const message = `Hello ${userName || 'Resident'}, this is regarding your complaint "${complaint?.title || ''}" (${compId})...`;
     const whatsappUrl = `whatsapp://send?phone=${finalPhone}&text=${encodeURIComponent(message)}`;
     Linking.openURL(whatsappUrl).catch(() => {
       Alert.alert('Error', 'WhatsApp is not installed on this device.');
@@ -626,24 +625,7 @@ export default function ComplaintDetails() {
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Details</Text>
-        <TouchableOpacity 
-          onPress={shareComplaintOnWhatsApp}
-          style={{ 
-            flexDirection: 'row', 
-            alignItems: 'center', 
-            backgroundColor: '#DCFCE7', 
-            paddingHorizontal: 12, 
-            paddingVertical: 6, 
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: '#86EFAC',
-            gap: 4
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="logo-whatsapp" size={17} color="#16A34A" />
-          <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803D' }}>Share</Text>
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
       <KeyboardAvoidingView 
@@ -663,7 +645,6 @@ export default function ComplaintDetails() {
         {/* ID & Date/Time Badge */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE' }}>
-            <Ionicons name="pricetag-outline" size={13} color="#4338CA" style={{ marginRight: 5 }} />
             <Text style={{ fontSize: 13, fontWeight: '800', color: '#4338CA', letterSpacing: 0.5 }}>
               {complaint.complaint_id || `#AH-${complaint._id?.slice(-5).toUpperCase()}`}
             </Text>
@@ -671,10 +652,10 @@ export default function ComplaintDetails() {
           {complaint.created_at ? (
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={{ fontSize: 12, color: '#475569', fontWeight: '600' }}>
-                📅 {new Date(complaint.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {new Date(complaint.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
               </Text>
               <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '600', marginTop: 2 }}>
-                ⏰ {new Date(complaint.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                {new Date(complaint.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
               </Text>
             </View>
           ) : null}
@@ -730,7 +711,6 @@ export default function ComplaintDetails() {
               }}
               disabled={!userPermissions.includes('Change Complaint Status')}
             >
-              <Ionicons name={statusIcon as any} size={14} color={statusTextStyle.color} style={{ marginRight: 4 }} />
               <Text style={[styles.statusBadgeText, statusTextStyle]}>{statusLabel}</Text>
               {userPermissions.includes('Change Complaint Status') && (
                 <Ionicons name={showDropdown ? "chevron-up" : "chevron-down"} size={14} color={statusTextStyle.color} style={{ marginLeft: 4 }} />
@@ -788,78 +768,6 @@ export default function ComplaintDetails() {
           </View>
         </View>
 
-        {/* Location */}
-        <View style={styles.locationContainer}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 }}>
-            <Ionicons name="location" size={20} color="#0F172A" />
-            <Text style={styles.locationText}>{complaint.location || complaint.address}</Text>
-          </View>
-          <TouchableOpacity 
-            style={{ 
-              flexDirection: 'row', 
-              alignItems: 'center', 
-              backgroundColor: '#DCFCE7', 
-              paddingHorizontal: 10, 
-              paddingVertical: 6, 
-              borderRadius: 8,
-              borderWidth: 1,
-              borderColor: '#86EFAC'
-            }}
-            onPress={shareLocationOnWhatsApp}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="logo-whatsapp" size={16} color="#16A34A" style={{ marginRight: 4 }} />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>Share</Text>
-          </TouchableOpacity>
-        </View>
-
-        {complaintCoords && (
-          <View style={{ marginTop: -8, marginBottom: 20 }}>
-            <View style={{ width: '100%', height: 180, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' }}>
-              <FreeMapView
-                latitude={complaintCoords.latitude}
-                longitude={complaintCoords.longitude}
-                interactive={false}
-              />
-            </View>
-            <View style={{ flexDirection: 'row', marginTop: 12, gap: 8 }}>
-              <TouchableOpacity 
-                style={[styles.actionBtnPrimary, { flex: 1, backgroundColor: '#10B981', flexDirection: 'row', justifyContent: 'center', height: 44, borderRadius: 10 }]}
-                onPress={() => {
-                  let searchQ = `${complaintCoords.latitude},${complaintCoords.longitude}`;
-                  const locStr = complaint.address || complaint.location;
-                  if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
-                    searchQ = encodeURIComponent(locStr);
-                  }
-                  const url = Platform.select({
-                    ios: `maps:0,0?q=${searchQ}`,
-                    android: `google.navigation:q=${searchQ}`
-                  });
-                  if (url) Linking.openURL(url);
-                }}
-              >
-                <Ionicons name="navigate" size={17} color="#FFF" style={{ marginRight: 6 }} />
-                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>Navigate</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.actionBtnPrimary, { flex: 1.4, backgroundColor: '#25D366', flexDirection: 'row', justifyContent: 'center', height: 44, borderRadius: 10 }]}
-                onPress={shareLocationOnWhatsApp}
-              >
-                <Ionicons name="logo-whatsapp" size={18} color="#FFF" style={{ marginRight: 6 }} />
-                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>WhatsApp</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.actionBtnPrimary, { width: 44, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', height: 44, borderRadius: 10 }]}
-                onPress={shareLocationGeneral}
-              >
-                <Ionicons name="share-social" size={18} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
         {/* Escalate Action Button */}
         <TouchableOpacity
           style={{
@@ -872,7 +780,7 @@ export default function ComplaintDetails() {
             paddingVertical: 14,
             borderRadius: 14,
             marginTop: 4,
-            marginBottom: 20,
+            marginBottom: 16,
             gap: 8,
             shadowColor: '#DC2626',
             shadowOffset: { width: 0, height: 4 },
@@ -887,157 +795,111 @@ export default function ComplaintDetails() {
           {isEscalating ? (
             <ActivityIndicator size="small" color={complaint.is_escalated ? '#DC2626' : '#FFFFFF'} />
           ) : (
-            <>
-              <Ionicons 
-                name={complaint.is_escalated ? "flame" : "flame-outline"} 
-                size={20} 
-                color={complaint.is_escalated ? '#DC2626' : '#FFFFFF'} 
-              />
-              <Text style={{
-                fontSize: 15,
-                fontWeight: '700',
-                color: complaint.is_escalated ? '#DC2626' : '#FFFFFF',
-                letterSpacing: 0.3
-              }}>
-                {complaint.is_escalated ? 'Escalated (Tap to manage)' : '🔥 Escalate Complaint'}
-              </Text>
-            </>
+            <Text style={{
+              fontSize: 15,
+              fontWeight: '700',
+              color: complaint.is_escalated ? '#DC2626' : '#FFFFFF',
+              letterSpacing: 0.3
+            }}>
+              {complaint.is_escalated ? 'Escalated (Tap to manage)' : 'Escalate Complaint'}
+            </Text>
           )}
         </TouchableOpacity>
 
-        {/* Reported By */}
+        {/* Reported By Details Card */}
         {complaint.user?.name ? (
-          <View style={[styles.locationContainer, { marginTop: 8, backgroundColor: '#F8FAFC', alignItems: 'flex-start' }]}>
-            <Ionicons name="person" size={20} color="#475569" style={{ marginTop: 2 }} />
-            <View style={{ flex: 1, marginLeft: 8 }}>
-              <Text style={{ fontSize: 14, color: '#475569', fontWeight: '500' }}>
-                Reported by: {complaint.user.name}
-              </Text>
-              {complaint.user.address ? (
-                <Text style={{ fontSize: 13, color: '#64748B', marginTop: 4, lineHeight: 18 }}>
-                  Address: {complaint.user.address}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        ) : null}
-        
-        {/* Assigned Duty Staff Card */}
-        <View style={styles.section}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ backgroundColor: '#EFF6FF', padding: 6, borderRadius: 10 }}>
-                <Ionicons name="construct" size={18} color="#2563EB" />
-              </View>
-              <View>
-                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
-                  Duty Staff ({staffMembers.length})
-                </Text>
-              </View>
-            </View>
-            {staffMembers.length > 0 && (
-              <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#15803D' }}>Duty On</Text>
-              </View>
-            )}
-          </View>
+          (() => {
+            const isReporterMember = complaint.user.role === 'Member' || Boolean(complaint.user.member_id);
+            const reporterAddr = complaint.user.address || [complaint.user.house_no, complaint.user.phase || complaint.phase].filter(Boolean).join(', ') || 'Address not available';
+            const userPhone = complaint.user.phone_number || complaint.user.phone;
+            const memberIdVal = complaint.user.member_id || (isReporterMember && complaint.user._id ? `#MEM-${complaint.user._id.slice(-5).toUpperCase()}` : null);
 
-          <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 12, marginLeft: 2 }}>
-            Assigned for {complaint.category || complaint.title || 'this category'}
-          </Text>
-
-          {staffMembers.length === 0 ? (
-            <View style={{ backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Ionicons name="time-outline" size={22} color="#D97706" />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#B45309' }}>Staff Assignment Pending</Text>
-                <Text style={{ fontSize: 12, color: '#92400E', marginTop: 1 }}>
-                  Duty staff for {complaint.category || 'this category'} will be assigned shortly.
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <View style={{ gap: 8 }}>
-              {((staffMembers.length <= 2 || showAllStaff) ? staffMembers : staffMembers.slice(0, 2)).map((staff: any, idx: number) => {
-                const staffPhone = staff.phone_number || staff.phone;
-                const isPrimary = staff.is_primary || (complaint.assigned_staff && (staff._id === complaint.assigned_staff._id || staff._id === complaint.assigned_staff));
-
-                return (
-                  <View 
-                    key={staff._id || idx} 
-                    style={{
-                      backgroundColor: isPrimary ? '#F0FDF4' : '#F8FAFC',
-                      borderWidth: 1,
-                      borderColor: isPrimary ? '#86EFAC' : '#E2E8F0',
-                      borderRadius: 12,
-                      padding: 10,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.03,
-                      shadowRadius: 2,
-                      elevation: 1
-                    }}
-                  >
-                    {/* Top Row: Name, Avatar, Phase, Primary Badge */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isPrimary ? '#22C55E' : '#3B82F6', justifyContent: 'center', alignItems: 'center' }}>
-                          <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>
-                            {(staff.name || 'S').charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#0F172A' }} numberOfLines={1}>
-                              {staff.name || 'Staff Member'}
-                            </Text>
-                            {isPrimary ? (
-                              <View style={{ backgroundColor: '#15803D', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>
-                                <Text style={{ fontSize: 9, fontWeight: '800', color: '#FFFFFF' }}>ASSIGNED</Text>
-                              </View>
-                            ) : (
-                              <View style={{ backgroundColor: '#E0E7FF', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>
-                                <Text style={{ fontSize: 9, fontWeight: '700', color: '#3730A3' }}>DUTY</Text>
-                              </View>
-                            )}
+            return (
+              <View style={styles.reporterCard}>
+                <View style={styles.reporterCardHeader}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                    <View style={[styles.avatarCircle, { backgroundColor: isReporterMember ? '#4F46E5' : '#2563EB' }]}>
+                      <Text style={styles.avatarText}>
+                        {(complaint.user.name || 'U').charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.reporterCardLabel}>Reported By</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <Text style={styles.reporterNameText}>
+                          {complaint.user.name}
+                        </Text>
+                        {complaint.user.designation ? (
+                          <View style={styles.designationBadge}>
+                            <Text style={styles.designationBadgeText}>{complaint.user.designation}</Text>
                           </View>
-                          <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '500', marginTop: 1 }} numberOfLines={1}>
-                            {staff.assigned_category || staff.role || 'Staff'} {staff.phase ? `• ${staff.phase}` : ''}
-                          </Text>
-                        </View>
+                        ) : null}
                       </View>
                     </View>
-
-                    {/* Phone, Call & WhatsApp hidden for privacy */}
                   </View>
-                );
-              })}
+                  {isReporterMember ? (
+                    <View style={styles.memberTag}>
+                      <Text style={styles.memberTagText}>MEMBER</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.residentTag}>
+                      <Text style={styles.residentTagText}>RESIDENT</Text>
+                    </View>
+                  )}
+                </View>
 
-              {/* Show More / Show Less Toggle Button for multiple staff */}
-              {staffMembers.length > 2 && (
-                <TouchableOpacity
-                  onPress={() => setShowAllStaff(!showAllStaff)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#F1F5F9',
-                    paddingVertical: 8,
-                    borderRadius: 10,
-                    marginTop: 2,
-                    gap: 6
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name={showAllStaff ? "chevron-up" : "chevron-down"} size={15} color="#2563EB" />
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB' }}>
-                    {showAllStaff ? 'Show Less' : `View All ${staffMembers.length} Duty Staff (+${staffMembers.length - 2} more)`}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
-        </View>
+                <View style={styles.reporterDivider} />
+
+                {/* Member ID (if reported by a member) */}
+                {isReporterMember && memberIdVal ? (
+                  <View style={styles.reporterDetailRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.detailLabel}>Member ID</Text>
+                      <Text style={styles.memberIdValue}>{memberIdVal}</Text>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Phone Number */}
+                {userPhone ? (
+                  <View style={styles.reporterDetailRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.detailLabel}>Phone Number</Text>
+                      <Text style={styles.detailValue}>{userPhone}</Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <TouchableOpacity
+                        style={styles.quickCallBtn}
+                        onPress={() => callUserPhone(userPhone)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="call" size={12} color="#FFFFFF" />
+                        <Text style={styles.quickCallText}>Call</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.quickWhatsappBtn}
+                        onPress={() => whatsappUserPhone(userPhone, complaint.user.name)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="logo-whatsapp" size={13} color="#FFFFFF" />
+                        <Text style={styles.quickWhatsappText}>WhatsApp</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* Address */}
+                <View style={[styles.reporterDetailRow, { borderBottomWidth: 0, paddingBottom: 0, marginBottom: 0 }]}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.detailLabel}>Address</Text>
+                    <Text style={styles.detailValue}>{reporterAddr}</Text>
+                  </View>
+                </View>
+              </View>
+            );
+          })()
+        ) : null}
+        
 
         {/* Description */}
         {complaint.description ? (
@@ -1463,5 +1325,155 @@ const styles = StyleSheet.create({
   textModalTitle: { fontSize: 18, fontWeight: '700', color: '#0F172A' },
   textModalScroll: { padding: 16 },
   textModalBody: { fontSize: 16, color: '#334155', lineHeight: 24, paddingBottom: 20 },
-  statusOptionBtn: { padding: 16, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' }
+  statusOptionBtn: { padding: 16, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+
+  reporterCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  reporterCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  avatarCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  reporterCardLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  reporterNameText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  designationBadge: {
+    backgroundColor: '#EEF2FF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  designationBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#4338CA',
+  },
+  memberTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EEF2FF',
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  memberTagText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#4338CA',
+    letterSpacing: 0.3,
+  },
+  residentTag: {
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  residentTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+    letterSpacing: 0.3,
+  },
+  reporterDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 12,
+  },
+  reporterDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingBottom: 10,
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F8FAFC',
+    gap: 10,
+  },
+  detailIconBox: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailLabel: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  detailValue: {
+    fontSize: 13,
+    color: '#334155',
+    fontWeight: '600',
+    lineHeight: 18,
+  },
+  memberIdValue: {
+    fontSize: 13,
+    color: '#4338CA',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  quickCallBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#059669',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  quickCallText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  quickWhatsappBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#25D366',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    gap: 4,
+  },
+  quickWhatsappText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  }
 });

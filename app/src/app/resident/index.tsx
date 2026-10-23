@@ -104,8 +104,14 @@ export default function ResidentHome() {
 
   useEffect(() => {
     if (banners.length > 1) {
-      const interval = setInterval(() => {
-        const nextIndex = bannerIndexRef.current >= banners.length - 1 ? 0 : bannerIndexRef.current + 1;
+      const currentBanner = banners[bannerIndex];
+      const durationSec = (currentBanner && typeof currentBanner.duration === 'number' && currentBanner.duration > 0)
+        ? currentBanner.duration
+        : 4;
+      const durationMs = durationSec * 1000;
+
+      const timer = setTimeout(() => {
+        const nextIndex = bannerIndex >= banners.length - 1 ? 0 : bannerIndex + 1;
         bannerIndexRef.current = nextIndex;
         setBannerIndex(nextIndex);
         if (bannerCardWidth > 0 && bannerFlatListRef.current) {
@@ -114,10 +120,11 @@ export default function ResidentHome() {
             animated: true,
           });
         }
-      }, 3500);
-      return () => clearInterval(interval);
+      }, durationMs);
+
+      return () => clearTimeout(timer);
     }
-  }, [banners.length, bannerCardWidth]);
+  }, [banners, bannerIndex, bannerCardWidth]);
 
   const { startTour } = useLocalSearchParams();
   const [lastStartTour, setLastStartTour] = useState<string | null>(null);
@@ -235,7 +242,11 @@ export default function ResidentHome() {
           <View style={styles.headerTopRow}>
             <View style={styles.brandContainer}>
               <View style={styles.brandLogoCircle}>
-                <Ionicons name="shield-checkmark" size={18} color="#FFFFFF" />
+                <Image 
+                  source={require('../../../assets/images/logo.png')} 
+                  style={{ width: '100%', height: '100%' }} 
+                  resizeMode="cover" 
+                />
               </View>
               <View style={styles.brandTextGroup}>
                 <Text style={styles.brandName}>ANYTIME HELP</Text>
@@ -260,7 +271,7 @@ export default function ResidentHome() {
           <View style={styles.userWelcomeRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.greetingText} numberOfLines={1}>
-                {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Resident'} 👋
+                {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Resident'}
               </Text>
               <View style={styles.unitLocationBadge}>
                 <Ionicons name="location-sharp" size={13} color="#93C5FD" style={{ marginRight: 4 }} />
@@ -638,15 +649,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   brandLogoCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.35)',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 10,
+    overflow: 'hidden',
   },
   brandTextGroup: {
     justifyContent: 'center',

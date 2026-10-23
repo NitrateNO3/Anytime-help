@@ -62,6 +62,15 @@ router.get('/', cache(60), async (req, res) => {
     };
     if (req.query.all !== 'true') {
       query.isActive = true;
+      query.$and = [
+        {
+          $or: [
+            { expiresAt: null },
+            { expiresAt: { $exists: false } },
+            { expiresAt: { $gt: new Date() } }
+          ]
+        }
+      ];
     }
 
     const banners = await StaffBanner.find(query).sort({ order: 1, createdAt: -1 });
@@ -92,6 +101,8 @@ router.post('/upload', upload.single('image'), async (req, res) => {
       isActive: req.body.isActive === undefined ? true : (req.body.isActive === 'true' || req.body.isActive === true),
       link: req.body.link || '',
       order: req.body.order ? Number(req.body.order) : 0,
+      duration: req.body.duration !== undefined ? Math.max(1, Math.min(120, Number(req.body.duration) || 4)) : 4,
+      expiresAt: req.body.expiresAt ? new Date(req.body.expiresAt) : null,
     });
 
     const savedBanner = await newBanner.save();
@@ -136,6 +147,12 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     }
     if (req.body.order !== undefined) {
       banner.order = Number(req.body.order);
+    }
+    if (req.body.duration !== undefined) {
+      banner.duration = Math.max(1, Math.min(120, Number(req.body.duration) || 4));
+    }
+    if (req.body.expiresAt !== undefined) {
+      banner.expiresAt = req.body.expiresAt ? new Date(req.body.expiresAt) : null;
     }
 
     // Replace image if new file is supplied

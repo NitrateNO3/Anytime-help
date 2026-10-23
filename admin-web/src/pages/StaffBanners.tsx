@@ -13,7 +13,9 @@ import {
   Smartphone,
   Users,
   Home,
-  ShieldCheck
+  ShieldCheck,
+  Clock,
+  Calendar
 } from 'lucide-react';
 import '../index.css';
 
@@ -30,6 +32,8 @@ interface BannerItem {
   isActive: boolean;
   link?: string;
   order?: number;
+  duration?: number;
+  expiresAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -50,6 +54,8 @@ export default function StaffBanners() {
   const [newTitle, setNewTitle] = useState('');
   const [newAudience, setNewAudience] = useState<AudienceType>('Staff');
   const [newIsActive, setNewIsActive] = useState(true);
+  const [newDuration, setNewDuration] = useState<number>(4);
+  const [newExpiresAt, setNewExpiresAt] = useState<string>('');
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
 
@@ -57,6 +63,8 @@ export default function StaffBanners() {
   const [editTitle, setEditTitle] = useState('');
   const [editAudience, setEditAudience] = useState<AudienceType>('Staff');
   const [editIsActive, setEditIsActive] = useState(true);
+  const [editDuration, setEditDuration] = useState<number>(4);
+  const [editExpiresAt, setEditExpiresAt] = useState<string>('');
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
 
@@ -104,6 +112,8 @@ export default function StaffBanners() {
     setNewTitle('');
     setNewAudience(activeTab);
     setNewIsActive(true);
+    setNewDuration(4);
+    setNewExpiresAt('');
     setNewImageFile(null);
     setNewImagePreview(null);
     setIsAddModalOpen(true);
@@ -114,6 +124,8 @@ export default function StaffBanners() {
     setNewImageFile(null);
     setNewImagePreview(null);
     setNewTitle('');
+    setNewDuration(4);
+    setNewExpiresAt('');
   };
 
   const handleOpenEditModal = (banner: BannerItem) => {
@@ -121,6 +133,8 @@ export default function StaffBanners() {
     setEditTitle(banner.title || '');
     setEditAudience(banner.audience || activeTab);
     setEditIsActive(banner.isActive !== false);
+    setEditDuration(banner.duration || 4);
+    setEditExpiresAt(banner.expiresAt ? new Date(banner.expiresAt).toISOString().split('T')[0] : '');
     setEditImageFile(null);
     setEditImagePreview(banner.url);
   };
@@ -129,6 +143,8 @@ export default function StaffBanners() {
     setEditingBanner(null);
     setEditImageFile(null);
     setEditImagePreview(null);
+    setEditDuration(4);
+    setEditExpiresAt('');
   };
 
   // Add / Upload New Banner
@@ -148,6 +164,10 @@ export default function StaffBanners() {
       formData.append('title', newTitle.trim());
       formData.append('audience', newAudience);
       formData.append('isActive', String(newIsActive));
+      formData.append('duration', String(newDuration || 4));
+      if (newExpiresAt) {
+        formData.append('expiresAt', newExpiresAt);
+      }
 
       await axios.post(`${API_URL}/staff-banners/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
@@ -181,6 +201,8 @@ export default function StaffBanners() {
       formData.append('title', editTitle.trim());
       formData.append('audience', editAudience);
       formData.append('isActive', String(editIsActive));
+      formData.append('duration', String(editDuration || 4));
+      formData.append('expiresAt', editExpiresAt || '');
       if (editImageFile) {
         formData.append('image', editImageFile);
       }
@@ -481,8 +503,48 @@ export default function StaffBanners() {
                     <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E293B', margin: '0 0 4px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                       {banner.title || `Untitled ${activeTab} Banner`}
                     </h3>
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
                       Added on {new Date(banner.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </div>
+
+                    {/* Duration & Expiry Badges */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ 
+                        display: 'inline-flex', 
+                        alignItems: 'center', 
+                        gap: 4, 
+                        fontSize: 11, 
+                        fontWeight: 600, 
+                        background: '#EEF2FF', 
+                        color: '#4338CA', 
+                        padding: '3px 8px', 
+                        borderRadius: 6 
+                      }}>
+                        <Clock size={12} />
+                        {banner.duration || 4}s slide
+                      </span>
+                      {banner.expiresAt ? (
+                        (() => {
+                          const isExpired = new Date(banner.expiresAt).getTime() < Date.now();
+                          return (
+                            <span style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: 4, 
+                              fontSize: 11, 
+                              fontWeight: 600, 
+                              background: isExpired ? '#FEF2F2' : '#F0FDF4', 
+                              color: isExpired ? '#B91C1C' : '#15803D', 
+                              padding: '3px 8px', 
+                              borderRadius: 6 
+                            }}>
+                              <Calendar size={12} />
+                              {isExpired ? 'Expired: ' : 'Expires: '}
+                              {new Date(banner.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                          );
+                        })()
+                      ) : null}
                     </div>
                   </div>
 
@@ -661,6 +723,50 @@ export default function StaffBanners() {
                   />
                 </div>
 
+                {/* Duration & Expiry Settings */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>
+                      Slide Duration (Seconds)
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type="number" 
+                        min={1}
+                        max={60}
+                        className="form-input" 
+                        placeholder="e.g. 5"
+                        value={newDuration}
+                        onChange={(e) => setNewDuration(Math.max(1, parseInt(e.target.value) || 4))}
+                        style={{ width: '100%', paddingLeft: 34 }}
+                      />
+                      <Clock size={16} color="#64748B" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                    </div>
+                    <span style={{ fontSize: 11, color: '#64748B', marginTop: 4, display: 'block' }}>
+                      App me kitne sec show hoga (default: 4s)
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>
+                      Expiry Date (Optional)
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type="date" 
+                        className="form-input" 
+                        value={newExpiresAt}
+                        onChange={(e) => setNewExpiresAt(e.target.value)}
+                        style={{ width: '100%', paddingLeft: 34 }}
+                      />
+                      <Calendar size={16} color="#64748B" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                    </div>
+                    <span style={{ fontSize: 11, color: '#64748B', marginTop: 4, display: 'block' }}>
+                      Is date ke baad band ho jayega
+                    </span>
+                  </div>
+                </div>
+
                 {/* Active Checkbox */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
                   <input 
@@ -800,6 +906,50 @@ export default function StaffBanners() {
                     onChange={(e) => setEditTitle(e.target.value)}
                     style={{ width: '100%' }}
                   />
+                </div>
+
+                {/* Duration & Expiry Settings */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>
+                      Slide Duration (Seconds)
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type="number" 
+                        min={1}
+                        max={60}
+                        className="form-input" 
+                        placeholder="e.g. 5"
+                        value={editDuration}
+                        onChange={(e) => setEditDuration(Math.max(1, parseInt(e.target.value) || 4))}
+                        style={{ width: '100%', paddingLeft: 34 }}
+                      />
+                      <Clock size={16} color="#64748B" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                    </div>
+                    <span style={{ fontSize: 11, color: '#64748B', marginTop: 4, display: 'block' }}>
+                      App me kitne sec show hoga (default: 4s)
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>
+                      Expiry Date (Optional)
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input 
+                        type="date" 
+                        className="form-input" 
+                        value={editExpiresAt}
+                        onChange={(e) => setEditExpiresAt(e.target.value)}
+                        style={{ width: '100%', paddingLeft: 34 }}
+                      />
+                      <Calendar size={16} color="#64748B" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
+                    </div>
+                    <span style={{ fontSize: 11, color: '#64748B', marginTop: 4, display: 'block' }}>
+                      Is date ke baad band ho jayega
+                    </span>
+                  </div>
                 </div>
 
                 {/* Active Checkbox */}

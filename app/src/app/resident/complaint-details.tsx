@@ -485,24 +485,7 @@ export default function ComplaintDetails() {
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Details</Text>
-        <TouchableOpacity 
-          onPress={shareComplaintOnWhatsApp}
-          style={{ 
-            flexDirection: 'row', 
-            alignItems: 'center', 
-            backgroundColor: '#DCFCE7', 
-            paddingHorizontal: 12, 
-            paddingVertical: 6, 
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: '#86EFAC',
-            gap: 4
-          }}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="logo-whatsapp" size={17} color="#16A34A" />
-          <Text style={{ fontSize: 13, fontWeight: '700', color: '#15803D' }}>Share</Text>
-        </TouchableOpacity>
+        <View style={{ width: 40 }} />
       </View>
 
       <KeyboardAvoidingView 
@@ -522,7 +505,6 @@ export default function ComplaintDetails() {
         {/* ID & Date/Time Badge */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#C7D2FE' }}>
-            <Ionicons name="pricetag-outline" size={13} color="#4338CA" style={{ marginRight: 5 }} />
             <Text style={{ fontSize: 13, fontWeight: '800', color: '#4338CA', letterSpacing: 0.5 }}>
               {complaint.complaint_id || `#AH-${complaint._id?.slice(-5).toUpperCase()}`}
             </Text>
@@ -530,10 +512,10 @@ export default function ComplaintDetails() {
           {complaint.created_at ? (
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={{ fontSize: 12, color: '#475569', fontWeight: '600' }}>
-                📅 {new Date(complaint.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                {new Date(complaint.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
               </Text>
               <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '600', marginTop: 2 }}>
-                ⏰ {new Date(complaint.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                {new Date(complaint.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
               </Text>
             </View>
           ) : null}
@@ -543,7 +525,6 @@ export default function ComplaintDetails() {
         <View style={styles.titleRow}>
           <Text style={styles.title}>{t(`categories.${complaint.title}`, { defaultValue: complaint.title })}</Text>
           <View style={[styles.statusBadge, statusBadgeStyle]}>
-            <Ionicons name={statusIcon as any} size={14} color={statusTextStyle.color} style={{ marginRight: 4 }} />
             <Text style={[styles.statusBadgeText, statusTextStyle]}>{statusLabel}</Text>
           </View>
         </View>
@@ -554,23 +535,6 @@ export default function ComplaintDetails() {
             <Ionicons name="location" size={20} color="#1D4ED8" />
             <Text style={styles.locationText}>{complaint.location || complaint.address}</Text>
           </View>
-          <TouchableOpacity 
-            style={{ 
-              flexDirection: 'row', 
-              alignItems: 'center', 
-              backgroundColor: '#DCFCE7', 
-              paddingHorizontal: 10, 
-              paddingVertical: 6, 
-              borderRadius: 8,
-              borderWidth: 1,
-              borderColor: '#86EFAC'
-            }}
-            onPress={shareLocationOnWhatsApp}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="logo-whatsapp" size={16} color="#16A34A" style={{ marginRight: 4 }} />
-            <Text style={{ fontSize: 12, fontWeight: '700', color: '#15803D' }}>Share</Text>
-          </TouchableOpacity>
         </View>
 
         {complaintCoords && (
@@ -600,14 +564,6 @@ export default function ComplaintDetails() {
               >
                 <Ionicons name="navigate" size={17} color="#FFF" style={{ marginRight: 6 }} />
                 <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>Navigate</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.actionBtnPrimary, { flex: 1.4, backgroundColor: '#25D366', flexDirection: 'row', justifyContent: 'center', height: 44, borderRadius: 10 }]}
-                onPress={shareLocationOnWhatsApp}
-              >
-                <Ionicons name="logo-whatsapp" size={18} color="#FFF" style={{ marginRight: 6 }} />
-                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>WhatsApp</Text>
               </TouchableOpacity>
 
               <TouchableOpacity 

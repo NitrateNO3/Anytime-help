@@ -31,6 +31,16 @@ const StaffBannerSchema = new mongoose.Schema({
     type: String,
     enum: ['Staff', 'Resident', 'Member'],
     default: 'Staff',
+  },
+  duration: {
+    type: Number,
+    default: 4, // Slide duration in seconds (app display time)
+    min: 1,
+    max: 120,
+  },
+  expiresAt: {
+    type: Date,
+    default: null, // Optional expiry date/time
   }
 }, { timestamps: true });
 

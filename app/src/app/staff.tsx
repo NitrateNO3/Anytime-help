@@ -76,16 +76,26 @@ export default function StaffScreen() {
 
   useEffect(() => {
     if (banners.length > 1) {
-      const interval = setInterval(() => {
-        setBannerIndex((prevIndex) => {
-          const nextIndex = prevIndex === banners.length - 1 ? 0 : prevIndex + 1;
-          bannerFlatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-          return nextIndex;
-        });
-      }, 3500);
-      return () => clearInterval(interval);
+      const currentBanner = banners[bannerIndex];
+      const durationSec = (currentBanner && typeof currentBanner.duration === 'number' && currentBanner.duration > 0)
+        ? currentBanner.duration
+        : 4;
+      const durationMs = durationSec * 1000;
+
+      const timer = setTimeout(() => {
+        const nextIndex = bannerIndex >= banners.length - 1 ? 0 : bannerIndex + 1;
+        setBannerIndex(nextIndex);
+        if (bannerCardWidth > 0 && bannerFlatListRef.current) {
+          bannerFlatListRef.current.scrollToOffset({
+            offset: nextIndex * bannerCardWidth,
+            animated: true,
+          });
+        }
+      }, durationMs);
+
+      return () => clearTimeout(timer);
     }
-  }, [banners.length]);
+  }, [banners, bannerIndex, bannerCardWidth]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -516,7 +526,7 @@ export default function StaffScreen() {
         {/* Title Area */}
         <View style={styles.titleArea}>
           <Text style={styles.title}>{t('staff.portal')}</Text>
-          <Text style={styles.subtitle}>{t('resident.hello', { defaultValue: 'Welcome,' })} {user?.name?.split(' ')[0] || 'Staff'} 👋</Text>
+          <Text style={styles.subtitle}>{t('resident.hello', { defaultValue: 'Welcome,' })} {user?.name?.split(' ')[0] || 'Staff'}</Text>
           
           {/* Dynamic Staff Banner */}
           <View 

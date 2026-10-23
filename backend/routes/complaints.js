@@ -592,7 +592,7 @@ router.get('/', auth, async (req, res) => {
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     let complaintsQuery = Complaint.find(query)
       .select('-__v')
-      .populate('user', 'name phone_number address room_number phase relation')
+      .populate('user', 'name phone_number address room_number phase relation role designation member_id')
       .populate('assigned_staff', 'name phone_number address room_number phase')
       .populate('resolved_by', 'name phone_number role phase')
       .populate('escalated_by', 'name phone_number phone role')
@@ -687,7 +687,7 @@ router.get('/:id', auth, async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
       .select('-__v')
-      .populate('user', 'name phone_number address room_number phase relation role designation')
+      .populate('user', 'name phone_number address room_number phase relation role designation member_id')
       .populate('assigned_staff', 'name phone_number address room_number phase')
       .populate('resolved_by', 'name phone_number role phase')
       .populate('escalated_by', 'name phone_number phone role')
