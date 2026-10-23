@@ -13,7 +13,7 @@ const chatGroupSchema = new mongoose.Schema({
   },
   group_type: { 
     type: String, 
-    enum: ['General', 'Executive', 'Finance', 'Security', 'Maintenance', 'Events', 'SubCommittee', 'Other'], 
+    trim: true,
     default: 'General' 
   },
   created_by: { 
