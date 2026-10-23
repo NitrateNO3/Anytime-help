@@ -249,14 +249,24 @@ export default function MemberChatRoomScreen() {
   const handleMessageLongPress = (item: ChatMessageItem) => {
     if (item.is_deleted) return;
 
-    const myId = currentUser?._id || currentUser?.id;
-    const isMyMessage = item.sender?._id === myId || item.sender === myId;
+    const myId = (currentUser?._id || currentUser?.id || '').toString().trim();
+    const senderId = ((item.sender as any)?._id || item.sender || '').toString().trim();
+    const isMyMessage = Boolean(myId && senderId && myId === senderId);
 
-    const options: any[] = [
-      { text: 'Reply', onPress: () => setReplyingTo(item) },
-    ];
+    const roleLower = (currentUser?.role || '').toLowerCase();
+    const isAdmin = roleLower === 'admin' || roleLower === 'subadmin';
+    const canDelete = isMyMessage || isAdmin;
+    const canEdit = isMyMessage;
 
-    if (isMyMessage) {
+    const options: any[] = [];
+
+    // Any member with write access can reply
+    if (isWriteAllowed) {
+      options.push({ text: 'Reply', onPress: () => setReplyingTo(item) });
+    }
+
+    // Only the original author can edit their message
+    if (canEdit) {
       options.push({
         text: 'Edit',
         onPress: () => {
@@ -265,12 +275,18 @@ export default function MemberChatRoomScreen() {
           setReplyingTo(null);
         }
       });
+    }
+
+    // Members can ONLY delete their own messages. Admins can delete any message.
+    if (canDelete) {
       options.push({
         text: 'Delete',
         style: 'destructive',
         onPress: () => confirmDeleteMessage(item._id)
       });
     }
+
+    if (options.length === 0) return;
 
     options.push({ text: 'Cancel', style: 'cancel' });
 
@@ -293,6 +309,7 @@ export default function MemberChatRoomScreen() {
       });
     } catch (err: any) {
       Alert.alert('Error', err.response?.data?.msg || 'Could not delete message');
+      syncMessagesSilently();
     }
   };
 
@@ -306,8 +323,9 @@ export default function MemberChatRoomScreen() {
   };
 
   const renderMessageBubble = ({ item }: { item: ChatMessageItem }) => {
-    const myId = currentUser?._id || currentUser?.id;
-    const isMe = item.sender?._id === myId || item.sender === myId;
+    const myId = (currentUser?._id || currentUser?.id || '').toString().trim();
+    const senderId = ((item.sender as any)?._id || item.sender || '').toString().trim();
+    const isMe = Boolean(myId && senderId && myId === senderId);
 
     return (
       <TouchableOpacity

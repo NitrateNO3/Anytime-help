@@ -471,8 +471,11 @@ router.delete('/messages/:message_id', auth, async (req, res) => {
     if (!message) return res.status(404).json({ msg: 'Message not found' });
 
     const isSender = message.sender.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === 'Admin' || req.user.role === 'SubAdmin';
+    const roleLower = (req.user.role || '').toLowerCase();
+    const isAdmin = roleLower === 'admin' || roleLower === 'subadmin';
 
+    // A regular member can ONLY delete their own message.
+    // Admin or SubAdmin can delete their own messages AND any member's message.
     if (!isSender && !isAdmin) {
       return res.status(403).json({ msg: 'You are not authorized to delete this message' });
     }
