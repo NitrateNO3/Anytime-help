@@ -561,18 +561,18 @@ export default function MemberHome() {
               </CopilotStep>
             </View>
 
-            {/* 6: Community */}
+            {/* 6: Committee Chats */}
             <View style={styles.gridItemColumn}>
               <TouchableOpacity 
                 style={styles.actionTouchable}
-                onPress={() => router.push('/member/community' as any)}
+                onPress={() => router.push('/member/chats' as any)}
                 activeOpacity={0.75}
               >
-                <View style={[styles.circleIcon, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]}>
-                  <Ionicons name="chatbubbles" size={24} color="#0284C7" />
+                <View style={[styles.circleIcon, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
+                  <Ionicons name="chatbubbles" size={24} color="#2563EB" />
                 </View>
                 <Text style={styles.actionLabel} numberOfLines={2}>
-                  Community
+                  Committee Chats
                 </Text>
               </TouchableOpacity>
             </View>

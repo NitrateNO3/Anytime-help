@@ -174,6 +174,8 @@ export default function MemberLayout() {
       <Tabs.Screen name="residents" options={{ href: null }} />
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
       <Tabs.Screen name="complaint-details" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="chats" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+      <Tabs.Screen name="chat-room" options={{ href: null, tabBarStyle: { display: 'none' } }} />
     </Tabs>
 
     <ForceBlockUpdateModal

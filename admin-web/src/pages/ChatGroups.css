@@ -179,3 +179,124 @@
     justify-content: flex-end;
   }
 }
+
+/* Admin Live Chat Room Modal */
+.admin-chat-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 760px;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.admin-chat-body {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-bubble {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  position: relative;
+  font-size: 14px;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.admin-bubble-me {
+  align-self: flex-end;
+  background: #1d4ed8;
+  color: #ffffff;
+  border-bottom-right-radius: 2px;
+}
+
+.admin-bubble-other {
+  align-self: flex-start;
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
+  border-bottom-left-radius: 2px;
+}
+
+.admin-quote-preview {
+  border-left: 3px solid;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+
+.admin-quote-me {
+  border-color: #93c5fd;
+  background: rgba(255, 255, 255, 0.15);
+  color: #eff6ff;
+}
+
+.admin-quote-other {
+  border-color: #1d4ed8;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.admin-chat-composer {
+  background: #ffffff;
+  border-top: 1px solid #e2e8f0;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-chat-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-chat-input {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 24px;
+  border: 1px solid #cbd5e1;
+  outline: none;
+  font-size: 14px;
+  transition: border-color 0.15s;
+}
+
+.admin-chat-input:focus {
+  border-color: #1d4ed8;
+}
+
+.admin-chat-send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: #1d4ed8;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.admin-chat-send-btn:hover {
+  background: #1e40af;
+}
+
+.admin-chat-send-btn:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}

@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { 
   MessageSquare, Plus, Edit2, Trash2, Search, X, Eye, 
-  Send, Shield, RefreshCw, Check
+  Send, Shield, RefreshCw, Check, CornerDownRight
 } from 'lucide-react';
-import { io } from 'socket.io-client';
+import { io, Socket } from 'socket.io-client';
 import '../index.css';
 import './ChatGroups.css';
 
@@ -38,6 +38,24 @@ interface ChatGroupItem {
   is_active: boolean;
 }
 
+interface MessageItem {
+  _id: string;
+  group_id: string;
+  sender: any;
+  sender_name: string;
+  sender_role: string;
+  sender_designation?: string;
+  text: string;
+  reply_to?: {
+    message_id: string;
+    sender_name: string;
+    text: string;
+  };
+  is_edited?: boolean;
+  is_deleted?: boolean;
+  createdAt: string;
+}
+
 export default function ChatGroups() {
   const [groups, setGroups] = useState<ChatGroupItem[]>([]);
   const [allMembers, setAllMembers] = useState<MemberUser[]>([]);
@@ -48,6 +66,18 @@ export default function ChatGroups() {
   const [isSaving, setIsSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  // Admin Live Chat State
+  const [activeChatGroup, setActiveChatGroup] = useState<ChatGroupItem | null>(null);
+  const [chatMessages, setChatMessages] = useState<MessageItem[]>([]);
+  const [loadingChat, setLoadingChat] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [sendingMsg, setSendingMsg] = useState(false);
+  const [replyingMessage, setReplyingMessage] = useState<MessageItem | null>(null);
+  const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const socketRef = useRef<Socket | null>(null);
+
   // Form State
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -56,8 +86,6 @@ export default function ChatGroups() {
   const [selectedViewOnlyIds, setSelectedViewOnlyIds] = useState<string[]>([]);
   const [canOtherMembersView, setCanOtherMembersView] = useState(false);
   const [canResidentsView, setCanResidentsView] = useState(false);
-
-  // Member search inside modal
   const [memberSearch, setMemberSearch] = useState('');
 
   const groupTypes = ['General', 'Executive', 'Finance', 'Security', 'Maintenance', 'Events', 'SubCommittee', 'Other'];
@@ -72,6 +100,8 @@ export default function ChatGroups() {
     fetchMembers();
 
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    socketRef.current = socket;
+
     socket.on('chat_group_created', () => fetchGroups(false));
     socket.on('chat_group_updated', () => fetchGroups(false));
     socket.on('chat_group_deleted', () => fetchGroups(false));
@@ -80,6 +110,49 @@ export default function ChatGroups() {
       socket.disconnect();
     };
   }, []);
+
+  // Handle active chat socket listeners
+  useEffect(() => {
+    if (!activeChatGroup || !socketRef.current) return;
+
+    const socket = socketRef.current;
+    socket.emit('join_chat_group', activeChatGroup._id);
+
+    const onNewMsg = (newMsg: MessageItem) => {
+      if (newMsg.group_id === activeChatGroup._id) {
+        setChatMessages(prev => {
+          if (prev.some(m => m._id === newMsg._id)) return prev;
+          return [...prev, newMsg];
+        });
+        scrollToBottom();
+      }
+    };
+
+    const onEditedMsg = ({ message_id, new_text }: any) => {
+      setChatMessages(prev => prev.map(m => m._id === message_id ? { ...m, text: new_text, is_edited: true } : m));
+    };
+
+    const onDeletedMsg = ({ message_id }: any) => {
+      setChatMessages(prev => prev.map(m => m._id === message_id ? { ...m, text: 'This message was deleted', is_deleted: true } : m));
+    };
+
+    socket.on('new_message', onNewMsg);
+    socket.on('message_edited', onEditedMsg);
+    socket.on('message_deleted', onDeletedMsg);
+
+    return () => {
+      socket.emit('leave_chat_group', activeChatGroup._id);
+      socket.off('new_message', onNewMsg);
+      socket.off('message_edited', onEditedMsg);
+      socket.off('message_deleted', onDeletedMsg);
+    };
+  }, [activeChatGroup]);
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 80);
+  };
 
   const fetchGroups = async (showLoading = true) => {
     if (showLoading) setLoading(true);
@@ -101,6 +174,78 @@ export default function ChatGroups() {
       setAllMembers(data);
     } catch (err) {
       console.error('Failed to load members for selection:', err);
+    }
+  };
+
+  // Open Chat Room for Group
+  const openChatRoom = async (group: ChatGroupItem) => {
+    setActiveChatGroup(group);
+    setChatMessages([]);
+    setLoadingChat(true);
+    setReplyingMessage(null);
+    setEditingMsgId(null);
+    setChatInput('');
+
+    try {
+      const res = await axios.get(`${API_URL}/chat/groups/${group._id}/messages`, getHeaders());
+      if (res.data?.messages) {
+        setChatMessages(res.data.messages);
+        scrollToBottom();
+      }
+    } catch (err) {
+      toast.error('Failed to load messages');
+    } finally {
+      setLoadingChat(false);
+    }
+  };
+
+  // Send Message / Edit Message / Reply
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !activeChatGroup || sendingMsg) return;
+
+    setSendingMsg(true);
+
+    try {
+      if (editingMsgId) {
+        await axios.put(
+          `${API_URL}/chat/messages/${editingMsgId}`,
+          { new_text: chatInput.trim() },
+          getHeaders()
+        );
+        setEditingMsgId(null);
+      } else {
+        const payload: any = {
+          text: chatInput.trim()
+        };
+        if (replyingMessage) {
+          payload.reply_to_message_id = replyingMessage._id;
+        }
+
+        await axios.post(
+          `${API_URL}/chat/groups/${activeChatGroup._id}/messages`,
+          payload,
+          getHeaders()
+        );
+        setReplyingMessage(null);
+      }
+
+      setChatInput('');
+      scrollToBottom();
+    } catch (err: any) {
+      toast.error(err.response?.data?.msg || 'Failed to send message');
+    } finally {
+      setSendingMsg(false);
+    }
+  };
+
+  // Delete message as Admin
+  const handleDeleteMessage = async (msgId: string) => {
+    try {
+      await axios.delete(`${API_URL}/chat/messages/${msgId}`, getHeaders());
+      toast.success('Message deleted');
+    } catch (err) {
+      toast.error('Failed to delete message');
     }
   };
 
@@ -226,7 +371,7 @@ export default function ChatGroups() {
             Committee Chat Groups
           </h1>
           <p>
-            Create groups for committee members, set active chat members, and grant view-only access across groups.
+            Create groups for committee members, set active chat members, and chat/reply directly from here.
           </p>
         </div>
         <button 
@@ -384,18 +529,183 @@ export default function ChatGroups() {
                   </div>
                 </div>
 
-                {/* Footer */}
-                <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 16, paddingTop: 12, fontSize: 12, color: '#94a3b8', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Created {new Date(group.createdAt).toLocaleDateString()}</span>
-                  {group.last_message?.text && (
-                    <span style={{ maxWidth: 190, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#475569' }}>
-                      💬 {group.last_message.text}
-                    </span>
-                  )}
+                {/* Footer with Open Chat Button */}
+                <div style={{ borderTop: '1px solid #f1f5f9', marginTop: 16, paddingTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>
+                    {group.last_message?.text ? (
+                      <span style={{ maxWidth: 170, display: 'inline-block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#475569' }}>
+                        💬 {group.last_message.text}
+                      </span>
+                    ) : (
+                      <span>Created {new Date(group.createdAt).toLocaleDateString()}</span>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => openChatRoom(group)}
+                    className="btn btn-primary"
+                    style={{ padding: '6px 14px', fontSize: 12, borderRadius: 8, gap: 6 }}
+                  >
+                    <MessageSquare size={14} />
+                    Open Chat
+                  </button>
                 </div>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* ADMIN LIVE CHAT ROOM MODAL */}
+      {activeChatGroup && (
+        <div className="chat-modal-overlay">
+          <div className="admin-chat-modal">
+            {/* Header */}
+            <div className="chat-modal-header" style={{ padding: '14px 20px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <MessageSquare size={18} color="#1d4ed8" />
+                  {activeChatGroup.name}
+                </h3>
+                <span style={{ fontSize: 12, color: '#64748b' }}>
+                  {activeChatGroup.group_type} Committee • Admin Live Communication
+                </span>
+              </div>
+              <button 
+                onClick={() => setActiveChatGroup(null)}
+                className="btn-icon"
+                style={{ cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Message Stream */}
+            <div className="admin-chat-body">
+              {loadingChat ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#64748b' }}>
+                  <RefreshCw size={20} className="spin" style={{ animation: 'spin 1s linear infinite' }} />
+                  <div style={{ marginTop: 8, fontSize: 13 }}>Loading conversation...</div>
+                </div>
+              ) : chatMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 40, color: '#94a3b8' }}>
+                  <MessageSquare size={36} style={{ opacity: 0.3, margin: '0 auto 8px auto' }} />
+                  <div>No messages yet. Send a message to start the discussion with members.</div>
+                </div>
+              ) : (
+                chatMessages.map(msg => {
+                  const isAdminMsg = msg.sender_role === 'Admin' || msg.sender_role === 'SubAdmin';
+
+                  return (
+                    <div 
+                      key={msg._id} 
+                      className={`admin-bubble ${isAdminMsg ? 'admin-bubble-me' : 'admin-bubble-other'}`}
+                    >
+                      {/* Sender Info */}
+                      {!isAdminMsg && (
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 2 }}>
+                          {msg.sender_name} {msg.sender_designation && `(${msg.sender_designation})`}
+                        </div>
+                      )}
+
+                      {/* Quoted Reply */}
+                      {msg.reply_to && (
+                        <div className={`admin-quote-preview ${isAdminMsg ? 'admin-quote-me' : 'admin-quote-other'}`}>
+                          <strong>{msg.reply_to.sender_name}</strong>
+                          <div style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                            {msg.reply_to.text}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Message Text */}
+                      <div style={{ fontStyle: msg.is_deleted ? 'italic' : 'normal', opacity: msg.is_deleted ? 0.75 : 1 }}>
+                        {msg.is_deleted ? 'This message was deleted' : msg.text}
+                      </div>
+
+                      {/* Metadata & Actions */}
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, opacity: 0.75 }}>
+                        {msg.is_edited && !msg.is_deleted && <span>(edited)</span>}
+                        <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+
+                        {!msg.is_deleted && (
+                          <div style={{ display: 'flex', gap: 4, marginLeft: 6 }}>
+                            <button
+                              onClick={() => {
+                                setReplyingMessage(msg);
+                                setEditingMsgId(null);
+                              }}
+                              title="Reply"
+                              style={{ border: 'none', background: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}
+                            >
+                              <CornerDownRight size={12} />
+                            </button>
+                            {isAdminMsg && (
+                              <button
+                                onClick={() => {
+                                  setEditingMsgId(msg._id);
+                                  setChatInput(msg.text);
+                                  setReplyingMessage(null);
+                                }}
+                                title="Edit"
+                                style={{ border: 'none', background: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}
+                              >
+                                <Edit2 size={11} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteMessage(msg._id)}
+                              title="Delete message"
+                              style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Composer Footer */}
+            <form onSubmit={handleSendMessage} className="admin-chat-composer">
+              {/* Quoted preview bar */}
+              {replyingMessage && (
+                <div style={{ background: '#eff6ff', padding: '6px 12px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, borderLeft: '3px solid #1d4ed8' }}>
+                  <span>Replying to <strong>{replyingMessage.sender_name}</strong>: {replyingMessage.text.slice(0, 50)}...</span>
+                  <X size={14} style={{ cursor: 'pointer' }} onClick={() => setReplyingMessage(null)} />
+                </div>
+              )}
+
+              {/* Editing preview bar */}
+              {editingMsgId && (
+                <div style={{ background: '#fef3c7', padding: '6px 12px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, borderLeft: '3px solid #d97706' }}>
+                  <span>Editing message...</span>
+                  <X size={14} style={{ cursor: 'pointer' }} onClick={() => { setEditingMsgId(null); setChatInput(''); }} />
+                </div>
+              )}
+
+              <div className="admin-chat-input-row">
+                <input
+                  type="text"
+                  className="admin-chat-input"
+                  placeholder={editingMsgId ? "Edit your message..." : "Type response to committee members..."}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  disabled={!chatInput.trim() || sendingMsg}
+                  className="admin-chat-send-btn"
+                >
+                  <Send size={16} />
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

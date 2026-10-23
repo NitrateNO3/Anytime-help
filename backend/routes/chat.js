@@ -363,12 +363,15 @@ router.post('/groups/:id/messages', auth, async (req, res) => {
       }
     }
 
+    const senderName = req.user.name || (req.user.role === 'Admin' ? 'Super Admin' : req.user.role === 'SubAdmin' ? 'Admin' : 'Member');
+    const senderDesignation = req.user.designation || (req.user.role === 'Admin' ? 'Management' : req.user.role === 'SubAdmin' ? 'Office' : '');
+
     const newMsg = new ChatMessage({
       group_id: group._id,
       sender: req.user._id,
-      sender_name: req.user.name || 'Member',
+      sender_name: senderName,
       sender_role: req.user.role,
-      sender_designation: req.user.designation || '',
+      sender_designation: senderDesignation,
       text: (text || '').trim(),
       attachments: attachments || [],
       reply_to: replyPayload,
