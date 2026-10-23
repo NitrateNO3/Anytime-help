@@ -16,6 +16,7 @@ import Directory from './pages/Directory';
 import Members from './pages/Members';
 import SubAdmins from './pages/SubAdmins';
 import StaffBanners from './pages/StaffBanners';
+import ChatGroups from './pages/ChatGroups';
 
 // Global axios interceptor for 401 Unauthorized errors
 axios.interceptors.response.use(
@@ -76,6 +77,7 @@ function App() {
             <Route path="service-bookings" element={<ServiceBookings />} />
             <Route path="directory" element={<Directory />} />
             <Route path="members" element={<Members />} />
+            <Route path="chat-groups" element={<ChatGroups />} />
             <Route path="subadmins" element={<SubAdmins />} />
           </Route>
         </Routes>

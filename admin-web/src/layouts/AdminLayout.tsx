@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export default function AdminLayout() {
@@ -68,10 +68,16 @@ export default function AdminLayout() {
           )}
 
           {hasAccess('Committee Members') && (
-            <Link to="/members" className={`nav-link ${location.pathname === '/members' ? 'active' : ''}`}>
-              <Users size={20} />
-              Members
-            </Link>
+            <>
+              <Link to="/members" className={`nav-link ${location.pathname === '/members' ? 'active' : ''}`}>
+                <Users size={20} />
+                Members
+              </Link>
+              <Link to="/chat-groups" className={`nav-link ${location.pathname === '/chat-groups' ? 'active' : ''}`}>
+                <MessageSquare size={20} />
+                Chat Groups
+              </Link>
+            </>
           )}
           
           {isSuperAdmin && (

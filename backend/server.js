@@ -38,6 +38,31 @@ app.set('io', io);
 
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
+
+  // Group Chat room events
+  socket.on('join_chat_group', (groupId) => {
+    if (groupId) {
+      socket.join(`chat_group_${groupId}`);
+      console.log(`Socket ${socket.id} joined chat_group_${groupId}`);
+    }
+  });
+
+  socket.on('leave_chat_group', (groupId) => {
+    if (groupId) {
+      socket.leave(`chat_group_${groupId}`);
+      console.log(`Socket ${socket.id} left chat_group_${groupId}`);
+    }
+  });
+
+  // Typing indicator broadcast
+  socket.on('typing_start', ({ groupId, userName }) => {
+    socket.to(`chat_group_${groupId}`).emit('user_typing', { groupId, userName, isTyping: true });
+  });
+
+  socket.on('typing_stop', ({ groupId, userName }) => {
+    socket.to(`chat_group_${groupId}`).emit('user_typing', { groupId, userName, isTyping: false });
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });
@@ -57,6 +82,7 @@ app.use('/api/paid-services', require('./routes/paidServices'));
 app.use('/api/service-bookings', require('./routes/serviceBookings'));
 app.use('/api/directory', require('./routes/directory'));
 app.use('/api/config', require('./routes/config'));
+app.use('/api/chat', require('./routes/chat'));
 
 const PORT = process.env.PORT || 5000;
 
