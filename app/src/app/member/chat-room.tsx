@@ -272,7 +272,7 @@ export default function MemberChatRoomScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Screen Header */}
@@ -299,36 +299,43 @@ export default function MemberChatRoomScreen() {
         )}
       </View>
 
-      {/* Messages List */}
-      {loading ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#2563EB" />
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          keyExtractor={(item) => item._id}
-          renderItem={renderMessageBubble}
-          contentContainerStyle={styles.messagesList}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="chatbubble-ellipses-outline" size={48} color="#CBD5E1" />
-              <Text style={styles.emptyText}>No messages yet in this group.</Text>
-              <Text style={styles.emptySubText}>
-                {isWriteAllowed ? 'Say hello and start the discussion!' : 'Discussions will appear here once active.'}
-              </Text>
-            </View>
-          }
-        />
-      )}
-
-      {/* Bottom Bar: Input OR View-Only Banner */}
+      {/* WhatsApp-style KeyboardAvoiding wrapper around messages + input bar */}
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 10 : 0}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
+        {/* Messages List */}
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#2563EB" />
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item._id}
+            renderItem={renderMessageBubble}
+            contentContainerStyle={styles.messagesList}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            onContentSizeChange={() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Ionicons name="chatbubble-ellipses-outline" size={48} color="#CBD5E1" />
+                <Text style={styles.emptyText}>No messages yet in this group.</Text>
+                <Text style={styles.emptySubText}>
+                  {isWriteAllowed ? 'Say hello and start the discussion!' : 'Discussions will appear here once active.'}
+                </Text>
+              </View>
+            }
+          />
+        )}
+
+        {/* Bottom Bar: Input OR View-Only Banner */}
         {isWriteAllowed ? (
           <View style={styles.inputContainer}>
             {/* WhatsApp Quote / Reply Bar Preview */}
@@ -365,6 +372,11 @@ export default function MemberChatRoomScreen() {
                 onChangeText={setInputText}
                 multiline
                 maxLength={1000}
+                onFocus={() => {
+                  setTimeout(() => {
+                    flatListRef.current?.scrollToEnd({ animated: true });
+                  }, 150);
+                }}
               />
               <TouchableOpacity
                 style={[styles.sendButton, !inputText.trim() ? styles.sendButtonDisabled : null]}
