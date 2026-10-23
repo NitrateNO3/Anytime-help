@@ -77,6 +77,7 @@ export default function ChatGroups() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  const activeChatGroupRef = useRef<ChatGroupItem | null>(null);
 
   // Form State
   const [name, setName] = useState('');
@@ -102,50 +103,74 @@ export default function ChatGroups() {
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socketRef.current = socket;
 
+    socket.on('connect', () => {
+      if (activeChatGroupRef.current) {
+        socket.emit('join_chat_group', activeChatGroupRef.current._id);
+      }
+    });
+
     socket.on('chat_group_created', () => fetchGroups(false));
     socket.on('chat_group_updated', () => fetchGroups(false));
     socket.on('chat_group_deleted', () => fetchGroups(false));
 
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+    socket.on('chat_group_last_message', ({ group_id, last_message }: any) => {
+      const gId = (group_id?._id || group_id || '').toString();
+      setGroups(prev => prev.map(g => {
+        if (g._id.toString() === gId) {
+          return { ...g, last_message };
+        }
+        return g;
+      }));
+    });
 
-  // Handle active chat socket listeners
-  useEffect(() => {
-    if (!activeChatGroup || !socketRef.current) return;
+    // Realtime incoming messages
+    socket.on('new_message', (newMsg: MessageItem) => {
+      const gId = ((newMsg.group_id as any)?._id || newMsg.group_id || '').toString();
+      const currentActiveId = (activeChatGroupRef.current?._id || '').toString();
 
-    const socket = socketRef.current;
-    socket.emit('join_chat_group', activeChatGroup._id);
-
-    const onNewMsg = (newMsg: MessageItem) => {
-      if (newMsg.group_id === activeChatGroup._id) {
+      if (currentActiveId && gId === currentActiveId) {
         setChatMessages(prev => {
           if (prev.some(m => m._id === newMsg._id)) return prev;
           return [...prev, newMsg];
         });
         scrollToBottom();
       }
-    };
 
-    const onEditedMsg = ({ message_id, new_text }: any) => {
+      // Keep group list cards updated in real-time
+      setGroups(prev => prev.map(g => {
+        if (g._id.toString() === gId) {
+          return {
+            ...g,
+            last_message: {
+              text: newMsg.text || 'Sent an attachment',
+              sender_name: newMsg.sender_name || 'Member',
+              timestamp: newMsg.createdAt || new Date().toISOString()
+            }
+          };
+        }
+        return g;
+      }));
+    });
+
+    socket.on('message_edited', ({ message_id, new_text }: any) => {
       setChatMessages(prev => prev.map(m => m._id === message_id ? { ...m, text: new_text, is_edited: true } : m));
-    };
+    });
 
-    const onDeletedMsg = ({ message_id }: any) => {
+    socket.on('message_deleted', ({ message_id }: any) => {
       setChatMessages(prev => prev.map(m => m._id === message_id ? { ...m, text: 'This message was deleted', is_deleted: true } : m));
-    };
-
-    socket.on('new_message', onNewMsg);
-    socket.on('message_edited', onEditedMsg);
-    socket.on('message_deleted', onDeletedMsg);
+    });
 
     return () => {
-      socket.emit('leave_chat_group', activeChatGroup._id);
-      socket.off('new_message', onNewMsg);
-      socket.off('message_edited', onEditedMsg);
-      socket.off('message_deleted', onDeletedMsg);
+      socket.disconnect();
     };
+  }, []);
+
+  // Sync activeChatGroup with ref & room subscription
+  useEffect(() => {
+    activeChatGroupRef.current = activeChatGroup;
+    if (activeChatGroup && socketRef.current) {
+      socketRef.current.emit('join_chat_group', activeChatGroup._id);
+    }
   }, [activeChatGroup]);
 
   const scrollToBottom = () => {
@@ -208,12 +233,18 @@ export default function ChatGroups() {
 
     try {
       if (editingMsgId) {
+        const textToEdit = chatInput.trim();
+        const idToEdit = editingMsgId;
+        // Optimistically update
+        setChatMessages(prev => prev.map(m => m._id === idToEdit ? { ...m, text: textToEdit, is_edited: true } : m));
+        setEditingMsgId(null);
+        setChatInput('');
+
         await axios.put(
-          `${API_URL}/chat/messages/${editingMsgId}`,
-          { new_text: chatInput.trim() },
+          `${API_URL}/chat/messages/${idToEdit}`,
+          { new_text: textToEdit },
           getHeaders()
         );
-        setEditingMsgId(null);
       } else {
         const payload: any = {
           text: chatInput.trim()
@@ -222,15 +253,37 @@ export default function ChatGroups() {
           payload.reply_to_message_id = replyingMessage._id;
         }
 
-        await axios.post(
+        const res = await axios.post(
           `${API_URL}/chat/groups/${activeChatGroup._id}/messages`,
           payload,
           getHeaders()
         );
+
+        if (res.data?.message) {
+          const sentMsg = res.data.message;
+          setChatMessages(prev => {
+            if (prev.some(m => m._id === sentMsg._id)) return prev;
+            return [...prev, sentMsg];
+          });
+          // Update last_message in groups array preview
+          setGroups(prev => prev.map(g => {
+            if (g._id === activeChatGroup._id) {
+              return {
+                ...g,
+                last_message: {
+                  text: sentMsg.text,
+                  sender_name: sentMsg.sender_name || 'Admin',
+                  timestamp: sentMsg.createdAt || new Date().toISOString()
+                }
+              };
+            }
+            return g;
+          }));
+        }
         setReplyingMessage(null);
+        setChatInput('');
       }
 
-      setChatInput('');
       scrollToBottom();
     } catch (err: any) {
       toast.error(err.response?.data?.msg || 'Failed to send message');
@@ -241,6 +294,8 @@ export default function ChatGroups() {
 
   // Delete message as Admin
   const handleDeleteMessage = async (msgId: string) => {
+    // Immediately reflect deleted message on screen
+    setChatMessages(prev => prev.map(m => m._id === msgId ? { ...m, text: 'This message was deleted', is_deleted: true } : m));
     try {
       await axios.delete(`${API_URL}/chat/messages/${msgId}`, getHeaders());
       toast.success('Message deleted');
@@ -594,7 +649,8 @@ export default function ChatGroups() {
                 </div>
               ) : (
                 chatMessages.map(msg => {
-                  const isAdminMsg = msg.sender_role === 'Admin' || msg.sender_role === 'SubAdmin';
+                  const roleLower = (msg.sender_role || '').toLowerCase();
+                  const isAdminMsg = roleLower === 'admin' || roleLower === 'subadmin';
 
                   return (
                     <div 

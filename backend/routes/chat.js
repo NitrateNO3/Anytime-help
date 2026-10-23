@@ -390,10 +390,11 @@ router.post('/groups/:id/messages', auth, async (req, res) => {
     };
     await group.save();
 
-    // Real-time broadcast via Socket.io to the group room
+    // Real-time broadcast via Socket.io to the group room and globally
     const io = req.app.get('io');
     if (io) {
       io.to(`chat_group_${group._id}`).emit('new_message', newMsg);
+      io.emit('new_message', newMsg);
       io.emit('chat_group_last_message', {
         group_id: group._id,
         last_message: group.last_message
@@ -443,13 +444,15 @@ router.put('/messages/:message_id', auth, async (req, res) => {
     // Emit live update
     const io = req.app.get('io');
     if (io) {
-      io.to(`chat_group_${message.group_id}`).emit('message_edited', {
+      const editPayload = {
         message_id: message._id,
         group_id: message.group_id,
         new_text: message.text,
         is_edited: true,
         edited_at: message.edited_at
-      });
+      };
+      io.to(`chat_group_${message.group_id}`).emit('message_edited', editPayload);
+      io.emit('message_edited', editPayload);
     }
 
     res.json({ success: true, message });
@@ -482,10 +485,12 @@ router.delete('/messages/:message_id', auth, async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-      io.to(`chat_group_${message.group_id}`).emit('message_deleted', {
+      const deletePayload = {
         message_id: message._id,
         group_id: message.group_id
-      });
+      };
+      io.to(`chat_group_${message.group_id}`).emit('message_deleted', deletePayload);
+      io.emit('message_deleted', deletePayload);
     }
 
     res.json({ success: true, msg: 'Message deleted' });

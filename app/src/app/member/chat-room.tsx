@@ -58,16 +58,21 @@ export default function MemberChatRoomScreen() {
     socketRef.current = socket;
 
     socket.emit('join_chat_group', groupId);
+    socket.on('connect', () => {
+      socket.emit('join_chat_group', groupId);
+    });
 
     socket.on('new_message', (newMsg: ChatMessageItem) => {
-      if (newMsg.group_id === groupId) {
+      const msgGroupId = ((newMsg.group_id as any)?._id || newMsg.group_id || '').toString();
+      const currentGroupId = (groupId || '').toString();
+      if (msgGroupId === currentGroupId) {
         setMessages(prev => {
           if (prev.some(m => m._id === newMsg._id)) return prev;
           return [...prev, newMsg];
         });
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        }, 80);
       }
     });
 
@@ -127,14 +132,25 @@ export default function MemberChatRoomScreen() {
     // Case 1: Editing existing message
     if (editingMessage) {
       setSending(true);
+      const updatedText = inputText.trim();
+      const editingId = editingMessage._id;
+
+      // Immediately reflect edit on screen
+      setMessages(prev => prev.map(m => {
+        if (m._id === editingId) {
+          return { ...m, text: updatedText, is_edited: true };
+        }
+        return m;
+      }));
+      setEditingMessage(null);
+      setInputText('');
+
       try {
         await axios.put(
-          `${API_URL}/chat/messages/${editingMessage._id}`,
-          { new_text: inputText.trim() },
+          `${API_URL}/chat/messages/${editingId}`,
+          { new_text: updatedText },
           { headers: { 'x-auth-token': token } }
         );
-        setEditingMessage(null);
-        setInputText('');
       } catch (err: any) {
         Alert.alert('Error', err.response?.data?.msg || 'Could not edit message');
       } finally {
@@ -145,19 +161,33 @@ export default function MemberChatRoomScreen() {
 
     // Case 2: Sending a new message (or quoted reply)
     setSending(true);
+    const textToSend = inputText.trim();
     const payload: any = {
-      text: inputText.trim(),
+      text: textToSend,
     };
     if (replyingTo) {
       payload.reply_to_message_id = replyingTo._id;
     }
 
     try {
-      await axios.post(
+      const res = await axios.post(
         `${API_URL}/chat/groups/${groupId}/messages`,
         payload,
         { headers: { 'x-auth-token': token } }
       );
+
+      // Immediately render new message on sender screen in real time
+      if (res.data?.message) {
+        const sentMsg = res.data.message;
+        setMessages(prev => {
+          if (prev.some(m => m._id === sentMsg._id)) return prev;
+          return [...prev, sentMsg];
+        });
+        setTimeout(() => {
+          flatListRef.current?.scrollToEnd({ animated: true });
+        }, 80);
+      }
+
       setInputText('');
       setReplyingTo(null);
     } catch (err: any) {
@@ -199,6 +229,14 @@ export default function MemberChatRoomScreen() {
   };
 
   const confirmDeleteMessage = async (msgId: string) => {
+    // Immediately show "This message was deleted" on screen
+    setMessages(prev => prev.map(m => {
+      if (m._id === msgId) {
+        return { ...m, text: 'This message was deleted', is_deleted: true };
+      }
+      return m;
+    }));
+
     try {
       const token = await SecureStore.getItemAsync('userToken');
       await axios.delete(`${API_URL}/chat/messages/${msgId}`, {
@@ -257,7 +295,7 @@ export default function MemberChatRoomScreen() {
             {item.is_deleted ? '🚫 This message was deleted' : item.text}
           </Text>
 
-          {/* Time & Edited Badge */}
+          {/* Time, Edited Badge & Quick Reply Button */}
           <View style={styles.metaRow}>
             {item.is_edited && !item.is_deleted && (
               <Text style={[styles.metaText, isMe ? styles.metaTextMe : styles.metaTextOther]}>edited • </Text>
@@ -265,6 +303,21 @@ export default function MemberChatRoomScreen() {
             <Text style={[styles.metaText, isMe ? styles.metaTextMe : styles.metaTextOther]}>
               {formatMessageTime(item.createdAt)}
             </Text>
+
+            {/* Quick Reply Icon on the bubble */}
+            {!item.is_deleted && isWriteAllowed && (
+              <TouchableOpacity
+                onPress={() => setReplyingTo(item)}
+                style={{ marginLeft: 8, padding: 2 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons 
+                  name="return-down-back-outline" 
+                  size={15} 
+                  color={isMe ? '#FFFFFF' : '#2563EB'} 
+                />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </TouchableOpacity>

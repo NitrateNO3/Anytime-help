@@ -55,9 +55,27 @@ export default function MemberChatsScreen() {
     socket.on('chat_group_updated', () => fetchGroups(false));
     socket.on('chat_group_deleted', () => fetchGroups(false));
     socket.on('chat_group_last_message', ({ group_id, last_message }: any) => {
+      const gId = (group_id?._id || group_id || '').toString();
       setGroups(prev => prev.map(g => {
-        if (g._id === group_id) {
+        if (g._id.toString() === gId) {
           return { ...g, last_message };
+        }
+        return g;
+      }));
+    });
+
+    socket.on('new_message', (newMsg: any) => {
+      const gId = (newMsg.group_id?._id || newMsg.group_id || '').toString();
+      setGroups(prev => prev.map(g => {
+        if (g._id.toString() === gId) {
+          return {
+            ...g,
+            last_message: {
+              text: newMsg.text || 'Sent an attachment',
+              sender_name: newMsg.sender_name || 'Member',
+              timestamp: newMsg.createdAt || new Date().toISOString()
+            }
+          };
         }
         return g;
       }));
