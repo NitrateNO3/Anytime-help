@@ -100,14 +100,22 @@ export default function ChatGroups() {
     fetchGroups();
     fetchMembers();
 
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { 
+      transports: ['websocket', 'polling'],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000
+    });
     socketRef.current = socket;
 
-    socket.on('connect', () => {
+    const onJoin = () => {
       if (activeChatGroupRef.current) {
         socket.emit('join_chat_group', activeChatGroupRef.current._id);
       }
-    });
+    };
+    socket.on('connect', onJoin);
+    socket.on('reconnect', onJoin);
 
     socket.on('chat_group_created', () => fetchGroups(false));
     socket.on('chat_group_updated', () => fetchGroups(false));
@@ -165,12 +173,42 @@ export default function ChatGroups() {
     };
   }, []);
 
-  // Sync activeChatGroup with ref & room subscription
+  // Sync activeChatGroup with ref & room subscription + 2s fallback auto-sync
   useEffect(() => {
     activeChatGroupRef.current = activeChatGroup;
-    if (activeChatGroup && socketRef.current) {
+    if (!activeChatGroup) return;
+
+    if (socketRef.current) {
       socketRef.current.emit('join_chat_group', activeChatGroup._id);
     }
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await axios.get(`${API_URL}/chat/groups/${activeChatGroup._id}/messages`, getHeaders());
+        if (res.data?.messages && Array.isArray(res.data.messages)) {
+          const incoming: MessageItem[] = res.data.messages;
+          setChatMessages(prev => {
+            if (incoming.length !== prev.length || 
+                (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
+              scrollToBottom();
+              return incoming;
+            }
+            const hasChanges = incoming.some((m, idx) => {
+              const p = prev[idx];
+              return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
+            });
+            if (hasChanges) return incoming;
+            return prev;
+          });
+        }
+      } catch {
+        // silent
+      }
+    }, 2000);
+
+    return () => {
+      clearInterval(interval);
+    };
   }, [activeChatGroup]);
 
   const scrollToBottom = () => {

@@ -35,6 +35,7 @@ export default function MemberChatRoomScreen() {
   const router = useRouter();
   const { groupId, groupName, groupType, canSend } = useLocalSearchParams();
 
+  const cleanGroupId = (Array.isArray(groupId) ? groupId[0] : (groupId || '')).toString().trim();
   const isWriteAllowed = canSend === '1';
 
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
@@ -53,19 +54,29 @@ export default function MemberChatRoomScreen() {
   useEffect(() => {
     loadUserAndMessages();
 
-    // Setup Socket.io connection & join group room
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    // Setup Socket.io connection with auto-reconnection
+    const socket = io(SOCKET_URL, { 
+      transports: ['websocket', 'polling'],
+      autoConnect: true,
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000
+    });
     socketRef.current = socket;
 
-    socket.emit('join_chat_group', groupId);
-    socket.on('connect', () => {
-      socket.emit('join_chat_group', groupId);
-    });
+    socket.emit('join_chat_group', cleanGroupId);
+
+    const onJoin = () => {
+      if (cleanGroupId) {
+        socket.emit('join_chat_group', cleanGroupId);
+      }
+    };
+    socket.on('connect', onJoin);
+    socket.on('reconnect', onJoin);
 
     socket.on('new_message', (newMsg: ChatMessageItem) => {
-      const msgGroupId = ((newMsg.group_id as any)?._id || newMsg.group_id || '').toString();
-      const currentGroupId = (groupId || '').toString();
-      if (msgGroupId === currentGroupId) {
+      const msgGroupId = ((newMsg.group_id as any)?._id || newMsg.group_id || '').toString().trim();
+      if (!cleanGroupId || msgGroupId === cleanGroupId || msgGroupId.includes(cleanGroupId) || cleanGroupId.includes(msgGroupId)) {
         setMessages(prev => {
           if (prev.some(m => m._id === newMsg._id)) return prev;
           return [...prev, newMsg];
@@ -76,7 +87,7 @@ export default function MemberChatRoomScreen() {
       }
     });
 
-    socket.on('message_edited', ({ message_id, new_text, is_edited }: any) => {
+    socket.on('message_edited', ({ message_id, new_text }: any) => {
       setMessages(prev => prev.map(m => {
         if (m._id === message_id) {
           return { ...m, text: new_text, is_edited: true };
@@ -94,11 +105,49 @@ export default function MemberChatRoomScreen() {
       }));
     });
 
+    // 2-second real-time silent sync polling fallback for bulletproof message delivery
+    const syncInterval = setInterval(() => {
+      syncMessagesSilently();
+    }, 2000);
+
     return () => {
-      socket.emit('leave_chat_group', groupId);
+      clearInterval(syncInterval);
+      socket.emit('leave_chat_group', cleanGroupId);
       socket.disconnect();
     };
-  }, [groupId]);
+  }, [cleanGroupId]);
+
+  const syncMessagesSilently = async () => {
+    if (!cleanGroupId) return;
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      const res = await axios.get(`${API_URL}/chat/groups/${cleanGroupId}/messages`, {
+        headers: { 'x-auth-token': token }
+      });
+      if (res.data?.messages && Array.isArray(res.data.messages)) {
+        const incoming: ChatMessageItem[] = res.data.messages;
+        setMessages(prev => {
+          if (incoming.length !== prev.length || 
+              (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }, 60);
+            return incoming;
+          }
+          const hasEditsOrDeletes = incoming.some((m, idx) => {
+            const p = prev[idx];
+            return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
+          });
+          if (hasEditsOrDeletes) {
+            return incoming;
+          }
+          return prev;
+        });
+      }
+    } catch {
+      // silent background check
+    }
+  };
 
   const loadUserAndMessages = async () => {
     try {
@@ -108,7 +157,7 @@ export default function MemberChatRoomScreen() {
       }
 
       const token = await SecureStore.getItemAsync('userToken');
-      const res = await axios.get(`${API_URL}/chat/groups/${groupId}/messages`, {
+      const res = await axios.get(`${API_URL}/chat/groups/${cleanGroupId}/messages`, {
         headers: { 'x-auth-token': token }
       });
       if (res.data?.messages) {
@@ -171,7 +220,7 @@ export default function MemberChatRoomScreen() {
 
     try {
       const res = await axios.post(
-        `${API_URL}/chat/groups/${groupId}/messages`,
+        `${API_URL}/chat/groups/${cleanGroupId}/messages`,
         payload,
         { headers: { 'x-auth-token': token } }
       );
