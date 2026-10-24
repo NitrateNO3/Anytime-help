@@ -785,7 +785,10 @@ export default function ChatGroups() {
                     </span>
                   ) : (
                     <span>
-                      {activeChatGroup.group_type} Committee • Participants: {(activeChatGroup.members || []).map((m: any) => (m.name && m.name !== m.member_id ? m.name : (m.name || 'Member'))).join(', ') || 'No members'}
+                      {activeChatGroup.group_type} Committee • Participants: {(activeChatGroup.members || []).map((m: any) => {
+                        const mId = m.member_id || (allMembers.find((u: any) => u._id === m._id)?.member_id);
+                        return mId || m.name || 'Member';
+                      }).join(', ') || 'No members'}
                     </span>
                   )}
                 </span>
@@ -815,31 +818,26 @@ export default function ChatGroups() {
                 chatMessages.map(msg => {
                   const roleLower = (msg.sender_role || '').toLowerCase();
                   const isAdminMsg = roleLower === 'admin' || roleLower === 'subadmin';
-                  const senderObj = typeof msg.sender === 'object' && msg.sender !== null ? msg.sender : null;
-                  const memberId = senderObj?.member_id;
-                  let displayName = '';
-                  if (senderObj?.name && senderObj.name.trim() !== '' && senderObj.name !== memberId) {
-                    displayName = senderObj.name.trim();
-                  } else if (msg.sender_name && msg.sender_name.trim() !== '' && msg.sender_name !== memberId) {
-                    displayName = msg.sender_name.trim();
-                  } else if (senderObj?.name && senderObj.name.trim() !== '') {
-                    displayName = senderObj.name.trim();
-                  } else if (isAdminMsg) {
-                    displayName = 'Admin';
-                  } else {
-                    displayName = msg.sender_name || 'Member';
-                  }
+                  const senderObj = typeof msg.sender === 'object' && msg.sender !== null ? (msg.sender as any) : null;
+                  const senderId = (senderObj?._id || msg.sender || '').toString();
+                  const matchedMember = (activeChatGroup?.members || []).find((m: any) => (m._id || '').toString() === senderId)
+                    || (allMembers || []).find((m: any) => (m._id || '').toString() === senderId);
 
-                  const designation = senderObj?.designation || msg.sender_designation;
+                  const memberId = senderObj?.member_id || matchedMember?.member_id;
+                  const senderLabel = isAdminMsg 
+                    ? 'Admin (You)' 
+                    : (memberId || (msg.sender_name && msg.sender_name !== senderObj?.name ? msg.sender_name : null) || senderObj?.name || msg.sender_name || 'Member');
+                  const rawDesignation = senderObj?.designation || matchedMember?.designation || msg.sender_designation;
+                  const designation = (rawDesignation && rawDesignation.trim().toLowerCase() !== 'member') ? rawDesignation.trim() : null;
 
                   return (
                     <div 
                       key={msg._id} 
                       className={`admin-bubble ${isAdminMsg ? 'admin-bubble-me' : 'admin-bubble-other'}`}
                     >
-                      {/* Sender Info */}
+                      {/* Sender Info: Displays Member ID for members */}
                       <div style={{ fontSize: 11, fontWeight: 700, color: isAdminMsg ? '#dbeafe' : '#1d4ed8', marginBottom: 2 }}>
-                        {isAdminMsg ? `Admin (${displayName && displayName !== memberId ? displayName : 'You'})` : `${displayName}${designation ? ` (${designation})` : ''}`}
+                        {senderLabel}{!isAdminMsg && designation ? ` (${designation})` : ''}
                       </div>
 
                       {/* Quoted Reply */}
@@ -866,7 +864,10 @@ export default function ChatGroups() {
                           <div style={{ display: 'flex', gap: 4, marginLeft: 6 }}>
                             <button
                               onClick={() => {
-                                setReplyingMessage(msg);
+                                setReplyingMessage({
+                                  ...msg,
+                                  sender_name: senderLabel
+                                });
                                 setEditingMsgId(null);
                               }}
                               title="Reply"

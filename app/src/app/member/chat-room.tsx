@@ -435,7 +435,7 @@ export default function MemberChatRoomScreen() {
     setInputText(text);
 
     if (!socketRef.current || !cleanGroupId) return;
-    const myName = currentUser?.name || 'Member';
+    const myIdentifier = currentUser?.member_id || currentUser?.name || 'Member';
 
     if (text.trim().length > 0) {
       const now = Date.now();
@@ -445,7 +445,7 @@ export default function MemberChatRoomScreen() {
         lastTypingHeartbeatRef.current = now;
         socketRef.current.emit('typing_start', {
           groupId: cleanGroupId,
-          userName: myName
+          userName: myIdentifier
         });
       }
 
@@ -459,7 +459,7 @@ export default function MemberChatRoomScreen() {
         lastTypingHeartbeatRef.current = 0;
         socketRef.current?.emit('typing_stop', {
           groupId: cleanGroupId,
-          userName: myName
+          userName: myIdentifier
         });
       }, 2000);
     } else {
@@ -470,7 +470,7 @@ export default function MemberChatRoomScreen() {
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         socketRef.current.emit('typing_stop', {
           groupId: cleanGroupId,
-          userName: myName
+          userName: myIdentifier
         });
       }
     }
@@ -484,9 +484,10 @@ export default function MemberChatRoomScreen() {
       isTypingRef.current = false;
       lastTypingHeartbeatRef.current = 0;
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      const myIdentifier = currentUser?.member_id || currentUser?.name || 'Member';
       socketRef.current?.emit('typing_stop', {
         groupId: cleanGroupId,
-        userName: currentUser?.name || 'Member'
+        userName: myIdentifier
       });
     }
 
@@ -639,26 +640,26 @@ export default function MemberChatRoomScreen() {
     const senderId = ((item.sender as any)?._id || item.sender || '').toString().trim();
     const isMe = Boolean(myId && senderId && myId === senderId);
 
-    // Resolve real display name: prioritize sender.name when it differs from member_id
     const senderObj = typeof item.sender === 'object' && item.sender !== null ? (item.sender as any) : null;
-    const memberId = senderObj?.member_id;
-    let displayName = '';
-    if (senderObj?.name && senderObj.name.trim() !== '' && senderObj.name !== memberId) {
-      displayName = senderObj.name.trim();
-    } else if (item.sender_name && item.sender_name.trim() !== '' && item.sender_name !== memberId) {
-      displayName = item.sender_name.trim();
-    } else if (senderObj?.name && senderObj.name.trim() !== '') {
-      displayName = senderObj.name.trim();
-    } else if (item.sender_role === 'Admin') {
-      displayName = 'Super Admin';
-    } else if (item.sender_role === 'SubAdmin') {
-      displayName = 'Admin';
+    const matchedMember = (groupDetails?.members || []).find((m: any) => (m._id || '').toString() === senderId);
+    const memberId = senderObj?.member_id || matchedMember?.member_id || (item.sender_name && item.sender_name !== senderObj?.name ? item.sender_name : null);
+    const roleLower = (item.sender_role || senderObj?.role || matchedMember?.role || '').toLowerCase();
+    const isAdmin = roleLower === 'admin' || roleLower === 'subadmin';
+
+    let displayIdentifier = '';
+    if (isAdmin) {
+      displayIdentifier = item.sender_role === 'Admin' ? 'Super Admin' : 'Admin';
+    } else if (memberId) {
+      displayIdentifier = memberId;
+    } else if (senderObj?.name) {
+      displayIdentifier = senderObj.name.trim();
     } else {
-      displayName = item.sender_name || 'Member';
+      displayIdentifier = item.sender_name || 'Member';
     }
 
-    const designation = senderObj?.designation || item.sender_designation;
-    const myRealName = (currentUser?.name && currentUser.name !== currentUser?.member_id) ? currentUser.name.trim() : '';
+    const rawDesignation = senderObj?.designation || matchedMember?.designation || item.sender_designation;
+    const designation = (rawDesignation && rawDesignation.trim().toLowerCase() !== 'member') ? rawDesignation.trim() : null;
+    const myIdDisplay = currentUser?.member_id || currentUser?.name || 'Member';
 
     return (
       <TouchableOpacity
@@ -671,19 +672,17 @@ export default function MemberChatRoomScreen() {
         ]}
       >
         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
-          {/* Sender Name & Designation */}
+          {/* Sender Info - Prioritizes Member ID */}
           {isMe ? (
             <View style={styles.senderHeaderMe}>
-              <Text style={styles.senderNameMe}>You{myRealName ? ` (${myRealName})` : ''}</Text>
+              <Text style={styles.senderNameMe}>You ({myIdDisplay})</Text>
             </View>
           ) : (
             <View style={styles.senderHeader}>
-              <Text style={styles.senderName}>{displayName}</Text>
-              {designation ? (
+              <Text style={styles.senderName}>{displayIdentifier}</Text>
+              {designation && designation !== 'Member' ? (
                 <Text style={styles.senderDesignation}>• {designation}</Text>
-              ) : (
-                item.sender_role ? <Text style={styles.senderDesignation}>• {item.sender_role}</Text> : null
-              )}
+              ) : null}
             </View>
           )}
 
@@ -716,7 +715,7 @@ export default function MemberChatRoomScreen() {
             {/* Quick Reply Icon on the bubble */}
             {!item.is_deleted && isWriteAllowed && (
               <TouchableOpacity
-                onPress={() => setReplyingTo({ ...item, sender_name: displayName })}
+                onPress={() => setReplyingTo({ ...item, sender_name: displayIdentifier })}
                 style={{ marginLeft: 8, padding: 2 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
@@ -739,7 +738,7 @@ export default function MemberChatRoomScreen() {
     : `${typingUsers.join(', ')} typing...`;
 
   const participantNames = (groupDetails?.members || [])
-    .map((m: any) => (m.name && m.name !== m.member_id ? m.name : ''))
+    .map((m: any) => m.member_id || m.name || '')
     .filter(Boolean);
   const participantSubtitle = participantNames.length > 0
     ? participantNames.join(', ')

@@ -12,15 +12,21 @@ import '../i18n';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { CopilotProvider } from 'react-native-copilot';
 import { Ionicons } from '@expo/vector-icons';
-import * as Notifications from 'expo-notifications';
 import { requireOptionalNativeModule } from 'expo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
-const API_URL = 'https://anytime-help.onrender.com';
+// Safe check: Expo Go in SDK 53+ removed remote push notifications native code.
+// Only load expo-notifications if not in standard Expo Go or if native module is present.
+let Notifications: any = null;
+try {
+  if (Constants.appOwnership !== 'expo') {
+    Notifications = require('expo-notifications');
+  }
+} catch (e) {
+  // Gracefully ignored in Expo Go
+}
 
-// Catch any errors thrown by the Layout component or its children.
-// This guarantees the app won't just crash/close abruptly if there's a JS error.
-export { ErrorBoundary } from 'expo-router';
+const API_URL = 'https://anytime-help.onrender.com';
 
 export default function RootLayout() {
   const router = useRouter();
@@ -79,7 +85,7 @@ export default function RootLayout() {
     setupPushNotifications();
 
     // Function to handle navigating when notification is tapped
-    const handleNotificationNavigation = async (response: Notifications.NotificationResponse) => {
+    const handleNotificationNavigation = async (response: any) => {
       try {
         const data = response?.notification?.request?.content?.data;
         if (!data) return;
@@ -122,16 +128,25 @@ export default function RootLayout() {
     };
 
     // 1. Handle notification tap that opened app from closed / killed state
-    Notifications.getLastNotificationResponseAsync().then(response => {
-      if (response) {
-        handleNotificationNavigation(response);
-      }
-    });
+    if (Notifications?.getLastNotificationResponseAsync) {
+      Notifications.getLastNotificationResponseAsync().then((response: any) => {
+        if (response) {
+          handleNotificationNavigation(response);
+        }
+      }).catch(() => {});
+    }
 
     // 2. Listen for notification tap when app is in background or foreground
-    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      handleNotificationNavigation(response);
-    });
+    let responseListener: any = null;
+    if (Notifications?.addNotificationResponseReceivedListener) {
+      try {
+        responseListener = Notifications.addNotificationResponseReceivedListener((response: any) => {
+          handleNotificationNavigation(response);
+        });
+      } catch (e) {
+        // Ignored in Expo Go
+      }
+    }
 
     console.log('Connecting to socket at:', API_URL);
     const socket = io(API_URL, {

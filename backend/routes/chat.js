@@ -163,8 +163,15 @@ router.get('/groups', auth, async (req, res) => {
         const found = (g.members || []).find(m => m._id.toString() === sid) ||
                       (g.view_only_members || []).find(m => m._id.toString() === sid) ||
                       (g.created_by && g.created_by._id.toString() === sid ? g.created_by : null);
-        if (found && found.name && found.name.trim() !== '' && found.name !== found.member_id) {
-          gObj.last_message.sender_name = found.name.trim();
+        if (found) {
+          const isAdmin = found.role === 'Admin' || found.role === 'SubAdmin';
+          if (isAdmin) {
+            gObj.last_message.sender_name = found.role === 'Admin' ? 'Super Admin' : 'Admin';
+          } else if (found.member_id && found.member_id.trim()) {
+            gObj.last_message.sender_name = found.member_id.trim();
+          } else if (found.name) {
+            gObj.last_message.sender_name = found.name.trim();
+          }
         }
       }
       return {
@@ -327,11 +334,16 @@ router.get('/groups/:id/messages', auth, async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(limit);
 
-    // Return in chronological order and ensure real names are always exposed
+    // Return in chronological order and prioritize Member ID for committee members
     const formattedMessages = messages.reverse().map(m => {
       const obj = m.toObject();
       if (obj.sender && typeof obj.sender === 'object') {
-        if (obj.sender.name && obj.sender.name.trim() !== '' && obj.sender.name !== obj.sender.member_id) {
+        const isAdmin = obj.sender.role === 'Admin' || obj.sender.role === 'SubAdmin';
+        if (isAdmin) {
+          obj.sender_name = obj.sender.role === 'Admin' ? 'Super Admin' : 'Admin';
+        } else if (obj.sender.member_id && obj.sender.member_id.trim()) {
+          obj.sender_name = obj.sender.member_id.trim();
+        } else if (obj.sender.name && obj.sender.name.trim()) {
           obj.sender_name = obj.sender.name.trim();
         }
       }
@@ -373,25 +385,33 @@ router.post('/groups/:id/messages', auth, async (req, res) => {
     // Handle WhatsApp-like Reply if provided
     let replyPayload = undefined;
     if (reply_to_message_id) {
-      const parentMsg = await ChatMessage.findById(reply_to_message_id);
+      const parentMsg = await ChatMessage.findById(reply_to_message_id).populate('sender', 'member_id role name');
       if (parentMsg && parentMsg.group_id.toString() === group._id.toString()) {
+        let replySenderName = parentMsg.sender_name;
+        if (parentMsg.sender && typeof parentMsg.sender === 'object') {
+          const parentIsAdmin = parentMsg.sender.role === 'Admin' || parentMsg.sender.role === 'SubAdmin';
+          if (parentIsAdmin) {
+            replySenderName = parentMsg.sender.role === 'Admin' ? 'Super Admin' : 'Admin';
+          } else if (parentMsg.sender.member_id && parentMsg.sender.member_id.trim()) {
+            replySenderName = parentMsg.sender.member_id.trim();
+          }
+        }
         replyPayload = {
           message_id: parentMsg._id,
-          sender_name: parentMsg.sender_name,
+          sender_name: replySenderName,
           text: parentMsg.is_deleted ? 'This message was deleted' : parentMsg.text
         };
       }
     }
 
-    let senderName = (req.user.name || '').trim();
-    if (!senderName || (req.user.member_id && senderName === req.user.member_id)) {
-      const dbUser = await User.findById(req.user._id).select('name member_id role');
-      if (dbUser && dbUser.name && dbUser.name.trim() !== '' && dbUser.name !== dbUser.member_id) {
-        senderName = dbUser.name.trim();
-      }
-    }
-    if (!senderName || (req.user.member_id && senderName === req.user.member_id)) {
-      senderName = req.user.name || (req.user.role === 'Admin' ? 'Super Admin' : req.user.role === 'SubAdmin' ? 'Admin' : 'Member');
+    const isAdmin = req.user.role === 'Admin' || req.user.role === 'SubAdmin';
+    let senderName = '';
+    if (isAdmin) {
+      senderName = req.user.role === 'Admin' ? 'Super Admin' : 'Admin';
+    } else if (req.user.member_id && req.user.member_id.trim()) {
+      senderName = req.user.member_id.trim();
+    } else {
+      senderName = (req.user.name || 'Member').trim();
     }
 
     const senderDesignation = req.user.designation || (req.user.role === 'Admin' ? 'Management' : req.user.role === 'SubAdmin' ? 'Office' : '');
