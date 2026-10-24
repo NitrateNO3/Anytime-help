@@ -164,7 +164,7 @@ export default function MemberChatRoomScreen() {
 
   // Back button routing: Always route back to group chat list (/member/chats)
   const handleBackToChats = useCallback(() => {
-    router.replace('/member/chats' as any);
+    router.navigate('/member/chats' as any);
   }, [router]);
 
   useEffect(() => {

@@ -86,7 +86,7 @@ export default function MemberLayout() {
   return (
     <View style={{ flex: 1 }}>
     <Tabs
-      backBehavior="initialRoute"
+      backBehavior="history"
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
