@@ -813,6 +813,20 @@ export default function ChatGroups() {
                 chatMessages.map(msg => {
                   const roleLower = (msg.sender_role || '').toLowerCase();
                   const isAdminMsg = roleLower === 'admin' || roleLower === 'subadmin';
+                  const senderObj = typeof msg.sender === 'object' && msg.sender !== null ? msg.sender : null;
+                  const memberId = senderObj?.member_id;
+                  let displayName = '';
+                  if (senderObj?.name && senderObj.name.trim() !== '' && senderObj.name !== memberId) {
+                    displayName = senderObj.name.trim();
+                  } else if (msg.sender_name && msg.sender_name.trim() !== '' && msg.sender_name !== memberId) {
+                    displayName = msg.sender_name.trim();
+                  } else if (senderObj?.name && senderObj.name.trim() !== '') {
+                    displayName = senderObj.name.trim();
+                  } else {
+                    displayName = msg.sender_name || 'Member';
+                  }
+
+                  const designation = senderObj?.designation || msg.sender_designation;
 
                   return (
                     <div 
@@ -822,7 +836,7 @@ export default function ChatGroups() {
                       {/* Sender Info */}
                       {!isAdminMsg && (
                         <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 2 }}>
-                          {msg.sender_name} {msg.sender_designation && `(${msg.sender_designation})`}
+                          {displayName} {designation && `(${designation})`}
                         </div>
                       )}
 

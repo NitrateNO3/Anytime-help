@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, 
   KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Alert,
@@ -175,14 +175,28 @@ export default function MemberChatRoomScreen() {
   const flatListRef = useRef<FlatList>(null);
   const socketRef = useRef<Socket | null>(null);
 
+  // Staggered multi-stage smooth scrolling to bottom (immediate, 60ms, 150ms, 280ms, 420ms)
+  // Ensures messages are scrolled completely above the chatting bar even as Android keyboard resizes
+  const scrollToBottom = useCallback((animated = true) => {
+    requestAnimationFrame(() => {
+      flatListRef.current?.scrollToEnd({ animated });
+    });
+  }, []);
+
+  const scheduleScrollToBottom = useCallback(() => {
+    scrollToBottom(false);
+    setTimeout(() => scrollToBottom(true), 60);
+    setTimeout(() => scrollToBottom(true), 150);
+    setTimeout(() => scrollToBottom(true), 280);
+    setTimeout(() => scrollToBottom(true), 420);
+  }, [scrollToBottom]);
+
   // Auto-scroll when typing indicator appears in the chats
   useEffect(() => {
     if (typingUsers.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 80);
+      scheduleScrollToBottom();
     }
-  }, [typingUsers]);
+  }, [typingUsers, scheduleScrollToBottom]);
 
   useEffect(() => {
     loadUserAndMessages();
@@ -220,9 +234,7 @@ export default function MemberChatRoomScreen() {
           setTypingUsers(prev => prev.filter(u => u !== newMsg.sender_name));
         }
 
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 80);
+        scheduleScrollToBottom();
       }
     });
 
@@ -250,9 +262,7 @@ export default function MemberChatRoomScreen() {
 
     const showSub = Keyboard.addListener(showEvent, () => {
       setIsKeyboardVisible(true);
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      scheduleScrollToBottom();
     });
 
     const hideSub = Keyboard.addListener(hideEvent, () => {
@@ -363,6 +373,22 @@ export default function MemberChatRoomScreen() {
       }
 
       const token = await SecureStore.getItemAsync('userToken');
+      if (token) {
+        try {
+          const userRes = await axios.get(`${API_URL}/users/me`, {
+            headers: { 'x-auth-token': token }
+          });
+          if (userRes.data) {
+            const fresh = userRes.data;
+            setCurrentUser(fresh);
+            currentUserRef.current = fresh;
+            await SecureStore.setItemAsync('userData', JSON.stringify(fresh));
+          }
+        } catch (uErr) {
+          console.log('Error refreshing user profile in chat room:', uErr);
+        }
+      }
+
       const res = await axios.get(`${API_URL}/chat/groups/${cleanGroupId}/messages`, {
         headers: { 'x-auth-token': token }
       });
@@ -373,9 +399,7 @@ export default function MemberChatRoomScreen() {
       console.log('Error loading messages:', e);
     } finally {
       setLoading(false);
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: false });
-      }, 200);
+      scheduleScrollToBottom();
     }
   };
 
@@ -494,9 +518,7 @@ export default function MemberChatRoomScreen() {
           if (prev.some(m => m._id === sentMsg._id)) return prev;
           return [...prev, sentMsg];
         });
-        setTimeout(() => {
-          flatListRef.current?.scrollToEnd({ animated: true });
-        }, 80);
+        scheduleScrollToBottom();
       }
 
       setInputText('');
@@ -589,6 +611,22 @@ export default function MemberChatRoomScreen() {
     const senderId = ((item.sender as any)?._id || item.sender || '').toString().trim();
     const isMe = Boolean(myId && senderId && myId === senderId);
 
+    // Resolve real display name: prioritize sender.name when it differs from member_id
+    const senderObj = typeof item.sender === 'object' && item.sender !== null ? (item.sender as any) : null;
+    const memberId = senderObj?.member_id;
+    let displayName = '';
+    if (senderObj?.name && senderObj.name.trim() !== '' && senderObj.name !== memberId) {
+      displayName = senderObj.name.trim();
+    } else if (item.sender_name && item.sender_name.trim() !== '' && item.sender_name !== memberId) {
+      displayName = item.sender_name.trim();
+    } else if (senderObj?.name && senderObj.name.trim() !== '') {
+      displayName = senderObj.name.trim();
+    } else {
+      displayName = item.sender_name || 'Member';
+    }
+
+    const designation = senderObj?.designation || item.sender_designation;
+
     return (
       <TouchableOpacity
         activeOpacity={0.8}
@@ -603,9 +641,9 @@ export default function MemberChatRoomScreen() {
           {/* Sender Name & Designation */}
           {!isMe && (
             <View style={styles.senderHeader}>
-              <Text style={styles.senderName}>{item.sender_name}</Text>
-              {item.sender_designation ? (
-                <Text style={styles.senderDesignation}>• {item.sender_designation}</Text>
+              <Text style={styles.senderName}>{displayName}</Text>
+              {designation ? (
+                <Text style={styles.senderDesignation}>• {designation}</Text>
               ) : null}
             </View>
           )}
@@ -639,7 +677,7 @@ export default function MemberChatRoomScreen() {
             {/* Quick Reply Icon on the bubble */}
             {!item.is_deleted && isWriteAllowed && (
               <TouchableOpacity
-                onPress={() => setReplyingTo(item)}
+                onPress={() => setReplyingTo({ ...item, sender_name: displayName })}
                 style={{ marginLeft: 8, padding: 2 }}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
               >
@@ -718,8 +756,11 @@ export default function MemberChatRoomScreen() {
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="on-drag"
                 onScrollBeginDrag={Keyboard.dismiss}
+                onLayout={() => {
+                  scrollToBottom(false);
+                }}
                 onContentSizeChange={() => {
-                  flatListRef.current?.scrollToEnd({ animated: true });
+                  scrollToBottom(true);
                 }}
                 showsVerticalScrollIndicator={false}
                 ListFooterComponent={<TypingIndicator typingUsers={typingUsers} />}
@@ -775,9 +816,7 @@ export default function MemberChatRoomScreen() {
                 multiline
                 maxLength={1000}
                 onFocus={() => {
-                  setTimeout(() => {
-                    flatListRef.current?.scrollToEnd({ animated: true });
-                  }, 150);
+                  scheduleScrollToBottom();
                 }}
               />
               <TouchableOpacity

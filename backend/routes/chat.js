@@ -363,7 +363,17 @@ router.post('/groups/:id/messages', auth, async (req, res) => {
       }
     }
 
-    const senderName = req.user.name || (req.user.role === 'Admin' ? 'Super Admin' : req.user.role === 'SubAdmin' ? 'Admin' : 'Member');
+    let senderName = (req.user.name || '').trim();
+    if (!senderName || (req.user.member_id && senderName === req.user.member_id)) {
+      const dbUser = await User.findById(req.user._id).select('name member_id role');
+      if (dbUser && dbUser.name && dbUser.name.trim() !== '' && dbUser.name !== dbUser.member_id) {
+        senderName = dbUser.name.trim();
+      }
+    }
+    if (!senderName || (req.user.member_id && senderName === req.user.member_id)) {
+      senderName = req.user.name || (req.user.role === 'Admin' ? 'Super Admin' : req.user.role === 'SubAdmin' ? 'Admin' : 'Member');
+    }
+
     const senderDesignation = req.user.designation || (req.user.role === 'Admin' ? 'Management' : req.user.role === 'SubAdmin' ? 'Office' : '');
 
     const newMsg = new ChatMessage({
@@ -379,12 +389,13 @@ router.post('/groups/:id/messages', auth, async (req, res) => {
     });
 
     await newMsg.save();
+    await newMsg.populate('sender', 'name designation role member_id');
 
     // Update last_message in group for fast preview
     group.last_message = {
       text: newMsg.text || 'Sent an attachment',
       sender_id: req.user._id,
-      sender_name: req.user.name || 'Member',
+      sender_name: senderName,
       sender_role: req.user.role,
       timestamp: new Date()
     };

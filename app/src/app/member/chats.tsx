@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, TouchableOpacity, 
-  ActivityIndicator, RefreshControl, StatusBar, Platform 
+  ActivityIndicator, RefreshControl, StatusBar, Platform, BackHandler 
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -45,6 +45,13 @@ export default function MemberChatsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchGroups();
+
+      const onBackPress = () => {
+        router.replace('/member' as any);
+        return true;
+      };
+      const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => sub.remove();
     }, [])
   );
 
@@ -203,14 +210,14 @@ export default function MemberChatsScreen() {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.replace('/member' as any)}
           activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Committee Chats</Text>
+          <Text style={styles.headerTitle}>Chats</Text>
           <Text style={styles.headerSubtitle}>Official Discussions & Working Groups</Text>
         </View>
 

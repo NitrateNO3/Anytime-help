@@ -154,6 +154,19 @@ export default function MemberHome() {
         if (data) setUser(JSON.parse(data));
       });
 
+      SecureStore.getItemAsync('userToken').then((token) => {
+        if (token) {
+          axios.get(`${API_URL}/users/me`, { headers: { 'x-auth-token': token } })
+            .then((res) => {
+              if (res.data) {
+                setUser(res.data);
+                SecureStore.setItemAsync('userData', JSON.stringify(res.data));
+              }
+            })
+            .catch(() => {});
+        }
+      });
+
       if (!startTour) {
         SecureStore.getItemAsync('hasViewedMemberTour').then((data) => {
           if (!data && start) {
@@ -559,18 +572,18 @@ export default function MemberHome() {
               </CopilotStep>
             </View>
 
-            {/* 6: Committee Chats */}
+            {/* 6: Community */}
             <View style={styles.gridItemColumn}>
               <TouchableOpacity 
                 style={styles.actionTouchable}
-                onPress={() => router.push('/member/chats' as any)}
+                onPress={() => router.push('/member/community' as any)}
                 activeOpacity={0.75}
               >
-                <View style={[styles.circleIcon, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-                  <Ionicons name="chatbubbles" size={24} color="#2563EB" />
+                <View style={[styles.circleIcon, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]}>
+                  <Ionicons name="chatbubbles" size={24} color="#0284C7" />
                 </View>
                 <Text style={styles.actionLabel} numberOfLines={2}>
-                  Committee Chats
+                  Community
                 </Text>
               </TouchableOpacity>
             </View>

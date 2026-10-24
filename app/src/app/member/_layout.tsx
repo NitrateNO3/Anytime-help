@@ -143,6 +143,16 @@ export default function MemberLayout() {
         }}
       />
       <Tabs.Screen
+        name="chats"
+        options={{
+          tabBarLabel: 'Chat',
+          title: 'Chat',
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? "chatbubbles" : "chatbubbles-outline"} size={24} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           tabBarLabel: t('resident.tabProfile'),
@@ -174,7 +184,6 @@ export default function MemberLayout() {
       <Tabs.Screen name="residents" options={{ href: null }} />
       <Tabs.Screen name="edit-profile" options={{ href: null }} />
       <Tabs.Screen name="complaint-details" options={{ href: null, tabBarStyle: { display: 'none' } }} />
-      <Tabs.Screen name="chats" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       <Tabs.Screen name="chat-room" options={{ href: null, tabBarStyle: { display: 'none' } }} />
     </Tabs>
 
