@@ -71,15 +71,91 @@ router.get('/', auth, async (req, res) => {
       return [...new Set(allowed.filter(Boolean))];
     };
 
+    const helperGetLocationOrConditions = (user) => {
+      let userBlock = (user?.block || '').trim().toUpperCase();
+      if (!userBlock && user?.address) {
+        const bMatch = user.address.match(/\bBlock[\s:-]*([A-H](?:1)?)\b/i) || 
+                       user.address.match(/\b([A-H](?:1)?)[\s-]+Block\b/i) || 
+                       user.address.match(/\b([A-H](?:1)?)[- ]?\d+/i);
+        if (bMatch) userBlock = bMatch[1].toUpperCase();
+      }
+
+      const uPhase = (user?.phase || '').trim();
+      const isSL2 = !uPhase || uPhase.toLowerCase().includes('sushant lok 2') || (user?.address && user.address.toLowerCase().includes('sushant lok 2'));
+      const isSL3 = (uPhase && uPhase.toLowerCase().includes('sushant lok 3')) || (user?.address && user.address.toLowerCase().includes('sushant lok 3'));
+
+      const orConds = [
+        // Universal announcements target all groups
+        { 'targetLocations.phase': { $in: ['Universal', 'All', 'All Groups', /universal/i] } }
+      ];
+
+      const phaseRegexes = [];
+      if (isSL2) phaseRegexes.push(/Sushant Lok 2/i);
+      if (isSL3) phaseRegexes.push(/Sushant Lok 3/i);
+      if (uPhase && !uPhase.toLowerCase().includes('sushant lok 2') && !uPhase.toLowerCase().includes('sushant lok 3')) {
+        phaseRegexes.push(new RegExp(uPhase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
+      }
+
+      for (const pReg of phaseRegexes) {
+        if (userBlock) {
+          orConds.push({
+            targetLocations: {
+              $elemMatch: {
+                phase: pReg,
+                $or: [
+                  { blocks: { $in: ['ALL', 'All Blocks', userBlock, `Block ${userBlock}`, `block ${userBlock.toLowerCase()}`] } },
+                  { blocks: { $size: 0 } },
+                  { blocks: { $exists: false } }
+                ]
+              }
+            }
+          });
+        } else {
+          orConds.push({
+            targetLocations: {
+              $elemMatch: {
+                phase: pReg
+              }
+            }
+          });
+        }
+      }
+
+      return orConds;
+    };
+
     if (req.user.role === 'Resident') {
       const user = await User.findById(req.user.id);
       const allowedPhases = helperGetAllowedPhases(user, 'Resident');
+      const targetLocConds = helperGetLocationOrConditions(user);
+      const uPhase = (user?.phase || '').trim();
+      const isSL2 = !uPhase || uPhase.toLowerCase().includes('sushant lok 2') || (user?.address && user.address.toLowerCase().includes('sushant lok 2'));
+      const isSL3 = (uPhase && uPhase.toLowerCase().includes('sushant lok 3')) || (user?.address && user.address.toLowerCase().includes('sushant lok 3'));
+
       query.$or = [
-        { phases: { $in: allowedPhases } },
-        { phases: { $size: 0 } },
-        { phases: { $exists: false } },
-        { phases: null },
-        { phases: 'All' }
+        ...targetLocConds,
+        {
+          $and: [
+            {
+              $or: [
+                { targetLocations: { $exists: false } },
+                { targetLocations: null },
+                { targetLocations: { $size: 0 } }
+              ]
+            },
+            {
+              $or: [
+                { phases: { $in: allowedPhases } },
+                { phases: { $size: 0 } },
+                { phases: { $exists: false } },
+                { phases: null },
+                { phases: 'All' },
+                ...(isSL2 ? [{ phases: { $regex: /Sushant Lok 2/i } }] : []),
+                ...(isSL3 ? [{ phases: { $regex: /Sushant Lok 3/i } }] : [])
+              ]
+            }
+          ]
+        }
       ];
       query.targetAudience = { $ne: 'Members' }; // Residents cannot see 'Members' only announcements
     } else if (req.user.role === 'Staff') {
@@ -92,31 +168,69 @@ router.get('/', auth, async (req, res) => {
       }
       query.$or = [
         { phases: { $in: phasesToMatch } },
-        { createdBy: req.user.id }
+        { createdBy: req.user.id },
+        { 'targetLocations.phase': { $in: ['Universal', 'All', 'All Groups'] } }
       ];
     } else if (req.user.role === 'Member') {
       const user = await User.findById(req.user.id);
       const allowedPhases = helperGetAllowedPhases(user, 'Member');
+      const targetLocConds = helperGetLocationOrConditions(user);
+      const uPhase = (user?.phase || '').trim();
+      const isSL2 = !uPhase || uPhase.toLowerCase().includes('sushant lok 2') || (user?.address && user.address.toLowerCase().includes('sushant lok 2'));
+      const isSL3 = (uPhase && uPhase.toLowerCase().includes('sushant lok 3')) || (user?.address && user.address.toLowerCase().includes('sushant lok 3'));
+
       query.$or = [
-        { phases: { $in: allowedPhases } },
-        { phases: { $size: 0 } },
-        { phases: { $exists: false } },
-        { phases: null },
-        { phases: 'All' },
-        { targetAudience: 'Members' },
+        ...targetLocConds,
+        {
+          $and: [
+            {
+              $or: [
+                { targetLocations: { $exists: false } },
+                { targetLocations: null },
+                { targetLocations: { $size: 0 } }
+              ]
+            },
+            {
+              $or: [
+                { phases: { $in: allowedPhases } },
+                { phases: { $size: 0 } },
+                { phases: { $exists: false } },
+                { phases: null },
+                { phases: 'All' },
+                { targetAudience: 'Members' },
+                ...(isSL2 ? [{ phases: { $regex: /Sushant Lok 2/i } }] : []),
+                ...(isSL3 ? [{ phases: { $regex: /Sushant Lok 3/i } }] : [])
+              ]
+            }
+          ]
+        },
         { createdBy: req.user.id }
       ];
     } else if (req.user.role === 'Admin') {
       const { phase } = req.query;
       if (phase && phase !== 'All Groups (Show Everything)') {
         if (phase === 'Universal (Sent to Everyone)') {
-          query.$or = [{ phases: 'All' }, { phases: { $size: 0 } }, { phases: { $exists: false } }];
+          query.$or = [
+            { phases: 'All' }, 
+            { phases: { $size: 0 } }, 
+            { phases: { $exists: false } },
+            { 'targetLocations.phase': { $in: ['Universal', 'All', 'All Groups'] } }
+          ];
         } else if (phase === 'Sushant Lok 2 - C,D,E') {
-          query.phases = { $in: ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 Option 1'] };
+          query.$or = [
+            { phases: { $in: ['Sushant Lok 2 - C,D,E', 'Sushant Lok 2 Option 1'] } },
+            { 'targetLocations.phase': /Sushant Lok 2/i }
+          ];
         } else if (phase === 'Sushant Lok 2 - F,G') {
-          query.phases = { $in: ['Sushant Lok 2 - F,G', 'Sushant Lok 2 Option 2'] };
+          query.$or = [
+            { phases: { $in: ['Sushant Lok 2 - F,G', 'Sushant Lok 2 Option 2'] } },
+            { 'targetLocations.phase': /Sushant Lok 2/i }
+          ];
         } else {
-          query.phases = phase;
+          query.$or = [
+            { phases: phase },
+            { 'targetLocations.phase': new RegExp(phase, 'i') }
+          ];
         }
       }
     }
@@ -203,7 +317,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // @route   POST api/announcements
-// @desc    Create an announcement (Admin only)
+// @desc    Create an announcement (Admin, Staff, Member)
 // @access  Private
 router.post('/', auth, async (req, res) => {
   const hasAccess = req.user.role === 'Admin' || req.user.role === 'Staff' || req.user.role === 'Member' || 
@@ -212,7 +326,7 @@ router.post('/', auth, async (req, res) => {
     return res.status(403).json({ msg: 'Authorization denied' });
   }
 
-  const { title, message, phases, targetAudience, image } = req.body;
+  const { title, message, phases, targetAudience, image, targetLocations } = req.body;
 
   try {
     let creatorName = req.user.name;
@@ -229,14 +343,85 @@ router.post('/', auth, async (req, res) => {
       creatorPhase = userObj.phase;
     }
 
+    let finalTargetLocations = targetLocations || [];
     let finalPhases = phases || [];
-    if (!phases || phases.length === 0) {
-      if (req.user.role === 'Staff' || req.user.role === 'SubAdmin') {
-        if (creatorPhase && creatorPhase !== 'Universal' && creatorPhase !== 'All') {
-          finalPhases = [creatorPhase.split(' - ').slice(0, 2).join(' - ')];
+
+    // Helper to parse complex phase strings like "Sushant Lok 2: Block C, D | Sushant Lok 3: Block A, B"
+    const helperParseLocationsFromPhaseString = (phaseStr) => {
+      if (!phaseStr) return [];
+      const pLower = phaseStr.trim().toLowerCase();
+      if (['universal', 'all', 'all groups', 'all phases'].includes(pLower)) {
+        return [{ phase: 'Universal', blocks: ['ALL'] }];
+      }
+      const parts = phaseStr.split('|').map(s => s.trim()).filter(Boolean);
+      const locs = [];
+      for (const part of parts) {
+        if (part.includes(':')) {
+          const [ph, blkPart] = part.split(':').map(s => s.trim());
+          const blocks = blkPart
+            .replace(/^block\s*/i, '')
+            .split(',')
+            .map(b => b.trim().replace(/^block\s*/i, ''))
+            .filter(Boolean);
+          locs.push({
+            phase: ph,
+            blocks: (blocks.length === 0 || blocks.some(b => b.toUpperCase() === 'ALL' || b.toLowerCase().includes('all'))) ? ['ALL'] : blocks
+          });
+        } else if (part.includes(' - ')) {
+          const ph = part.split(' - ')[0].trim();
+          let blocks = [];
+          if (part.includes('C,D,E') || part.includes('Option 1')) blocks = ['C', 'D', 'E'];
+          else if (part.includes('F,G') || part.includes('Option 2')) blocks = ['F', 'G'];
+          locs.push({ phase: ph, blocks: blocks.length > 0 ? blocks : ['ALL'] });
         } else {
-          finalPhases = ['All'];
+          locs.push({ phase: part, blocks: ['ALL'] });
         }
+      }
+      return locs;
+    };
+
+    if (req.user.role === 'Staff') {
+      if (Array.isArray(userObj?.assigned_locations) && userObj.assigned_locations.length > 0) {
+        finalTargetLocations = userObj.assigned_locations.map(loc => ({
+          phase: loc.phase || 'Universal',
+          blocks: (Array.isArray(loc.blocks) && loc.blocks.length > 0) ? loc.blocks : ['ALL']
+        }));
+      } else if (creatorPhase) {
+        finalTargetLocations = helperParseLocationsFromPhaseString(creatorPhase);
+      }
+    } else if (req.user.role === 'SubAdmin') {
+      if (Array.isArray(userObj?.assigned_locations) && userObj.assigned_locations.length > 0) {
+        finalTargetLocations = userObj.assigned_locations;
+      } else if (creatorPhase && (!finalPhases || finalPhases.length === 0)) {
+        finalTargetLocations = helperParseLocationsFromPhaseString(creatorPhase);
+      }
+    }
+
+    // Auto-generate finalPhases if not explicitly set
+    if (!finalPhases || finalPhases.length === 0) {
+      if (finalTargetLocations.length > 0) {
+        const isUniv = finalTargetLocations.some(l => !l.phase || ['universal', 'all', 'all groups'].includes(l.phase.toLowerCase()));
+        if (isUniv) {
+          finalPhases = ['All'];
+        } else {
+          const phSet = new Set();
+          for (const loc of finalTargetLocations) {
+            if (loc.phase) {
+              phSet.add(loc.phase);
+              if (Array.isArray(loc.blocks)) {
+                loc.blocks.forEach(b => {
+                  if (b && b !== 'ALL' && b !== 'All Blocks') {
+                    phSet.add(b);
+                    phSet.add(`Block ${b}`);
+                  }
+                });
+              }
+            }
+          }
+          finalPhases = Array.from(phSet);
+        }
+      } else {
+        finalPhases = ['All'];
       }
     }
 
@@ -263,6 +448,7 @@ router.post('/', auth, async (req, res) => {
       creatorName: creatorName || req.user.role,
       creatorId: creatorId || '',
       phases: finalPhases,
+      targetLocations: finalTargetLocations,
       targetAudience: targetAudience || 'All',
       image: imageUrl
     });
@@ -302,58 +488,120 @@ router.post('/', auth, async (req, res) => {
         userQuery.role = { $in: ['Resident', 'Member', 'Staff', 'Admin', 'SubAdmin'] };
       }
 
-      const locationPhases = targetPhases.filter(p => p !== 'All' && p !== 'Resident' && p !== 'Members' && p !== 'Staff' && p !== 'Resident + Member');
-      
-      if (locationPhases.length > 0) {
-        const phaseOrConditions = [];
+      // Location targeting: If targetLocations specified, route directly to those phases and blocks
+      if (finalTargetLocations && finalTargetLocations.length > 0) {
+        const isUniversalLoc = finalTargetLocations.some(l => !l.phase || ['universal', 'all', 'all groups'].includes(l.phase.toLowerCase()));
         
-        for (const lp of locationPhases) {
-          const lpLower = lp.toLowerCase();
+        if (!isUniversalLoc) {
+          const locConditions = [];
           
-          if (lpLower.includes('c,d,e') || lpLower.includes('option 1')) {
-            // Sushant Lok 2 - C,D,E cluster (Blocks C, D, E)
-            phaseOrConditions.push({ phase: { $regex: /Sushant Lok 2 - C,D,E|Sushant Lok 2 Option 1/i } });
-            phaseOrConditions.push({
-              $or: [
-                { block: { $in: ['C', 'D', 'E', 'c', 'd', 'e'] } },
-                { address: { $regex: /\bBlock\s*[CDE]\b|\b[CDE]-?\d+/i } }
-              ]
-            });
-          } else if (lpLower.includes('f,g') || lpLower.includes('option 2')) {
-            // Sushant Lok 2 - F,G cluster (Blocks F, G)
-            phaseOrConditions.push({ phase: { $regex: /Sushant Lok 2 - F,G|Sushant Lok 2 Option 2/i } });
-            phaseOrConditions.push({
-              $or: [
-                { block: { $in: ['F', 'G', 'f', 'g'] } },
-                { address: { $regex: /\bBlock\s*[FG]\b|\b[FG]-?\d+/i } }
-              ]
-            });
-          } else if (lpLower === 'sushant lok 2') {
-            phaseOrConditions.push({ phase: { $regex: /Sushant Lok 2/i } });
-            phaseOrConditions.push({ address: { $regex: /Sushant Lok 2/i } });
-          } else if (lpLower.includes('sushant lok 3')) {
-            phaseOrConditions.push({ phase: { $regex: /Sushant Lok 3/i } });
-            phaseOrConditions.push({ address: { $regex: /Sushant Lok 3/i } });
-          } else {
-            // Check for single block target e.g. "Block D", "Block F", "D", "F"
-            const singleBlockMatch = lp.match(/^(?:Block\s*)?([A-H](?:1)?)$/i);
-            if (singleBlockMatch) {
-              const blk = singleBlockMatch[1].toUpperCase();
-              phaseOrConditions.push({ block: new RegExp(`^${blk}$`, 'i') });
-              phaseOrConditions.push({ address: new RegExp(`\\bBlock\\s*${blk}\\b|\\b${blk}-?\\d+`, 'i') });
+          for (const loc of finalTargetLocations) {
+            const locPhase = (loc.phase || '').trim();
+            if (!locPhase) continue;
+            
+            let phaseCond;
+            if (locPhase.toLowerCase().includes('sushant lok 2')) {
+              phaseCond = {
+                $or: [
+                  { phase: { $regex: /Sushant Lok 2/i } },
+                  { address: { $regex: /Sushant Lok 2/i } }
+                ]
+              };
+            } else if (locPhase.toLowerCase().includes('sushant lok 3')) {
+              phaseCond = {
+                $or: [
+                  { phase: { $regex: /Sushant Lok 3/i } },
+                  { address: { $regex: /Sushant Lok 3/i } }
+                ]
+              };
             } else {
-              const escaped = lp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-              phaseOrConditions.push({ phase: new RegExp('^' + escaped, 'i') });
+              const esc = locPhase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              phaseCond = {
+                $or: [
+                  { phase: new RegExp('^' + esc, 'i') },
+                  { address: new RegExp(esc, 'i') }
+                ]
+              };
+            }
+
+            const isAllBlocks = !loc.blocks || loc.blocks.length === 0 || loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks');
+            
+            if (isAllBlocks) {
+              locConditions.push(phaseCond);
+            } else {
+              const blkRegexPatterns = loc.blocks.map(b => {
+                const cleanB = b.replace(/^block\s*/i, '').trim();
+                return `(\\bBlock\\s*${cleanB}\\b|\\b${cleanB}-?\\d+)`;
+              }).join('|');
+
+              const blockCond = {
+                $or: [
+                  { block: { $in: loc.blocks.map(b => b.replace(/^block\s*/i, '').trim()) } },
+                  { address: { $regex: new RegExp(blkRegexPatterns, 'i') } }
+                ]
+              };
+
+              locConditions.push({
+                $and: [phaseCond, blockCond]
+              });
             }
           }
-        }
-        
-        // Include unassigned/blank phase users so nobody is left behind
-        phaseOrConditions.push({ phase: { $in: [null, '', undefined] } });
-        phaseOrConditions.push({ phase: { $exists: false } });
 
-        userQuery.$and = userQuery.$and || [];
-        userQuery.$and.push({ $or: phaseOrConditions });
+          if (locConditions.length > 0) {
+            userQuery.$and = userQuery.$and || [];
+            userQuery.$and.push({ $or: locConditions });
+          }
+        }
+      } else {
+        const locationPhases = targetPhases.filter(p => p !== 'All' && p !== 'Resident' && p !== 'Members' && p !== 'Staff' && p !== 'Resident + Member');
+        
+        if (locationPhases.length > 0) {
+          const phaseOrConditions = [];
+          
+          for (const lp of locationPhases) {
+            const lpLower = lp.toLowerCase();
+            
+            if (lpLower.includes('c,d,e') || lpLower.includes('option 1')) {
+              phaseOrConditions.push({ phase: { $regex: /Sushant Lok 2 - C,D,E|Sushant Lok 2 Option 1/i } });
+              phaseOrConditions.push({
+                $or: [
+                  { block: { $in: ['C', 'D', 'E', 'c', 'd', 'e'] } },
+                  { address: { $regex: /\bBlock\s*[CDE]\b|\b[CDE]-?\d+/i } }
+                ]
+              });
+            } else if (lpLower.includes('f,g') || lpLower.includes('option 2')) {
+              phaseOrConditions.push({ phase: { $regex: /Sushant Lok 2 - F,G|Sushant Lok 2 Option 2/i } });
+              phaseOrConditions.push({
+                $or: [
+                  { block: { $in: ['F', 'G', 'f', 'g'] } },
+                  { address: { $regex: /\bBlock\s*[FG]\b|\b[FG]-?\d+/i } }
+                ]
+              });
+            } else if (lpLower === 'sushant lok 2') {
+              phaseOrConditions.push({ phase: { $regex: /Sushant Lok 2/i } });
+              phaseOrConditions.push({ address: { $regex: /Sushant Lok 2/i } });
+            } else if (lpLower.includes('sushant lok 3')) {
+              phaseOrConditions.push({ phase: { $regex: /Sushant Lok 3/i } });
+              phaseOrConditions.push({ address: { $regex: /Sushant Lok 3/i } });
+            } else {
+              const singleBlockMatch = lp.match(/^(?:Block\s*)?([A-H](?:1)?)$/i);
+              if (singleBlockMatch) {
+                const blk = singleBlockMatch[1].toUpperCase();
+                phaseOrConditions.push({ block: new RegExp(`^${blk}$`, 'i') });
+                phaseOrConditions.push({ address: new RegExp(`\\bBlock\\s*${blk}\\b|\\b${blk}-?\\d+`, 'i') });
+              } else {
+                const escaped = lp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                phaseOrConditions.push({ phase: new RegExp('^' + escaped, 'i') });
+              }
+            }
+          }
+          
+          phaseOrConditions.push({ phase: { $in: [null, '', undefined] } });
+          phaseOrConditions.push({ phase: { $exists: false } });
+
+          userQuery.$and = userQuery.$and || [];
+          userQuery.$and.push({ $or: phaseOrConditions });
+        }
       }
       
       userQuery.expoPushToken = { $exists: true, $ne: '' };
@@ -372,7 +620,6 @@ router.post('/', auth, async (req, res) => {
       
       if (tokenObjects.length > 0) {
         const { sendPushNotifications } = require('../utils/push');
-        // We don't await to not block the API response
         sendPushNotifications(tokenObjects, '📢 ' + title, message, { type: 'announcement', id: announcement._id });
       }
     } catch (pushErr) {
@@ -431,7 +678,7 @@ router.put('/:id', auth, async (req, res) => {
     return res.status(403).json({ msg: 'Authorization denied' });
   }
 
-  const { title, message, phases, targetAudience, image } = req.body;
+  const { title, message, phases, targetAudience, image, targetLocations } = req.body;
 
   try {
     let announcement = await Announcement.findById(req.params.id);
@@ -441,6 +688,9 @@ router.put('/:id', auth, async (req, res) => {
 
     if (title) announcement.title = title;
     if (message !== undefined) announcement.message = message;
+    if (phases !== undefined) announcement.phases = phases;
+    if (targetLocations !== undefined) announcement.targetLocations = targetLocations;
+    if (targetAudience !== undefined) announcement.targetAudience = targetAudience;
     if (image !== undefined) {
       if (image && image.startsWith('data:image')) {
         try {

@@ -431,7 +431,13 @@ export default function StaffScreen() {
       setSendingBroadcast(true);
       const token = await SecureStore.getItemAsync('userToken');
       await axios.post(`${API_URL}/announcements`, 
-        { title: broadcastTitle, message: broadcastMessage, targetAudience: broadcastTarget, image: broadcastImage },
+        { 
+          title: broadcastTitle, 
+          message: broadcastMessage, 
+          targetAudience: broadcastTarget, 
+          image: broadcastImage,
+          targetLocations: user?.assigned_locations || []
+        },
         { headers: { 'x-auth-token': token } }
       );
       setBroadcastModalVisible(false);
@@ -1036,6 +1042,21 @@ export default function StaffScreen() {
               </TouchableOpacity>
             </View>
             <Text style={styles.broadcastHelpText}>{t('staff.chooseAudience', { defaultValue: 'Choose who should receive this announcement.' })}</Text>
+
+            {/* Target Society Groups & Blocks Indicator */}
+            <View style={{ marginBottom: 14, padding: 10, backgroundColor: '#EFF6FF', borderRadius: 8, borderWidth: 1, borderColor: '#BFDBFE' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
+                <Ionicons name="location" size={14} color="#1D4ED8" style={{ marginRight: 4 }} />
+                <Text style={{ fontSize: 12, fontWeight: '700', color: '#1D4ED8' }}>
+                  Target Groups & Blocks:
+                </Text>
+              </View>
+              <Text style={{ fontSize: 12, color: '#1E3A8A', lineHeight: 16 }}>
+                {Array.isArray(user?.assigned_locations) && user.assigned_locations.length > 0
+                  ? user.assigned_locations.map((l: any) => `${l.phase}: ${(!l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL')) ? 'All Blocks' : `Block ${l.blocks.join(', ')}`}`).join(' | ')
+                  : (user?.phase || 'All Assigned Locations')}
+              </Text>
+            </View>
             
             <View style={{ flexDirection: 'row', marginBottom: 16, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 4 }}>
               <TouchableOpacity 
