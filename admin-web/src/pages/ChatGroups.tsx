@@ -784,7 +784,9 @@ export default function ChatGroups() {
                         : `${typingUsers.join(', ')} are typing...`}
                     </span>
                   ) : (
-                    `${activeChatGroup.group_type} Committee • Admin Live Communication`
+                    <span>
+                      {activeChatGroup.group_type} Committee • Participants: {(activeChatGroup.members || []).map((m: any) => (m.name && m.name !== m.member_id ? m.name : (m.name || 'Member'))).join(', ') || 'No members'}
+                    </span>
                   )}
                 </span>
               </div>
@@ -822,6 +824,8 @@ export default function ChatGroups() {
                     displayName = msg.sender_name.trim();
                   } else if (senderObj?.name && senderObj.name.trim() !== '') {
                     displayName = senderObj.name.trim();
+                  } else if (isAdminMsg) {
+                    displayName = 'Admin';
                   } else {
                     displayName = msg.sender_name || 'Member';
                   }
@@ -834,11 +838,9 @@ export default function ChatGroups() {
                       className={`admin-bubble ${isAdminMsg ? 'admin-bubble-me' : 'admin-bubble-other'}`}
                     >
                       {/* Sender Info */}
-                      {!isAdminMsg && (
-                        <div style={{ fontSize: 11, fontWeight: 700, color: '#1d4ed8', marginBottom: 2 }}>
-                          {displayName} {designation && `(${designation})`}
-                        </div>
-                      )}
+                      <div style={{ fontSize: 11, fontWeight: 700, color: isAdminMsg ? '#dbeafe' : '#1d4ed8', marginBottom: 2 }}>
+                        {isAdminMsg ? `Admin (${displayName && displayName !== memberId ? displayName : 'You'})` : `${displayName}${designation ? ` (${designation})` : ''}`}
+                      </div>
 
                       {/* Quoted Reply */}
                       {msg.reply_to && (

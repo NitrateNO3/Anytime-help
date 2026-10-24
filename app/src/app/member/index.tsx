@@ -672,24 +672,40 @@ export default function MemberHome() {
               onPress={() => router.push('/member/announcements' as any)}
               activeOpacity={0.8}
             >
-              <View style={styles.announcementCardHeader}>
-                <View style={styles.noticeTag}>
-                  <Ionicons name="notifications" size={12} color="#7C3AED" style={{ marginRight: 4 }} />
-                  <Text style={styles.noticeTagText}>Notice</Text>
+              <View style={styles.noticeBannerContainer}>
+                <Image 
+                  source={{ uri: latestAnnouncement.image || 'https://res.cloudinary.com/dpajfmfl/image/upload/v1792147978/anytime_help/staff_banners/puhwnrswyjr1mrvqrobe.jpg' }} 
+                  style={styles.noticeBannerImage} 
+                  resizeMode="cover"
+                />
+                <LinearGradient
+                  colors={['transparent', 'rgba(15, 23, 42, 0.45)']}
+                  style={styles.noticeBannerGradient}
+                />
+                <View style={styles.noticeTagOverlay}>
+                  <Ionicons name="notifications" size={11} color="#FFFFFF" style={{ marginRight: 3 }} />
+                  <Text style={styles.noticeTagOverlayText}>Latest Notice</Text>
                 </View>
-                <Text style={styles.announcementDate}>
-                  {formatAnnouncementDate(latestAnnouncement.date || latestAnnouncement.createdAt)}
-                </Text>
               </View>
-              <Text style={styles.announcementTitle} numberOfLines={1}>
-                {latestAnnouncement.title}
-              </Text>
-              <Text style={styles.announcementSnippet} numberOfLines={2}>
-                {latestAnnouncement.message}
-              </Text>
-              <View style={styles.announcementFooter}>
-                <Text style={styles.readMoreText}>Tap to manage notices</Text>
-                <Ionicons name="arrow-forward" size={13} color="#2563EB" />
+
+              <View style={styles.announcementContentPadding}>
+                <View style={styles.noticeDateRow}>
+                  <Ionicons name="calendar-outline" size={12} color="#64748B" style={{ marginRight: 4 }} />
+                  <Text style={styles.announcementDate}>
+                    {formatAnnouncementDate(latestAnnouncement.date || latestAnnouncement.createdAt)}
+                  </Text>
+                </View>
+
+                <Text style={styles.announcementTitle} numberOfLines={1}>
+                  {latestAnnouncement.title}
+                </Text>
+                <Text style={styles.announcementSnippet} numberOfLines={2}>
+                  {latestAnnouncement.message || latestAnnouncement.description}
+                </Text>
+                <View style={styles.announcementFooter}>
+                  <Text style={styles.readMoreText}>Tap to view notices</Text>
+                  <Ionicons name="arrow-forward" size={13} color="#2563EB" />
+                </View>
               </View>
             </TouchableOpacity>
           ) : (
@@ -1126,14 +1142,55 @@ const styles = StyleSheet.create({
   announcementCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 18,
-    padding: 16,
     borderWidth: 1,
     borderColor: '#E2E8F0',
+    overflow: 'hidden',
     elevation: 2,
     shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.04,
     shadowRadius: 6,
+  },
+  noticeBannerContainer: {
+    width: '100%',
+    height: 145,
+    backgroundColor: '#F1F5F9',
+    position: 'relative',
+  },
+  noticeBannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  noticeBannerGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 60,
+  },
+  noticeTagOverlay: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  noticeTagOverlayText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  announcementContentPadding: {
+    padding: 14,
+  },
+  noticeDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
   },
   announcementCardHeader: {
     flexDirection: 'row',

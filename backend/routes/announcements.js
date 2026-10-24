@@ -441,9 +441,22 @@ router.put('/:id', auth, async (req, res) => {
 
     if (title) announcement.title = title;
     if (message !== undefined) announcement.message = message;
-    if (phases !== undefined) announcement.phases = phases;
-    if (targetAudience !== undefined) announcement.targetAudience = targetAudience;
-    if (image !== undefined) announcement.image = image;
+    if (image !== undefined) {
+      if (image && image.startsWith('data:image')) {
+        try {
+          const result = await cloudinary.uploader.upload(image, {
+            folder: 'anytime_help/announcements',
+            transformation: [{ quality: 'auto', fetch_format: 'auto', width: 800, crop: 'limit' }]
+          });
+          announcement.image = result.secure_url;
+        } catch (uploadErr) {
+          console.error('Cloudinary update upload error:', uploadErr);
+          announcement.image = image;
+        }
+      } else {
+        announcement.image = image;
+      }
+    }
 
     await announcement.save();
 

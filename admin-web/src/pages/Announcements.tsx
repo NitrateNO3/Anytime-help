@@ -205,7 +205,8 @@ export default function Announcements() {
       const token = localStorage.getItem('adminToken');
       await axios.put(`${API_URL}/announcements/${editingAnnouncement._id}`, {
         title: editingAnnouncement.title,
-        message: editingAnnouncement.message
+        message: editingAnnouncement.message,
+        image: editingAnnouncement.image
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -229,14 +230,34 @@ export default function Announcements() {
     setPage(1);
   };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const uploadBannerFile = async (file: File) => {
+    const loadingToast = toast.loading('Uploading banner image...');
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await axios.post(`${API_URL}/banners/upload`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      if (res.data?.url) {
+        toast.success('Banner uploaded successfully!', { id: loadingToast });
+        return res.data.url;
+      }
+    } catch (err) {
+      console.error('Direct banner upload fallback to base64:', err);
+    }
+    toast.dismiss(loadingToast);
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      const uploadedUrl = await uploadBannerFile(file);
+      setImage(uploadedUrl);
     }
   };
 
@@ -614,14 +635,18 @@ export default function Announcements() {
               </div>
 
               <div className="input-group" style={{ marginTop: '16px' }}>
-                <label>Image (Optional)</label>
+                <label>Notice Banner / Poster Image (Featured on App Home)</label>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+                  Attach a banner or flyer. It will appear directly at the top of the "Latest Notice" card on the mobile app home screen.
+                </p>
                 {image ? (
-                  <div style={{ position: 'relative', width: '100%', maxWidth: '300px', marginTop: '8px' }}>
-                    <img src={image} alt="Preview" style={{ width: '100%', height: 'auto', borderRadius: '12px', border: '1px solid var(--border-color)' }} />
+                  <div style={{ position: 'relative', width: '100%', maxWidth: '340px', marginTop: '8px' }}>
+                    <img src={image} alt="Preview" style={{ width: '100%', height: 170, objectFit: 'cover', borderRadius: '12px', border: '1px solid var(--border-color)' }} />
                     <button 
                       type="button" 
                       onClick={() => setImage(null)}
-                      style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      title="Remove banner"
                     >
                       <X size={14} />
                     </button>
@@ -639,7 +664,7 @@ export default function Announcements() {
                       htmlFor="announcement-image-upload"
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}
                     >
-                      <Plus size={18} /> Choose Image
+                      <Plus size={18} /> Choose Banner Image
                     </label>
                   </div>
                 )}
@@ -688,6 +713,52 @@ export default function Announcements() {
                     fontSize: '15px'
                   }}
                 />
+              </div>
+              
+              <div className="form-group" style={{ marginTop: '16px' }}>
+                <label className="form-label">Notice Banner / Poster Image</label>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
+                  This banner will be displayed prominently on the mobile app home screen's "Latest Notice" section.
+                </p>
+                {editingAnnouncement.image ? (
+                  <div style={{ position: 'relative', width: '100%', maxWidth: '340px', marginTop: '8px' }}>
+                    <img 
+                      src={editingAnnouncement.image} 
+                      alt="Banner Preview" 
+                      style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: '12px', border: '1px solid var(--border-color)' }} 
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => setEditingAnnouncement({ ...editingAnnouncement, image: null })}
+                      style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: '50%', width: 26, height: 26, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                      title="Remove Banner"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: '8px' }}>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      id="edit-announcement-image-upload"
+                      style={{ display: 'none' }}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const uploadedUrl = await uploadBannerFile(file);
+                          setEditingAnnouncement({ ...editingAnnouncement, image: uploadedUrl });
+                        }
+                      }}
+                    />
+                    <label 
+                      htmlFor="edit-announcement-image-upload"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#F8FAFC', border: '1px dashed #CBD5E1', borderRadius: '12px', cursor: 'pointer', color: 'var(--text-muted)', fontSize: '14px', fontWeight: 500 }}
+                    >
+                      <Plus size={18} /> Upload Notice Banner
+                    </label>
+                  </div>
+                )}
               </div>
               
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>

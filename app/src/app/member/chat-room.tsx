@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, 
   KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Alert,
-  Keyboard, TouchableWithoutFeedback, Animated, Easing
+  Keyboard, TouchableWithoutFeedback, Animated, Easing, BackHandler
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -159,7 +159,21 @@ export default function MemberChatRoomScreen() {
   const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const currentUserRef = useRef<any>(null);
+  const [groupDetails, setGroupDetails] = useState<any>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  // Back button routing: Always route back to group chat list (/member/chats)
+  const handleBackToChats = useCallback(() => {
+    router.replace('/member/chats' as any);
+  }, [router]);
+
+  useEffect(() => {
+    const backSub = BackHandler.addEventListener('hardwareBackPress', () => {
+      handleBackToChats();
+      return true;
+    });
+    return () => backSub.remove();
+  }, [handleBackToChats]);
 
   // WhatsApp-like reply & edit state
   const [replyingTo, setReplyingTo] = useState<ChatMessageItem | null>(null);
@@ -386,6 +400,20 @@ export default function MemberChatRoomScreen() {
           }
         } catch (uErr) {
           console.log('Error refreshing user profile in chat room:', uErr);
+        }
+      }
+
+      // Fetch group details to display participant real names in header
+      if (token && cleanGroupId) {
+        try {
+          const groupRes = await axios.get(`${API_URL}/chat/groups/${cleanGroupId}`, {
+            headers: { 'x-auth-token': token }
+          });
+          if (groupRes.data) {
+            setGroupDetails(groupRes.data);
+          }
+        } catch (gErr) {
+          console.log('Error fetching group details in chat room:', gErr);
         }
       }
 
@@ -621,11 +649,16 @@ export default function MemberChatRoomScreen() {
       displayName = item.sender_name.trim();
     } else if (senderObj?.name && senderObj.name.trim() !== '') {
       displayName = senderObj.name.trim();
+    } else if (item.sender_role === 'Admin') {
+      displayName = 'Super Admin';
+    } else if (item.sender_role === 'SubAdmin') {
+      displayName = 'Admin';
     } else {
       displayName = item.sender_name || 'Member';
     }
 
     const designation = senderObj?.designation || item.sender_designation;
+    const myRealName = (currentUser?.name && currentUser.name !== currentUser?.member_id) ? currentUser.name.trim() : '';
 
     return (
       <TouchableOpacity
@@ -639,12 +672,18 @@ export default function MemberChatRoomScreen() {
       >
         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
           {/* Sender Name & Designation */}
-          {!isMe && (
+          {isMe ? (
+            <View style={styles.senderHeaderMe}>
+              <Text style={styles.senderNameMe}>You{myRealName ? ` (${myRealName})` : ''}</Text>
+            </View>
+          ) : (
             <View style={styles.senderHeader}>
               <Text style={styles.senderName}>{displayName}</Text>
               {designation ? (
                 <Text style={styles.senderDesignation}>• {designation}</Text>
-              ) : null}
+              ) : (
+                item.sender_role ? <Text style={styles.senderDesignation}>• {item.sender_role}</Text> : null
+              )}
             </View>
           )}
 
@@ -699,13 +738,20 @@ export default function MemberChatRoomScreen() {
     ? `${typingUsers[0]} typing...` 
     : `${typingUsers.join(', ')} typing...`;
 
+  const participantNames = (groupDetails?.members || [])
+    .map((m: any) => (m.name && m.name !== m.member_id ? m.name : ''))
+    .filter(Boolean);
+  const participantSubtitle = participantNames.length > 0
+    ? participantNames.join(', ')
+    : (groupType ? `${groupType} Committee • ${isWriteAllowed ? 'You can chat' : 'View Only Mode'}` : (isWriteAllowed ? 'You can chat' : 'View Only Mode'));
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Screen Header - Touch header to auto-close keyboard */}
       <TouchableOpacity activeOpacity={1} onPress={Keyboard.dismiss} style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+        <TouchableOpacity onPress={handleBackToChats} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
 
@@ -719,8 +765,7 @@ export default function MemberChatRoomScreen() {
             </Text>
           ) : (
             <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {groupType ? `${groupType} Committee • ` : ''}
-              {isWriteAllowed ? 'You can chat' : 'View Only Mode'}
+              {participantSubtitle}
             </Text>
           )}
         </View>
@@ -939,10 +984,21 @@ const styles = StyleSheet.create({
     gap: 4,
     marginBottom: 4,
   },
+  senderHeaderMe: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
   senderName: {
     fontSize: 12,
     fontWeight: '700',
     color: '#2563EB',
+  },
+  senderNameMe: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#BFDBFE',
   },
   senderDesignation: {
     fontSize: 10,

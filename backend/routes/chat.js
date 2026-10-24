@@ -154,11 +154,21 @@ router.get('/groups', auth, async (req, res) => {
       .populate('created_by', 'name role')
       .sort({ 'last_message.timestamp': -1, updatedAt: -1 });
 
-    // Attach permission flag to each group for frontend ease
+    // Attach permission flag to each group for frontend ease and ensure real names in last_message
     const formatted = groups.map(g => {
       const perms = getGroupPermissions(g, user);
+      const gObj = g.toObject();
+      if (gObj.last_message && gObj.last_message.sender_id) {
+        const sid = gObj.last_message.sender_id.toString();
+        const found = (g.members || []).find(m => m._id.toString() === sid) ||
+                      (g.view_only_members || []).find(m => m._id.toString() === sid) ||
+                      (g.created_by && g.created_by._id.toString() === sid ? g.created_by : null);
+        if (found && found.name && found.name.trim() !== '' && found.name !== found.member_id) {
+          gObj.last_message.sender_name = found.name.trim();
+        }
+      }
       return {
-        ...g.toObject(),
+        ...gObj,
         user_access: perms // { can_view, can_send, is_member, is_admin }
       };
     });
@@ -317,9 +327,19 @@ router.get('/groups/:id/messages', auth, async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(limit);
 
-    // Return in chronological order
+    // Return in chronological order and ensure real names are always exposed
+    const formattedMessages = messages.reverse().map(m => {
+      const obj = m.toObject();
+      if (obj.sender && typeof obj.sender === 'object') {
+        if (obj.sender.name && obj.sender.name.trim() !== '' && obj.sender.name !== obj.sender.member_id) {
+          obj.sender_name = obj.sender.name.trim();
+        }
+      }
+      return obj;
+    });
+
     res.json({
-      messages: messages.reverse(),
+      messages: formattedMessages,
       user_access: perms
     });
   } catch (err) {
