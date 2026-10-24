@@ -2,9 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, 
   KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Alert,
-  Keyboard, TouchableWithoutFeedback, Animated
+  Keyboard, TouchableWithoutFeedback, Animated, Easing
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
@@ -34,44 +34,23 @@ interface ChatMessageItem {
 
 // WhatsApp-like Typing Indicator with 3 animated bouncing dots
 function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
-  const dot1 = useRef(new Animated.Value(0)).current;
-  const dot2 = useRef(new Animated.Value(0)).current;
-  const dot3 = useRef(new Animated.Value(0)).current;
+  const animValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const createAnim = (val: Animated.Value, delay: number) => {
-      return Animated.loop(
-        Animated.sequence([
-          Animated.delay(delay),
-          Animated.timing(val, {
-            toValue: -5,
-            duration: 260,
-            useNativeDriver: true,
-          }),
-          Animated.timing(val, {
-            toValue: 0,
-            duration: 260,
-            useNativeDriver: true,
-          }),
-          Animated.delay(520 - delay),
-        ])
-      );
-    };
-
-    const a1 = createAnim(dot1, 0);
-    const a2 = createAnim(dot2, 140);
-    const a3 = createAnim(dot3, 280);
-
-    a1.start();
-    a2.start();
-    a3.start();
+    const animation = Animated.loop(
+      Animated.timing(animValue, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    animation.start();
 
     return () => {
-      a1.stop();
-      a2.stop();
-      a3.stop();
+      animation.stop();
     };
-  }, []);
+  }, [animValue]);
 
   if (!typingUsers || typingUsers.length === 0) return null;
 
@@ -79,17 +58,85 @@ function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
     ? `${typingUsers[0]} is typing...` 
     : `${typingUsers.join(', ')} are typing...`;
 
+  const primaryName = typingUsers[0] || '?';
+  const initial = primaryName.charAt(0).toUpperCase();
+
+  // Dot 1: Peak bounce at 20% of cycle
+  const translateY1 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 1.0],
+    outputRange: [0, -6, 0, 0],
+  });
+  const opacity1 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 1.0],
+    outputRange: [0.35, 1, 0.35, 0.35],
+  });
+  const scale1 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 1.0],
+    outputRange: [0.85, 1.25, 0.85, 0.85],
+  });
+
+  // Dot 2: Peak bounce at 40% of cycle
+  const translateY2 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 0.6, 1.0],
+    outputRange: [0, 0, -6, 0, 0],
+  });
+  const opacity2 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 0.6, 1.0],
+    outputRange: [0.35, 0.35, 1, 0.35, 0.35],
+  });
+  const scale2 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 0.6, 1.0],
+    outputRange: [0.85, 0.85, 1.25, 0.85, 0.85],
+  });
+
+  // Dot 3: Peak bounce at 60% of cycle
+  const translateY3 = animValue.interpolate({
+    inputRange: [0, 0.4, 0.6, 0.8, 1.0],
+    outputRange: [0, 0, -6, 0, 0],
+  });
+  const opacity3 = animValue.interpolate({
+    inputRange: [0, 0.4, 0.6, 0.8, 1.0],
+    outputRange: [0.35, 0.35, 1, 0.35, 0.35],
+  });
+  const scale3 = animValue.interpolate({
+    inputRange: [0, 0.4, 0.6, 0.8, 1.0],
+    outputRange: [0.85, 0.85, 1.25, 0.85, 0.85],
+  });
+
   return (
     <View style={styles.typingRow}>
+      {/* Clean circular avatar with white border and soft shadow */}
       <View style={styles.typingAvatar}>
-        <Text style={styles.typingAvatarText}>
-          {(typingUsers[0] || '?').charAt(0).toUpperCase()}
-        </Text>
+        <Text style={styles.typingAvatarText}>{initial}</Text>
       </View>
       <View style={styles.typingBubble}>
-        <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot1 }] }]} />
-        <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot2 }] }]} />
-        <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot3 }] }]} />
+        <Animated.View 
+          style={[
+            styles.typingDot, 
+            { 
+              transform: [{ translateY: translateY1 }, { scale: scale1 }],
+              opacity: opacity1,
+            }
+          ]} 
+        />
+        <Animated.View 
+          style={[
+            styles.typingDot, 
+            { 
+              transform: [{ translateY: translateY2 }, { scale: scale2 }],
+              opacity: opacity2,
+            }
+          ]} 
+        />
+        <Animated.View 
+          style={[
+            styles.typingDot, 
+            { 
+              transform: [{ translateY: translateY3 }, { scale: scale3 }],
+              opacity: opacity3,
+            }
+          ]} 
+        />
       </View>
       <Text style={styles.typingLabelText} numberOfLines={1}>
         {label}
@@ -100,6 +147,7 @@ function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
 
 export default function MemberChatRoomScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { groupId, groupName, groupType, canSend } = useLocalSearchParams();
 
   const cleanGroupId = (Array.isArray(groupId) ? groupId[0] : (groupId || '')).toString().trim();
@@ -110,19 +158,31 @@ export default function MemberChatRoomScreen() {
   const [inputText, setInputText] = useState('');
   const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const currentUserRef = useRef<any>(null);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
   // WhatsApp-like reply & edit state
   const [replyingTo, setReplyingTo] = useState<ChatMessageItem | null>(null);
   const [editingMessage, setEditingMessage] = useState<ChatMessageItem | null>(null);
 
-  // WhatsApp-like typing indicator state
+  // WhatsApp-like continuous typing indicator state
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const isTypingRef = useRef<boolean>(false);
+  const lastTypingHeartbeatRef = useRef<number>(0);
   const typingTimeoutRef = useRef<any>(null);
   const typingTimersRef = useRef<{ [userName: string]: any }>({});
 
   const flatListRef = useRef<FlatList>(null);
   const socketRef = useRef<Socket | null>(null);
+
+  // Auto-scroll when typing indicator appears in the chats
+  useEffect(() => {
+    if (typingUsers.length > 0) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 80);
+    }
+  }, [typingUsers]);
 
   useEffect(() => {
     loadUserAndMessages();
@@ -184,23 +244,40 @@ export default function MemberChatRoomScreen() {
       }));
     });
 
+    // Auto-scroll messages and manage keyboard state
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    const showSub = Keyboard.addListener(showEvent, () => {
+      setIsKeyboardVisible(true);
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    });
+
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setIsKeyboardVisible(false);
+    });
+
     // Real-time user typing listener
     socket.on('user_typing', ({ groupId: tGid, userName, isTyping }: any) => {
       const gId = (tGid || '').toString().trim();
       if (cleanGroupId && gId && gId !== cleanGroupId) return;
       if (!userName) return;
 
-      const myName = (currentUser?.name || '').trim();
+      const myName = (currentUserRef.current?.name || currentUser?.name || '').trim();
       if (myName && userName.trim() === myName) return;
 
       setTypingUsers(prev => {
         if (isTyping) {
+          // Continuous typing: refresh safety timeout on every heartbeat
           if (typingTimersRef.current[userName]) {
             clearTimeout(typingTimersRef.current[userName]);
           }
           typingTimersRef.current[userName] = setTimeout(() => {
             setTypingUsers(curr => curr.filter(u => u !== userName));
-          }, 3500);
+            delete typingTimersRef.current[userName];
+          }, 3000);
 
           if (!prev.includes(userName)) {
             setTimeout(() => {
@@ -210,6 +287,7 @@ export default function MemberChatRoomScreen() {
           }
           return prev;
         } else {
+          // User stopped typing - immediately remove
           if (typingTimersRef.current[userName]) {
             clearTimeout(typingTimersRef.current[userName]);
             delete typingTimersRef.current[userName];
@@ -225,8 +303,12 @@ export default function MemberChatRoomScreen() {
     }, 2000);
 
     return () => {
+      showSub.remove();
+      hideSub.remove();
       clearInterval(syncInterval);
       if (isTypingRef.current) {
+        isTypingRef.current = false;
+        lastTypingHeartbeatRef.current = 0;
         socket.emit('typing_stop', {
           groupId: cleanGroupId,
           userName: currentUser?.name || 'Member'
@@ -275,7 +357,9 @@ export default function MemberChatRoomScreen() {
     try {
       const stored = await SecureStore.getItemAsync('userData');
       if (stored) {
-        setCurrentUser(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        setCurrentUser(parsed);
+        currentUserRef.current = parsed;
       }
 
       const token = await SecureStore.getItemAsync('userToken');
@@ -299,32 +383,38 @@ export default function MemberChatRoomScreen() {
     setInputText(text);
 
     if (!socketRef.current || !cleanGroupId) return;
-
     const myName = currentUser?.name || 'Member';
 
     if (text.trim().length > 0) {
-      if (!isTypingRef.current) {
+      const now = Date.now();
+      // Continuous typing: send typing_start on first character OR every 1.5s as long as typing continues
+      if (!isTypingRef.current || (now - lastTypingHeartbeatRef.current > 1500)) {
         isTypingRef.current = true;
+        lastTypingHeartbeatRef.current = now;
         socketRef.current.emit('typing_start', {
           groupId: cleanGroupId,
           userName: myName
         });
       }
 
+      // Reset inactivity timer: if user stops typing for 2 seconds, emit typing_stop
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
 
       typingTimeoutRef.current = setTimeout(() => {
         isTypingRef.current = false;
+        lastTypingHeartbeatRef.current = 0;
         socketRef.current?.emit('typing_stop', {
           groupId: cleanGroupId,
           userName: myName
         });
-      }, 2200);
+      }, 2000);
     } else {
+      // Input was cleared: immediately stop typing
       if (isTypingRef.current) {
         isTypingRef.current = false;
+        lastTypingHeartbeatRef.current = 0;
         if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
         socketRef.current.emit('typing_stop', {
           groupId: cleanGroupId,
@@ -340,6 +430,7 @@ export default function MemberChatRoomScreen() {
     // Immediately stop typing indicator on send
     if (isTypingRef.current) {
       isTypingRef.current = false;
+      lastTypingHeartbeatRef.current = 0;
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
       socketRef.current?.emit('typing_stop', {
         groupId: cleanGroupId,
@@ -858,45 +949,61 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginVertical: 6,
+    marginTop: 6,
+    marginBottom: 10,
     paddingLeft: 4,
   },
   typingAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
   },
   typingAvatarText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   typingBubble: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
     borderBottomLeftRadius: 4,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    gap: 4,
+    gap: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   typingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
     backgroundColor: '#2563EB',
   },
   typingLabelText: {
-    fontSize: 11,
+    fontSize: 12,
     color: '#64748B',
     fontWeight: '500',
-    maxWidth: 160,
+    fontStyle: 'italic',
+    maxWidth: 180,
   },
   messageText: {
     fontSize: 14,

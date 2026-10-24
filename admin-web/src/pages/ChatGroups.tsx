@@ -82,6 +82,7 @@ export default function ChatGroups() {
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const adminTypingTimerRef = useRef<any>(null);
   const isAdminTypingRef = useRef<boolean>(false);
+  const lastAdminTypingHeartbeatRef = useRef<number>(0);
   const typingTimersRef = useRef<{ [userName: string]: any }>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -192,12 +193,14 @@ export default function ChatGroups() {
 
       setTypingUsers(prev => {
         if (isTyping) {
+          // Continuous typing: refresh safety timeout on every heartbeat
           if (typingTimersRef.current[userName]) {
             clearTimeout(typingTimersRef.current[userName]);
           }
           typingTimersRef.current[userName] = setTimeout(() => {
             setTypingUsers(curr => curr.filter(u => u !== userName));
-          }, 3500);
+            delete typingTimersRef.current[userName];
+          }, 3000);
 
           if (!prev.includes(userName)) {
             scrollToBottom();
@@ -205,6 +208,7 @@ export default function ChatGroups() {
           }
           return prev;
         } else {
+          // User stopped typing - immediately remove
           if (typingTimersRef.current[userName]) {
             clearTimeout(typingTimersRef.current[userName]);
             delete typingTimersRef.current[userName];
@@ -257,6 +261,7 @@ export default function ChatGroups() {
       clearInterval(interval);
       if (isAdminTypingRef.current && socketRef.current && activeChatGroup) {
         isAdminTypingRef.current = false;
+        lastAdminTypingHeartbeatRef.current = 0;
         socketRef.current.emit('typing_stop', {
           groupId: activeChatGroup._id,
           userName: adminName
@@ -326,8 +331,11 @@ export default function ChatGroups() {
     if (!socketRef.current || !activeChatGroup) return;
 
     if (val.trim().length > 0) {
-      if (!isAdminTypingRef.current) {
+      const now = Date.now();
+      // Continuous typing: send typing_start on first character OR every 1.5s as long as typing continues
+      if (!isAdminTypingRef.current || (now - lastAdminTypingHeartbeatRef.current > 1500)) {
         isAdminTypingRef.current = true;
+        lastAdminTypingHeartbeatRef.current = now;
         socketRef.current.emit('typing_start', {
           groupId: activeChatGroup._id,
           userName: adminName
@@ -336,16 +344,19 @@ export default function ChatGroups() {
 
       if (adminTypingTimerRef.current) clearTimeout(adminTypingTimerRef.current);
 
+      // Stop typing after 2000ms pause
       adminTypingTimerRef.current = setTimeout(() => {
         isAdminTypingRef.current = false;
+        lastAdminTypingHeartbeatRef.current = 0;
         socketRef.current?.emit('typing_stop', {
           groupId: activeChatGroup._id,
           userName: adminName
         });
-      }, 2200);
+      }, 2000);
     } else {
       if (isAdminTypingRef.current) {
         isAdminTypingRef.current = false;
+        lastAdminTypingHeartbeatRef.current = 0;
         if (adminTypingTimerRef.current) clearTimeout(adminTypingTimerRef.current);
         socketRef.current.emit('typing_stop', {
           groupId: activeChatGroup._id,
@@ -363,6 +374,7 @@ export default function ChatGroups() {
     // Immediately stop typing indicator on send
     if (isAdminTypingRef.current) {
       isAdminTypingRef.current = false;
+      lastAdminTypingHeartbeatRef.current = 0;
       if (adminTypingTimerRef.current) clearTimeout(adminTypingTimerRef.current);
       socketRef.current?.emit('typing_stop', {
         groupId: activeChatGroup._id,
