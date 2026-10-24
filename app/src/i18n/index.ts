@@ -27,11 +27,17 @@ i18n
     },
   });
 
-// Load the saved language from AsyncStorage asynchronously
-AsyncStorage.getItem('user-language').then((savedLanguage) => {
-  if (savedLanguage) {
-    i18n.changeLanguage(savedLanguage);
+// Load the saved language from AsyncStorage asynchronously (only in client environment)
+if (typeof window !== 'undefined' || typeof navigator !== 'undefined') {
+  try {
+    AsyncStorage.getItem('user-language').then((savedLanguage) => {
+      if (savedLanguage) {
+        i18n.changeLanguage(savedLanguage);
+      }
+    }).catch(err => console.log('Error loading language', err));
+  } catch (e) {
+    // Ignore in non-client static render environments
   }
-}).catch(err => console.log('Error loading language', err));
+}
 
 export default i18n;
