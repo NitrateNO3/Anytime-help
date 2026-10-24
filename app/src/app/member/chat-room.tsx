@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, 
-  KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Alert 
+  KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Alert,
+  Keyboard, TouchableWithoutFeedback, Animated
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +32,72 @@ interface ChatMessageItem {
   createdAt: string;
 }
 
+// WhatsApp-like Typing Indicator with 3 animated bouncing dots
+function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
+  const dot1 = useRef(new Animated.Value(0)).current;
+  const dot2 = useRef(new Animated.Value(0)).current;
+  const dot3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const createAnim = (val: Animated.Value, delay: number) => {
+      return Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(val, {
+            toValue: -5,
+            duration: 260,
+            useNativeDriver: true,
+          }),
+          Animated.timing(val, {
+            toValue: 0,
+            duration: 260,
+            useNativeDriver: true,
+          }),
+          Animated.delay(520 - delay),
+        ])
+      );
+    };
+
+    const a1 = createAnim(dot1, 0);
+    const a2 = createAnim(dot2, 140);
+    const a3 = createAnim(dot3, 280);
+
+    a1.start();
+    a2.start();
+    a3.start();
+
+    return () => {
+      a1.stop();
+      a2.stop();
+      a3.stop();
+    };
+  }, []);
+
+  if (!typingUsers || typingUsers.length === 0) return null;
+
+  const label = typingUsers.length === 1 
+    ? `${typingUsers[0]} is typing...` 
+    : `${typingUsers.join(', ')} are typing...`;
+
+  return (
+    <View style={styles.typingRow}>
+      <View style={styles.typingAvatar}>
+        <Text style={styles.typingAvatarText}>
+          {(typingUsers[0] || '?').charAt(0).toUpperCase()}
+        </Text>
+      </View>
+      <View style={styles.typingBubble}>
+        <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot1 }] }]} />
+        <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot2 }] }]} />
+        <Animated.View style={[styles.typingDot, { transform: [{ translateY: dot3 }] }]} />
+      </View>
+      <Text style={styles.typingLabelText} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export default function MemberChatRoomScreen() {
   const router = useRouter();
   const { groupId, groupName, groupType, canSend } = useLocalSearchParams();
@@ -47,6 +114,12 @@ export default function MemberChatRoomScreen() {
   // WhatsApp-like reply & edit state
   const [replyingTo, setReplyingTo] = useState<ChatMessageItem | null>(null);
   const [editingMessage, setEditingMessage] = useState<ChatMessageItem | null>(null);
+
+  // WhatsApp-like typing indicator state
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const isTypingRef = useRef<boolean>(false);
+  const typingTimeoutRef = useRef<any>(null);
+  const typingTimersRef = useRef<{ [userName: string]: any }>({});
 
   const flatListRef = useRef<FlatList>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -81,6 +154,12 @@ export default function MemberChatRoomScreen() {
           if (prev.some(m => m._id === newMsg._id)) return prev;
           return [...prev, newMsg];
         });
+
+        // Clear typing indicator for the sender who just sent the message
+        if (newMsg.sender_name) {
+          setTypingUsers(prev => prev.filter(u => u !== newMsg.sender_name));
+        }
+
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
         }, 80);
@@ -105,6 +184,41 @@ export default function MemberChatRoomScreen() {
       }));
     });
 
+    // Real-time user typing listener
+    socket.on('user_typing', ({ groupId: tGid, userName, isTyping }: any) => {
+      const gId = (tGid || '').toString().trim();
+      if (cleanGroupId && gId && gId !== cleanGroupId) return;
+      if (!userName) return;
+
+      const myName = (currentUser?.name || '').trim();
+      if (myName && userName.trim() === myName) return;
+
+      setTypingUsers(prev => {
+        if (isTyping) {
+          if (typingTimersRef.current[userName]) {
+            clearTimeout(typingTimersRef.current[userName]);
+          }
+          typingTimersRef.current[userName] = setTimeout(() => {
+            setTypingUsers(curr => curr.filter(u => u !== userName));
+          }, 3500);
+
+          if (!prev.includes(userName)) {
+            setTimeout(() => {
+              flatListRef.current?.scrollToEnd({ animated: true });
+            }, 80);
+            return [...prev, userName];
+          }
+          return prev;
+        } else {
+          if (typingTimersRef.current[userName]) {
+            clearTimeout(typingTimersRef.current[userName]);
+            delete typingTimersRef.current[userName];
+          }
+          return prev.filter(u => u !== userName);
+        }
+      });
+    });
+
     // 2-second real-time silent sync polling fallback for bulletproof message delivery
     const syncInterval = setInterval(() => {
       syncMessagesSilently();
@@ -112,10 +226,18 @@ export default function MemberChatRoomScreen() {
 
     return () => {
       clearInterval(syncInterval);
+      if (isTypingRef.current) {
+        socket.emit('typing_stop', {
+          groupId: cleanGroupId,
+          userName: currentUser?.name || 'Member'
+        });
+      }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      Object.values(typingTimersRef.current).forEach(t => clearTimeout(t));
       socket.emit('leave_chat_group', cleanGroupId);
       socket.disconnect();
     };
-  }, [cleanGroupId]);
+  }, [cleanGroupId, currentUser?.name]);
 
   const syncMessagesSilently = async () => {
     if (!cleanGroupId) return;
@@ -173,8 +295,57 @@ export default function MemberChatRoomScreen() {
     }
   };
 
+  const handleTextChange = (text: string) => {
+    setInputText(text);
+
+    if (!socketRef.current || !cleanGroupId) return;
+
+    const myName = currentUser?.name || 'Member';
+
+    if (text.trim().length > 0) {
+      if (!isTypingRef.current) {
+        isTypingRef.current = true;
+        socketRef.current.emit('typing_start', {
+          groupId: cleanGroupId,
+          userName: myName
+        });
+      }
+
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        isTypingRef.current = false;
+        socketRef.current?.emit('typing_stop', {
+          groupId: cleanGroupId,
+          userName: myName
+        });
+      }, 2200);
+    } else {
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        socketRef.current.emit('typing_stop', {
+          groupId: cleanGroupId,
+          userName: myName
+        });
+      }
+    }
+  };
+
   const handleSendOrUpdate = async () => {
     if (!inputText.trim() || sending) return;
+
+    // Immediately stop typing indicator on send
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      socketRef.current?.emit('typing_stop', {
+        groupId: cleanGroupId,
+        userName: currentUser?.name || 'Member'
+      });
+    }
 
     const token = await SecureStore.getItemAsync('userToken');
 
@@ -330,6 +501,7 @@ export default function MemberChatRoomScreen() {
     return (
       <TouchableOpacity
         activeOpacity={0.8}
+        onPress={Keyboard.dismiss}
         onLongPress={() => handleMessageLongPress(item)}
         style={[
           styles.messageRow,
@@ -350,8 +522,10 @@ export default function MemberChatRoomScreen() {
           {/* WhatsApp-like Quoted Reply Preview */}
           {item.reply_to && (
             <View style={[styles.quoteBox, isMe ? styles.quoteBoxMe : styles.quoteBoxOther]}>
-              <Text style={styles.quoteSender}>{item.reply_to.sender_name}</Text>
-              <Text style={styles.quoteText} numberOfLines={2}>
+              <Text style={[styles.quoteSender, isMe ? styles.quoteSenderMe : styles.quoteSenderOther]}>
+                {item.reply_to.sender_name}
+              </Text>
+              <Text style={[styles.quoteText, isMe ? styles.quoteTextMe : styles.quoteTextOther]} numberOfLines={2}>
                 {item.reply_to.text}
               </Text>
             </View>
@@ -391,12 +565,17 @@ export default function MemberChatRoomScreen() {
     );
   };
 
+  const isAnyoneTyping = typingUsers.length > 0;
+  const typingHeaderLabel = typingUsers.length === 1 
+    ? `${typingUsers[0]} typing...` 
+    : `${typingUsers.join(', ')} typing...`;
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
-      {/* Screen Header */}
-      <View style={styles.header}>
+      {/* Screen Header - Touch header to auto-close keyboard */}
+      <TouchableOpacity activeOpacity={1} onPress={Keyboard.dismiss} style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
@@ -405,10 +584,16 @@ export default function MemberChatRoomScreen() {
           <Text style={styles.headerTitle} numberOfLines={1}>
             {groupName || 'Committee Chat'}
           </Text>
-          <Text style={styles.headerSubtitle}>
-            {groupType ? `${groupType} Committee • ` : ''}
-            {isWriteAllowed ? 'You can chat' : 'View Only Mode'}
-          </Text>
+          {isAnyoneTyping ? (
+            <Text style={styles.headerSubtitleTyping} numberOfLines={1}>
+              {typingHeaderLabel}
+            </Text>
+          ) : (
+            <Text style={styles.headerSubtitle} numberOfLines={1}>
+              {groupType ? `${groupType} Committee • ` : ''}
+              {isWriteAllowed ? 'You can chat' : 'View Only Mode'}
+            </Text>
+          )}
         </View>
 
         {!isWriteAllowed && (
@@ -417,7 +602,7 @@ export default function MemberChatRoomScreen() {
             <Text style={styles.viewOnlyHeaderText}>Spectator</Text>
           </View>
         )}
-      </View>
+      </TouchableOpacity>
 
       {/* WhatsApp-style KeyboardAvoiding wrapper around messages + input bar */}
       <KeyboardAvoidingView
@@ -425,35 +610,41 @@ export default function MemberChatRoomScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
       >
-        {/* Messages List */}
-        {loading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color="#2563EB" />
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item._id}
-            renderItem={renderMessageBubble}
-            contentContainerStyle={styles.messagesList}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode="on-drag"
-            onContentSizeChange={() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }}
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Ionicons name="chatbubble-ellipses-outline" size={48} color="#CBD5E1" />
-                <Text style={styles.emptyText}>No messages yet in this group.</Text>
-                <Text style={styles.emptySubText}>
-                  {isWriteAllowed ? 'Say hello and start the discussion!' : 'Discussions will appear here once active.'}
-                </Text>
+        {/* Messages List - Touch outside input auto-closes keyboard */}
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={{ flex: 1 }}>
+            {loading ? (
+              <View style={styles.centerContainer}>
+                <ActivityIndicator size="large" color="#2563EB" />
               </View>
-            }
-          />
-        )}
+            ) : (
+              <FlatList
+                ref={flatListRef}
+                data={messages}
+                keyExtractor={(item) => item._id}
+                renderItem={renderMessageBubble}
+                contentContainerStyle={styles.messagesList}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                onScrollBeginDrag={Keyboard.dismiss}
+                onContentSizeChange={() => {
+                  flatListRef.current?.scrollToEnd({ animated: true });
+                }}
+                showsVerticalScrollIndicator={false}
+                ListFooterComponent={<TypingIndicator typingUsers={typingUsers} />}
+                ListEmptyComponent={
+                  <TouchableOpacity activeOpacity={1} onPress={Keyboard.dismiss} style={styles.emptyContainer}>
+                    <Ionicons name="chatbubble-ellipses-outline" size={48} color="#CBD5E1" />
+                    <Text style={styles.emptyText}>No messages yet in this group.</Text>
+                    <Text style={styles.emptySubText}>
+                      {isWriteAllowed ? 'Say hello and start the discussion!' : 'Discussions will appear here once active.'}
+                    </Text>
+                  </TouchableOpacity>
+                }
+              />
+            )}
+          </View>
+        </TouchableWithoutFeedback>
 
         {/* Bottom Bar: Input OR View-Only Banner */}
         {isWriteAllowed ? (
@@ -489,7 +680,7 @@ export default function MemberChatRoomScreen() {
                 placeholder={editingMessage ? "Edit message..." : "Type a message..."}
                 placeholderTextColor="#94A3B8"
                 value={inputText}
-                onChangeText={setInputText}
+                onChangeText={handleTextChange}
                 multiline
                 maxLength={1000}
                 onFocus={() => {
@@ -554,6 +745,12 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 11,
     color: '#64748B',
+    marginTop: 2,
+  },
+  headerSubtitleTyping: {
+    fontSize: 11,
+    color: '#2563EB',
+    fontWeight: '700',
     marginTop: 2,
   },
   viewOnlyHeaderBadge: {
@@ -622,15 +819,15 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   quoteBox: {
-    borderLeftWidth: 3,
-    paddingLeft: 8,
-    paddingVertical: 4,
+    borderLeftWidth: 3.5,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
     marginBottom: 6,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   quoteBoxMe: {
-    borderLeftColor: '#93C5FD',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderLeftColor: '#FFFFFF',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
   },
   quoteBoxOther: {
     borderLeftColor: '#2563EB',
@@ -639,11 +836,67 @@ const styles = StyleSheet.create({
   quoteSender: {
     fontSize: 11,
     fontWeight: '700',
+    marginBottom: 2,
+  },
+  quoteSenderMe: {
+    color: '#FFFFFF',
+  },
+  quoteSenderOther: {
     color: '#2563EB',
   },
   quoteText: {
     fontSize: 11,
+    lineHeight: 15,
+  },
+  quoteTextMe: {
+    color: '#F8FAFC',
+  },
+  quoteTextOther: {
     color: '#475569',
+  },
+  typingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 6,
+    paddingLeft: 4,
+  },
+  typingAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  typingAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  typingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 4,
+  },
+  typingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#2563EB',
+  },
+  typingLabelText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
+    maxWidth: 160,
   },
   messageText: {
     fontSize: 14,

@@ -55,12 +55,20 @@ io.on('connection', (socket) => {
   });
 
   // Typing indicator broadcast
-  socket.on('typing_start', ({ groupId, userName }) => {
-    socket.to(`chat_group_${groupId}`).emit('user_typing', { groupId, userName, isTyping: true });
+  socket.on('typing_start', (data) => {
+    const groupId = (data?.groupId?._id || data?.groupId || '').toString().trim();
+    const userName = (data?.userName || 'Someone').toString().trim();
+    if (groupId) {
+      socket.to(`chat_group_${groupId}`).emit('user_typing', { groupId, userName, isTyping: true });
+    }
   });
 
-  socket.on('typing_stop', ({ groupId, userName }) => {
-    socket.to(`chat_group_${groupId}`).emit('user_typing', { groupId, userName, isTyping: false });
+  socket.on('typing_stop', (data) => {
+    const groupId = (data?.groupId?._id || data?.groupId || '').toString().trim();
+    const userName = (data?.userName || 'Someone').toString().trim();
+    if (groupId) {
+      socket.to(`chat_group_${groupId}`).emit('user_typing', { groupId, userName, isTyping: false });
+    }
   });
 
   socket.on('disconnect', () => {

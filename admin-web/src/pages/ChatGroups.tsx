@@ -75,6 +75,15 @@ export default function ChatGroups() {
   const [replyingMessage, setReplyingMessage] = useState<MessageItem | null>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
 
+  const adminUserStr = localStorage.getItem('adminUser');
+  const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
+  const adminName = adminUser?.name || 'Super Admin';
+
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const adminTypingTimerRef = useRef<any>(null);
+  const isAdminTypingRef = useRef<boolean>(false);
+  const typingTimersRef = useRef<{ [userName: string]: any }>({});
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const activeChatGroupRef = useRef<ChatGroupItem | null>(null);
@@ -141,6 +150,12 @@ export default function ChatGroups() {
           if (prev.some(m => m._id === newMsg._id)) return prev;
           return [...prev, newMsg];
         });
+
+        // Clear typing indicator for this sender
+        if (newMsg.sender_name) {
+          setTypingUsers(prev => prev.filter(u => u !== newMsg.sender_name));
+        }
+
         scrollToBottom();
       }
 
@@ -168,14 +183,46 @@ export default function ChatGroups() {
       setChatMessages(prev => prev.map(m => m._id === message_id ? { ...m, text: 'This message was deleted', is_deleted: true } : m));
     });
 
+    // Real-time user typing listener in Admin web
+    socket.on('user_typing', ({ groupId: tGid, userName, isTyping }: any) => {
+      const incomingGid = (tGid || '').toString().trim();
+      const currentGid = (activeChatGroupRef.current?._id || '').toString().trim();
+      if (currentGid && incomingGid && incomingGid !== currentGid) return;
+      if (!userName || userName.trim() === adminName.trim()) return;
+
+      setTypingUsers(prev => {
+        if (isTyping) {
+          if (typingTimersRef.current[userName]) {
+            clearTimeout(typingTimersRef.current[userName]);
+          }
+          typingTimersRef.current[userName] = setTimeout(() => {
+            setTypingUsers(curr => curr.filter(u => u !== userName));
+          }, 3500);
+
+          if (!prev.includes(userName)) {
+            scrollToBottom();
+            return [...prev, userName];
+          }
+          return prev;
+        } else {
+          if (typingTimersRef.current[userName]) {
+            clearTimeout(typingTimersRef.current[userName]);
+            delete typingTimersRef.current[userName];
+          }
+          return prev.filter(u => u !== userName);
+        }
+      });
+    });
+
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [adminName]);
 
   // Sync activeChatGroup with ref & room subscription + 2s fallback auto-sync
   useEffect(() => {
     activeChatGroupRef.current = activeChatGroup;
+    setTypingUsers([]);
     if (!activeChatGroup) return;
 
     if (socketRef.current) {
@@ -208,8 +255,17 @@ export default function ChatGroups() {
 
     return () => {
       clearInterval(interval);
+      if (isAdminTypingRef.current && socketRef.current && activeChatGroup) {
+        isAdminTypingRef.current = false;
+        socketRef.current.emit('typing_stop', {
+          groupId: activeChatGroup._id,
+          userName: adminName
+        });
+      }
+      if (adminTypingTimerRef.current) clearTimeout(adminTypingTimerRef.current);
+      Object.values(typingTimersRef.current).forEach(t => clearTimeout(t));
     };
-  }, [activeChatGroup]);
+  }, [activeChatGroup, adminName]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -244,6 +300,7 @@ export default function ChatGroups() {
   const openChatRoom = async (group: ChatGroupItem) => {
     setActiveChatGroup(group);
     setChatMessages([]);
+    setTypingUsers([]);
     setLoadingChat(true);
     setReplyingMessage(null);
     setEditingMsgId(null);
@@ -262,10 +319,56 @@ export default function ChatGroups() {
     }
   };
 
+  const handleChatInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setChatInput(val);
+
+    if (!socketRef.current || !activeChatGroup) return;
+
+    if (val.trim().length > 0) {
+      if (!isAdminTypingRef.current) {
+        isAdminTypingRef.current = true;
+        socketRef.current.emit('typing_start', {
+          groupId: activeChatGroup._id,
+          userName: adminName
+        });
+      }
+
+      if (adminTypingTimerRef.current) clearTimeout(adminTypingTimerRef.current);
+
+      adminTypingTimerRef.current = setTimeout(() => {
+        isAdminTypingRef.current = false;
+        socketRef.current?.emit('typing_stop', {
+          groupId: activeChatGroup._id,
+          userName: adminName
+        });
+      }, 2200);
+    } else {
+      if (isAdminTypingRef.current) {
+        isAdminTypingRef.current = false;
+        if (adminTypingTimerRef.current) clearTimeout(adminTypingTimerRef.current);
+        socketRef.current.emit('typing_stop', {
+          groupId: activeChatGroup._id,
+          userName: adminName
+        });
+      }
+    }
+  };
+
   // Send Message / Edit Message / Reply
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || !activeChatGroup || sendingMsg) return;
+
+    // Immediately stop typing indicator on send
+    if (isAdminTypingRef.current) {
+      isAdminTypingRef.current = false;
+      if (adminTypingTimerRef.current) clearTimeout(adminTypingTimerRef.current);
+      socketRef.current?.emit('typing_stop', {
+        groupId: activeChatGroup._id,
+        userName: adminName
+      });
+    }
 
     setSendingMsg(true);
 
@@ -660,8 +763,17 @@ export default function ChatGroups() {
                   <MessageSquare size={18} color="#1d4ed8" />
                   {activeChatGroup.name}
                 </h3>
-                <span style={{ fontSize: 12, color: '#64748b' }}>
-                  {activeChatGroup.group_type} Committee • Admin Live Communication
+                <span style={{ fontSize: 12, color: typingUsers.length > 0 ? '#1d4ed8' : '#64748b' }}>
+                  {typingUsers.length > 0 ? (
+                    <span className="admin-typing-header">
+                      <span className="admin-typing-pulse-dot" />
+                      {typingUsers.length === 1 
+                        ? `${typingUsers[0]} is typing...` 
+                        : `${typingUsers.join(', ')} are typing...`}
+                    </span>
+                  ) : (
+                    `${activeChatGroup.group_type} Committee • Admin Live Communication`
+                  )}
                 </span>
               </div>
               <button 
@@ -761,6 +873,28 @@ export default function ChatGroups() {
                   );
                 })
               )}
+
+              {/* Typing indicator bubble */}
+              {typingUsers.length > 0 && (
+                <div className="admin-typing-row">
+                  <div className="admin-typing-avatar">
+                    {(typingUsers[0] || '?').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="admin-typing-bubble">
+                    <div className="typing-dots">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                  </div>
+                  <span className="admin-typing-label">
+                    {typingUsers.length === 1 
+                      ? `${typingUsers[0]} is typing...` 
+                      : `${typingUsers.join(', ')} are typing...`}
+                  </span>
+                </div>
+              )}
+
               <div ref={messagesEndRef} />
             </div>
 
@@ -788,7 +922,7 @@ export default function ChatGroups() {
                   className="admin-chat-input"
                   placeholder={editingMsgId ? "Edit your message..." : "Type response to committee members..."}
                   value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
+                  onChange={handleChatInputChange}
                 />
                 <button
                   type="submit"
