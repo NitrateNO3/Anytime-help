@@ -105,9 +105,7 @@ export default function ResidentHome() {
   useEffect(() => {
     if (banners.length > 1) {
       const currentBanner = banners[bannerIndex];
-      const durationSec = (currentBanner && typeof currentBanner.duration === 'number' && currentBanner.duration > 0)
-        ? currentBanner.duration
-        : 4;
+      const durationSec = Number(currentBanner?.duration) > 0 ? Number(currentBanner.duration) : 4;
       const durationMs = durationSec * 1000;
 
       const timer = setTimeout(() => {

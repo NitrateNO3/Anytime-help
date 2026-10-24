@@ -54,7 +54,7 @@ export default function StaffBanners() {
   const [newTitle, setNewTitle] = useState('');
   const [newAudience, setNewAudience] = useState<AudienceType>('Staff');
   const [newIsActive, setNewIsActive] = useState(true);
-  const [newDuration, setNewDuration] = useState<number>(4);
+  const [newDuration, setNewDuration] = useState<number | string>(4);
   const [newExpiresAt, setNewExpiresAt] = useState<string>('');
   const [newImageFile, setNewImageFile] = useState<File | null>(null);
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
@@ -63,7 +63,7 @@ export default function StaffBanners() {
   const [editTitle, setEditTitle] = useState('');
   const [editAudience, setEditAudience] = useState<AudienceType>('Staff');
   const [editIsActive, setEditIsActive] = useState(true);
-  const [editDuration, setEditDuration] = useState<number>(4);
+  const [editDuration, setEditDuration] = useState<number | string>(4);
   const [editExpiresAt, setEditExpiresAt] = useState<string>('');
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
@@ -733,11 +733,17 @@ export default function StaffBanners() {
                       <input 
                         type="number" 
                         min={1}
-                        max={60}
+                        max={120}
                         className="form-input" 
                         placeholder="e.g. 5"
                         value={newDuration}
-                        onChange={(e) => setNewDuration(Math.max(1, parseInt(e.target.value) || 4))}
+                        onChange={(e) => setNewDuration(e.target.value)}
+                        onBlur={() => {
+                          const val = parseInt(String(newDuration), 10);
+                          if (isNaN(val) || val < 1) setNewDuration(4);
+                          else if (val > 120) setNewDuration(120);
+                          else setNewDuration(val);
+                        }}
                         style={{ width: '100%', paddingLeft: 34 }}
                       />
                       <Clock size={16} color="#64748B" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
@@ -918,11 +924,17 @@ export default function StaffBanners() {
                       <input 
                         type="number" 
                         min={1}
-                        max={60}
+                        max={120}
                         className="form-input" 
                         placeholder="e.g. 5"
                         value={editDuration}
-                        onChange={(e) => setEditDuration(Math.max(1, parseInt(e.target.value) || 4))}
+                        onChange={(e) => setEditDuration(e.target.value)}
+                        onBlur={() => {
+                          const val = parseInt(String(editDuration), 10);
+                          if (isNaN(val) || val < 1) setEditDuration(4);
+                          else if (val > 120) setEditDuration(120);
+                          else setEditDuration(val);
+                        }}
                         style={{ width: '100%', paddingLeft: 34 }}
                       />
                       <Clock size={16} color="#64748B" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
