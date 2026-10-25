@@ -746,7 +746,7 @@ export default function MemberChatRoomScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" />
 
       {/* Screen Header - Touch header to auto-close keyboard */}
       <TouchableOpacity activeOpacity={1} onPress={Keyboard.dismiss} style={styles.header}>

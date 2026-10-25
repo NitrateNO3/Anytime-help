@@ -137,7 +137,7 @@ export default function ResidentsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="light-content" />
 
       {/* Header */}
       <View style={styles.headerBar}>

@@ -144,7 +144,7 @@ export default function RegisterScreen() {
   }, [step]);
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+    const unsubscribe = (navigation as any).addListener('beforeRemove', (e: any) => {
       if (step > 0 && !isCompleteRef.current) {
         e.preventDefault();
         handleBack();
@@ -616,7 +616,7 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" />
       <Stack.Screen options={{ gestureEnabled: false, headerShown: false }} />
       
       {/* Header */}

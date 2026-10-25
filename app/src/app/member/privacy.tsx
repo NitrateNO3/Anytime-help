@@ -147,7 +147,7 @@ export default function PrivacyPolicy() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="light-content" />
       <View style={styles.headerBar}>
         <TouchableOpacity 
           onPress={handleBack} 

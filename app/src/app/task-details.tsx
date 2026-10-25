@@ -47,7 +47,7 @@ export default function TaskDetailsScreen() {
   const [isLocatingUser, setIsLocatingUser] = useState(false);
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const manualInputRef = React.useRef<TextInput>(null);
+  const manualInputRef = React.useRef<any>(null);
   const [replyText, setReplyText] = useState('');
   const [replyImage, setReplyImage] = useState<string | null>(null);
   const [isPhotoLoading, setIsPhotoLoading] = useState(false);
@@ -479,7 +479,7 @@ export default function TaskDetailsScreen() {
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="dark-content" backgroundColor="#FCFDF6" />
+        <StatusBar barStyle="dark-content" />
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
@@ -525,7 +525,7 @@ export default function TaskDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FCFDF6" />
+      <StatusBar barStyle="dark-content" />
       
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>

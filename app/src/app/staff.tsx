@@ -18,7 +18,7 @@ const SOCKET_URL = 'https://anytime-help.onrender.com';
 import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 
-const WalkthroughableTouchableOpacity = walkthroughable(TouchableOpacity);
+const WalkthroughableView = walkthroughable(View);
 
 export default function StaffScreen() {
   const { start } = useCopilot();
@@ -498,7 +498,7 @@ export default function StaffScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <StatusBar barStyle="dark-content" />
       
       {isOffline && (
         <View style={styles.offlineBanner}>
@@ -519,10 +519,19 @@ export default function StaffScreen() {
             <Text style={styles.langToggleText}>{getLanguageDisplayName(i18n.language)}</Text>
           </TouchableOpacity>
           <View style={styles.headerRight}>
+            <TouchableOpacity 
+              style={[styles.iconBtn, { backgroundColor: '#EFF6FF', marginRight: 8 }]} 
+              onPress={() => router.push('/staff-raise' as any)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="add-circle" size={24} color="#2563EB" />
+            </TouchableOpacity>
             <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल, भाषा और सेटिंग्स मैनेज कर सकते हैं।" order={3} name="staff_settings">
-              <WalkthroughableTouchableOpacity style={styles.iconBtn} onPress={() => router.push('/staff-settings')}>
-                <Ionicons name="settings-outline" size={24} color="#3B82F6" />
-              </WalkthroughableTouchableOpacity>
+              <WalkthroughableView>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/staff-settings')} activeOpacity={0.7}>
+                  <Ionicons name="settings-outline" size={24} color="#3B82F6" />
+                </TouchableOpacity>
+              </WalkthroughableView>
             </CopilotStep>
           </View>
         </View>
@@ -570,7 +579,7 @@ export default function StaffScreen() {
                       offset: bannerCardWidth * index,
                       index,
                     })}
-                    onMomentumScrollEnd={(e) => {
+                    onMomentumScrollEnd={(e: any) => {
                       const idx = Math.round(e.nativeEvent.contentOffset.x / bannerCardWidth);
                       setBannerIndex(idx);
                     }}
@@ -714,33 +723,60 @@ export default function StaffScreen() {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Quick Action: Report / Lodge Grievance for Staff */}
+          <TouchableOpacity 
+            style={styles.raiseGrievanceBanner}
+            onPress={() => router.push('/staff-raise' as any)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.raiseGrievanceIconWrapper}>
+              <Ionicons name="megaphone" size={22} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.raiseGrievanceTitle}>{t('staff.reportIssue', { defaultValue: 'Report / Raise Issue' })}</Text>
+              <Text style={styles.raiseGrievanceSubtitle}>{t('staff.reportIssueSub', { defaultValue: 'Spotted a problem in your area? Lodge a grievance directly' })}</Text>
+            </View>
+            <View style={styles.raiseGrievanceArrow}>
+              <Ionicons name="chevron-forward" size={18} color="#2563EB" />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Filters */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterContainer}>
           <CopilotStep text="यहाँ आप अपने सभी असाइन किए गए कार्य (tasks) देख और मैनेज कर सकते हैं।" order={1} name="tasks_tab">
-            <WalkthroughableTouchableOpacity 
-              style={[styles.filterChip, activeTab === 'Tasks' && styles.filterChipActive]}
-              onPress={() => setActiveTab('Tasks')}
-            >
-              <Text style={[styles.filterText, activeTab === 'Tasks' && styles.filterTextActive]}>{t('staff.assignedTasks')}</Text>
-            </WalkthroughableTouchableOpacity>
+            <WalkthroughableView>
+              <TouchableOpacity 
+                style={[styles.filterChip, activeTab === 'Tasks' && styles.filterChipActive]}
+                onPress={() => setActiveTab('Tasks')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterText, activeTab === 'Tasks' && styles.filterTextActive]}>{t('staff.assignedTasks')}</Text>
+              </TouchableOpacity>
+            </WalkthroughableView>
           </CopilotStep>
           <CopilotStep text="एडमिन या मैनेजमेंट से आई घोषणाएं यहाँ देखें।" order={2} name="announcements_tab">
-            <WalkthroughableTouchableOpacity 
-              style={[styles.filterChip, activeTab === 'Announcements' && styles.filterChipActive]}
-              onPress={() => setActiveTab('Announcements')}
-            >
-              <Text style={[styles.filterText, activeTab === 'Announcements' && styles.filterTextActive]}>{t('resident.announcements', { defaultValue: 'Announcements' })}</Text>
-            </WalkthroughableTouchableOpacity>
+            <WalkthroughableView>
+              <TouchableOpacity 
+                style={[styles.filterChip, activeTab === 'Announcements' && styles.filterChipActive]}
+                onPress={() => setActiveTab('Announcements')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterText, activeTab === 'Announcements' && styles.filterTextActive]}>{t('resident.announcements', { defaultValue: 'Announcements' })}</Text>
+              </TouchableOpacity>
+            </WalkthroughableView>
           </CopilotStep>
           <CopilotStep text="निवासियों को ज़रूरी अपडेट या घोषणाएँ भेजने के लिए इसका उपयोग करें।" order={3} name="broadcasts_tab">
-            <WalkthroughableTouchableOpacity 
-              style={[styles.filterChip, activeTab === 'Broadcasts' && styles.filterChipActive]}
-              onPress={() => setActiveTab('Broadcasts')}
-            >
-              <Text style={[styles.filterText, activeTab === 'Broadcasts' && styles.filterTextActive]}>{t('staff.myBroadcasts', { defaultValue: 'My Broadcasts' })}</Text>
-            </WalkthroughableTouchableOpacity>
+            <WalkthroughableView>
+              <TouchableOpacity 
+                style={[styles.filterChip, activeTab === 'Broadcasts' && styles.filterChipActive]}
+                onPress={() => setActiveTab('Broadcasts')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.filterText, activeTab === 'Broadcasts' && styles.filterTextActive]}>{t('staff.myBroadcasts', { defaultValue: 'My Broadcasts' })}</Text>
+              </TouchableOpacity>
+            </WalkthroughableView>
           </CopilotStep>
         </ScrollView>
 
@@ -1282,4 +1318,44 @@ const styles = StyleSheet.create({
   fullScreenImageContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
   fullScreenImage: { width: '100%', height: '100%' },
   closeImageBtn: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 60, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },
+
+  // Staff Raise Grievance Banner
+  raiseGrievanceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1.5,
+    borderColor: '#BFDBFE',
+    borderRadius: 16,
+    padding: 14,
+    marginTop: 14,
+    gap: 12,
+  },
+  raiseGrievanceIconWrapper: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#2563EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  raiseGrievanceTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E40AF',
+    marginBottom: 2,
+  },
+  raiseGrievanceSubtitle: {
+    fontSize: 12,
+    color: '#60A5FA',
+    lineHeight: 16,
+  },
+  raiseGrievanceArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#DBEAFE',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

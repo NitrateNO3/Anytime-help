@@ -2,6 +2,8 @@ import React, { useRef, useEffect, forwardRef, useImperativeHandle } from 'react
 import { View, StyleSheet, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 
+const WebViewComponent = WebView as any;
+
 export interface FreeMapViewRef {
   zoomIn: () => void;
   zoomOut: () => void;
@@ -191,7 +193,7 @@ const FreeMapView = forwardRef<FreeMapViewRef, FreeMapViewProps>(({
 
   return (
     <View style={[styles.container, style]}>
-      <WebView
+      <WebViewComponent
         ref={webViewRef}
         source={{ html: htmlContent }}
         onLoadEnd={() => {

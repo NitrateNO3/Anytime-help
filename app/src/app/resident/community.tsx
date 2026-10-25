@@ -82,7 +82,7 @@ export default function CommunityScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" />
 
       {/* Header */}
       <View style={styles.headerBar}>

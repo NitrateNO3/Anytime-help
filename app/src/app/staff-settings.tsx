@@ -87,7 +87,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" />
 
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, paddingBottom: 14, paddingHorizontal: 20, backgroundColor: '#1D4ED8', zIndex: 1, elevation: 4 }}>

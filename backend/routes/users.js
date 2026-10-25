@@ -300,7 +300,7 @@ router.get('/paid-staff', auth, async (req, res) => {
 // @access  Admin Private
 router.get('/residents', auth, async (req, res) => {
   try {
-    if (!checkAccess(req.user, 'Residents')) {
+    if (req.user.role !== 'Member' && !checkAccess(req.user, 'Residents')) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
     const { page, limit, phase, search, relation, dateFrom, dateTo, role, status } = req.query;

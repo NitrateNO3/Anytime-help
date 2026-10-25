@@ -279,7 +279,7 @@ export default function SettingsScreen() {
         await fetch(`${API_URL}/api/auth/logout`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: parsed.id })
+          body: JSON.stringify({ userId: parsed._id || parsed.id })
         });
       }
     } catch (e) {
@@ -292,7 +292,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="light-content" />
 
       {/* Header */}
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, paddingBottom: 14, paddingHorizontal: 20, backgroundColor: '#0F172A', zIndex: 1, elevation: 4 }}>

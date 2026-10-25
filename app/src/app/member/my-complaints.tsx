@@ -116,7 +116,7 @@ export default function MyComplaints() {
         setUser(parsedUser);
       }
 
-      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=500${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${(currentViewMode === 'mine' || (parsedUser && !parsedUser.permissions?.includes('All Complaints'))) ? '&mine=true' : ''}`, {
+      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=25${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${(currentViewMode === 'mine' || (parsedUser && !parsedUser.permissions?.includes('All Complaints'))) ? '&mine=true' : ''}`, {
         headers: { 'x-auth-token': token }
       });
       
@@ -133,7 +133,7 @@ export default function MyComplaints() {
         });
       } else {
         setAllFetchedComplaints(newComplaints);
-        AsyncStorage.setItem('cached_resident_complaints', JSON.stringify(newComplaints));
+        AsyncStorage.setItem('cached_member_complaints', JSON.stringify(newComplaints));
       }
       
       setHasMore(hasMoreData);
@@ -143,7 +143,7 @@ export default function MyComplaints() {
       if (currentFetchId !== fetchIdRef.current) return;
       console.log('Fetch complaints error:', err.message);
       if (!append) {
-        const cachedStr = await AsyncStorage.getItem('cached_resident_complaints');
+        const cachedStr = await AsyncStorage.getItem('cached_member_complaints');
         if (cachedStr) {
           setAllFetchedComplaints(JSON.parse(cachedStr));
           setIsOffline(true);
@@ -241,16 +241,13 @@ export default function MyComplaints() {
     };
   }, []);
 
-  const hasFetchedRef = React.useRef(false);
   useFocusEffect(
     useCallback(() => {
       const { viewMode: currentV, searchQuery: currentS, selectedCategory: currentC } = stateRef.current;
-      if (!hasFetchedRef.current) {
-        hasFetchedRef.current = true;
-        fetchComplaints(1, false, currentS, currentC, currentV, true);
-        fetchAnnouncements(true);
-        fetchFilterCategories();
-      }
+      fetchComplaints(1, false, currentS, currentC, currentV, true);
+      fetchAnnouncements(true);
+      fetchFilterCategories();
+
       if (tab === 'Complaints') {
         setActiveTab('Complaints');
       }
@@ -350,7 +347,7 @@ export default function MyComplaints() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar barStyle="light-content" />
       
       {isOffline && (
         <View style={styles.offlineBanner}>

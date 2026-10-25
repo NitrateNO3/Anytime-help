@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, StatusBar, Linking, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Platform, StatusBar as RNStatusBar, Linking, BackHandler } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 
@@ -36,7 +37,7 @@ export default function HelpSupport() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <StatusBar style="light" />
 
       {/* Header */}
       <View style={styles.headerBar}>
@@ -96,7 +97,7 @@ export default function HelpSupport() {
         {/* Quick Action Button */}
         <TouchableOpacity 
           style={styles.raiseBanner} 
-          onPress={() => router.replace('/member/raise' as any)}
+          onPress={() => router.push('/member-raise' as any)}
           activeOpacity={0.8}
         >
           <View style={{ flex: 1 }}>
@@ -121,7 +122,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', 
     justifyContent: 'space-between',
     paddingHorizontal: 20, 
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 8 : 24) : 20, 
+    paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight ? RNStatusBar.currentHeight + 8 : 24) : 20, 
     paddingBottom: 14, 
     backgroundColor: '#0F172A',
     elevation: 4,

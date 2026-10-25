@@ -213,7 +213,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <StatusBar barStyle="light-content" />
       
       {/* Top Image with Seamless Fade */}
       <View style={styles.imageContainer}>

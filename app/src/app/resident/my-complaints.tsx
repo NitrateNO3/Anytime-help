@@ -187,13 +187,18 @@ export default function MyComplaints() {
 
   const { tab } = useLocalSearchParams();
 
+  const searchQueryRef = React.useRef(searchQuery);
+  searchQueryRef.current = searchQuery;
+  const selectedCategoryRef = React.useRef(selectedCategory);
+  selectedCategoryRef.current = selectedCategory;
+
   React.useEffect(() => {
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', () => {
-      fetchComplaints();
+      fetchComplaints(1, false, searchQueryRef.current, selectedCategoryRef.current, true);
     });
     socket.on('announcement_changed', () => {
-      fetchAnnouncements();
+      fetchAnnouncements(true);
     });
     socket.on('categories_updated', () => {
       fetchFilterCategories();
@@ -204,15 +209,12 @@ export default function MyComplaints() {
     };
   }, []);
 
-  const hasFetchedRef = React.useRef(false);
   useFocusEffect(
     useCallback(() => {
-      if (!hasFetchedRef.current) {
-        hasFetchedRef.current = true;
-        fetchComplaints(1, false, searchQuery, selectedCategory, true);
-        fetchAnnouncements(true);
-        fetchFilterCategories();
-      }
+      fetchComplaints(1, false, searchQueryRef.current, selectedCategoryRef.current, true);
+      fetchAnnouncements(true);
+      fetchFilterCategories();
+
       if (tab === 'Complaints') {
         setActiveTab('Complaints');
       }
@@ -284,7 +286,7 @@ export default function MyComplaints() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" />
       
       {isOffline && (
         <View style={styles.offlineBanner}>

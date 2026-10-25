@@ -181,7 +181,7 @@ export default function PaidStaffScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FCFDF6" />
+      <StatusBar barStyle="dark-content" />
       
       <ScrollView 
         style={styles.container} 

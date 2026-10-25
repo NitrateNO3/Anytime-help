@@ -141,7 +141,7 @@ export default function MemberChatsScreen() {
         style={styles.groupCard}
         activeOpacity={0.7}
         onPress={() => router.push({
-          pathname: '/member/chat-room' as any,
+          pathname: '/member-chat-room' as any,
           params: {
             groupId: item._id,
             groupName: item.name,
@@ -204,7 +204,7 @@ export default function MemberChatsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" />
 
       {/* Modern Top Header */}
       <View style={styles.header}>

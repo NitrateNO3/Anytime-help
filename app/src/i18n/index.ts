@@ -13,8 +13,15 @@ const resources = {
   hinglish: { translation: hinglish },
 };
 
-const locales = Localization.getLocales();
-const deviceLanguage = (locales && locales.length > 0) ? locales[0].languageCode || 'en' : 'en';
+let deviceLanguage = 'en';
+try {
+  const locales = typeof Localization.getLocales === 'function' ? Localization.getLocales() : [];
+  if (locales && locales.length > 0 && locales[0]?.languageCode) {
+    deviceLanguage = locales[0].languageCode;
+  }
+} catch (e) {
+  // Fallback to 'en'
+}
 
 i18n
   .use(initReactI18next)
@@ -27,17 +34,13 @@ i18n
     },
   });
 
-// Load the saved language from AsyncStorage asynchronously (only in client environment)
-if (typeof window !== 'undefined' || typeof navigator !== 'undefined') {
-  try {
-    AsyncStorage.getItem('user-language').then((savedLanguage) => {
-      if (savedLanguage) {
-        i18n.changeLanguage(savedLanguage);
-      }
-    }).catch(err => console.log('Error loading language', err));
-  } catch (e) {
-    // Ignore in non-client static render environments
-  }
-}
+// Load the saved language from AsyncStorage asynchronously
+AsyncStorage.getItem('user-language')
+  .then((savedLanguage) => {
+    if (savedLanguage) {
+      i18n.changeLanguage(savedLanguage);
+    }
+  })
+  .catch(err => console.log('Error loading language', err));
 
 export default i18n;

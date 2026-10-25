@@ -28,7 +28,7 @@ export default function AboutUs() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1D4ED8" />
+      <StatusBar barStyle="light-content" />
       
       {/* Header */}
       <View style={styles.headerBar}>

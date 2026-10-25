@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, BackHandler, Platform, RefreshControl, Image, FlatList, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar as RNStatusBar, BackHandler, Platform, RefreshControl, Image, FlatList, Dimensions } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
@@ -9,11 +10,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 
+import Toast from 'react-native-toast-message';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
-const WalkthroughableTouchableOpacity = walkthroughable(TouchableOpacity);
+const WalkthroughableView = walkthroughable(View);
 
 export default function MemberHome() {
   const { start } = useCopilot();
@@ -226,8 +228,20 @@ export default function MemberHome() {
         }
       });
 
+      let lastBackPress = 0;
       const onBackPress = () => {
-        BackHandler.exitApp();
+        const now = Date.now();
+        if (now - lastBackPress < 2000) {
+          BackHandler.exitApp();
+          return true;
+        }
+        lastBackPress = now;
+        Toast.show({
+          type: 'info',
+          text1: t('common.pressBackAgain', { defaultValue: 'Press back again to exit' }),
+          visibilityTime: 2000,
+          position: 'bottom',
+        });
         return true;
       };
       const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -267,7 +281,7 @@ export default function MemberHome() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" translucent={true} />
+      <StatusBar style="light" />
 
       {/* Modern Compact Branded Header */}
       <View style={styles.headerWrapper}>
@@ -297,7 +311,7 @@ export default function MemberHome() {
 
             <TouchableOpacity 
               style={styles.avatarContainer} 
-              onPress={() => router.push('/member/settings')}
+              onPress={() => router.navigate('/member/settings')}
               activeOpacity={0.8}
             >
               <Ionicons name="person" size={20} color="#1E1B4B" />
@@ -404,7 +418,7 @@ export default function MemberHome() {
                     offset: bannerCardWidth * index,
                     index,
                   })}
-                  onMomentumScrollEnd={(e) => {
+                  onMomentumScrollEnd={(e: any) => {
                     if (bannerCardWidth > 0) {
                       const idx = Math.round(e.nativeEvent.contentOffset.x / bannerCardWidth);
                       const safeIdx = Math.max(0, Math.min(idx, banners.length - 1));
@@ -478,97 +492,107 @@ export default function MemberHome() {
             {/* 1: Raise Complaint */}
             <View style={styles.gridItemColumn}>
               <CopilotStep text="यहाँ से किसी भी निवासी (resident) के लिए एक नई शिकायत दर्ज करें।" order={1} name="raise_complaint">
-                <WalkthroughableTouchableOpacity 
-                  style={styles.actionTouchable}
-                  onPress={() => router.push('/member/raise' as any)}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.circleIcon, { backgroundColor: '#DBEAFE', borderColor: '#BFDBFE' }]}>
-                    <Ionicons name="add-circle" size={25} color="#2563EB" />
-                  </View>
-                  <Text style={styles.actionLabel} numberOfLines={2}>
-                    {t('member.raiseComplaint', { defaultValue: 'Raise Issue' })}
-                  </Text>
-                </WalkthroughableTouchableOpacity>
+                <WalkthroughableView>
+                  <TouchableOpacity 
+                    style={styles.actionTouchable}
+                    onPress={() => router.push('/member-raise' as any)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.circleIcon, { backgroundColor: '#DBEAFE', borderColor: '#BFDBFE' }]}>
+                      <Ionicons name="add-circle" size={25} color="#2563EB" />
+                    </View>
+                    <Text style={styles.actionLabel} numberOfLines={2}>
+                      {t('member.raiseComplaint', { defaultValue: 'Raise Issue' })}
+                    </Text>
+                  </TouchableOpacity>
+                </WalkthroughableView>
               </CopilotStep>
             </View>
 
             {/* 2: All / My Complaints */}
             <View style={styles.gridItemColumn}>
               <CopilotStep text="शिकायतें देखें" order={2} name="all_complaints">
-                <WalkthroughableTouchableOpacity 
-                  style={styles.actionTouchable}
-                  onPress={() => router.push('/member/my-complaints' as any)}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.circleIcon, { backgroundColor: '#D1FAE5', borderColor: '#A7F3D0' }]}>
-                    <Ionicons name="list" size={24} color="#059669" />
-                  </View>
-                  <Text style={styles.actionLabel} numberOfLines={2}>
-                    {user?.permissions?.includes('All Complaints') 
-                      ? t('member.allComplaints', { defaultValue: 'Complaints' }) 
-                      : t('resident.myComplaints', 'My Complaints')}
-                  </Text>
-                </WalkthroughableTouchableOpacity>
+                <WalkthroughableView>
+                  <TouchableOpacity 
+                    style={styles.actionTouchable}
+                    onPress={() => router.navigate('/member/my-complaints' as any)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.circleIcon, { backgroundColor: '#D1FAE5', borderColor: '#A7F3D0' }]}>
+                      <Ionicons name="list" size={24} color="#059669" />
+                    </View>
+                    <Text style={styles.actionLabel} numberOfLines={2}>
+                      {user?.permissions?.includes('All Complaints') 
+                        ? t('member.allComplaints', { defaultValue: 'Complaints' }) 
+                        : t('resident.myComplaints', 'My Complaints')}
+                    </Text>
+                  </TouchableOpacity>
+                </WalkthroughableView>
               </CopilotStep>
             </View>
 
             {/* 3: Announcements */}
             <View style={styles.gridItemColumn}>
               <CopilotStep text="यहाँ से नई सूचनाएँ पोस्ट करें या ज़रूरी घोषणाएँ देखें।" order={3} name="announcements">
-                <WalkthroughableTouchableOpacity 
-                  style={styles.actionTouchable}
-                  onPress={() => router.push('/member/announcements' as any)}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.circleIcon, { backgroundColor: '#EDE9FE', borderColor: '#DDD6FE' }]}>
-                    <Ionicons name="notifications" size={24} color="#7C3AED" />
-                    {unreadCount > 0 && (
-                      <View style={styles.badgeContainer}>
-                        <Text style={styles.badgeText}>{unreadCount}</Text>
-                      </View>
-                    )}
-                  </View>
-                  <Text style={styles.actionLabel} numberOfLines={2}>
-                    {t('resident.announcements', 'Notices')}
-                  </Text>
-                </WalkthroughableTouchableOpacity>
+                <WalkthroughableView>
+                  <TouchableOpacity 
+                    style={styles.actionTouchable}
+                    onPress={() => router.push('/member-announcements' as any)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.circleIcon, { backgroundColor: '#EDE9FE', borderColor: '#DDD6FE' }]}>
+                      <Ionicons name="notifications" size={24} color="#7C3AED" />
+                      {unreadCount > 0 && (
+                        <View style={styles.badgeContainer}>
+                          <Text style={styles.badgeText}>{unreadCount}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.actionLabel} numberOfLines={2}>
+                      {t('resident.announcements', 'Notices')}
+                    </Text>
+                  </TouchableOpacity>
+                </WalkthroughableView>
               </CopilotStep>
             </View>
 
             {/* 4: Residents List */}
             <View style={styles.gridItemColumn}>
               <CopilotStep text="सभी निवासियों की सूची देखें।" order={5} name="residents_list">
-                <WalkthroughableTouchableOpacity 
-                  style={styles.actionTouchable}
-                  onPress={() => router.push('/member/residents' as any)}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.circleIcon, { backgroundColor: '#FCE7F3', borderColor: '#FBCFE8' }]}>
-                    <Ionicons name="people" size={24} color="#DB2777" />
-                  </View>
-                  <Text style={styles.actionLabel} numberOfLines={2}>
-                    {t('member.residents', { defaultValue: 'Residents' })}
-                  </Text>
-                </WalkthroughableTouchableOpacity>
+                <WalkthroughableView>
+                  <TouchableOpacity 
+                    style={styles.actionTouchable}
+                    onPress={() => router.push('/member-residents' as any)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.circleIcon, { backgroundColor: '#FCE7F3', borderColor: '#FBCFE8' }]}>
+                      <Ionicons name="people" size={24} color="#DB2777" />
+                    </View>
+                    <Text style={styles.actionLabel} numberOfLines={2}>
+                      {t('member.residents', { defaultValue: 'Residents' })}
+                    </Text>
+                  </TouchableOpacity>
+                </WalkthroughableView>
               </CopilotStep>
             </View>
 
             {/* 5: Directory */}
             <View style={styles.gridItemColumn}>
-              <CopilotStep text="निवासियों को खोजने और उनसे संपर्क करने के लिए कम्युनिटी डायरेक्टरी का उपयोग करें।" order={4} name="directory">
-                <WalkthroughableTouchableOpacity 
-                  style={styles.actionTouchable}
-                  onPress={() => router.push('/member/search' as any)}
-                  activeOpacity={0.75}
-                >
-                  <View style={[styles.circleIcon, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
-                    <Ionicons name="call" size={24} color="#D97706" />
-                  </View>
-                  <Text style={styles.actionLabel} numberOfLines={2}>
-                    {t('resident.directory', 'Directory')}
-                  </Text>
-                </WalkthroughableTouchableOpacity>
+              <CopilotStep text="RWA कमेटी और मैनेजमेंट डायरेक्टरी देखने व संपर्क करने के लिए यहाँ टैप करें।" order={4} name="directory">
+                <WalkthroughableView>
+                  <TouchableOpacity 
+                    style={styles.actionTouchable}
+                    onPress={() => router.push('/member-directory' as any)}
+                    activeOpacity={0.75}
+                  >
+                    <View style={[styles.circleIcon, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+                      <Ionicons name="call" size={24} color="#D97706" />
+                    </View>
+                    <Text style={styles.actionLabel} numberOfLines={2}>
+                      {t('resident.directory', 'Directory')}
+                    </Text>
+                  </TouchableOpacity>
+                </WalkthroughableView>
               </CopilotStep>
             </View>
 
@@ -576,7 +600,7 @@ export default function MemberHome() {
             <View style={styles.gridItemColumn}>
               <TouchableOpacity 
                 style={styles.actionTouchable}
-                onPress={() => router.push('/member/community' as any)}
+                onPress={() => router.push('/member-community' as any)}
                 activeOpacity={0.75}
               >
                 <View style={[styles.circleIcon, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]}>
@@ -598,7 +622,7 @@ export default function MemberHome() {
               <Text style={styles.trackerTitle}>Complaints Overview</Text>
             </View>
             <TouchableOpacity 
-              onPress={() => router.push('/member/my-complaints' as any)}
+              onPress={() => router.navigate('/member/my-complaints' as any)}
               style={styles.trackerSeeAllBtn}
               activeOpacity={0.7}
             >
@@ -611,7 +635,7 @@ export default function MemberHome() {
             {/* Pending Stat */}
             <TouchableOpacity 
               style={[styles.statBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
-              onPress={() => router.push('/member/my-complaints' as any)}
+              onPress={() => router.navigate('/member/my-complaints' as any)}
               activeOpacity={0.75}
             >
               <View style={[styles.statIconBadge, { backgroundColor: '#FEF3C7' }]}>
@@ -624,7 +648,7 @@ export default function MemberHome() {
             {/* In Progress Stat */}
             <TouchableOpacity 
               style={[styles.statBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
-              onPress={() => router.push('/member/my-complaints' as any)}
+              onPress={() => router.navigate('/member/my-complaints' as any)}
               activeOpacity={0.75}
             >
               <View style={[styles.statIconBadge, { backgroundColor: '#DBEAFE' }]}>
@@ -637,7 +661,7 @@ export default function MemberHome() {
             {/* Done / Resolved Stat */}
             <TouchableOpacity 
               style={[styles.statBox, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
-              onPress={() => router.push('/member/my-complaints' as any)}
+              onPress={() => router.navigate('/member/my-complaints' as any)}
               activeOpacity={0.75}
             >
               <View style={[styles.statIconBadge, { backgroundColor: '#D1FAE5' }]}>
@@ -657,7 +681,7 @@ export default function MemberHome() {
               <Text style={styles.sectionTitle}>Latest Notice</Text>
             </View>
             <TouchableOpacity 
-              onPress={() => router.push('/member/announcements' as any)}
+              onPress={() => router.push('/member-announcements' as any)}
               style={styles.trackerSeeAllBtn}
               activeOpacity={0.7}
             >
@@ -669,7 +693,7 @@ export default function MemberHome() {
           {latestAnnouncement ? (
             <TouchableOpacity 
               style={styles.announcementCard}
-              onPress={() => router.push('/member/announcements' as any)}
+              onPress={() => router.push('/member-announcements' as any)}
               activeOpacity={0.8}
             >
               <View style={styles.noticeBannerContainer}>
@@ -742,7 +766,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
   },
   headerGradient: {
-    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 10 : 32) : 44,
+    paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight ? RNStatusBar.currentHeight + 10 : 32) : 44,
     paddingBottom: 20,
     paddingHorizontal: 20,
   },

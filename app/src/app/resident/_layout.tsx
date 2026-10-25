@@ -15,7 +15,7 @@ import ForceBlockUpdateModal, { isProfileBlockUpdateRequired } from '../../compo
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
 
-const WalkthroughableTouchableOpacity = walkthroughable(TouchableOpacity);
+const WalkthroughableView = walkthroughable(View);
 
 export default function ResidentLayout() {
   const insets = useSafeAreaInsets();
@@ -118,11 +118,13 @@ export default function ResidentLayout() {
             tabBarLabel: t('resident.tabHome'),
             title: t('resident.tabHome'),
             tabBarIcon: ({ color }) => (
-              <Ionicons name="home" size={24} color={color} />
+              <Ionicons name="home" size={24} color={color as string} />
             ),
             tabBarButton: (props: any) => (
               <CopilotStep text="यह आपका होम टैब है। यहाँ से आप वापस अपने डैशबोर्ड पर जा सकते हैं।" order={6} name="home_tab">
-                <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
+                <WalkthroughableView style={{ flex: 1 }}>
+                  <TouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
+                </WalkthroughableView>
               </CopilotStep>
             ),
           }}
@@ -133,11 +135,13 @@ export default function ResidentLayout() {
             tabBarLabel: t('resident.myComplaints'),
             title: t('resident.myComplaints'),
             tabBarIcon: ({ color }) => (
-              <Ionicons name="list" size={24} color={color} />
+              <Ionicons name="list" size={24} color={color as string} />
             ),
             tabBarButton: (props: any) => (
               <CopilotStep text="इस टैब से आप अपनी सभी शिकायतें (complaints) जल्दी से चेक कर सकते हैं।" order={7} name="complaints_tab">
-                <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
+                <WalkthroughableView style={{ flex: 1 }}>
+                  <TouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
+                </WalkthroughableView>
               </CopilotStep>
             ),
           }}
@@ -148,17 +152,25 @@ export default function ResidentLayout() {
             tabBarLabel: t('resident.tabProfile'),
             title: t('resident.tabProfile'),
             tabBarIcon: ({ color }) => (
-              <Ionicons name="person" size={24} color={color} />
+              <Ionicons name="person" size={24} color={color as string} />
             ),
             tabBarButton: (props: any) => (
               <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल और सेटिंग्स मैनेज कर सकते हैं।" order={8} name="profile_tab">
-                <WalkthroughableTouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
+                <WalkthroughableView style={{ flex: 1 }}>
+                  <TouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
+                </WalkthroughableView>
               </CopilotStep>
             ),
           }}
         />
         <Tabs.Screen name="search" options={{ href: null }} />
-        <Tabs.Screen name="raise" options={{ href: null }} />
+        <Tabs.Screen 
+          name="raise" 
+          options={{ 
+            href: null,
+            tabBarStyle: { display: 'none' }
+          }} 
+        />
         <Tabs.Screen name="community" options={{ href: null }} />
         <Tabs.Screen name="privacy" options={{ href: null }} />
         <Tabs.Screen name="about" options={{ href: null }} />

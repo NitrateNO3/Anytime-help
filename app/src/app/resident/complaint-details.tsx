@@ -41,7 +41,7 @@ export default function ComplaintDetails() {
   const router = useRouter();
   const { id } = useGlobalSearchParams();
   const { t } = useTranslation();
-  const scrollViewRef = React.useRef<ScrollView>(null);
+  const scrollViewRef = React.useRef<any>(null);
   
   const [complaint, setComplaint] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -263,6 +263,33 @@ export default function ComplaintDetails() {
     }
   };
 
+  const staffMembers: any[] = React.useMemo(() => {
+    if (!complaint) return [];
+    let list: any[] = [];
+    if (Array.isArray(complaint.assigned_staff_list) && complaint.assigned_staff_list.length > 0) {
+      list = complaint.assigned_staff_list;
+    } else if (complaint.assigned_staff) {
+      list = [{ ...complaint.assigned_staff, is_primary: true }];
+    }
+
+    // Filter staff by complaint's phase/address — show Universal staff + matching phase only
+    const complaintPhase = (complaint.phase || complaint.user?.phase || '').toLowerCase().trim();
+    if (complaintPhase && list.length > 0) {
+      const filtered = list.filter((s: any) => {
+        const staffPhase = (s.phase || '').toLowerCase();
+        return (
+          staffPhase.includes('universal') ||
+          staffPhase === complaintPhase
+        );
+      });
+      if (filtered.length > 0) return filtered;
+    }
+
+    return list;
+  }, [complaint]);
+
+  const resolutionData = parseResolutionData(complaint?.after_image || null);
+
   const shareComplaintOnWhatsApp = async () => {
     if (!complaint) return;
 
@@ -371,7 +398,7 @@ export default function ComplaintDetails() {
 
   const shareLocationGeneral = async () => {
     let searchQ = complaintCoords ? `${complaintCoords.latitude},${complaintCoords.longitude}` : '';
-    const locStr = complaint?.address || complaint?.location;
+    const locStr = complaint?.user?.address || complaint?.address || complaint?.location;
     if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
       searchQ = encodeURIComponent(locStr);
     }
@@ -409,31 +436,6 @@ export default function ComplaintDetails() {
       Alert.alert('Error', 'WhatsApp is not installed on this device.');
     });
   };
-
-  const staffMembers: any[] = React.useMemo(() => {
-    if (!complaint) return [];
-    let list: any[] = [];
-    if (Array.isArray(complaint.assigned_staff_list) && complaint.assigned_staff_list.length > 0) {
-      list = complaint.assigned_staff_list;
-    } else if (complaint.assigned_staff) {
-      list = [{ ...complaint.assigned_staff, is_primary: true }];
-    }
-
-    // Filter staff by complaint's phase/address — show Universal staff + matching phase only
-    const complaintPhase = (complaint.phase || complaint.user?.phase || '').toLowerCase().trim();
-    if (complaintPhase && list.length > 0) {
-      const filtered = list.filter((s: any) => {
-        const staffPhase = (s.phase || '').toLowerCase();
-        return (
-          staffPhase.includes('universal') ||
-          staffPhase === complaintPhase
-        );
-      });
-      if (filtered.length > 0) return filtered;
-    }
-
-    return list;
-  }, [complaint]);
 
   if (loading || (complaint && complaint._id !== id)) {
     return (
@@ -473,12 +475,10 @@ export default function ComplaintDetails() {
   const statusTextStyle = step === 0 ? styles.badgeTextPending : (step === 1 ? styles.badgeTextInProgress : styles.badgeTextResolved);
   const statusLabel = step === 0 ? t('staff.pending', 'Pending') : (step === 1 ? t('staff.inProgress', 'In Progress') : t('staff.resolved', 'Resolved'));
   const statusIcon = step === 0 ? 'time-outline' : (step === 1 ? 'construct-outline' : 'checkmark-circle-outline');
-  
-  const resolutionData = parseResolutionData(complaint.after_image);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F8FAFC" />
+      <StatusBar barStyle="dark-content" />
       
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.navigate('/resident/my-complaints')} style={styles.backButton}>
