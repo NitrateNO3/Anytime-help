@@ -191,13 +191,20 @@ export default function RootLayout() {
     });
 
     // Global Axios Interceptor for 401 Unauthorized responses
+    let isHandling401 = false;
     const interceptor = axios.interceptors.response.use(
       (response) => response,
       async (error) => {
         if (error.response && error.response.status === 401) {
+          if (isHandling401) {
+            return Promise.reject(error);
+          }
+          isHandling401 = true;
           console.log('401 Unauthorized caught globally. Logging out...');
-          await SecureStore.deleteItemAsync('userToken');
-          await SecureStore.deleteItemAsync('userData');
+          try {
+            await SecureStore.deleteItemAsync('userToken');
+            await SecureStore.deleteItemAsync('userData');
+          } catch (_) {}
           Toast.show({
             type: 'error',
             text1: 'Session Expired',
@@ -206,6 +213,9 @@ export default function RootLayout() {
           // Avoid multiple redirects
           setTimeout(() => {
             router.replace('/login');
+            setTimeout(() => {
+              isHandling401 = false;
+            }, 2500);
           }, 100);
         }
         return Promise.reject(error);

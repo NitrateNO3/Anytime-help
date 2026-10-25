@@ -473,8 +473,9 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
     }
     
-    // Prioritize Staff > Admin > SubAdmin > Member > Resident if multiple exist
-    let user = users.find(u => u.role === 'Staff' || u.role === 'PaidStaff') 
+    // Prioritize explicitly requested role if provided (e.g. Resident, Member, Staff)
+    let user = (role ? users.find(u => u.role === role) : null)
+            || users.find(u => u.role === 'Staff' || u.role === 'PaidStaff') 
             || users.find(u => u.role === 'Admin' || u.role === 'SubAdmin') 
             || users.find(u => u.role === 'Member')
             || users[0];

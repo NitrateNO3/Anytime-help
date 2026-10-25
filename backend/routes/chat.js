@@ -38,7 +38,10 @@ const getGroupPermissions = (group, user) => {
   }
 
   if (user.role === 'Resident') {
-    if (group.can_residents_view) {
+    if (isChatMember) {
+      return { can_view: true, can_send: true, is_member: true, is_view_only: false, is_admin: false };
+    }
+    if (isViewOnlyMember || group.can_residents_view) {
       return { can_view: true, can_send: false, is_member: false, is_view_only: true, is_admin: false };
     }
     return { can_view: false, can_send: false, is_member: false, is_view_only: false, is_admin: false };
@@ -139,10 +142,14 @@ router.get('/groups', auth, async (req, res) => {
         ]
       };
     } else if (user.role === 'Resident') {
-      // Residents see groups with can_residents_view enabled
+      // Residents see groups with can_residents_view enabled OR if they are an assigned member
       query = {
         is_active: true,
-        can_residents_view: true
+        $or: [
+          { members: user._id },
+          { view_only_members: user._id },
+          { can_residents_view: true }
+        ]
       };
     } else {
       return res.json([]);

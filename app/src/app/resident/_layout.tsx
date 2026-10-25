@@ -147,6 +147,16 @@ export default function ResidentLayout() {
           }}
         />
         <Tabs.Screen
+          name="chats"
+          options={{
+            tabBarLabel: 'Chat',
+            title: 'Chat',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? "chatbubbles" : "chatbubbles-outline"} size={24} color={color as string} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="settings"
           options={{
             tabBarLabel: t('resident.tabProfile'),
@@ -185,6 +195,7 @@ export default function ResidentLayout() {
         <Tabs.Screen name="announcements" options={{ href: null }} />
         <Tabs.Screen name="edit-profile" options={{ href: null }} />
         <Tabs.Screen name="complaint-details" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+        <Tabs.Screen name="chat-room" options={{ href: null, tabBarStyle: { display: 'none' } }} />
       </Tabs>
 
       <ForceBlockUpdateModal

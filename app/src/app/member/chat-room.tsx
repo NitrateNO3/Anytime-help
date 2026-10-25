@@ -349,6 +349,7 @@ export default function MemberChatRoomScreen() {
     if (!cleanGroupId) return;
     try {
       const token = await SecureStore.getItemAsync('userToken');
+      if (!token) return;
       const res = await axios.get(`${API_URL}/chat/groups/${cleanGroupId}/messages`, {
         headers: { 'x-auth-token': token }
       });
