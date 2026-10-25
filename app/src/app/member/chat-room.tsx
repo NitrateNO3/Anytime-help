@@ -148,7 +148,7 @@ function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
 export default function MemberChatRoomScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { groupId, groupName, groupType, canSend } = useLocalSearchParams();
+  const { groupId, groupName, groupType, canSend, returnTo } = useLocalSearchParams();
 
   const cleanGroupId = (Array.isArray(groupId) ? groupId[0] : (groupId || '')).toString().trim();
   const isWriteAllowed = canSend === '1';
@@ -162,10 +162,23 @@ export default function MemberChatRoomScreen() {
   const [groupDetails, setGroupDetails] = useState<any>(null);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
 
-  // Back button routing: Always route back to group chat list (/member/chats)
+  // Back button routing: Always route back safely to the caller's chat list
   const handleBackToChats = useCallback(() => {
-    router.navigate('/member/chats' as any);
-  }, [router]);
+    if (returnTo && typeof returnTo === 'string') {
+      router.replace(returnTo as any);
+      return;
+    }
+    const userRole = currentUser?.role || currentUserRef.current?.role;
+    if (userRole === 'Resident') {
+      router.replace('/resident/chats' as any);
+      return;
+    }
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/member/chats' as any);
+    }
+  }, [router, returnTo, currentUser?.role]);
 
   useEffect(() => {
     const backSub = BackHandler.addEventListener('hardwareBackPress', () => {

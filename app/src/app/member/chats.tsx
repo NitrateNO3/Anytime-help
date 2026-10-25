@@ -146,7 +146,8 @@ export default function MemberChatsScreen() {
             groupId: item._id,
             groupName: item.name,
             groupType: item.group_type,
-            canSend: canSend ? '1' : '0'
+            canSend: canSend ? '1' : '0',
+            returnTo: '/member/chats'
           }
         })}
       >
