@@ -8,18 +8,18 @@ let Notifications: any = null;
 try {
   if (Constants.appOwnership !== 'expo') {
     Notifications = require('expo-notifications');
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: true,
-        shouldShowBanner: true,
-        shouldShowList: true,
-      }),
-    });
+    if (Notifications && typeof Notifications.setNotificationHandler === 'function') {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
+    }
   }
 } catch (e) {
-  // Ignored in Expo Go
+  // Ignored in Expo Go or if native module not ready
 }
 
 const API_URL = 'https://anytime-help.onrender.com/api';

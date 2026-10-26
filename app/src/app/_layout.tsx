@@ -15,6 +15,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { requireOptionalNativeModule } from 'expo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+// Catch any errors thrown by the Layout component or its children.
+// This guarantees the app won't crash/close abruptly if there's an unexpected rendering error.
+export { ErrorBoundary } from 'expo-router';
+
 // Safe check: Expo Go in SDK 53+ removed remote push notifications native code.
 // Only load expo-notifications if not in standard Expo Go or if native module is present.
 let Notifications: any = null;
@@ -55,13 +59,15 @@ export default function RootLayout() {
   };
 
   useEffect(() => {
-    try {
-      const DevMenuPreferences = requireOptionalNativeModule('DevMenuPreferences');
-      DevMenuPreferences?.setPreferencesAsync({
-        showFloatingActionButton: false,
-      });
-    } catch (e) {
-      // Ignored if not running inside expo-dev-menu
+    if (__DEV__) {
+      try {
+        const DevMenuPreferences = requireOptionalNativeModule('DevMenuPreferences');
+        DevMenuPreferences?.setPreferencesAsync({
+          showFloatingActionButton: false,
+        });
+      } catch (e) {
+        // Ignored if not running inside expo-dev-menu
+      }
     }
 
     checkVersion();
@@ -127,14 +133,19 @@ export default function RootLayout() {
       }
     };
 
-    // 1. Handle notification tap that opened app from closed / killed state
-    if (Notifications?.getLastNotificationResponseAsync) {
-      Notifications.getLastNotificationResponseAsync().then((response: any) => {
-        if (response) {
-          handleNotificationNavigation(response);
+    // 1. Handle notification tap that opened app from closed / killed state (safely delayed for iOS native bridge readiness)
+    const initialNotificationTimer = setTimeout(async () => {
+      try {
+        if (Notifications?.getLastNotificationResponseAsync) {
+          const response = await Notifications.getLastNotificationResponseAsync();
+          if (response) {
+            handleNotificationNavigation(response);
+          }
         }
-      }).catch(() => {});
-    }
+      } catch (e) {
+        console.log('Error reading initial notification response:', e);
+      }
+    }, 1500);
 
     // 2. Listen for notification tap when app is in background or foreground
     let responseListener: any = null;
@@ -223,6 +234,7 @@ export default function RootLayout() {
     );
 
     return () => {
+      clearTimeout(initialNotificationTimer);
       axios.interceptors.response.eject(interceptor);
       socket.disconnect();
       if (responseListener && typeof responseListener.remove === 'function') {
