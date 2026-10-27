@@ -93,6 +93,7 @@ io.on('connection', (socket) => {
     const userId = (data?.userId || '').toString().trim();
     if (sectionId) {
       socket.to(`community_section_${sectionId}`).emit('community_user_typing', { sectionId, userName, userId, isTyping: true });
+      socket.broadcast.emit('community_user_typing', { sectionId, userName, userId, isTyping: true });
     }
   });
 
@@ -102,6 +103,7 @@ io.on('connection', (socket) => {
     const userId = (data?.userId || '').toString().trim();
     if (sectionId) {
       socket.to(`community_section_${sectionId}`).emit('community_user_typing', { sectionId, userName, userId, isTyping: false });
+      socket.broadcast.emit('community_user_typing', { sectionId, userName, userId, isTyping: false });
     }
   });
 
