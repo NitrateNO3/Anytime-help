@@ -617,6 +617,26 @@ export default function ResidentHome() {
                   <Text style={styles.noticeTagOverlayText}>Latest Notice</Text>
                 </View>
               </View>
+
+              <View style={styles.announcementContentPadding}>
+                <View style={styles.noticeDateRow}>
+                  <Ionicons name="calendar-outline" size={12} color="#64748B" style={{ marginRight: 4 }} />
+                  <Text style={styles.announcementDate}>
+                    {formatAnnouncementDate(latestAnnouncement.date || latestAnnouncement.createdAt)}
+                  </Text>
+                </View>
+
+                <Text style={styles.announcementTitle} numberOfLines={1}>
+                  {latestAnnouncement.title}
+                </Text>
+                <Text style={styles.announcementSnippet} numberOfLines={2}>
+                  {latestAnnouncement.message || latestAnnouncement.description}
+                </Text>
+                <View style={styles.announcementFooter}>
+                  <Text style={styles.readMoreText}>Tap to view full details</Text>
+                  <Ionicons name="arrow-forward" size={13} color="#2563EB" />
+                </View>
+              </View>
             </TouchableOpacity>
           ) : (
             <View style={styles.emptyAnnouncementCard}>
@@ -1014,7 +1034,7 @@ const styles = StyleSheet.create({
   },
   noticeBannerContainer: {
     width: '100%',
-    height: 155,
+    height: 145,
     backgroundColor: '#F1F5F9',
     position: 'relative',
   },
