@@ -91,12 +91,30 @@ export default function CommunityScreenContent({
 
   // Message input for assigned members / admins
   const [msgText, setMsgText] = useState('');
-  const [sendingMsg, setSendingMsg] = useState(false);
   const [followingActionId, setFollowingActionId] = useState<string | null>(null);
+
+  // Current user & Live typing state
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [communityTypingUsers, setCommunityTypingUsers] = useState<string[]>([]);
+  const isTypingRef = useRef(false);
+  const lastTypingHeartbeatRef = useRef(0);
+  const typingTimeoutRef = useRef<any>(null);
 
   const socketRef = useRef<Socket | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const activeSectionRef = useRef<CommunitySectionItem | null>(null);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const stored = await SecureStore.getItemAsync('userData');
+        if (stored) {
+          setCurrentUser(JSON.parse(stored));
+        }
+      } catch {}
+    };
+    loadUser();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -137,10 +155,41 @@ export default function CommunityScreenContent({
     socket.on('new_community_message', (newMsg: CommunityMessageItem) => {
       const currentActiveId = activeSectionRef.current?._id;
       if (currentActiveId && newMsg.section_id === currentActiveId) {
-        setMessages(prev => [...prev, newMsg]);
+        setMessages(prev => {
+          if (prev.some(m => m._id === newMsg._id)) return prev;
+          // Reconcile optimistic message
+          const optIdx = prev.findIndex(m => m._id.startsWith('temp_') && m.text === newMsg.text);
+          if (optIdx !== -1) {
+            const copy = [...prev];
+            copy[optIdx] = newMsg;
+            return copy;
+          }
+          return [...prev, newMsg];
+        });
+
+        // Clear typing indicator for the sender who just sent the message
+        if (newMsg.sender_name) {
+          setCommunityTypingUsers(prev => prev.filter(u => u !== newMsg.sender_name));
+        }
+
         setTimeout(() => {
           flatListRef.current?.scrollToEnd({ animated: true });
-        }, 100);
+        }, 50);
+      }
+    });
+
+    socket.on('community_user_typing', ({ sectionId, userName, userId, isTyping }: any) => {
+      const myId = (currentUser?._id || currentUser?.id || '').toString();
+      if (userId && myId && userId === myId) return;
+      if (userName && (userName === currentUser?.name || userName === currentUser?.member_id)) return;
+
+      const currentActiveId = activeSectionRef.current?._id;
+      if (currentActiveId && currentActiveId === sectionId) {
+        if (isTyping) {
+          setCommunityTypingUsers(prev => prev.includes(userName) ? prev : [...prev, userName]);
+        } else {
+          setCommunityTypingUsers(prev => prev.filter(u => u !== userName));
+        }
       }
     });
 
@@ -151,6 +200,8 @@ export default function CommunityScreenContent({
 
   // Join/leave section socket room when activeSection changes
   useEffect(() => {
+    setCommunityTypingUsers([]);
+    setMsgText('');
     if (activeSection && socketRef.current) {
       socketRef.current.emit('join_community_section', activeSection._id);
       loadSectionMessages(activeSection._id);
@@ -259,23 +310,104 @@ export default function CommunityScreenContent({
     }
   };
 
-  // Post message in section (Admin or Assigned Members)
+  // Continuous typing event handler
+  const handleTextChange = (text: string) => {
+    setMsgText(text);
+
+    if (!socketRef.current || !activeSection) return;
+    const myName = currentUser?.name || currentUser?.member_id || 'Member';
+    const myId = currentUser?._id || '';
+
+    if (text.trim().length > 0) {
+      const now = Date.now();
+      if (!isTypingRef.current || (now - lastTypingHeartbeatRef.current > 1500)) {
+        isTypingRef.current = true;
+        lastTypingHeartbeatRef.current = now;
+        socketRef.current.emit('community_typing_start', {
+          sectionId: activeSection._id,
+          userName: myName,
+          userId: myId
+        });
+      }
+
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => {
+        isTypingRef.current = false;
+        lastTypingHeartbeatRef.current = 0;
+        socketRef.current?.emit('community_typing_stop', {
+          sectionId: activeSection._id,
+          userName: myName,
+          userId: myId
+        });
+      }, 2000);
+    } else {
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        lastTypingHeartbeatRef.current = 0;
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        socketRef.current.emit('community_typing_stop', {
+          sectionId: activeSection._id,
+          userName: myName,
+          userId: myId
+        });
+      }
+    }
+  };
+
+  // Post message in section (Admin or Assigned Members) - WhatsApp-style instant send
   const handleSendMessage = async () => {
     if (!msgText.trim() || !activeSection) return;
-    setSendingMsg(true);
 
+    const textToSend = msgText.trim();
+    const myName = currentUser?.name || currentUser?.member_id || 'You';
+    const myRole = currentUser?.role || 'Resident';
+    const myDesignation = currentUser?.designation || '';
+    const myId = currentUser?._id || '';
+
+    // Immediately stop typing
+    if (isTypingRef.current) {
+      isTypingRef.current = false;
+      lastTypingHeartbeatRef.current = 0;
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      socketRef.current?.emit('community_typing_stop', {
+        sectionId: activeSection._id,
+        userName: myName,
+        userId: myId
+      });
+    }
+
+    // 1. WhatsApp-style instant optimistic send (0ms delay)
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const optimisticMsg: CommunityMessageItem = {
+      _id: tempId,
+      section_id: activeSection._id,
+      community_id: activeSection.community_id,
+      sender: myId,
+      sender_name: myName,
+      sender_role: myRole,
+      sender_designation: myDesignation,
+      text: textToSend,
+      createdAt: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, optimisticMsg]);
+    setMsgText('');
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 40);
+
+    // 2. Background HTTP request
     try {
       const token = await SecureStore.getItemAsync('userToken');
-      await axios.post(`${API_URL}/community/sections/${activeSection._id}/messages`, {
-        text: msgText.trim()
+      const res = await axios.post(`${API_URL}/community/sections/${activeSection._id}/messages`, {
+        text: textToSend
       }, {
         headers: { 'x-auth-token': token }
       });
-      setMsgText('');
+      if (res.data) {
+        setMessages(prev => prev.map(m => m._id === tempId ? res.data : m));
+      }
     } catch (err: any) {
+      setMessages(prev => prev.filter(m => m._id !== tempId));
       Alert.alert('Notice', err.response?.data?.msg || 'Could not send message');
-    } finally {
-      setSendingMsg(false);
     }
   };
 
@@ -599,6 +731,16 @@ export default function CommunityScreenContent({
             />
           )}
 
+          {/* Live Typing Indicator */}
+          {communityTypingUsers.length > 0 && (
+            <View style={styles.typingContainer}>
+              <View style={styles.typingDot} />
+              <Text style={styles.typingLabelText} numberOfLines={1}>
+                {communityTypingUsers.join(', ')} {communityTypingUsers.length > 1 ? 'are' : 'is'} typing...
+              </Text>
+            </View>
+          )}
+
           {/* Bottom Bar: Read-only Notice OR Post Input */}
           {activeSection.user_access?.can_send ? (
             /* Message Input for Assigned Members / Admin */
@@ -608,12 +750,12 @@ export default function CommunityScreenContent({
                 placeholder="Post update in this channel..."
                 placeholderTextColor="#94A3B8"
                 value={msgText}
-                onChangeText={setMsgText}
+                onChangeText={handleTextChange}
                 multiline
               />
               <TouchableOpacity 
                 style={[styles.sendBtn, !msgText.trim() && { opacity: 0.5 }]}
-                disabled={sendingMsg || !msgText.trim()}
+                disabled={!msgText.trim()}
                 onPress={handleSendMessage}
               >
                 <Ionicons name="send" size={18} color="#FFFFFF" />
@@ -1076,5 +1218,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#2563EB',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  typingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    backgroundColor: '#F1F5F9',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: '#2563EB',
+    marginRight: 6,
+  },
+  typingLabelText: {
+    fontSize: 12,
+    color: '#64748B',
+    fontStyle: 'italic',
+    fontWeight: '500',
   }
 });

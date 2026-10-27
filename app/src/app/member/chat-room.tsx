@@ -537,14 +537,37 @@ export default function MemberChatRoomScreen() {
       return;
     }
 
-    // Case 2: Sending a new message (or quoted reply)
-    setSending(true);
+    // Case 2: Sending a new message (or quoted reply) - WhatsApp-style instant send
     const textToSend = inputText.trim();
+    const currentReplyingTo = replyingTo;
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+    // Create optimistic message object
+    const optimisticMsg: any = {
+      _id: tempId,
+      group_id: cleanGroupId,
+      sender: currentUser?._id || currentUser?.id,
+      sender_name: currentUser?.member_id || currentUser?.name || 'You',
+      sender_role: currentUser?.role || 'Member',
+      sender_designation: currentUser?.designation || '',
+      text: textToSend,
+      reply_to_message_id: currentReplyingTo ? currentReplyingTo : null,
+      createdAt: new Date().toISOString(),
+      is_optimistic: true
+    };
+
+    // Immediately render message on screen and clear input with 0ms delay
+    setMessages(prev => [...prev, optimisticMsg]);
+    setInputText('');
+    setReplyingTo(null);
+    scheduleScrollToBottom();
+
+    // Background HTTP dispatch
     const payload: any = {
       text: textToSend,
     };
-    if (replyingTo) {
-      payload.reply_to_message_id = replyingTo._id;
+    if (currentReplyingTo) {
+      payload.reply_to_message_id = currentReplyingTo._id;
     }
 
     try {
@@ -554,22 +577,15 @@ export default function MemberChatRoomScreen() {
         { headers: { 'x-auth-token': token } }
       );
 
-      // Immediately render new message on sender screen in real time
+      // Reconcile optimistic message with server-saved message
       if (res.data?.message) {
         const sentMsg = res.data.message;
-        setMessages(prev => {
-          if (prev.some(m => m._id === sentMsg._id)) return prev;
-          return [...prev, sentMsg];
-        });
-        scheduleScrollToBottom();
+        setMessages(prev => prev.map(m => m._id === tempId ? sentMsg : m));
       }
-
-      setInputText('');
-      setReplyingTo(null);
     } catch (err: any) {
+      // Revert optimistic message if network fails
+      setMessages(prev => prev.filter(m => m._id !== tempId));
       Alert.alert('Error', err.response?.data?.msg || 'Failed to send message');
-    } finally {
-      setSending(false);
     }
   };
 
@@ -880,17 +896,13 @@ export default function MemberChatRoomScreen() {
               <TouchableOpacity
                 style={[styles.sendButton, !inputText.trim() ? styles.sendButtonDisabled : null]}
                 onPress={handleSendOrUpdate}
-                disabled={!inputText.trim() || sending}
+                disabled={!inputText.trim()}
               >
-                {sending ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Ionicons 
-                    name={editingMessage ? "checkmark" : "send"} 
-                    size={18} 
-                    color="#FFFFFF" 
-                  />
-                )}
+                <Ionicons 
+                  name={editingMessage ? "checkmark" : "send"} 
+                  size={18} 
+                  color="#FFFFFF" 
+                />
               </TouchableOpacity>
             </View>
           </View>
