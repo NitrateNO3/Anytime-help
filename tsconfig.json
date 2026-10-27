@@ -14,6 +14,7 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "jsx": "react-jsx",
+    "ignoreDeprecations": "6.0",
     "baseUrl": "./app",
     "paths": {
       "@/*": [
@@ -29,6 +30,8 @@
     "app/**/*.tsx"
   ],
   "exclude": [
-    "**/node_modules"
+    "node_modules",
+    "**/node_modules",
+    "**/node_modules/**"
   ]
 }
