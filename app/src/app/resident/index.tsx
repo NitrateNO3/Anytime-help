@@ -543,22 +543,6 @@ export default function ResidentHome() {
               </CopilotStep>
             </View>
 
-            {/* 4: Community */}
-            <View style={styles.gridItemColumn}>
-              <TouchableOpacity 
-                style={styles.actionTouchable}
-                onPress={() => router.push('/resident-community' as any)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.circleIcon, { backgroundColor: '#EDE9FE', borderColor: '#DDD6FE' }]}>
-                  <Ionicons name="chatbubbles" size={24} color="#7C3AED" />
-                </View>
-                <Text style={styles.actionLabel} numberOfLines={2}>
-                  Community
-                </Text>
-              </TouchableOpacity>
-            </View>
-
             {/* 5: Directory */}
             <View style={styles.gridItemColumn}>
               <CopilotStep text="RWA कमेटी और मैनेजमेंट डायरेक्टरी देखने व संपर्क करने के लिए यहाँ टैप करें।" order={4} name="directory">

@@ -656,22 +656,6 @@ export default function MemberHome() {
                 </WalkthroughableView>
               </CopilotStep>
             </View>
-
-            {/* 6: Community */}
-            <View style={styles.gridItemColumn}>
-              <TouchableOpacity 
-                style={styles.actionTouchable}
-                onPress={() => router.push('/member-community' as any)}
-                activeOpacity={0.75}
-              >
-                <View style={[styles.circleIcon, { backgroundColor: '#E0F2FE', borderColor: '#BAE6FD' }]}>
-                  <Ionicons name="chatbubbles" size={24} color="#0284C7" />
-                </View>
-                <Text style={styles.actionLabel} numberOfLines={2}>
-                  Community
-                </Text>
-              </TouchableOpacity>
-            </View>
           </View>
         </View>
 

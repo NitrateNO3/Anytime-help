@@ -157,6 +157,16 @@ export default function ResidentLayout() {
           }}
         />
         <Tabs.Screen
+          name="community"
+          options={{
+            tabBarLabel: 'Community',
+            title: 'Community',
+            tabBarIcon: ({ color, focused }) => (
+              <Ionicons name={focused ? "people" : "people-outline"} size={24} color={color as string} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="settings"
           options={{
             tabBarLabel: t('resident.tabProfile'),
@@ -181,7 +191,6 @@ export default function ResidentLayout() {
             tabBarStyle: { display: 'none' }
           }} 
         />
-        <Tabs.Screen name="community" options={{ href: null }} />
         <Tabs.Screen name="privacy" options={{ href: null }} />
         <Tabs.Screen name="about" options={{ href: null }} />
         <Tabs.Screen name="support" options={{ href: null }} />

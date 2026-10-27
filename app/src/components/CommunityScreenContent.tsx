@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, 
   StatusBar, TouchableOpacity, RefreshControl, BackHandler, TextInput,
-  FlatList, Alert, KeyboardAvoidingView
+  FlatList, Alert, KeyboardAvoidingView, Animated, Easing
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -69,6 +69,118 @@ interface CommunityScreenContentProps {
   headerThemeColor?: string;
 }
 
+// WhatsApp-like Typing Indicator with 3 animated bouncing dots
+function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
+  const animValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(animValue, {
+        toValue: 1,
+        duration: 1200,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    );
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [animValue]);
+
+  if (!typingUsers || typingUsers.length === 0) return null;
+
+  const label = typingUsers.length === 1 
+    ? `${typingUsers[0]} is typing...` 
+    : `${typingUsers.join(', ')} are typing...`;
+
+  const primaryName = typingUsers[0] || '?';
+  const initial = primaryName.charAt(0).toUpperCase();
+
+  // Dot 1: Peak bounce at 20% of cycle
+  const translateY1 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 1.0],
+    outputRange: [0, -6, 0, 0],
+  });
+  const opacity1 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 1.0],
+    outputRange: [0.35, 1, 0.35, 0.35],
+  });
+  const scale1 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 1.0],
+    outputRange: [0.85, 1.25, 0.85, 0.85],
+  });
+
+  // Dot 2: Peak bounce at 40% of cycle
+  const translateY2 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 0.6, 1.0],
+    outputRange: [0, 0, -6, 0, 0],
+  });
+  const opacity2 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 0.6, 1.0],
+    outputRange: [0.35, 0.35, 1, 0.35, 0.35],
+  });
+  const scale2 = animValue.interpolate({
+    inputRange: [0, 0.2, 0.4, 0.6, 1.0],
+    outputRange: [0.85, 0.85, 1.25, 0.85, 0.85],
+  });
+
+  // Dot 3: Peak bounce at 60% of cycle
+  const translateY3 = animValue.interpolate({
+    inputRange: [0, 0.4, 0.6, 0.8, 1.0],
+    outputRange: [0, 0, -6, 0, 0],
+  });
+  const opacity3 = animValue.interpolate({
+    inputRange: [0, 0.4, 0.6, 0.8, 1.0],
+    outputRange: [0.35, 0.35, 1, 0.35, 0.35],
+  });
+  const scale3 = animValue.interpolate({
+    inputRange: [0, 0.4, 0.6, 0.8, 1.0],
+    outputRange: [0.85, 0.85, 1.25, 0.85, 0.85],
+  });
+
+  return (
+    <View style={styles.typingRow}>
+      <View style={styles.typingAvatar}>
+        <Text style={styles.typingAvatarText}>{initial}</Text>
+      </View>
+      <View style={styles.typingBubble}>
+        <Animated.View 
+          style={[
+            styles.typingDot, 
+            { 
+              transform: [{ translateY: translateY1 }, { scale: scale1 }],
+              opacity: opacity1,
+            }
+          ]} 
+        />
+        <Animated.View 
+          style={[
+            styles.typingDot, 
+            { 
+              transform: [{ translateY: translateY2 }, { scale: scale2 }],
+              opacity: opacity2,
+            }
+          ]} 
+        />
+        <Animated.View 
+          style={[
+            styles.typingDot, 
+            { 
+              transform: [{ translateY: translateY3 }, { scale: scale3 }],
+              opacity: opacity3,
+            }
+          ]} 
+        />
+      </View>
+      <Text style={styles.typingLabelText} numberOfLines={1}>
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 export default function CommunityScreenContent({ 
   backRoute, 
   headerThemeColor = '#0F172A' 
@@ -99,6 +211,7 @@ export default function CommunityScreenContent({
   const isTypingRef = useRef(false);
   const lastTypingHeartbeatRef = useRef(0);
   const typingTimeoutRef = useRef<any>(null);
+  const typingTimersRef = useRef<{ [userName: string]: any }>({});
 
   const socketRef = useRef<Socket | null>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -185,11 +298,28 @@ export default function CommunityScreenContent({
 
       const currentActiveId = activeSectionRef.current?._id;
       if (currentActiveId && currentActiveId === sectionId) {
-        if (isTyping) {
-          setCommunityTypingUsers(prev => prev.includes(userName) ? prev : [...prev, userName]);
-        } else {
-          setCommunityTypingUsers(prev => prev.filter(u => u !== userName));
-        }
+        setCommunityTypingUsers(prev => {
+          if (isTyping) {
+            if (typingTimersRef.current[userName]) {
+              clearTimeout(typingTimersRef.current[userName]);
+            }
+            typingTimersRef.current[userName] = setTimeout(() => {
+              setCommunityTypingUsers(curr => curr.filter(u => u !== userName));
+              delete typingTimersRef.current[userName];
+            }, 3000);
+
+            if (!prev.includes(userName)) {
+              return [...prev, userName];
+            }
+            return prev;
+          } else {
+            if (typingTimersRef.current[userName]) {
+              clearTimeout(typingTimersRef.current[userName]);
+              delete typingTimersRef.current[userName];
+            }
+            return prev.filter(u => u !== userName);
+          }
+        });
       }
     });
 
@@ -695,6 +825,7 @@ export default function CommunityScreenContent({
               keyExtractor={item => item._id}
               contentContainerStyle={styles.messagesListContent}
               showsVerticalScrollIndicator={false}
+              ListFooterComponent={<TypingIndicator typingUsers={communityTypingUsers} />}
               ListEmptyComponent={
                 <View style={styles.emptyMessagesBox}>
                   <Ionicons name="chatbubble-ellipses-outline" size={40} color="#CBD5E1" />
@@ -729,16 +860,6 @@ export default function CommunityScreenContent({
                 );
               }}
             />
-          )}
-
-          {/* Live Typing Indicator */}
-          {communityTypingUsers.length > 0 && (
-            <View style={styles.typingContainer}>
-              <View style={styles.typingDot} />
-              <Text style={styles.typingLabelText} numberOfLines={1}>
-                {communityTypingUsers.join(', ')} {communityTypingUsers.length > 1 ? 'are' : 'is'} typing...
-              </Text>
-            </View>
           )}
 
           {/* Bottom Bar: Read-only Notice OR Post Input */}
@@ -1219,26 +1340,64 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  typingContainer: {
+  typingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    backgroundColor: '#F1F5F9',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 10,
+    paddingLeft: 4,
+  },
+  typingAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    shadowColor: '#2563EB',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  typingAvatarText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  typingBubble: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    gap: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   typingDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     backgroundColor: '#2563EB',
-    marginRight: 6,
   },
   typingLabelText: {
     fontSize: 12,
     color: '#64748B',
-    fontStyle: 'italic',
     fontWeight: '500',
+    fontStyle: 'italic',
+    maxWidth: 180,
   }
 });
