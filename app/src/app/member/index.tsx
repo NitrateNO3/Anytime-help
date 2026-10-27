@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar as RNStatusBar, BackHandler, Platform, RefreshControl, Image, FlatList, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar as RNStatusBar, BackHandler, Platform, RefreshControl, Image, FlatList, Dimensions, Linking } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -32,6 +32,13 @@ export default function MemberHome() {
   const [bannerCardWidth, setBannerCardWidth] = useState(Dimensions.get('window').width - 32);
   const bannerIndexRef = useRef(0);
 
+  // Bottom Banners Slider State
+  const [bottomBanners, setBottomBanners] = useState<any[]>([]);
+  const [bottomBannerIndex, setBottomBannerIndex] = useState(0);
+  const bottomBannerFlatListRef = useRef<FlatList>(null);
+  const bottomBannerIndexRef = useRef(0);
+  const [bottomBannerCardWidth, setBottomBannerCardWidth] = useState(Dimensions.get('window').width - 32);
+
   // Complaint stats & Latest announcement state
   const [stats, setStats] = useState({ pending: 0, inProgress: 0, resolved: 0 });
   const [latestAnnouncement, setLatestAnnouncement] = useState<any>(null);
@@ -44,6 +51,17 @@ export default function MemberHome() {
       }
     } catch (e) {
       console.log('Error fetching member banners:', e);
+    }
+  };
+
+  const fetchBottomBanners = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/bottom-banners?target=Member`);
+      if (Array.isArray(res.data)) {
+        setBottomBanners(res.data);
+      }
+    } catch (e) {
+      console.log('Error fetching member bottom banners:', e);
     }
   };
 
@@ -131,6 +149,44 @@ export default function MemberHome() {
     }
   }, [banners, bannerIndex, bannerCardWidth]);
 
+  // Bottom Banner auto-advance slider timer
+  useEffect(() => {
+    if (bottomBanners.length > 1) {
+      const currentBanner = bottomBanners[bottomBannerIndex];
+      const durationSec = Number(currentBanner?.duration) > 0 ? Number(currentBanner.duration) : 4;
+      const durationMs = durationSec * 1000;
+
+      const timer = setTimeout(() => {
+        const nextIndex = bottomBannerIndex >= bottomBanners.length - 1 ? 0 : bottomBannerIndex + 1;
+        bottomBannerIndexRef.current = nextIndex;
+        setBottomBannerIndex(nextIndex);
+        if (bottomBannerCardWidth > 0 && bottomBannerFlatListRef.current) {
+          bottomBannerFlatListRef.current.scrollToOffset({
+            offset: nextIndex * bottomBannerCardWidth,
+            animated: true,
+          });
+        }
+      }, durationMs);
+
+      return () => clearTimeout(timer);
+    }
+  }, [bottomBanners, bottomBannerIndex, bottomBannerCardWidth]);
+
+  const handleBottomBannerPress = (banner: any) => {
+    if (!banner) return;
+    if (banner.link) {
+      const link = String(banner.link).trim();
+      if (link.startsWith('http://') || link.startsWith('https://')) {
+        Linking.openURL(link).catch((err) => console.log('Failed to open banner url:', err));
+        return;
+      } else if (link.startsWith('/')) {
+        router.push(link as any);
+        return;
+      }
+    }
+    router.push('/member-announcements' as any);
+  };
+
   const { startTour } = useLocalSearchParams();
   const [lastStartTour, setLastStartTour] = useState<string | null>(null);
 
@@ -186,6 +242,7 @@ export default function MemberHome() {
 
       fetchAnnouncementsData();
       fetchBanners();
+      fetchBottomBanners();
       fetchStats();
 
       const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
@@ -200,6 +257,9 @@ export default function MemberHome() {
       });
       socket.on('banner_changed', () => {
         fetchBanners();
+      });
+      socket.on('bottom_banners_changed', () => {
+        fetchBottomBanners();
       });
       socket.on('user_updated', async (data: any) => {
         const stored = await SecureStore.getItemAsync('userData');
@@ -257,6 +317,7 @@ export default function MemberHome() {
     setRefreshing(true);
     await Promise.all([
       fetchBanners(),
+      fetchBottomBanners(),
       fetchAnnouncementsData(),
       fetchStats()
     ]);
@@ -673,24 +734,133 @@ export default function MemberHome() {
           </View>
         </View>
 
-        {/* Latest Announcement Section */}
+        {/* Dynamic Bottom Banner Slider Section */}
         <View style={styles.announcementSection}>
           <View style={styles.sectionHeaderRow}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="megaphone-outline" size={18} color="#1E293B" style={{ marginRight: 6 }} />
-              <Text style={styles.sectionTitle}>Latest Notice</Text>
+              <Ionicons 
+                name={bottomBanners.length > 0 ? "images-outline" : "megaphone-outline"} 
+                size={18} 
+                color="#1E293B" 
+                style={{ marginRight: 6 }} 
+              />
+              <Text style={styles.sectionTitle}>
+                {bottomBanners.length > 0 ? 'Featured Updates' : 'Latest Notice'}
+              </Text>
             </View>
             <TouchableOpacity 
               onPress={() => router.push('/member-announcements' as any)}
               style={styles.trackerSeeAllBtn}
               activeOpacity={0.7}
             >
-              <Text style={styles.trackerSeeAllText}>See All</Text>
+              <Text style={styles.trackerSeeAllText}>Notices</Text>
               <Ionicons name="chevron-forward" size={14} color="#2563EB" />
             </TouchableOpacity>
           </View>
 
-          {latestAnnouncement ? (
+          {bottomBanners.length > 0 ? (
+            bottomBanners.length === 1 ? (
+              <TouchableOpacity 
+                style={styles.announcementCard}
+                onPress={() => handleBottomBannerPress(bottomBanners[0])}
+                activeOpacity={0.85}
+              >
+                <View style={styles.noticeBannerContainer}>
+                  <Image 
+                    source={{ uri: bottomBanners[0].url }} 
+                    style={styles.noticeBannerImage} 
+                    resizeMode="cover"
+                  />
+                  <LinearGradient
+                    colors={['transparent', 'rgba(15, 23, 42, 0.65)']}
+                    style={styles.noticeBannerGradient}
+                  />
+                  {bottomBanners[0].title ? (
+                    <View style={styles.bottomBannerCaptionOverlay}>
+                      <Text style={styles.bottomBannerCaptionText} numberOfLines={1}>
+                        {bottomBanners[0].title}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.noticeTagOverlay}>
+                    <Ionicons name="sparkles" size={11} color="#FFFFFF" style={{ marginRight: 3 }} />
+                    <Text style={styles.noticeTagOverlayText}>Featured</Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <View 
+                style={styles.announcementCard}
+                onLayout={(e) => {
+                  const w = e.nativeEvent.layout.width;
+                  if (w > 0) setBottomBannerCardWidth(w);
+                }}
+              >
+                <FlatList
+                  ref={bottomBannerFlatListRef}
+                  data={bottomBanners}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(item, index) => item._id || `bottom-banner-${index}`}
+                  getItemLayout={(_, index) => ({
+                    length: bottomBannerCardWidth,
+                    offset: bottomBannerCardWidth * index,
+                    index,
+                  })}
+                  onMomentumScrollEnd={(e: any) => {
+                    if (bottomBannerCardWidth > 0) {
+                      const idx = Math.round(e.nativeEvent.contentOffset.x / bottomBannerCardWidth);
+                      const safeIdx = Math.max(0, Math.min(idx, bottomBanners.length - 1));
+                      bottomBannerIndexRef.current = safeIdx;
+                      setBottomBannerIndex(safeIdx);
+                    }
+                  }}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => handleBottomBannerPress(item)}
+                      style={{ width: bottomBannerCardWidth, height: 160, position: 'relative' }}
+                    >
+                      <Image 
+                        source={{ uri: item.url }} 
+                        style={styles.noticeBannerImage} 
+                        resizeMode="cover"
+                      />
+                      <LinearGradient
+                        colors={['transparent', 'rgba(15, 23, 42, 0.65)']}
+                        style={styles.noticeBannerGradient}
+                      />
+                      {item.title ? (
+                        <View style={styles.bottomBannerCaptionOverlay}>
+                          <Text style={styles.bottomBannerCaptionText} numberOfLines={1}>
+                            {item.title}
+                          </Text>
+                        </View>
+                      ) : null}
+                      <View style={styles.noticeTagOverlay}>
+                        <Ionicons name="sparkles" size={11} color="#FFFFFF" style={{ marginRight: 3 }} />
+                        <Text style={styles.noticeTagOverlayText}>Featured</Text>
+                      </View>
+                    </TouchableOpacity>
+                  )}
+                />
+
+                {/* Slider Pagination Dots */}
+                <View style={styles.bannerDotsContainer}>
+                  {bottomBanners.map((_, i) => (
+                    <View 
+                      key={i} 
+                      style={[
+                        styles.bannerDot, 
+                        bottomBannerIndex === i ? styles.bannerDotActive : styles.bannerDotInactive
+                      ]} 
+                    />
+                  ))}
+                </View>
+              </View>
+            )
+          ) : latestAnnouncement ? (
             <TouchableOpacity 
               style={styles.announcementCard}
               onPress={() => router.push('/member-announcements' as any)}
@@ -715,7 +885,7 @@ export default function MemberHome() {
           ) : (
             <View style={styles.emptyAnnouncementCard}>
               <Ionicons name="checkmark-circle-outline" size={28} color="#94A3B8" />
-              <Text style={styles.emptyAnnouncementText}>No active announcements</Text>
+              <Text style={styles.emptyAnnouncementText}>No active updates</Text>
               <Text style={styles.emptyAnnouncementSub}>You can broadcast new announcements anytime.</Text>
             </View>
           )}
@@ -1171,6 +1341,20 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 60,
+  },
+  bottomBannerCaptionOverlay: {
+    position: 'absolute',
+    bottom: 8,
+    left: 12,
+    right: 60,
+  },
+  bottomBannerCaptionText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   noticeTagOverlay: {
     position: 'absolute',

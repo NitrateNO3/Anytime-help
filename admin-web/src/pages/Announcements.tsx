@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { Bell, Plus, Trash2, Edit2, Search, Filter, RotateCcw, X, Megaphone, Clock } from 'lucide-react';
+import { Bell, Plus, Trash2, Edit2, Search, Filter, RotateCcw, X, Megaphone, Clock, Sliders } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ExportButtons } from '../components/ExportButtons';
 import { io } from 'socket.io-client';
+import BottomBanners from './BottomBanners';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function Announcements() {
-  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'bottom-banners'>('list');
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
@@ -306,10 +307,24 @@ export default function Announcements() {
             <Plus size={18} /> New Broadcast
           </button>
         )}
+        <button 
+          onClick={() => setActiveTab('bottom-banners')}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+            background: activeTab === 'bottom-banners' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'bottom-banners' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'bottom-banners' ? 'none' : '1px solid var(--border-color)',
+            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+          }}
+        >
+          <Sliders size={18} /> Bottom Banners (Slider)
+        </button>
       </div>
 
       {/* Content Area */}
-      {activeTab === 'list' ? (
+      {activeTab === 'bottom-banners' ? (
+        <BottomBanners embedded={true} />
+      ) : activeTab === 'list' ? (
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 className="card-title">Recent Announcements</h2>
