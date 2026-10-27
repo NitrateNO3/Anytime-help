@@ -11,6 +11,9 @@
       "icon": "./assets/images/logo.png",
       "bundleIdentifier": "com.princesani.app",
       "buildNumber": "11",
+      "entitlements": {
+        "aps-environment": "production"
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
