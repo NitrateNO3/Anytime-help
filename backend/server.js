@@ -86,6 +86,25 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Community Section typing indicator broadcast
+  socket.on('community_typing_start', (data) => {
+    const sectionId = (data?.sectionId?._id || data?.sectionId || data?.section_id || '').toString().trim();
+    const userName = (data?.userName || data?.sender_name || 'Someone').toString().trim();
+    const userId = (data?.userId || '').toString().trim();
+    if (sectionId) {
+      socket.to(`community_section_${sectionId}`).emit('community_user_typing', { sectionId, userName, userId, isTyping: true });
+    }
+  });
+
+  socket.on('community_typing_stop', (data) => {
+    const sectionId = (data?.sectionId?._id || data?.sectionId || data?.section_id || '').toString().trim();
+    const userName = (data?.userName || data?.sender_name || 'Someone').toString().trim();
+    const userId = (data?.userId || '').toString().trim();
+    if (sectionId) {
+      socket.to(`community_section_${sectionId}`).emit('community_user_typing', { sectionId, userName, userId, isTyping: false });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });
