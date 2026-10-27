@@ -255,7 +255,7 @@ tr:hover td {
   font-weight: 600;
 }
 
-input {
+input, textarea, select {
   width: 100%;
   padding: 14px 16px;
   background: white;
@@ -263,13 +263,21 @@ input {
   border-radius: 12px;
   color: var(--text-main);
   font-size: 15px;
+  font-family: 'Inter', sans-serif;
   outline: none;
   transition: all 0.2s;
+  box-sizing: border-box;
 }
 
-input:focus {
+input:focus, textarea:focus, select:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.1);
+}
+
+textarea {
+  min-height: 100px;
+  resize: vertical;
+  line-height: 1.5;
 }
 
 .btn-primary {

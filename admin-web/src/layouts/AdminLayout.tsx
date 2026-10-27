@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2 } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export default function AdminLayout() {
@@ -78,6 +78,13 @@ export default function AdminLayout() {
                 Chat Groups
               </Link>
             </>
+          )}
+
+          {(isSuperAdmin || hasAccess('Community') || hasAccess('Communities')) && (
+            <Link to="/communities" className={`nav-link ${location.pathname.startsWith('/communities') || location.pathname.startsWith('/community') ? 'active' : ''}`}>
+              <Building2 size={20} />
+              Communities
+            </Link>
           )}
           
           {isSuperAdmin && (
