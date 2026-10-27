@@ -3,11 +3,13 @@ const mongoose = require('mongoose');
 const AnnouncementSchema = new mongoose.Schema({
   title: {
     type: String,
-    required: true
+    required: false,
+    default: 'Notice'
   },
   message: {
     type: String,
-    required: true
+    required: false,
+    default: ''
   },
   date: {
     type: Date,

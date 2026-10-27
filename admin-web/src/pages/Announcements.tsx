@@ -131,12 +131,21 @@ export default function Announcements() {
     setIsCreating(true);
     const loadingToast = toast.loading('Publishing announcement...');
 
+    const finalTitle = title.trim() || (image ? 'Notice' : '');
+    const finalMessage = message.trim() || (image ? ' ' : '');
+
+    if (!finalTitle && !image) {
+      toast.error('Please enter a title or choose a banner image', { id: loadingToast });
+      setIsCreating(false);
+      return;
+    }
+
     try {
       const token = localStorage.getItem('adminToken');
       // Pass targetAudience: 'All' or get it from a new state if we add radio buttons
       await axios.post(`${API_URL}/announcements`, {
-        title,
-        message,
+        title: finalTitle,
+        message: finalMessage,
         phases: selectedPhases,
         targetAudience: targetAudience,
         image
@@ -201,11 +210,14 @@ export default function Announcements() {
     e.preventDefault();
     const loadingToast = toast.loading('Updating announcement...');
 
+    const finalTitle = editingAnnouncement.title?.trim() || (editingAnnouncement.image ? 'Notice' : '');
+    const finalMessage = editingAnnouncement.message?.trim() || (editingAnnouncement.image ? ' ' : '');
+
     try {
       const token = localStorage.getItem('adminToken');
       await axios.put(`${API_URL}/announcements/${editingAnnouncement._id}`, {
-        title: editingAnnouncement.title,
-        message: editingAnnouncement.message,
+        title: finalTitle,
+        message: finalMessage,
         image: editingAnnouncement.image
       }, {
         headers: { 'x-auth-token': token }
@@ -541,23 +553,23 @@ export default function Announcements() {
 
             <form onSubmit={handleCreate}>
               <div className="input-group">
-                <label>Announcement Title</label>
+                <label>Announcement Title {image && <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>(Optional with banner)</span>}</label>
                 <input 
                   type="text" 
                   value={title} 
                   onChange={(e) => setTitle(e.target.value)} 
-                  required
-                  placeholder="e.g. Water Supply Interruption"
+                  required={!image}
+                  placeholder={image ? "Optional (Banner already contains text)" : "e.g. Water Supply Interruption"}
                 />
               </div>
               
               <div className="input-group">
-                <label>Message Detail</label>
+                <label>Message Detail {image && <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>(Optional with banner)</span>}</label>
                 <textarea 
                   value={message} 
                   onChange={(e) => setMessage(e.target.value)} 
-                  required
-                  placeholder="Type the full message here..."
+                  required={!image}
+                  placeholder={image ? "Optional (Banner already contains text)" : "Type the full message here..."}
                   style={{ 
                     width: '100%', 
                     padding: '14px 16px', 
@@ -697,23 +709,25 @@ export default function Announcements() {
             </div>
             <form onSubmit={handleEditSubmit} style={{ padding: '24px', overflowY: 'auto' }}>
               <div className="form-group">
-                <label className="form-label">Title</label>
+                <label className="form-label">Title {editingAnnouncement.image && <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>(Optional with banner)</span>}</label>
                 <input 
                   type="text" 
                   className="form-input"
                   value={editingAnnouncement.title} 
                   onChange={(e) => setEditingAnnouncement({...editingAnnouncement, title: e.target.value})} 
-                  required
+                  required={!editingAnnouncement.image}
+                  placeholder={editingAnnouncement.image ? "Optional with banner" : ""}
                 />
               </div>
               
               <div className="form-group">
-                <label className="form-label">Message</label>
+                <label className="form-label">Message {editingAnnouncement.image && <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>(Optional with banner)</span>}</label>
                 <textarea 
                   className="form-input"
                   value={editingAnnouncement.message} 
                   onChange={(e) => setEditingAnnouncement({...editingAnnouncement, message: e.target.value})} 
-                  required
+                  required={!editingAnnouncement.image}
+                  placeholder={editingAnnouncement.image ? "Optional with banner" : ""}
                   style={{ 
                     minHeight: '120px', 
                     resize: 'vertical',

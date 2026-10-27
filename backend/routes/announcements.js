@@ -442,8 +442,8 @@ router.post('/', auth, async (req, res) => {
     }
 
     const newAnnouncement = new Announcement({
-      title,
-      message,
+      title: title || (imageUrl ? 'Notice' : ''),
+      message: message || '',
       createdBy: req.user.id,
       creatorName: creatorName || req.user.role,
       creatorId: creatorId || '',
