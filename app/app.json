@@ -10,7 +10,7 @@
     "ios": {
       "icon": "./assets/images/logo.png",
       "bundleIdentifier": "com.princesani.app",
-      "buildNumber": "10",
+      "buildNumber": "11",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
@@ -59,6 +59,7 @@
         {
           "icon": "./assets/images/logo.png",
           "color": "#2563EB",
+          "mode": "production",
           "enableRemoteNotifications": true,
           "enableBackgroundRemoteNotifications": true
         }

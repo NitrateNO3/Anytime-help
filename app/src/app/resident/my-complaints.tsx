@@ -132,7 +132,11 @@ export default function MyComplaints() {
       if (!append) {
         const cachedStr = await AsyncStorage.getItem('cached_resident_complaints');
         if (cachedStr) {
-          setComplaints(JSON.parse(cachedStr));
+          try {
+            setComplaints(JSON.parse(cachedStr));
+          } catch (e) {
+            setComplaints([]);
+          }
           setIsOffline(true);
         } else {
           setComplaints([]);
@@ -159,7 +163,11 @@ export default function MyComplaints() {
       console.log('Fetch announcements error:', err.message);
       const cachedStr = await AsyncStorage.getItem('cached_announcements');
       if (cachedStr) {
-        setAnnouncements(JSON.parse(cachedStr));
+        try {
+          setAnnouncements(JSON.parse(cachedStr));
+        } catch (e) {
+          setAnnouncements([]);
+        }
         setIsOffline(true);
       }
     } finally {

@@ -40,24 +40,33 @@ export default function SettingsScreen() {
   );
 
   const loadUser = async () => {
-    const userData = await SecureStore.getItemAsync('userData');
-    const storedToken = await SecureStore.getItemAsync('userToken');
-    if (userData) setUser(JSON.parse(userData));
-    if (storedToken) setToken(storedToken);
+    try {
+      const userData = await SecureStore.getItemAsync('userData');
+      const storedToken = await SecureStore.getItemAsync('userToken');
+      if (userData) setUser(JSON.parse(userData));
+      if (storedToken) setToken(storedToken);
+    } catch (e) {
+      console.log('Error loading user in staff-settings:', e);
+    }
   };
 
   useEffect(() => {
     const socket = io(API_URL, { transports: ['websocket', 'polling'] });
     socket.on('user_updated', async (data: any) => {
-      const stored = await SecureStore.getItemAsync('userData');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed._id === data.userId || parsed.id === data.userId) {
-          // Add a tiny delay to allow index.tsx to update secure store first
-          setTimeout(() => {
-            loadUser();
-          }, 1500);
+      try {
+        if (!data || !data.userId) return;
+        const stored = await SecureStore.getItemAsync('userData');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && (parsed._id === data.userId || parsed.id === data.userId)) {
+            // Add a tiny delay to allow index.tsx to update secure store first
+            setTimeout(() => {
+              loadUser();
+            }, 1500);
+          }
         }
+      } catch (err) {
+        console.log('Error handling user_updated in staff-settings:', err);
       }
     });
 

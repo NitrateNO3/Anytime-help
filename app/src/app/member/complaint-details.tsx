@@ -1016,7 +1016,13 @@ export default function ComplaintDetails() {
                       ios: `maps:0,0?q=${resolutionData.location.latitude},${resolutionData.location.longitude}`,
                       android: `google.navigation:q=${resolutionData.location.latitude},${resolutionData.location.longitude}`
                     });
-                    if (url) Linking.openURL(url);
+                    if (url) {
+                      Linking.openURL(url).catch(() => {
+                        Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${resolutionData.location.latitude},${resolutionData.location.longitude}`).catch(() => {
+                          Alert.alert('Notice', 'Could not open map navigation application.');
+                        });
+                      });
+                    }
                   }}
                 >
                   <Ionicons name="navigate" size={18} color="#FFF" style={{ marginRight: 8 }} />

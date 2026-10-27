@@ -637,7 +637,13 @@ export default function TaskDetailsScreen() {
                        ios: `maps:0,0?q=${searchQ}`,
                        android: `google.navigation:q=${searchQ}`
                      });
-                     if (url) Linking.openURL(url);
+                     if (url) {
+                       Linking.openURL(url).catch(() => {
+                         Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${searchQ}`).catch(() => {
+                           Alert.alert('Notice', 'Could not open map navigation application.');
+                         });
+                       });
+                     }
                    }}
                  >
                    <Ionicons name="navigate" size={18} color="#FFF" style={{ marginRight: 8 }} />
@@ -688,7 +694,11 @@ export default function TaskDetailsScreen() {
                   </Text>
                   <TouchableOpacity 
                     style={{ backgroundColor: '#DBEAFE', padding: 8, borderRadius: 8 }}
-                    onPress={() => Linking.openURL(`tel:${complaint.user.phone_number}`)}
+                    onPress={() => {
+                      Linking.openURL(`tel:${complaint.user.phone_number}`).catch(() => {
+                        Alert.alert('Notice', 'Could not initiate call on this device.');
+                      });
+                    }}
                   >
                     <Ionicons name="call" size={18} color="#2563EB" />
                   </TouchableOpacity>

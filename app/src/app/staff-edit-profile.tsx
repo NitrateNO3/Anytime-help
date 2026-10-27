@@ -56,14 +56,19 @@ export default function StaffEditProfileScreen() {
     
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('user_updated', async (data: any) => {
-      const storedUser = await SecureStore.getItemAsync('userData');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        if (parsed._id === data.userId || parsed.id === data.userId) {
-          setTimeout(() => {
-            loadUserData();
-          }, 1500);
+      try {
+        if (!data || !data.userId) return;
+        const storedUser = await SecureStore.getItemAsync('userData');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          if (parsed && (parsed._id === data.userId || parsed.id === data.userId)) {
+            setTimeout(() => {
+              loadUserData();
+            }, 1500);
+          }
         }
+      } catch (err) {
+        console.log('Error handling user_updated in staff-edit-profile:', err);
       }
     });
 
@@ -85,7 +90,7 @@ export default function StaffEditProfileScreen() {
         setRole(parsed.role || 'Staff');
         setPhase(parsed.phase || '');
         
-        const cleanPhone = (parsed.phone_number || '').replace(/^\+91/, '').replace(/\D/g, '');
+        const cleanPhone = String(parsed.phone_number || '').replace(/^\+91/, '').replace(/\D/g, '');
         setPhoneNumber(cleanPhone);
         setAddress(parsed.address || '');
 
@@ -107,7 +112,7 @@ export default function StaffEditProfileScreen() {
             setRole(u.role || 'Staff');
             setPhase(u.phase || '');
             
-            const freshPhone = (u.phone_number || '').replace(/^\+91/, '').replace(/\D/g, '');
+            const freshPhone = String(u.phone_number || '').replace(/^\+91/, '').replace(/\D/g, '');
             setPhoneNumber(freshPhone);
             setAddress(u.address || '');
 

@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { useEffect, useState, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, Linking, StyleSheet, Animated, PanResponder, Dimensions } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Linking, StyleSheet, Animated, PanResponder, Dimensions, Platform } from 'react-native';
 import { Stack, useRouter, Redirect } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import * as SecureStore from 'expo-secure-store';
@@ -42,15 +42,23 @@ export default function RootLayout() {
   const checkVersion = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/config`);
-      const { min_version, play_store_url } = res.data;
+      const { min_version, play_store_url, app_store_url } = res.data || {};
+      
+      // Guard: only perform check if valid min_version string exists
+      if (!min_version || typeof min_version !== 'string') {
+        return;
+      }
       
       const currentVersion = Constants.expoConfig?.version || '1.0.0';
       
-      // Simple version compare assuming semantic versioning like 1.0.2
+      // Compare versions safely
       const isOutdated = currentVersion.localeCompare(min_version, undefined, { numeric: true, sensitivity: 'base' }) < 0;
       
       if (isOutdated) {
-        setPlayStoreUrl(play_store_url);
+        const targetUrl = Platform.OS === 'ios'
+          ? (app_store_url || 'https://apps.apple.com/app/anytime-help/id6744002621')
+          : (play_store_url || 'https://play.google.com/store/apps/details?id=com.aman_mirza.app');
+        setPlayStoreUrl(targetUrl);
         setShowUpdateModal(true);
       }
     } catch (e) {
@@ -261,7 +269,13 @@ export default function RootLayout() {
               </Text>
               <TouchableOpacity 
                 style={styles.updateButton} 
-                onPress={() => Linking.openURL(playStoreUrl)}
+                onPress={() => {
+                  if (playStoreUrl) {
+                    Linking.openURL(playStoreUrl).catch((err) => {
+                      console.error('Failed to open store URL:', err);
+                    });
+                  }
+                }}
               >
                 <Text style={styles.updateButtonText}>Update Now</Text>
               </TouchableOpacity>

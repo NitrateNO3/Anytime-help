@@ -26,17 +26,19 @@ router.post('/', auth, async (req, res) => {
     const user = await User.findById(req.user.id);
     const userPhase = user ? user.phase : null;
 
+    const escapeRegex = (s) => (s || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
     // Check for existing identical or similar complaint
     // We consider it a duplicate if it has the same department, category, location, and address (house number), and is not resolved
     let duplicateQuery = {
       department,
       category,
-      location: { $regex: new RegExp('^' + location.trim() + '$', 'i') },
+      location: { $regex: new RegExp('^' + escapeRegex(location ? location.trim() : '') + '$', 'i') },
       status: { $in: ['PENDING', 'IN_PROGRESS'] }
     };
     
     if (address && address.trim()) {
-      duplicateQuery.address = { $regex: new RegExp('^' + address.trim() + '$', 'i') };
+      duplicateQuery.address = { $regex: new RegExp('^' + escapeRegex(address.trim()) + '$', 'i') };
     } else {
       duplicateQuery.address = { $in: [null, '', undefined] };
     }

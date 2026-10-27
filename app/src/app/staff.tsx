@@ -241,8 +241,12 @@ export default function StaffScreen() {
         try { setStats(JSON.parse(cachedStatsStr)); } catch (e) {}
       }
       if (cachedStr) {
-        const parsedCache = JSON.parse(cachedStr);
-        setComplaints(Array.isArray(parsedCache) ? parsedCache : []);
+        try {
+          const parsedCache = JSON.parse(cachedStr);
+          setComplaints(Array.isArray(parsedCache) ? parsedCache : []);
+        } catch (e) {
+          setComplaints([]);
+        }
         setIsOffline(true);
       } else {
         setComplaints([]);
@@ -266,7 +270,11 @@ export default function StaffScreen() {
       console.error('Fetch announcements error:', err);
       const cachedStr = await AsyncStorage.getItem('cached_announcements');
       if (cachedStr) {
-        setAnnouncements(JSON.parse(cachedStr));
+        try {
+          setAnnouncements(JSON.parse(cachedStr));
+        } catch (e) {
+          setAnnouncements([]);
+        }
         setIsOffline(true);
       }
     } finally {
