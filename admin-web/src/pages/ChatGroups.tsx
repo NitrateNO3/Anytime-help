@@ -3,7 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { 
   MessageSquare, Plus, Edit2, Trash2, Search, X, Eye, 
-  Send, Shield, RefreshCw, Check, CornerDownRight
+  Send, Shield, RefreshCw, Check, CornerDownRight, Users
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import '../index.css';
@@ -499,6 +499,28 @@ export default function ChatGroups() {
       setSelectedViewOnlyIds([...selectedViewOnlyIds, memberId]);
       setSelectedMemberIds(selectedMemberIds.filter(id => id !== memberId));
     }
+  };
+
+  const selectAllMembers = (asViewOnly = false) => {
+    const targetIds = filteredModalMembers.map(m => m._id);
+    if (asViewOnly) {
+      const newViewOnly = Array.from(new Set([...selectedViewOnlyIds, ...targetIds]));
+      setSelectedViewOnlyIds(newViewOnly);
+      setSelectedMemberIds(selectedMemberIds.filter(id => !targetIds.includes(id)));
+      toast.success(`Selected ${targetIds.length} members as View Only`);
+    } else {
+      const newChat = Array.from(new Set([...selectedMemberIds, ...targetIds]));
+      setSelectedMemberIds(newChat);
+      setSelectedViewOnlyIds(selectedViewOnlyIds.filter(id => !targetIds.includes(id)));
+      toast.success(`Selected ${targetIds.length} members (View & Chat)`);
+    }
+  };
+
+  const deselectAllFiltered = () => {
+    const targetIds = filteredModalMembers.map(m => m._id);
+    setSelectedMemberIds(selectedMemberIds.filter(id => !targetIds.includes(id)));
+    setSelectedViewOnlyIds(selectedViewOnlyIds.filter(id => !targetIds.includes(id)));
+    toast.success('Cleared member selection');
   };
 
   const handleSaveGroup = async (e: React.FormEvent) => {
@@ -1082,17 +1104,84 @@ export default function ChatGroups() {
                     Choose <strong>Add (View & Chat)</strong> for full communication or <strong>View Only</strong> for spectator reading access.
                   </p>
 
-                  {/* Filter members search */}
-                  <div style={{ position: 'relative', marginBottom: 10 }}>
-                    <Search size={15} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Filter members by name, designation, phone..."
-                      value={memberSearch}
-                      onChange={(e) => setMemberSearch(e.target.value)}
-                      style={{ paddingLeft: 36, height: 38, fontSize: 13 }}
-                    />
+                  {/* Filter members search & Select All Controls */}
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
+                      <Search size={15} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Filter members by name, designation, phone..."
+                        value={memberSearch}
+                        onChange={(e) => setMemberSearch(e.target.value)}
+                        style={{ paddingLeft: 36, height: 38, fontSize: 13, width: '100%' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => selectAllMembers(false)}
+                        className="btn"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: 12,
+                          borderRadius: 8,
+                          background: '#f0fdf4',
+                          color: '#15803d',
+                          border: '1px solid #bbf7d0',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5
+                        }}
+                      >
+                        <Users size={13} />
+                        Select All (View & Chat) ({filteredModalMembers.length})
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => selectAllMembers(true)}
+                        className="btn"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: 12,
+                          borderRadius: 8,
+                          background: '#fffbeb',
+                          color: '#b45309',
+                          border: '1px solid #fde68a',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5
+                        }}
+                      >
+                        <Eye size={13} />
+                        Select All (View Only)
+                      </button>
+
+                      {(selectedMemberIds.length > 0 || selectedViewOnlyIds.length > 0) && (
+                        <button
+                          type="button"
+                          onClick={deselectAllFiltered}
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: 12,
+                            borderRadius: 8,
+                            background: '#ffffff',
+                            color: '#ef4444',
+                            border: '1px solid #fca5a5',
+                            cursor: 'pointer',
+                            fontWeight: 500
+                          }}
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Members List Box */}
