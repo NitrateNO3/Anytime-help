@@ -242,25 +242,17 @@ export default function Announcements() {
     setPage(1);
   };
 
-  const uploadBannerFile = async (file: File) => {
-    const loadingToast = toast.loading('Uploading banner image...');
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-      const res = await axios.post(`${API_URL}/banners/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      if (res.data?.url) {
-        toast.success('Banner uploaded successfully!', { id: loadingToast });
-        return res.data.url;
-      }
-    } catch (err) {
-      console.error('Direct banner upload fallback to base64:', err);
-    }
-    toast.dismiss(loadingToast);
-    return new Promise<string>((resolve) => {
+  const uploadBannerFile = async (file: File): Promise<string> => {
+    return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to read image file'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read image file'));
       reader.readAsDataURL(file);
     });
   };
@@ -268,8 +260,12 @@ export default function Announcements() {
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const uploadedUrl = await uploadBannerFile(file);
-      setImage(uploadedUrl);
+      try {
+        const base64Url = await uploadBannerFile(file);
+        setImage(base64Url);
+      } catch (err) {
+        toast.error('Failed to load image preview');
+      }
     }
   };
 
@@ -764,8 +760,12 @@ export default function Announcements() {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const uploadedUrl = await uploadBannerFile(file);
-                          setEditingAnnouncement({ ...editingAnnouncement, image: uploadedUrl });
+                          try {
+                            const base64Url = await uploadBannerFile(file);
+                            setEditingAnnouncement({ ...editingAnnouncement, image: base64Url });
+                          } catch (err) {
+                            toast.error('Failed to load image preview');
+                          }
                         }
                       }}
                     />
