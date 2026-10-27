@@ -1,10 +1,7 @@
 {
-  "extends": "./node_modules/expo/tsconfig.base.json",
   "compilerOptions": {
-    "strict": true,
     "allowJs": true,
     "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
     "jsx": "react-jsx",
     "lib": [
       "DOM",
@@ -20,6 +17,8 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "target": "ESNext",
+    "strict": true,
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
@@ -33,6 +32,15 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "types.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js",
+    "android",
+    "ios"
   ]
 }
