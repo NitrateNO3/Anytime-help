@@ -175,6 +175,91 @@ const handleCreateBanner = async (req, res) => {
 router.post('/upload', optionalAuth, upload.single('image'), handleCreateBanner);
 router.post('/', optionalAuth, upload.single('image'), handleCreateBanner);
 
+// @route   POST /api/bottom-banners/bulk-upload
+// @desc    Upload multiple bottom banners at once (files or URLs)
+// @access  Admin
+router.post('/bulk-upload', optionalAuth, upload.array('images', 20), async (req, res) => {
+  try {
+    const { targetAudience, audience, duration, isActive, baseOrder } = req.body;
+    const finalAudience = normalizeAudience(targetAudience || audience || 'All');
+    const slideDuration = duration ? Math.max(1, Math.min(60, Number(duration))) : 4;
+    const active = isActive === undefined ? true : (isActive === 'true' || isActive === true);
+    let startOrder = baseOrder !== undefined && baseOrder !== '' ? Number(baseOrder) : 0;
+
+    const savedBanners = [];
+
+    // 1) Multi-part files
+    if (req.files && req.files.length > 0) {
+      for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        const result = await streamUpload(file.buffer);
+        const title = (req.body[`title_${i}`] || req.body.title || '').trim();
+        const link = (req.body[`link_${i}`] || req.body.link || '').trim();
+
+        const newBanner = new BottomBanner({
+          title,
+          url: result.secure_url,
+          public_id: result.public_id,
+          link,
+          order: startOrder + i,
+          targetAudience: finalAudience,
+          duration: slideDuration,
+          isActive: active,
+        });
+        const saved = await newBanner.save();
+        savedBanners.push(saved);
+      }
+    } 
+    // 2) JSON array of base64 or URL strings
+    else if (Array.isArray(req.body.images) && req.body.images.length > 0) {
+      for (let i = 0; i < req.body.images.length; i++) {
+        const item = req.body.images[i];
+        let url = '';
+        let public_id = '';
+        const imgStr = typeof item === 'string' ? item : item?.url || item?.image;
+
+        if (imgStr && imgStr.startsWith('data:image')) {
+          const result = await cloudinary.uploader.upload(imgStr, {
+            folder: 'anytime_help/bottom_banners',
+            transformation: [{ quality: 'auto', fetch_format: 'auto', width: 1200, crop: 'limit' }]
+          });
+          url = result.secure_url;
+          public_id = result.public_id;
+        } else if (imgStr && (imgStr.startsWith('http://') || imgStr.startsWith('https://'))) {
+          url = imgStr;
+        }
+
+        if (url) {
+          const title = (typeof item === 'object' && item?.title ? item.title : Array.isArray(req.body.titles) ? req.body.titles[i] : req.body.title || '').trim();
+          const link = (typeof item === 'object' && item?.link ? item.link : Array.isArray(req.body.links) ? req.body.links[i] : req.body.link || '').trim();
+
+          const newBanner = new BottomBanner({
+            title,
+            url,
+            public_id,
+            link,
+            order: startOrder + i,
+            targetAudience: finalAudience,
+            duration: slideDuration,
+            isActive: active,
+          });
+          const saved = await newBanner.save();
+          savedBanners.push(saved);
+        }
+      }
+    } else {
+      return res.status(400).json({ msg: 'Please provide one or more images' });
+    }
+
+    notifySocket(req);
+    res.status(201).json({ success: true, count: savedBanners.length, banners: savedBanners });
+  } catch (err) {
+    console.error('Bulk upload bottom banners error:', err);
+    res.status(500).json({ msg: 'Server error bulk uploading bottom banners' });
+  }
+});
+
+
 // @route   PUT /api/bottom-banners/:id
 // @desc    Update bottom banner
 // @access  Admin
@@ -283,5 +368,46 @@ router.delete('/:id', optionalAuth, async (req, res) => {
     res.status(500).json({ msg: 'Server error deleting banner' });
   }
 });
+
+// @route   POST /api/bottom-banners/bulk-delete
+// @route   DELETE /api/bottom-banners/bulk
+// @desc    Delete multiple bottom banners by IDs
+// @access  Admin
+const handleBulkDelete = async (req, res) => {
+  try {
+    const ids = req.body.ids || req.body.bannerIds;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ msg: 'Please provide an array of banner IDs to delete' });
+    }
+
+    const banners = await BottomBanner.find({ _id: { $in: ids } });
+
+    // Destroy Cloudinary images
+    for (const banner of banners) {
+      if (banner.public_id) {
+        try {
+          await cloudinary.uploader.destroy(banner.public_id);
+        } catch (e) {
+          console.error('Cloudinary destroy error for', banner.public_id, e);
+        }
+      }
+    }
+
+    const deleteResult = await BottomBanner.deleteMany({ _id: { $in: ids } });
+    notifySocket(req);
+
+    res.json({
+      success: true,
+      msg: `Successfully deleted ${deleteResult.deletedCount} banners`,
+      deletedCount: deleteResult.deletedCount,
+    });
+  } catch (err) {
+    console.error('Error bulk deleting bottom banners:', err);
+    res.status(500).json({ msg: 'Server error bulk deleting banners' });
+  }
+};
+
+router.post('/bulk-delete', optionalAuth, handleBulkDelete);
+router.delete('/bulk', optionalAuth, handleBulkDelete);
 
 module.exports = router;
