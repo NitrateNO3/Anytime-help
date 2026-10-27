@@ -107,6 +107,7 @@ app.use('/api/directory', require('./routes/directory'));
 app.use('/api/config', require('./routes/config'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/community', require('./routes/community'));
+app.use('/api/bottom-banners', require('./routes/bottomBanners'));
 
 const PORT = process.env.PORT || 5000;
 
