@@ -586,7 +586,16 @@ export default function CommunityScreenContent({
         headers: { 'x-auth-token': token }
       });
       if (res.data) {
-        setMessages(prev => prev.map(m => m._id === tempId ? res.data : m));
+        setMessages(prev => {
+          if (prev.some(m => m._id === res.data._id)) {
+            return prev.filter(m => m._id !== tempId);
+          }
+          const hasTemp = prev.some(m => m._id === tempId);
+          if (hasTemp) {
+            return prev.map(m => m._id === tempId ? res.data : m);
+          }
+          return [...prev, res.data];
+        });
       }
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m._id !== tempId));

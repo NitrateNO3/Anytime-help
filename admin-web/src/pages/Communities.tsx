@@ -76,16 +76,16 @@ interface MessageItem {
 
 // Avatar Initials & Color Helpers
 const AVATAR_PALETTES = [
-  { bg: '#3b82f6', text: '#ffffff' }, // Blue
-  { bg: '#8b5cf6', text: '#ffffff' }, // Purple
-  { bg: '#ec4899', text: '#ffffff' }, // Pink
-  { bg: '#10b981', text: '#ffffff' }, // Emerald
-  { bg: '#f59e0b', text: '#ffffff' }, // Amber
-  { bg: '#06b6d4', text: '#ffffff' }, // Cyan
-  { bg: '#6366f1', text: '#ffffff' }, // Indigo
-  { bg: '#f97316', text: '#ffffff' }, // Orange
-  { bg: '#14b8a6', text: '#ffffff' }, // Teal
-  { bg: '#64748b', text: '#ffffff' }, // Slate
+  { bg: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Blue
+  { bg: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Purple
+  { bg: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Pink
+  { bg: 'linear-gradient(135deg, #10b981 0%, #047857 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Emerald
+  { bg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Amber
+  { bg: 'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Cyan
+  { bg: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Indigo
+  { bg: 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Orange
+  { bg: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Teal
+  { bg: 'linear-gradient(135deg, #475569 0%, #1e293b 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Slate
 ];
 
 const getSenderInitials = (name?: string, fallback = 'U'): string => {
@@ -116,15 +116,28 @@ const getSenderInitials = (name?: string, fallback = 'U'): string => {
 
 const getAvatarColor = (name?: string, isAdmin = false) => {
   if (isAdmin) {
-    return { bg: '#1e293b', text: '#f59e0b' }; // Dark charcoal with amber letter (matching reference style)
+    return { 
+      bg: 'linear-gradient(135deg, #452b14 0%, #221307 100%)', 
+      text: '#fbbf24',
+      border: '1.5px solid rgba(245, 158, 11, 0.5)',
+      boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)'
+    };
   }
-  if (!name) return { bg: '#64748b', text: '#ffffff' };
+  if (!name) return { 
+    bg: 'linear-gradient(135deg, #475569 0%, #1e293b 100%)', 
+    text: '#ffffff', 
+    border: '1.5px solid rgba(255, 255, 255, 0.85)',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)'
+  };
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   const idx = Math.abs(hash) % AVATAR_PALETTES.length;
-  return AVATAR_PALETTES[idx];
+  return {
+    ...AVATAR_PALETTES[idx],
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)'
+  };
 };
 
 export default function Communities() {
@@ -602,7 +615,16 @@ export default function Communities() {
         text: textToSend
       }, getHeaders());
       if (res.data) {
-        setMessages(prev => prev.map(m => m._id === tempId ? res.data : m));
+        setMessages(prev => {
+          if (prev.some(m => m._id === res.data._id)) {
+            return prev.filter(m => m._id !== tempId);
+          }
+          const hasTemp = prev.some(m => m._id === tempId);
+          if (hasTemp) {
+            return prev.map(m => m._id === tempId ? res.data : m);
+          }
+          return [...prev, res.data];
+        });
       }
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m._id !== tempId));
@@ -1419,7 +1441,12 @@ export default function Communities() {
                       {!isMine && (
                         <div 
                           className="comm-msg-avatar"
-                          style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}
+                          style={{ 
+                            background: avatarColor.bg, 
+                            color: avatarColor.text,
+                            border: avatarColor.border,
+                            boxShadow: avatarColor.boxShadow
+                          }}
                           title={`${senderName}${msg.sender_role ? ` (${msg.sender_role})` : ''}`}
                         >
                           {initials}
@@ -1443,7 +1470,12 @@ export default function Communities() {
                       {isMine && (
                         <div 
                           className="comm-msg-avatar mine"
-                          style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}
+                          style={{ 
+                            background: avatarColor.bg, 
+                            color: avatarColor.text,
+                            border: avatarColor.border,
+                            boxShadow: avatarColor.boxShadow
+                          }}
                           title={`${senderName} (You)`}
                         >
                           {initials}
@@ -1487,12 +1519,11 @@ export default function Communities() {
               />
               <button 
                 type="submit" 
-                className="btn btn-primary"
-                style={{ borderRadius: 24, padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 6 }}
+                className="messenger-send-btn"
                 disabled={!msgInput.trim()}
+                title="Send update (Enter)"
               >
-                <Send size={16} />
-                Send
+                <Send size={16} strokeWidth={2.2} style={{ transform: 'translate(1px, -0.5px)' }} />
               </button>
             </form>
           </div>

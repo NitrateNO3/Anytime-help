@@ -306,6 +306,13 @@ export default function MemberChatRoomScreen() {
       if (!cleanGroupId || msgGroupId === cleanGroupId || msgGroupId.includes(cleanGroupId) || cleanGroupId.includes(msgGroupId)) {
         setMessages(prev => {
           if (prev.some(m => m._id === newMsg._id)) return prev;
+          // Reconcile optimistic temp message if present
+          const tempIdx = prev.findIndex(m => (m._id.startsWith('temp_') || (m as any).is_optimistic) && (m.text || '').trim() === (newMsg.text || '').trim());
+          if (tempIdx !== -1) {
+            const copy = [...prev];
+            copy[tempIdx] = newMsg;
+            return copy;
+          }
           return [...prev, newMsg];
         });
 
@@ -422,21 +429,39 @@ export default function MemberChatRoomScreen() {
       if (res.data?.messages && Array.isArray(res.data.messages)) {
         const incoming: ChatMessageItem[] = res.data.messages;
         setMessages(prev => {
-          if (incoming.length !== prev.length || 
-              (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }, 60);
-            return incoming;
+          const pendingOptimistic = prev.filter(p => p._id.startsWith('temp_') || (p as any).is_optimistic);
+
+          if (pendingOptimistic.length === 0) {
+            if (incoming.length !== prev.length || 
+                (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 60);
+              return incoming;
+            }
+            const hasEditsOrDeletes = incoming.some((m, idx) => {
+              const p = prev[idx];
+              return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
+            });
+            if (hasEditsOrDeletes) {
+              return incoming;
+            }
+            return prev;
           }
-          const hasEditsOrDeletes = incoming.some((m, idx) => {
-            const p = prev[idx];
-            return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
+
+          // Preserve pending optimistic messages that the server hasn't committed yet so they never hide
+          const unacknowledged = pendingOptimistic.filter(opt => {
+            const inIncoming = incoming.some(inc => 
+              inc._id === opt._id || 
+              (inc.text.trim() === opt.text.trim() && (
+                inc.sender_name === opt.sender_name ||
+                ((inc.sender as any)?._id || inc.sender) === ((opt.sender as any)?._id || opt.sender)
+              ))
+            );
+            return !inIncoming;
           });
-          if (hasEditsOrDeletes) {
-            return incoming;
-          }
-          return prev;
+
+          return [...incoming, ...unacknowledged];
         });
       }
     } catch {
@@ -633,7 +658,16 @@ export default function MemberChatRoomScreen() {
       // Reconcile optimistic message with server-saved message
       if (res.data?.message) {
         const sentMsg = res.data.message;
-        setMessages(prev => prev.map(m => m._id === tempId ? sentMsg : m));
+        setMessages(prev => {
+          if (prev.some(m => m._id === sentMsg._id)) {
+            return prev.filter(m => m._id !== tempId);
+          }
+          const hasTemp = prev.some(m => m._id === tempId);
+          if (hasTemp) {
+            return prev.map(m => m._id === tempId ? sentMsg : m);
+          }
+          return [...prev, sentMsg];
+        });
       }
     } catch (err: any) {
       // Revert optimistic message if network fails

@@ -470,7 +470,7 @@
 /* Community Message Row with Avatar */
 .comm-msg-row {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   gap: 10px;
   max-width: 82%;
 }
@@ -498,9 +498,15 @@
   font-weight: 700;
   letter-spacing: 0.5px;
   flex-shrink: 0;
-  margin-top: 4px;
+  margin-bottom: 2px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
   user-select: none;
+  cursor: default;
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.comm-msg-avatar:hover {
+  transform: scale(1.08);
 }
 
 .msg-bubble-wrap {
@@ -567,4 +573,52 @@
 
 .messenger-input:focus {
   border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.messenger-send-btn {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #e2e8f0;
+  cursor: pointer;
+  background: #f8fafc;
+  color: #94a3b8;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  outline: none;
+}
+
+.messenger-send-btn:not(:disabled) {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.38);
+}
+
+.messenger-send-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-1px) scale(1.06);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.48);
+}
+
+.messenger-send-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.93);
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.messenger-send-btn:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  border: 1.5px solid #e2e8f0;
+  box-shadow: none;
+  cursor: default;
+  transform: none;
+  opacity: 0.75;
 }

@@ -58,16 +58,16 @@ interface MessageItem {
 
 // Avatar Initials & Color Helpers
 const AVATAR_PALETTES = [
-  { bg: '#3b82f6', text: '#ffffff' }, // Blue
-  { bg: '#8b5cf6', text: '#ffffff' }, // Purple
-  { bg: '#ec4899', text: '#ffffff' }, // Pink
-  { bg: '#10b981', text: '#ffffff' }, // Emerald
-  { bg: '#f59e0b', text: '#ffffff' }, // Amber
-  { bg: '#06b6d4', text: '#ffffff' }, // Cyan
-  { bg: '#6366f1', text: '#ffffff' }, // Indigo
-  { bg: '#f97316', text: '#ffffff' }, // Orange
-  { bg: '#14b8a6', text: '#ffffff' }, // Teal
-  { bg: '#64748b', text: '#ffffff' }, // Slate
+  { bg: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Blue
+  { bg: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Purple
+  { bg: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Pink
+  { bg: 'linear-gradient(135deg, #10b981 0%, #047857 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Emerald
+  { bg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Amber
+  { bg: 'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Cyan
+  { bg: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Indigo
+  { bg: 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Orange
+  { bg: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Teal
+  { bg: 'linear-gradient(135deg, #475569 0%, #1e293b 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Slate
 ];
 
 const getSenderInitials = (name?: string, fallback = 'U'): string => {
@@ -98,15 +98,28 @@ const getSenderInitials = (name?: string, fallback = 'U'): string => {
 
 const getAvatarColor = (name?: string, isAdmin = false) => {
   if (isAdmin) {
-    return { bg: '#1e293b', text: '#f59e0b' }; // Dark charcoal with amber letter (matching reference style)
+    return { 
+      bg: 'linear-gradient(135deg, #452b14 0%, #221307 100%)', 
+      text: '#fbbf24',
+      border: '1.5px solid rgba(245, 158, 11, 0.5)',
+      boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)'
+    };
   }
-  if (!name) return { bg: '#64748b', text: '#ffffff' };
+  if (!name) return { 
+    bg: 'linear-gradient(135deg, #475569 0%, #1e293b 100%)', 
+    text: '#ffffff', 
+    border: '1.5px solid rgba(255, 255, 255, 0.85)',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)'
+  };
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   const idx = Math.abs(hash) % AVATAR_PALETTES.length;
-  return AVATAR_PALETTES[idx];
+  return {
+    ...AVATAR_PALETTES[idx],
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)'
+  };
 };
 
 export default function ChatGroups() {
@@ -124,7 +137,6 @@ export default function ChatGroups() {
   const [chatMessages, setChatMessages] = useState<MessageItem[]>([]);
   const [loadingChat, setLoadingChat] = useState(false);
   const [chatInput, setChatInput] = useState('');
-  const [sendingMsg, setSendingMsg] = useState(false);
   const [replyingMessage, setReplyingMessage] = useState<MessageItem | null>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
   const [showMembersPopover, setShowMembersPopover] = useState(false);
@@ -204,6 +216,13 @@ export default function ChatGroups() {
       if (currentActiveId && gId === currentActiveId) {
         setChatMessages(prev => {
           if (prev.some(m => m._id === newMsg._id)) return prev;
+          // Reconcile optimistic temp message if present
+          const tempIdx = prev.findIndex(m => m._id.startsWith('temp_') && m.text === newMsg.text);
+          if (tempIdx !== -1) {
+            const copy = [...prev];
+            copy[tempIdx] = newMsg;
+            return copy;
+          }
           return [...prev, newMsg];
         });
 
@@ -294,17 +313,35 @@ export default function ChatGroups() {
         if (res.data?.messages && Array.isArray(res.data.messages)) {
           const incoming: MessageItem[] = res.data.messages;
           setChatMessages(prev => {
-            if (incoming.length !== prev.length || 
-                (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
-              scrollToBottom();
-              return incoming;
+            const pendingOptimistic = prev.filter(p => p._id.startsWith('temp_') || (p as any).is_optimistic);
+
+            if (pendingOptimistic.length === 0) {
+              if (incoming.length !== prev.length || 
+                  (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
+                scrollToBottom();
+                return incoming;
+              }
+              const hasChanges = incoming.some((m, idx) => {
+                const p = prev[idx];
+                return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
+              });
+              if (hasChanges) return incoming;
+              return prev;
             }
-            const hasChanges = incoming.some((m, idx) => {
-              const p = prev[idx];
-              return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
+
+            // Preserve pending optimistic messages that the server hasn't committed yet so they never hide
+            const unacknowledged = pendingOptimistic.filter(opt => {
+              const inIncoming = incoming.some(inc => 
+                inc._id === opt._id || 
+                (inc.text.trim() === opt.text.trim() && (
+                  (inc.sender_role || '').toLowerCase() === (opt.sender_role || '').toLowerCase() ||
+                  inc.sender_name === opt.sender_name
+                ))
+              );
+              return !inIncoming;
             });
-            if (hasChanges) return incoming;
-            return prev;
+
+            return [...incoming, ...unacknowledged];
           });
         }
       } catch {
@@ -426,7 +463,7 @@ export default function ChatGroups() {
   // Send Message / Edit Message / Reply
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || !activeChatGroup || sendingMsg) return;
+    if (!chatInput.trim() || !activeChatGroup) return;
 
     // Immediately stop typing indicator on send
     if (isAdminTypingRef.current) {
@@ -439,66 +476,98 @@ export default function ChatGroups() {
       });
     }
 
-    setSendingMsg(true);
+    if (editingMsgId) {
+      const textToEdit = chatInput.trim();
+      const idToEdit = editingMsgId;
+      // Optimistically update
+      setChatMessages(prev => prev.map(m => m._id === idToEdit ? { ...m, text: textToEdit, is_edited: true } : m));
+      setEditingMsgId(null);
+      setChatInput('');
 
-    try {
-      if (editingMsgId) {
-        const textToEdit = chatInput.trim();
-        const idToEdit = editingMsgId;
-        // Optimistically update
-        setChatMessages(prev => prev.map(m => m._id === idToEdit ? { ...m, text: textToEdit, is_edited: true } : m));
-        setEditingMsgId(null);
-        setChatInput('');
-
+      try {
         await axios.put(
           `${API_URL}/chat/messages/${idToEdit}`,
           { new_text: textToEdit },
           getHeaders()
         );
-      } else {
-        const payload: any = {
-          text: chatInput.trim()
-        };
-        if (replyingMessage) {
-          payload.reply_to_message_id = replyingMessage._id;
-        }
+      } catch (err: any) {
+        toast.error(err.response?.data?.msg || 'Failed to edit message');
+      }
+      return;
+    }
 
-        const res = await axios.post(
-          `${API_URL}/chat/groups/${activeChatGroup._id}/messages`,
-          payload,
-          getHeaders()
-        );
+    const textToSend = chatInput.trim();
+    const currentReplying = replyingMessage;
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
-        if (res.data?.message) {
-          const sentMsg = res.data.message;
-          setChatMessages(prev => {
-            if (prev.some(m => m._id === sentMsg._id)) return prev;
-            return [...prev, sentMsg];
-          });
-          // Update last_message in groups array preview
-          setGroups(prev => prev.map(g => {
-            if (g._id === activeChatGroup._id) {
-              return {
-                ...g,
-                last_message: {
-                  text: sentMsg.text,
-                  sender_name: sentMsg.sender_name || 'Admin',
-                  timestamp: sentMsg.createdAt || new Date().toISOString()
-                }
-              };
-            }
-            return g;
-          }));
-        }
-        setReplyingMessage(null);
-        setChatInput('');
+    // 1. WhatsApp-style instant optimistic send (0ms delay) - message appears on screen immediately
+    const optimisticMsg: MessageItem = {
+      _id: tempId,
+      group_id: activeChatGroup._id,
+      sender: adminUser?._id || 'admin',
+      sender_name: adminName,
+      sender_role: 'Admin',
+      text: textToSend,
+      reply_to: currentReplying ? {
+        message_id: currentReplying._id,
+        sender_name: currentReplying.sender_name,
+        text: currentReplying.text
+      } : undefined,
+      createdAt: new Date().toISOString()
+    };
+
+    setChatMessages(prev => [...prev, optimisticMsg]);
+    setChatInput('');
+    setReplyingMessage(null);
+    scrollToBottom();
+
+    // 2. Background HTTP request
+    try {
+      const payload: any = {
+        text: textToSend
+      };
+      if (currentReplying) {
+        payload.reply_to_message_id = currentReplying._id;
       }
 
-      scrollToBottom();
+      const res = await axios.post(
+        `${API_URL}/chat/groups/${activeChatGroup._id}/messages`,
+        payload,
+        getHeaders()
+      );
+
+      if (res.data?.message) {
+        const sentMsg = res.data.message;
+        setChatMessages(prev => {
+          if (prev.some(m => m._id === sentMsg._id)) {
+            return prev.filter(m => m._id !== tempId);
+          }
+          const hasTemp = prev.some(m => m._id === tempId);
+          if (hasTemp) {
+            return prev.map(m => m._id === tempId ? sentMsg : m);
+          }
+          return [...prev, sentMsg];
+        });
+
+        // Update last_message in groups array preview
+        setGroups(prev => prev.map(g => {
+          if (g._id === activeChatGroup._id) {
+            return {
+              ...g,
+              last_message: {
+                text: sentMsg.text,
+                sender_name: sentMsg.sender_name || 'Admin',
+                timestamp: sentMsg.createdAt || new Date().toISOString()
+              }
+            };
+          }
+          return g;
+        }));
+      }
     } catch (err: any) {
+      // Revert optimistic message if network fails
+      setChatMessages(prev => prev.filter(m => m._id !== tempId));
       toast.error(err.response?.data?.msg || 'Failed to send message');
-    } finally {
-      setSendingMsg(false);
     }
   };
 
@@ -1124,7 +1193,12 @@ export default function ChatGroups() {
                       {!isAdminMsg && (
                         <div 
                           className="admin-msg-avatar"
-                          style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}
+                          style={{ 
+                            background: avatarColor.bg, 
+                            color: avatarColor.text,
+                            border: avatarColor.border,
+                            boxShadow: avatarColor.boxShadow
+                          }}
                           title={`${actualName}${designation ? ` (${designation})` : ''}`}
                         >
                           {initials}
@@ -1203,7 +1277,12 @@ export default function ChatGroups() {
                       {isAdminMsg && (
                         <div 
                           className="admin-msg-avatar"
-                          style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}
+                          style={{ 
+                            background: avatarColor.bg, 
+                            color: avatarColor.text,
+                            border: avatarColor.border,
+                            boxShadow: avatarColor.boxShadow
+                          }}
                           title="Admin (You)"
                         >
                           {initials}
@@ -1266,10 +1345,15 @@ export default function ChatGroups() {
                 />
                 <button
                   type="submit"
-                  disabled={!chatInput.trim() || sendingMsg}
-                  className="admin-chat-send-btn"
+                  disabled={!chatInput.trim()}
+                  className={`admin-chat-send-btn ${chatInput.trim() ? 'admin-chat-send-btn-active' : ''}`}
+                  title={editingMsgId ? "Save edited message" : "Send message (Enter)"}
                 >
-                  <Send size={16} />
+                  {editingMsgId ? (
+                    <Check size={18} strokeWidth={2.4} />
+                  ) : (
+                    <Send size={16} strokeWidth={2.2} style={{ transform: 'translate(1px, -0.5px)' }} />
+                  )}
                 </button>
               </div>
             </form>
