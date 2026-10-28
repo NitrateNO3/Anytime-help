@@ -69,6 +69,59 @@ interface CommunityScreenContentProps {
   headerThemeColor?: string;
 }
 
+// Avatar Initials & Color Helpers
+const AVATAR_PALETTES = [
+  { bg: '#3B82F6', text: '#FFFFFF' }, // Blue
+  { bg: '#8B5CF6', text: '#FFFFFF' }, // Purple
+  { bg: '#EC4899', text: '#FFFFFF' }, // Pink
+  { bg: '#10B981', text: '#FFFFFF' }, // Emerald
+  { bg: '#F59E0B', text: '#FFFFFF' }, // Amber
+  { bg: '#06B6D4', text: '#FFFFFF' }, // Cyan
+  { bg: '#6366F1', text: '#FFFFFF' }, // Indigo
+  { bg: '#F97316', text: '#FFFFFF' }, // Orange
+  { bg: '#14B8A6', text: '#FFFFFF' }, // Teal
+  { bg: '#64748B', text: '#FFFFFF' }, // Slate
+];
+
+const getSenderInitials = (name?: string, fallback = 'U'): string => {
+  if (!name || typeof name !== 'string') return fallback;
+  const trimmed = name.trim();
+  if (!trimmed) return fallback;
+
+  const clean = trimmed.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return fallback;
+
+  if (parts.length === 1) {
+    const word = parts[0];
+    if (word.includes('-')) {
+      const sub = word.split('-').filter(Boolean);
+      if (sub[0].length >= 2 && /^[A-Za-z]+$/.test(sub[0])) {
+        return sub[0].slice(0, 2).toUpperCase();
+      }
+      return word.slice(0, 2).toUpperCase();
+    }
+    return word.charAt(0).toUpperCase();
+  }
+
+  const first = parts[0].charAt(0);
+  const last = parts[parts.length - 1].charAt(0);
+  return (first + last).toUpperCase();
+};
+
+const getAvatarColor = (name?: string, isAdmin = false) => {
+  if (isAdmin) {
+    return { bg: '#1E293B', text: '#F59E0B' }; // Dark charcoal with amber letter
+  }
+  if (!name) return { bg: '#64748B', text: '#FFFFFF' };
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % AVATAR_PALETTES.length;
+  return AVATAR_PALETTES[idx];
+};
+
 // WhatsApp-like Typing Indicator with 3 animated bouncing dots
 function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
   const animValue = useRef(new Animated.Value(0)).current;
@@ -837,20 +890,29 @@ export default function CommunityScreenContent({
               }
               renderItem={({ item }) => {
                 const isAdmin = item.sender_role === 'Admin' || item.sender_role === 'SubAdmin';
+                const senderName = item.sender_name || (isAdmin ? 'Admin' : 'Member');
+                const initials = getSenderInitials(senderName);
+                const avatarColor = getAvatarColor(senderName, isAdmin);
+
                 return (
                   <View style={styles.messageCard}>
                     <View style={styles.messageHeaderRow}>
-                      <View style={styles.senderPill}>
-                        <Ionicons 
-                          name={isAdmin ? "shield-checkmark" : "person"} 
-                          size={12} 
-                          color={isAdmin ? "#2563EB" : "#475569"} 
-                          style={{ marginRight: 4 }}
-                        />
-                        <Text style={styles.senderName}>{item.sender_name}</Text>
-                        {item.sender_role && (
-                          <Text style={styles.senderRoleBadge}>• {item.sender_role}</Text>
-                        )}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                        <View style={[styles.msgAvatarCircle, { backgroundColor: avatarColor.bg }]}>
+                          <Text style={[styles.msgAvatarText, { color: avatarColor.text }]}>{initials}</Text>
+                        </View>
+                        <View style={styles.senderPill}>
+                          <Ionicons 
+                            name={isAdmin ? "shield-checkmark" : "person"} 
+                            size={12} 
+                            color={isAdmin ? "#2563EB" : "#475569"} 
+                            style={{ marginRight: 4 }}
+                          />
+                          <Text style={styles.senderName}>{item.sender_name}</Text>
+                          {item.sender_role && (
+                            <Text style={styles.senderRoleBadge}>• {item.sender_role}</Text>
+                          )}
+                        </View>
                       </View>
                       <Text style={styles.messageTimeText}>{formatMessageTime(item.createdAt)}</Text>
                     </View>
@@ -1266,6 +1328,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+  },
+  msgAvatarCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  msgAvatarText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+    includeFontPadding: false,
   },
   senderPill: {
     flexDirection: 'row',

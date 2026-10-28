@@ -467,18 +467,46 @@
   gap: 14px;
 }
 
+/* Community Message Row with Avatar */
+.comm-msg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 82%;
+}
+
+.comm-msg-row.mine {
+  align-self: flex-end;
+  justify-content: flex-end;
+}
+
+.comm-msg-row.theirs {
+  align-self: flex-start;
+  justify-content: flex-start;
+}
+
+.comm-msg-avatar {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+  margin-top: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  user-select: none;
+}
+
 .msg-bubble-wrap {
   display: flex;
   flex-direction: column;
-  max-width: 78%;
-}
-
-.msg-bubble-wrap.mine {
-  align-self: flex-end;
-}
-
-.msg-bubble-wrap.theirs {
-  align-self: flex-start;
+  max-width: 100%;
 }
 
 .msg-bubble {

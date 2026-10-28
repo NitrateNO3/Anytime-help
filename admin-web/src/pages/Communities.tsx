@@ -74,6 +74,59 @@ interface MessageItem {
   createdAt: string;
 }
 
+// Avatar Initials & Color Helpers
+const AVATAR_PALETTES = [
+  { bg: '#3b82f6', text: '#ffffff' }, // Blue
+  { bg: '#8b5cf6', text: '#ffffff' }, // Purple
+  { bg: '#ec4899', text: '#ffffff' }, // Pink
+  { bg: '#10b981', text: '#ffffff' }, // Emerald
+  { bg: '#f59e0b', text: '#ffffff' }, // Amber
+  { bg: '#06b6d4', text: '#ffffff' }, // Cyan
+  { bg: '#6366f1', text: '#ffffff' }, // Indigo
+  { bg: '#f97316', text: '#ffffff' }, // Orange
+  { bg: '#14b8a6', text: '#ffffff' }, // Teal
+  { bg: '#64748b', text: '#ffffff' }, // Slate
+];
+
+const getSenderInitials = (name?: string, fallback = 'U'): string => {
+  if (!name || typeof name !== 'string') return fallback;
+  const trimmed = name.trim();
+  if (!trimmed) return fallback;
+
+  const clean = trimmed.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return fallback;
+
+  if (parts.length === 1) {
+    const word = parts[0];
+    if (word.includes('-')) {
+      const sub = word.split('-').filter(Boolean);
+      if (sub[0].length >= 2 && /^[A-Za-z]+$/.test(sub[0])) {
+        return sub[0].slice(0, 2).toUpperCase();
+      }
+      return word.slice(0, 2).toUpperCase();
+    }
+    return word.charAt(0).toUpperCase();
+  }
+
+  const first = parts[0].charAt(0);
+  const last = parts[parts.length - 1].charAt(0);
+  return (first + last).toUpperCase();
+};
+
+const getAvatarColor = (name?: string, isAdmin = false) => {
+  if (isAdmin) {
+    return { bg: '#1e293b', text: '#f59e0b' }; // Dark charcoal with amber letter (matching reference style)
+  }
+  if (!name) return { bg: '#64748b', text: '#ffffff' };
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % AVATAR_PALETTES.length;
+  return AVATAR_PALETTES[idx];
+};
+
 export default function Communities() {
   const [communities, setCommunities] = useState<CommunityItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1353,21 +1406,49 @@ export default function Communities() {
               ) : (
                 messages.map(msg => {
                   const isMine = msg.sender_role === 'Admin' || msg.sender_role === 'SubAdmin';
+                  const senderName = msg.sender_name || (isMine ? 'Admin' : 'Member');
+                  const initials = getSenderInitials(senderName);
+                  const avatarColor = getAvatarColor(senderName, isMine);
+
                   return (
                     <div 
                       key={msg._id} 
-                      className={`msg-bubble-wrap ${isMine ? 'mine' : 'theirs'}`}
+                      className={`comm-msg-row ${isMine ? 'mine' : 'theirs'}`}
                     >
-                      <div className={`msg-sender-info ${isMine ? 'mine' : 'theirs'}`}>
-                        {msg.sender_name} {msg.sender_role ? `(${msg.sender_role})` : ''}
-                      </div>
+                      {/* Left Avatar for other members */}
+                      {!isMine && (
+                        <div 
+                          className="comm-msg-avatar"
+                          style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}
+                          title={`${senderName}${msg.sender_role ? ` (${msg.sender_role})` : ''}`}
+                        >
+                          {initials}
+                        </div>
+                      )}
 
-                      <div className={`msg-bubble ${isMine ? 'mine' : 'theirs'}`}>
-                        {msg.text}
-                        <div className="msg-time">
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      <div className={`msg-bubble-wrap ${isMine ? 'mine' : 'theirs'}`}>
+                        <div className={`msg-sender-info ${isMine ? 'mine' : 'theirs'}`}>
+                          {msg.sender_name} {msg.sender_role ? `(${msg.sender_role})` : ''}
+                        </div>
+
+                        <div className={`msg-bubble ${isMine ? 'mine' : 'theirs'}`}>
+                          {msg.text}
+                          <div className="msg-time">
+                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </div>
                         </div>
                       </div>
+
+                      {/* Right Avatar for Admin (You) */}
+                      {isMine && (
+                        <div 
+                          className="comm-msg-avatar mine"
+                          style={{ backgroundColor: avatarColor.bg, color: avatarColor.text }}
+                          title={`${senderName} (You)`}
+                        >
+                          {initials}
+                        </div>
+                      )}
                     </div>
                   );
                 })
