@@ -194,8 +194,13 @@
   overflow: hidden;
 }
 
+.admin-chat-modal .chat-modal-header {
+  flex-shrink: 0;
+}
+
 .admin-chat-body {
   flex: 1;
+  min-height: 0;
   padding: 20px;
   overflow-y: auto;
   background: #f8fafc;
@@ -364,6 +369,7 @@
 }
 
 .admin-chat-composer {
+  flex-shrink: 0;
   background: #ffffff;
   border-top: 1px solid #e2e8f0;
   padding: 14px 18px;

@@ -74,6 +74,8 @@ export default function ChatGroups() {
   const [sendingMsg, setSendingMsg] = useState(false);
   const [replyingMessage, setReplyingMessage] = useState<MessageItem | null>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [showMembersPopover, setShowMembersPopover] = useState(false);
+  const [participantFilter, setParticipantFilter] = useState('');
 
   const adminUserStr = localStorage.getItem('adminUser');
   const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
@@ -304,6 +306,8 @@ export default function ChatGroups() {
   // Open Chat Room for Group
   const openChatRoom = async (group: ChatGroupItem) => {
     setActiveChatGroup(group);
+    setShowMembersPopover(false);
+    setParticipantFilter('');
     setChatMessages([]);
     setTypingUsers([]);
     setLoadingChat(true);
@@ -791,38 +795,238 @@ export default function ChatGroups() {
         <div className="chat-modal-overlay">
           <div className="admin-chat-modal">
             {/* Header */}
-            <div className="chat-modal-header" style={{ padding: '14px 20px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <MessageSquare size={18} color="#1d4ed8" />
-                  {activeChatGroup.name}
-                </h3>
-                <span style={{ fontSize: 12, color: typingUsers.length > 0 ? '#1d4ed8' : '#64748b' }}>
-                  {typingUsers.length > 0 ? (
-                    <span className="admin-typing-header">
-                      <span className="admin-typing-pulse-dot" />
-                      {typingUsers.length === 1 
-                        ? `${typingUsers[0]} is typing...` 
-                        : `${typingUsers.join(', ')} are typing...`}
+            {(() => {
+              const activeMembers = activeChatGroup.members || [];
+              const viewOnlyMembers = activeChatGroup.view_only_members || [];
+              const memberNames = activeMembers.map((m: any) => {
+                const mId = m.member_id || (allMembers.find((u: any) => u._id === m._id)?.member_id);
+                return mId || m.name || 'Member';
+              });
+              const totalActive = memberNames.length;
+              const totalViewOnly = viewOnlyMembers.length;
+
+              let participantSubtitle = 'No members';
+              if (totalActive > 0 && totalActive <= 3) {
+                participantSubtitle = `Participants: ${memberNames.join(', ')}`;
+              } else if (totalActive > 3) {
+                participantSubtitle = `${totalActive} Active Members (${memberNames.slice(0, 3).join(', ')} +${totalActive - 3} more)`;
+              }
+
+              const fullParticipantTooltip = `Group: ${activeChatGroup.name} (${activeChatGroup.group_type || 'General'} Committee)\nActive Members (${totalActive}):\n${memberNames.join(', ') || 'None'}${totalViewOnly > 0 ? `\n\nView-Only Members (${totalViewOnly})` : ''}`;
+
+              return (
+                <div 
+                  className="chat-modal-header" 
+                  style={{ 
+                    padding: '12px 18px', 
+                    flexShrink: 0, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    gap: 12
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3 
+                      style={{ 
+                        margin: 0, 
+                        fontSize: 16, 
+                        fontWeight: 700, 
+                        color: '#0f172a', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title={activeChatGroup.name}
+                    >
+                      <MessageSquare size={18} color="#1d4ed8" style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {activeChatGroup.name}
+                      </span>
+                    </h3>
+
+                    <div 
+                      style={{ 
+                        fontSize: 12, 
+                        color: typingUsers.length > 0 ? '#1d4ed8' : '#64748b',
+                        marginTop: 2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title={typingUsers.length > 0 ? undefined : fullParticipantTooltip}
+                    >
+                      {typingUsers.length > 0 ? (
+                        <span className="admin-typing-header">
+                          <span className="admin-typing-pulse-dot" />
+                          {typingUsers.length === 1 
+                            ? `${typingUsers[0]} is typing...` 
+                            : `${typingUsers.join(', ')} are typing...`}
+                        </span>
+                      ) : (
+                        <span>
+                          {activeChatGroup.group_type || 'General'} Committee • {participantSubtitle}
+                          {totalViewOnly > 0 && ` • ${totalViewOnly} View-Only`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowMembersPopover(prev => !prev)}
+                      className="btn"
+                      title={showMembersPopover ? "Hide participants list" : "View all participants"}
+                      style={{
+                        padding: '5px 10px',
+                        fontSize: 12,
+                        borderRadius: 6,
+                        background: showMembersPopover ? '#e0e7ff' : '#f1f5f9',
+                        color: showMembersPopover ? '#1d4ed8' : '#475569',
+                        border: '1px solid #cbd5e1',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      <Users size={14} color={showMembersPopover ? '#1d4ed8' : '#64748b'} />
+                      <span>{totalActive}</span>
+                    </button>
+
+                    <button 
+                      onClick={() => {
+                        setActiveChatGroup(null);
+                        setShowMembersPopover(false);
+                      }}
+                      className="btn-icon"
+                      style={{ cursor: 'pointer' }}
+                      title="Close chat"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Participants Popover Drawer */}
+            {showMembersPopover && (() => {
+              const activeMembers = activeChatGroup.members || [];
+              const viewOnlyMembers = activeChatGroup.view_only_members || [];
+              const allGroupMembers = [
+                ...activeMembers.map((m: any) => ({ ...m, isViewOnly: false })),
+                ...viewOnlyMembers.map((m: any) => ({ ...m, isViewOnly: true }))
+              ];
+
+              const filtered = allGroupMembers.filter((m: any) => {
+                const matched = allMembers.find((u: any) => u._id === m._id);
+                const memberId = (m.member_id || matched?.member_id || '').toLowerCase();
+                const name = (m.name || matched?.name || '').toLowerCase();
+                const q = participantFilter.toLowerCase();
+                return memberId.includes(q) || name.includes(q);
+              });
+
+              return (
+                <div style={{
+                  background: '#ffffff',
+                  borderBottom: '1px solid #e2e8f0',
+                  padding: '12px 18px',
+                  maxHeight: 240,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flexShrink: 0,
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                  zIndex: 10
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Users size={15} color="#1d4ed8" />
+                      Participants ({activeMembers.length} Active Chat{viewOnlyMembers.length > 0 ? `, ${viewOnlyMembers.length} View-Only` : ''})
                     </span>
-                  ) : (
-                    <span>
-                      {activeChatGroup.group_type} Committee • Participants: {(activeChatGroup.members || []).map((m: any) => {
-                        const mId = m.member_id || (allMembers.find((u: any) => u._id === m._id)?.member_id);
-                        return mId || m.name || 'Member';
-                      }).join(', ') || 'No members'}
-                    </span>
-                  )}
-                </span>
-              </div>
-              <button 
-                onClick={() => setActiveChatGroup(null)}
-                className="btn-icon"
-                style={{ cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowMembersPopover(false)} 
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b' }}
+                      title="Close participants list"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+
+                  <div style={{ position: 'relative', marginBottom: 8 }}>
+                    <Search size={14} style={{ position: 'absolute', left: 10, top: 9, color: '#94a3b8' }} />
+                    <input
+                      type="text"
+                      placeholder="Search member ID or name..."
+                      value={participantFilter}
+                      onChange={(e) => setParticipantFilter(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px 6px 30px',
+                        fontSize: 12,
+                        borderRadius: 6,
+                        border: '1px solid #cbd5e1',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {filtered.length === 0 ? (
+                      <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', padding: '12px 0' }}>
+                        No participants match "{participantFilter}"
+                      </div>
+                    ) : (
+                      filtered.map((m: any, idx: number) => {
+                        const matched = allMembers.find((u: any) => u._id === m._id);
+                        const memberId = m.member_id || matched?.member_id;
+                        const name = m.name || matched?.name || 'Member';
+                        const desig = m.designation || matched?.designation;
+
+                        return (
+                          <div
+                            key={m._id ? `${m._id}-${idx}` : idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '6px 10px',
+                              borderRadius: 6,
+                              background: m.isViewOnly ? '#fffbeb' : '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              fontSize: 12
+                            }}
+                          >
+                            <div>
+                              <strong style={{ color: '#0f172a' }}>{memberId ? `${memberId} - ` : ''}{name}</strong>
+                              {desig && <span style={{ color: '#64748b', marginLeft: 6 }}>({desig})</span>}
+                            </div>
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '2px 8px',
+                                borderRadius: 12,
+                                background: m.isViewOnly ? '#fef3c7' : '#dcfce7',
+                                color: m.isViewOnly ? '#b45309' : '#15803d'
+                              }}
+                            >
+                              {m.isViewOnly ? 'View Only' : 'Active Chat'}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Message Stream */}
             <div className="admin-chat-body">
