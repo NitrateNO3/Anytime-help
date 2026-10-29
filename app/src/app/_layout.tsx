@@ -14,6 +14,7 @@ import { CopilotProvider } from 'react-native-copilot';
 import { Ionicons } from '@expo/vector-icons';
 import { requireOptionalNativeModule } from 'expo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as Updates from 'expo-updates';
 
 // Catch any errors thrown by the Layout component or its children.
 // This guarantees the app won't crash/close abruptly if there's an unexpected rendering error.
@@ -79,6 +80,23 @@ export default function RootLayout() {
     }
 
     checkVersion();
+    
+    // Check and auto-apply EAS OTA updates in production
+    const checkForUpdates = async () => {
+      if (__DEV__) return;
+      try {
+        if (Updates.isEnabled) {
+          const update = await Updates.checkForUpdateAsync();
+          if (update.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            await Updates.reloadAsync();
+          }
+        }
+      } catch (err) {
+        console.log('OTA update check skipped/error:', err);
+      }
+    };
+    checkForUpdates();
     
     // Setup Push Notifications
     const setupPushNotifications = async () => {
