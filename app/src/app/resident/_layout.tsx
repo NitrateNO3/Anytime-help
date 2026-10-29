@@ -68,11 +68,12 @@ function WhatsAppFloatingTabBar({ state, descriptors, insets }: any) {
   return (
     <View 
       style={[
-        tabBarStyles.dockedWrapper, 
-        { paddingBottom: Platform.OS === 'ios' ? Math.max(insets?.bottom || 0, 16) : 10 }
+        tabBarStyles.floatingWrapper, 
+        { bottom: Platform.OS === 'ios' ? Math.max(insets?.bottom || 0, 16) : 20 }
       ]} 
+      pointerEvents="box-none"
     >
-      <View style={tabBarStyles.tabBarInner}>
+      <View style={tabBarStyles.pillContainer}>
         {TABS.map((tab) => {
           const isFocused = tab.name === 'index'
             ? (pathname === '/resident' || pathname === '/resident/' || pathname === '/resident/index' || currentTabName === 'index')
@@ -147,29 +148,32 @@ function WhatsAppFloatingTabBar({ state, descriptors, insets }: any) {
 }
 
 const tabBarStyles = StyleSheet.create({
-  dockedWrapper: {
+  floatingWrapper: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    paddingTop: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
     zIndex: 999,
-    elevation: 16,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
+    elevation: 12,
   },
-  tabBarInner: {
+  pillContainer: {
     flexDirection: 'row',
     width: '100%',
-    height: 52,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 10,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
   },
   tabItem: {
     alignItems: 'center',
