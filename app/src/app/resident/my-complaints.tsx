@@ -539,7 +539,7 @@ const styles = StyleSheet.create({
   offlineBanner: { backgroundColor: '#EF4444', paddingVertical: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   offlineText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   container: { flex: 1 },
-  contentContainer: { paddingHorizontal: 16, paddingBottom: 140 },
+  contentContainer: { paddingHorizontal: 16, paddingBottom: 180 },
   headerBar: { 
     flexDirection: 'row', 
     alignItems: 'center', 

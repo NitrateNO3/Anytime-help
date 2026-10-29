@@ -293,90 +293,44 @@ export default function ComplaintDetails() {
   const shareComplaintOnWhatsApp = async () => {
     if (!complaint) return;
 
-    const compId = complaint.complaint_id || (complaint._id ? `#AH-${complaint._id.slice(-5).toUpperCase()}` : 'N/A');
+    const rawId = complaint.complaint_id || (complaint._id ? complaint._id.slice(-4) : '');
+    const compId = String(rawId).replace(/^[#A-Za-z]+-?/i, '');
+
     const createdDate = complaint.created_at 
-      ? new Date(complaint.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-      : 'N/A';
+      ? new Date(complaint.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+      : '';
     const createdTime = complaint.created_at 
-      ? new Date(complaint.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-      : 'N/A';
+      ? new Date(complaint.created_at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      : '';
 
-    let searchQ = complaintCoords ? `${complaintCoords.latitude},${complaintCoords.longitude}` : '';
-    const locStr = complaint?.address || complaint?.location || 'N/A';
-    if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
-      searchQ = encodeURIComponent(locStr);
+    const residentName = complaint.user?.name || complaint.resident_name || 'Resident';
+    const residentPhone = complaint.user?.phone_number || complaint.user?.phone || complaint.phone_number || '';
+    
+    let displayAddress = complaint.address || complaint.user?.address;
+    if (!displayAddress) {
+      const parts = [
+        complaint.user?.house_no,
+        complaint.phase || complaint.user?.phase
+      ].filter(Boolean);
+      displayAddress = parts.join(' - ') || 'N/A';
     }
-    const mapUrl = searchQ ? `https://www.google.com/maps/search/?api=1&query=${searchQ}` : '';
 
-    const statusMap: Record<string, string> = {
-      'PENDING': 'PENDING ⚠️',
-      'IN_PROGRESS': 'IN PROGRESS ⏳',
-      'DONE': 'RESOLVED ✅',
-      'RESOLVED': 'RESOLVED ✅'
-    };
-    const statusText = statusMap[complaint.status] || complaint.status;
-
-    let text = `📢 *ANYTIME HELP - COMPLAINT DETAILS*\n`;
-    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `🆔 *Complaint ID:* ${compId}\n`;
-    text += `📌 *Issue:* ${complaint.title || 'Complaint'}\n`;
-    if (complaint.category) {
-      text += `🏷️ *Category:* ${complaint.category}\n`;
-    }
-    text += `📊 *Status:* ${statusText}\n`;
-    text += `⚡ *Priority:* ${complaint.priority || 'Medium'}\n`;
-    text += `📅 *Reported Date:* ${createdDate}\n`;
-    text += `⏰ *Reported Time:* ${createdTime}\n`;
-    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-
-    // Resident / Reporter Details
-    const residentName = complaint.user?.name || 'Resident';
-    const residentPhone = complaint.user?.phone_number || complaint.user?.phone;
-    const residentPhase = complaint.phase || complaint.user?.phase;
-    const residentRoom = complaint.user?.room_number;
-
-    text += `👤 *Reported By:* ${residentName}\n`;
+    let text = `📢 SLERWA\n\n`;
+    text += `🆔  ${compId}\n`;
+    text += `📌  ${complaint.title || 'Complaint'}\n`;
+    text += `🏷️  ${complaint.category || 'General'}\n`;
+    if (createdDate) text += `📅 ${createdDate}\n`;
+    if (createdTime) text += `⏰ ${createdTime}\n`;
+    text += `\n`;
+    text += `👤 ${residentName}\n`;
     if (residentPhone) {
-      text += `📞 *Contact Phone:* ${residentPhone}\n`;
+      text += `📞 ${residentPhone}\n`;
     }
-    if (residentPhase || residentRoom) {
-      text += `🏠 *Unit:* ${[residentPhase, residentRoom ? `Flat/Room ${residentRoom}` : ''].filter(Boolean).join(' - ')}\n`;
+    text += `🏠 *${displayAddress}*\n\n`;
+    if (complaint.description && complaint.description.trim()) {
+      text += `📝 ${complaint.description.trim()}\n\n`;
     }
-    text += `📍 *Location:* ${locStr}\n`;
-
-    // Description
-    if (complaint.description) {
-      text += `\n📝 *Description:*\n${complaint.description.trim()}\n`;
-    }
-
-    // Assigned Staff (phone numbers not included for privacy)
-    if (staffMembers && staffMembers.length > 0) {
-      text += `\n🛠️ *Assigned Staff:*\n`;
-      staffMembers.forEach((s: any) => {
-        text += `• ${s.name || 'Staff'}\n`;
-      });
-    } else if (complaint.assigned_staff?.name) {
-      text += `\n🛠️ *Assigned Staff:* ${complaint.assigned_staff.name}\n`;
-    }
-
-    // Resolution Details
-    if ((complaint.status === 'DONE' || complaint.status === 'RESOLVED') && resolutionData) {
-      text += `\n✅ *RESOLUTION:*\n`;
-      if (resolutionData.note) {
-        text += `📋 *Note:* ${resolutionData.note}\n`;
-      }
-      if (resolutionData.address) {
-        text += `📍 *Resolved At:* ${resolutionData.address}\n`;
-      }
-    }
-
-    // Map Link
-    if (mapUrl) {
-      text += `\n🗺️ *Google Maps:* ${mapUrl}\n`;
-    }
-
-    text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-    text += `_Shared from Anytime Help_`;
+    text += `RWA (SL2 & 3)`;
 
     const whatsappUrl = `whatsapp://send?text=${encodeURIComponent(text)}`;
 

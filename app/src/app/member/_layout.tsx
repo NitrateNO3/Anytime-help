@@ -4,7 +4,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { BlurView } from 'expo-blur';
 import { useTranslation } from 'react-i18next';
 import { TouchableOpacity } from 'react-native';
 import { walkthroughable, CopilotStep } from 'react-native-copilot';
@@ -69,12 +68,11 @@ function WhatsAppFloatingTabBar({ state, descriptors, insets }: any) {
   return (
     <View 
       style={[
-        tabBarStyles.floatingWrapper, 
-        { bottom: Platform.OS === 'ios' ? Math.max(insets?.bottom || 0, 16) : 20 }
+        tabBarStyles.dockedWrapper, 
+        { paddingBottom: Platform.OS === 'ios' ? Math.max(insets?.bottom || 0, 16) : 10 }
       ]} 
-      pointerEvents="box-none"
     >
-      <View style={tabBarStyles.pillContainer}>
+      <View style={tabBarStyles.tabBarInner}>
         {TABS.map((tab) => {
           const isFocused = tab.name === 'index'
             ? (pathname === '/member' || pathname === '/member/' || pathname === '/member/index' || currentTabName === 'index')
@@ -149,32 +147,29 @@ function WhatsAppFloatingTabBar({ state, descriptors, insets }: any) {
 }
 
 const tabBarStyles = StyleSheet.create({
-  floatingWrapper: {
+  dockedWrapper: {
     position: 'absolute',
     left: 0,
     right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
+    bottom: 0,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    paddingTop: 8,
     zIndex: 999,
-    elevation: 12,
+    elevation: 16,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
   },
-  pillContainer: {
+  tabBarInner: {
     flexDirection: 'row',
     width: '100%',
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFFFFF',
+    height: 52,
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    elevation: 10,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
   },
   tabItem: {
     alignItems: 'center',

@@ -82,6 +82,7 @@ export default function MyComplaints() {
   const { tab, view } = useLocalSearchParams();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('All');
+  const [serverStats, setServerStats] = useState({ pending: 0, inProgress: 0, resolved: 0 });
   const [selectedCategory, setSelectedCategory] = useState('');
   const [viewMode, setViewMode] = useState<'all' | 'mine'>((view as 'mine' | 'all') || 'all');
   const [isOffline, setIsOffline] = useState(false);
@@ -96,13 +97,13 @@ export default function MyComplaints() {
       return;
     }
     const delayDebounceFn = setTimeout(() => {
-      const { viewMode: v, selectedCategory: c } = stateRef.current;
-      fetchComplaints(1, false, searchQuery, c, v);
+      const { viewMode: v, selectedCategory: c, selectedStatus: st } = stateRef.current;
+      fetchComplaints(1, false, searchQuery, c, v, st);
     }, 500);
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery]);
 
-  const fetchComplaints = async (pageNum = 1, append = false, currentSearch = searchQuery, currentCategory = selectedCategory, currentViewMode = viewMode, silent = false) => {
+  const fetchComplaints = async (pageNum = 1, append = false, currentSearch = searchQuery, currentCategory = selectedCategory, currentViewMode = viewMode, currentStatus = selectedStatus, silent = false) => {
     const currentFetchId = ++fetchIdRef.current;
     try {
       if (!append && !silent) setLoading(true);
@@ -116,14 +117,26 @@ export default function MyComplaints() {
         setUser(parsedUser);
       }
 
-      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=25${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${(currentViewMode === 'mine' || (parsedUser && !parsedUser.permissions?.includes('All Complaints'))) ? '&mine=true' : ''}`, {
+      const statusParam = currentStatus && currentStatus !== 'All' 
+        ? `&status=${currentStatus === 'RESOLVED' ? 'DONE' : currentStatus}` 
+        : '';
+
+      const res = await axios.get(`${API_URL}/complaints?page=${pageNum}&limit=25&overall_stats=true${statusParam}${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${(currentViewMode === 'mine' || (parsedUser && !parsedUser.permissions?.includes('All Complaints'))) ? '&mine=true' : ''}`, {
         headers: { 'x-auth-token': token }
       });
       
       if (currentFetchId !== fetchIdRef.current) return;
 
-      const newComplaints = res.data.complaints || res.data;
+      const newComplaints = res.data.complaints || (Array.isArray(res.data) ? res.data : []);
       const hasMoreData = res.data.hasMore !== undefined ? res.data.hasMore : false;
+
+      if (res.data.stats) {
+        setServerStats({
+          pending: Number(res.data.stats.pending) || 0,
+          inProgress: Number(res.data.stats.inProgress) || 0,
+          resolved: Number(res.data.stats.resolved) || 0,
+        });
+      }
 
       if (append) {
         setAllFetchedComplaints(prev => {
@@ -200,10 +213,10 @@ export default function MyComplaints() {
   };
 
 
-  const stateRef = React.useRef({ viewMode, searchQuery, selectedCategory });
+  const stateRef = React.useRef({ viewMode, searchQuery, selectedCategory, selectedStatus });
   React.useEffect(() => {
-    stateRef.current = { viewMode, searchQuery, selectedCategory };
-  }, [viewMode, searchQuery, selectedCategory]);
+    stateRef.current = { viewMode, searchQuery, selectedCategory, selectedStatus };
+  }, [viewMode, searchQuery, selectedCategory, selectedStatus]);
 
   React.useEffect(() => {
     if (view === 'mine' || view === 'all') {
@@ -215,8 +228,8 @@ export default function MyComplaints() {
   React.useEffect(() => {
     const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', () => {
-      const { viewMode: v, searchQuery: s, selectedCategory: c } = stateRef.current;
-      fetchComplaints(1, false, s, c, v);
+      const { viewMode: v, searchQuery: s, selectedCategory: c, selectedStatus: st } = stateRef.current;
+      fetchComplaints(1, false, s, c, v, st);
     });
     socket.on('announcement_changed', () => {
       fetchAnnouncements();
@@ -243,8 +256,8 @@ export default function MyComplaints() {
 
   useFocusEffect(
     useCallback(() => {
-      const { viewMode: currentV, searchQuery: currentS, selectedCategory: currentC } = stateRef.current;
-      fetchComplaints(1, false, currentS, currentC, currentV, true);
+      const { viewMode: currentV, searchQuery: currentS, selectedCategory: currentC, selectedStatus: currentSt } = stateRef.current;
+      fetchComplaints(1, false, currentS, currentC, currentV, currentSt, true);
       fetchAnnouncements(true);
       fetchFilterCategories();
 
@@ -269,7 +282,8 @@ export default function MyComplaints() {
   const handleScroll = (event: any) => {
     if (activeTab === 'Complaints') {
       if (isCloseToBottom(event.nativeEvent) && hasMore && !loadingMore && !loading) {
-        fetchComplaints(page + 1, true);
+        const { viewMode: v, searchQuery: s, selectedCategory: c, selectedStatus: st } = stateRef.current;
+        fetchComplaints(page + 1, true, s, c, v, st);
       }
     }
   };
@@ -302,7 +316,8 @@ export default function MyComplaints() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchComplaints();
+    const { viewMode: v, searchQuery: s, selectedCategory: c, selectedStatus: st } = stateRef.current;
+    fetchComplaints(1, false, s, c, v, st);
     fetchAnnouncements();
     fetchFilterCategories();
   };
@@ -317,20 +332,9 @@ export default function MyComplaints() {
     }
   };
 
-  const stats = {
-    pending: allFetchedComplaints.filter(c => c.status !== 'IN_PROGRESS' && c.status !== 'RESOLVED' && c.status !== 'DONE').length,
-    inProgress: allFetchedComplaints.filter(c => c.status === 'IN_PROGRESS').length,
-    resolved: allFetchedComplaints.filter(c => c.status === 'RESOLVED' || c.status === 'DONE').length,
-  };
+  const stats = serverStats;
 
-  const displayedComplaints = allFetchedComplaints
-    .filter(item => {
-      if (selectedStatus === 'All') return true;
-      if (selectedStatus === 'PENDING' && item.status !== 'IN_PROGRESS' && item.status !== 'RESOLVED' && item.status !== 'DONE') return true;
-      if (selectedStatus === 'IN_PROGRESS' && item.status === 'IN_PROGRESS') return true;
-      if (selectedStatus === 'RESOLVED' && (item.status === 'RESOLVED' || item.status === 'DONE')) return true;
-      return false;
-    })
+  const displayedComplaints = [...allFetchedComplaints]
     .sort((a, b) => {
        // Escalated complaints show first ONLY if not resolved
        const aIsActiveEscalated = a.is_escalated && a.status !== 'RESOLVED' && a.status !== 'DONE';
@@ -378,7 +382,8 @@ export default function MyComplaints() {
             style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: viewMode === 'all' ? '#0F172A' : 'transparent' }}
             onPress={() => {
               setViewMode('all');
-              fetchComplaints(1, false, searchQuery, selectedCategory, 'all');
+              stateRef.current.viewMode = 'all';
+              fetchComplaints(1, false, searchQuery, selectedCategory, 'all', selectedStatus);
             }}
           >
             <Text style={{ fontSize: 15, fontWeight: viewMode === 'all' ? '700' : '500', color: viewMode === 'all' ? '#0F172A' : '#64748B' }}>
@@ -389,7 +394,8 @@ export default function MyComplaints() {
             style={{ flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: viewMode === 'mine' ? '#0F172A' : 'transparent' }}
             onPress={() => {
               setViewMode('mine');
-              fetchComplaints(1, false, searchQuery, selectedCategory, 'mine');
+              stateRef.current.viewMode = 'mine';
+              fetchComplaints(1, false, searchQuery, selectedCategory, 'mine', selectedStatus);
             }}
           >
             <Text style={{ fontSize: 15, fontWeight: viewMode === 'mine' ? '700' : '500', color: viewMode === 'mine' ? '#0F172A' : '#64748B' }}>
@@ -419,7 +425,11 @@ export default function MyComplaints() {
               onChangeText={setSearchQuery}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => { setSearchQuery(''); fetchComplaints(1, false, '', selectedCategory); }}>
+              <TouchableOpacity onPress={() => { 
+                setSearchQuery(''); 
+                stateRef.current.searchQuery = '';
+                fetchComplaints(1, false, '', selectedCategory, viewMode, selectedStatus); 
+              }}>
                 <Ionicons name="close-circle" size={18} color="#CBD5E1" />
               </TouchableOpacity>
             )}
@@ -434,7 +444,8 @@ export default function MyComplaints() {
                   onPress={() => {
                     const newCat = cat === 'All' ? '' : cat;
                     setSelectedCategory(newCat);
-                    fetchComplaints(1, false, searchQuery, newCat);
+                    stateRef.current.selectedCategory = newCat;
+                    fetchComplaints(1, false, searchQuery, newCat, viewMode, selectedStatus);
                   }}
                   activeOpacity={0.8}
                 >
@@ -452,7 +463,13 @@ export default function MyComplaints() {
           <TouchableOpacity 
             style={[styles.statItem, selectedStatus === 'PENDING' && { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
             activeOpacity={0.7}
-            onPress={() => setSelectedStatus(selectedStatus === 'PENDING' ? 'All' : 'PENDING')}
+            onPress={() => {
+              const nextStatus = selectedStatus === 'PENDING' ? 'All' : 'PENDING';
+              setSelectedStatus(nextStatus);
+              stateRef.current.selectedStatus = nextStatus;
+              const { viewMode: v, searchQuery: s, selectedCategory: c } = stateRef.current;
+              fetchComplaints(1, false, s, c, v, nextStatus);
+            }}
           >
             <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.pending}</Text>
             <Text style={styles.statLabel}>{t('staff.pending', { defaultValue: 'Pending' })}</Text>
@@ -461,7 +478,13 @@ export default function MyComplaints() {
           <TouchableOpacity 
             style={[styles.statItem, selectedStatus === 'IN_PROGRESS' && { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
             activeOpacity={0.7}
-            onPress={() => setSelectedStatus(selectedStatus === 'IN_PROGRESS' ? 'All' : 'IN_PROGRESS')}
+            onPress={() => {
+              const nextStatus = selectedStatus === 'IN_PROGRESS' ? 'All' : 'IN_PROGRESS';
+              setSelectedStatus(nextStatus);
+              stateRef.current.selectedStatus = nextStatus;
+              const { viewMode: v, searchQuery: s, selectedCategory: c } = stateRef.current;
+              fetchComplaints(1, false, s, c, v, nextStatus);
+            }}
           >
             <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{stats.inProgress}</Text>
             <Text style={styles.statLabel}>{t('staff.inProgress', { defaultValue: 'In Progress' })}</Text>
@@ -470,7 +493,13 @@ export default function MyComplaints() {
           <TouchableOpacity 
             style={[styles.statItem, selectedStatus === 'RESOLVED' && { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
             activeOpacity={0.7}
-            onPress={() => setSelectedStatus(selectedStatus === 'RESOLVED' ? 'All' : 'RESOLVED')}
+            onPress={() => {
+              const nextStatus = selectedStatus === 'RESOLVED' ? 'All' : 'RESOLVED';
+              setSelectedStatus(nextStatus);
+              stateRef.current.selectedStatus = nextStatus;
+              const { viewMode: v, searchQuery: s, selectedCategory: c } = stateRef.current;
+              fetchComplaints(1, false, s, c, v, nextStatus);
+            }}
           >
             <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.resolved}</Text>
             <Text style={styles.statLabel}>{t('staff.resolved', { defaultValue: 'Resolved' })}</Text>
@@ -671,7 +700,7 @@ const styles = StyleSheet.create({
   offlineBanner: { backgroundColor: '#EF4444', paddingVertical: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   offlineText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
   container: { flex: 1 },
-  contentContainer: { paddingHorizontal: 16, paddingBottom: 140 },
+  contentContainer: { paddingHorizontal: 16, paddingBottom: 180 },
   headerBar: { 
     flexDirection: 'row', 
     alignItems: 'center', 
