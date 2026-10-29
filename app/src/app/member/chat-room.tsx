@@ -802,7 +802,7 @@ export default function MemberChatRoomScreen() {
           {/* Sender Info - Prioritizes Member ID */}
           {isMe ? (
             <View style={styles.senderHeaderMe}>
-              <Text style={styles.senderNameMe}>You ({myIdDisplay})</Text>
+              <Text style={styles.senderNameMe}>You ({currentUser?.member_id || 'Member'})</Text>
             </View>
           ) : (
             <View style={styles.senderHeader}>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar as RNStatusBar, BackHandler, Platform, RefreshControl, Image, FlatList, Dimensions, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar as RNStatusBar, BackHandler, Platform, RefreshControl, Image, FlatList, Dimensions, Linking, Modal } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,6 +40,9 @@ export default function ResidentHome() {
   const bottomBannerIndexRef = useRef(0);
   const [bottomBannerCardWidth, setBottomBannerCardWidth] = useState(Dimensions.get('window').width - 32);
 
+  // Fullscreen Banner Image Preview Modal State
+  const [previewImage, setPreviewImage] = useState<{ url: string; title?: string; link?: string } | null>(null);
+
   // Complaint stats state
   const [stats, setStats] = useState({ pending: 0, inProgress: 0, resolved: 0 });
   const [latestAnnouncement, setLatestAnnouncement] = useState<any>(null);
@@ -70,7 +73,7 @@ export default function ResidentHome() {
     try {
       const token = await SecureStore.getItemAsync('userToken');
       if (token) {
-        const res = await axios.get(`${API_URL}/complaints?page=1&limit=5`, {
+        const res = await axios.get(`${API_URL}/complaints?page=1&limit=5&overall_stats=true`, {
           headers: { 'x-auth-token': token }
         });
         if (res.data?.stats) {
@@ -376,7 +379,11 @@ export default function ResidentHome() {
         >
           {banners.length > 0 ? (
             banners.length === 1 ? (
-              <View style={styles.bannerCardWrapper}>
+              <TouchableOpacity 
+                style={styles.bannerCardWrapper}
+                activeOpacity={0.9}
+                onPress={() => setPreviewImage({ url: banners[0].url, title: banners[0].title, link: banners[0].link })}
+              >
                 <Image 
                   source={{ uri: banners[0].url }} 
                   style={styles.bannerImage}
@@ -392,7 +399,7 @@ export default function ResidentHome() {
                     </Text>
                   </LinearGradient>
                 ) : null}
-              </View>
+              </TouchableOpacity>
             ) : (
               <View style={styles.bannerCardWrapper}>
                 <FlatList
@@ -416,7 +423,11 @@ export default function ResidentHome() {
                     }
                   }}
                   renderItem={({ item }) => (
-                    <View style={{ width: bannerCardWidth, height: 145, position: 'relative' }}>
+                    <TouchableOpacity 
+                      activeOpacity={0.9}
+                      onPress={() => setPreviewImage({ url: item.url, title: item.title, link: item.link })}
+                      style={{ width: bannerCardWidth, height: 145, position: 'relative' }}
+                    >
                       <Image 
                         source={{ uri: item.url }} 
                         style={styles.bannerImage}
@@ -432,7 +443,7 @@ export default function ResidentHome() {
                           </Text>
                         </LinearGradient>
                       ) : null}
-                    </View>
+                    </TouchableOpacity>
                   )}
                 />
                 {/* Carousel Dots */}
@@ -543,7 +554,7 @@ export default function ResidentHome() {
               </CopilotStep>
             </View>
 
-            {/* 5: Directory */}
+            {/* 4: Directory */}
             <View style={styles.gridItemColumn}>
               <CopilotStep text="RWA कमेटी और मैनेजमेंट डायरेक्टरी देखने व संपर्क करने के लिए यहाँ टैप करें।" order={4} name="directory">
                 <WalkthroughableView>
@@ -570,57 +581,37 @@ export default function ResidentHome() {
           <View style={styles.trackerHeader}>
             <View style={styles.trackerTitleGroup}>
               <Ionicons name="stats-chart" size={17} color="#1E293B" style={{ marginRight: 6 }} />
-              <Text style={styles.trackerTitle}>Complaint Status</Text>
+              <Text style={styles.trackerTitle}>Complaints Overview</Text>
             </View>
-            <TouchableOpacity 
-              onPress={() => router.navigate('/resident/my-complaints')}
-              style={styles.trackerSeeAllBtn}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.trackerSeeAllText}>View All</Text>
-              <Ionicons name="chevron-forward" size={14} color="#2563EB" />
-            </TouchableOpacity>
           </View>
 
           <View style={styles.trackerStatsRow}>
             {/* Pending Stat */}
-            <TouchableOpacity 
-              style={[styles.statBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
-              onPress={() => router.navigate('/resident/my-complaints')}
-              activeOpacity={0.75}
-            >
+            <View style={[styles.statBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
               <View style={[styles.statIconBadge, { backgroundColor: '#FEF3C7' }]}>
                 <Ionicons name="time" size={14} color="#D97706" />
               </View>
               <Text style={[styles.statNumber, { color: '#B45309' }]}>{stats.pending}</Text>
               <Text style={styles.statLabel}>Pending</Text>
-            </TouchableOpacity>
+            </View>
 
             {/* In Progress Stat */}
-            <TouchableOpacity 
-              style={[styles.statBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
-              onPress={() => router.navigate('/resident/my-complaints')}
-              activeOpacity={0.75}
-            >
+            <View style={[styles.statBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
               <View style={[styles.statIconBadge, { backgroundColor: '#DBEAFE' }]}>
                 <Ionicons name="sync" size={14} color="#2563EB" />
               </View>
               <Text style={[styles.statNumber, { color: '#1D4ED8' }]}>{stats.inProgress}</Text>
               <Text style={styles.statLabel}>In Progress</Text>
-            </TouchableOpacity>
+            </View>
 
             {/* Done / Resolved Stat */}
-            <TouchableOpacity 
-              style={[styles.statBox, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
-              onPress={() => router.navigate('/resident/my-complaints')}
-              activeOpacity={0.75}
-            >
+            <View style={[styles.statBox, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
               <View style={[styles.statIconBadge, { backgroundColor: '#D1FAE5' }]}>
                 <Ionicons name="checkmark-done" size={14} color="#059669" />
               </View>
               <Text style={[styles.statNumber, { color: '#047857' }]}>{stats.resolved}</Text>
               <Text style={styles.statLabel}>Resolved</Text>
-            </TouchableOpacity>
+            </View>
           </View>
         </View>
 
@@ -652,8 +643,8 @@ export default function ResidentHome() {
             bottomBanners.length === 1 ? (
               <TouchableOpacity 
                 style={styles.announcementCard}
-                onPress={() => handleBottomBannerPress(bottomBanners[0])}
-                activeOpacity={0.85}
+                onPress={() => setPreviewImage({ url: bottomBanners[0].url, title: bottomBanners[0].title, link: bottomBanners[0].link })}
+                activeOpacity={0.88}
               >
                 <View style={styles.noticeBannerContainer}>
                   <Image 
@@ -709,7 +700,7 @@ export default function ResidentHome() {
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       activeOpacity={0.9}
-                      onPress={() => handleBottomBannerPress(item)}
+                      onPress={() => setPreviewImage({ url: item.url, title: item.title, link: item.link })}
                       style={{ width: bottomBannerCardWidth, height: 160, position: 'relative' }}
                     >
                       <Image 
@@ -753,8 +744,12 @@ export default function ResidentHome() {
           ) : latestAnnouncement ? (
             <TouchableOpacity 
               style={styles.announcementCard}
-              onPress={() => router.push('/resident-announcements' as any)}
-              activeOpacity={0.8}
+              onPress={() => setPreviewImage({ 
+                url: latestAnnouncement.image || 'https://res.cloudinary.com/dpajfmfl/image/upload/v1792147978/anytime_help/staff_banners/puhwnrswyjr1mrvqrobe.jpg', 
+                title: latestAnnouncement.title,
+                link: '/resident-announcements'
+              })}
+              activeOpacity={0.88}
             >
               <View style={styles.noticeBannerContainer}>
                 <Image 
@@ -782,8 +777,85 @@ export default function ResidentHome() {
         </View>
 
         {/* Bottom padding */}
-        <View style={{ height: 90 }} />
+        <View style={{ height: 60 }} />
       </ScrollView>
+
+      {/* Fullscreen Banner Image Preview Modal */}
+      <Modal
+        visible={!!previewImage}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setPreviewImage(null)}
+        statusBarTranslucent={true}
+      >
+        <View style={styles.imageModalBackdrop}>
+          <SafeAreaView style={styles.imageModalSafeArea}>
+            {/* Top Bar with Title and Close Button */}
+            <View style={styles.imageModalHeader}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                {previewImage?.title ? (
+                  <Text style={styles.imageModalTitle} numberOfLines={1}>
+                    {previewImage.title}
+                  </Text>
+                ) : (
+                  <Text style={styles.imageModalTitle}>Image Preview</Text>
+                )}
+              </View>
+              <TouchableOpacity
+                style={styles.imageModalCloseBtn}
+                onPress={() => setPreviewImage(null)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="close" size={22} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+
+            {/* Main Center Image */}
+            <View style={styles.imageModalImageContainer}>
+              {previewImage?.url ? (
+                <Image
+                  source={{ uri: previewImage.url }}
+                  style={styles.imageModalFullImage}
+                  resizeMode="contain"
+                />
+              ) : null}
+            </View>
+
+            {/* Action Footer (if link exists or close) */}
+            <View style={styles.imageModalFooter}>
+              {previewImage?.link ? (
+                <TouchableOpacity
+                  style={styles.imageModalActionBtn}
+                  onPress={() => {
+                    const link = previewImage.link?.trim();
+                    setPreviewImage(null);
+                    if (link) {
+                      if (link.startsWith('http://') || link.startsWith('https://')) {
+                        Linking.openURL(link).catch((e) => console.log('Err opening link:', e));
+                      } else if (link.startsWith('/')) {
+                        router.push(link as any);
+                      }
+                    }
+                  }}
+                  activeOpacity={0.85}
+                >
+                  <Ionicons name="open-outline" size={18} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.imageModalActionText}>Visit Link</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.imageModalDismissBtn}
+                  onPress={() => setPreviewImage(null)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.imageModalDismissText}>Close</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </SafeAreaView>
+        </View>
+      </Modal>
 
     </SafeAreaView>
   );
@@ -899,6 +971,7 @@ const styles = StyleSheet.create({
   scrollContentContainer: {
     paddingTop: 16,
     paddingHorizontal: 16,
+    paddingBottom: 28,
   },
   bannerSection: {
     marginBottom: 18,
@@ -1032,6 +1105,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
     rowGap: 16,
+    width: '100%',
   },
   gridItemColumn: {
     width: '33.33%',
@@ -1291,5 +1365,83 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94A3B8',
     textAlign: 'center',
+  },
+  /* Fullscreen Image Preview Modal Styles */
+  imageModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.94)',
+  },
+  imageModalSafeArea: {
+    flex: 1,
+    justifyContent: 'space-between',
+  },
+  imageModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight ? RNStatusBar.currentHeight + 8 : 20) : 12,
+    paddingBottom: 12,
+    zIndex: 10,
+  },
+  imageModalTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    letterSpacing: 0.3,
+  },
+  imageModalCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imageModalImageContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  imageModalFullImage: {
+    width: Dimensions.get('window').width - 24,
+    height: '100%',
+    maxHeight: Dimensions.get('window').height * 0.78,
+  },
+  imageModalFooter: {
+    paddingHorizontal: 24,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 20,
+    alignItems: 'center',
+  },
+  imageModalActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2563EB',
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+    borderRadius: 24,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.3,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 5,
+  },
+  imageModalActionText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  imageModalDismissBtn: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingVertical: 10,
+    paddingHorizontal: 28,
+    borderRadius: 20,
+  },
+  imageModalDismissText: {
+    color: '#E2E8F0',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

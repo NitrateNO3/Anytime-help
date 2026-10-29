@@ -619,12 +619,20 @@ router.get('/', auth, async (req, res) => {
     if (skipStats) {
       complaints = await complaintsQuery;
     } else {
+      let statsQuery = query;
+      if (req.query.overall_stats === 'true') {
+        statsQuery = {};
+        if (req.query.departmentId) statsQuery.department = req.query.departmentId;
+        if (req.query.phase && req.query.phase !== 'ALL') {
+          statsQuery.phase = { $regex: new RegExp(req.query.phase.trim(), 'i') };
+        }
+      }
       [complaints, total, pending, inProgress, resolved] = await Promise.all([
         complaintsQuery,
         Complaint.countDocuments(query),
-        Complaint.countDocuments({ ...query, status: 'PENDING' }),
-        Complaint.countDocuments({ ...query, status: 'IN_PROGRESS' }),
-        Complaint.countDocuments({ ...query, status: { $in: ['RESOLVED', 'DONE'] } })
+        Complaint.countDocuments({ ...statsQuery, status: 'PENDING' }),
+        Complaint.countDocuments({ ...statsQuery, status: 'IN_PROGRESS' }),
+        Complaint.countDocuments({ ...statsQuery, status: { $in: ['RESOLVED', 'DONE'] } })
       ]);
     }
 

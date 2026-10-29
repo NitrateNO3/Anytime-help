@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import { useTranslation } from 'react-i18next';
 import { TouchableOpacity } from 'react-native';
 import { walkthroughable, CopilotStep } from 'react-native-copilot';
@@ -16,6 +17,193 @@ const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 const WalkthroughableView = walkthroughable(View);
+
+interface TabDefinition {
+  name: string;
+  label: string;
+  activeIcon: any;
+  inactiveIcon: any;
+}
+
+const TABS: TabDefinition[] = [
+  {
+    name: 'index',
+    label: 'Home',
+    activeIcon: 'home',
+    inactiveIcon: 'home-outline',
+  },
+  {
+    name: 'chats',
+    label: 'Chat',
+    activeIcon: 'chatbubble-ellipses',
+    inactiveIcon: 'chatbubble-ellipses-outline',
+  },
+  {
+    name: 'community',
+    label: 'Community',
+    activeIcon: 'people',
+    inactiveIcon: 'people-outline',
+  },
+  {
+    name: 'settings',
+    label: 'Profile',
+    activeIcon: 'person',
+    inactiveIcon: 'person-outline',
+  },
+];
+
+function WhatsAppFloatingTabBar({ state, descriptors, insets }: any) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const focusedRoute = state?.routes ? state.routes[state.index] : null;
+  const focusedDescriptor = descriptors && focusedRoute ? descriptors[focusedRoute.key] : null;
+  const focusedOptions = focusedDescriptor?.options;
+
+  if (focusedOptions?.tabBarStyle?.display === 'none') {
+    return null;
+  }
+
+  const currentTabName = focusedRoute?.name;
+
+  return (
+    <View 
+      style={[
+        tabBarStyles.floatingWrapper, 
+        { bottom: Platform.OS === 'ios' ? Math.max(insets?.bottom || 0, 16) : 20 }
+      ]} 
+      pointerEvents="box-none"
+    >
+      <View style={tabBarStyles.pillContainer}>
+        {TABS.map((tab) => {
+          const isFocused = tab.name === 'index'
+            ? (pathname === '/resident' || pathname === '/resident/' || pathname === '/resident/index' || currentTabName === 'index')
+            : (pathname === `/resident/${tab.name}` || pathname?.startsWith(`/resident/${tab.name}/`) || currentTabName === tab.name);
+
+          const handlePress = () => {
+            if (tab.name === 'index') {
+              router.navigate('/resident' as any);
+            } else {
+              router.navigate(`/resident/${tab.name}` as any);
+            }
+          };
+
+          const tabButton = (
+            <TouchableOpacity
+              onPress={handlePress}
+              style={tabBarStyles.tabItem}
+              activeOpacity={0.7}
+            >
+              <View style={[tabBarStyles.iconPill, isFocused && tabBarStyles.iconPillActive]}>
+                <Ionicons
+                  name={isFocused ? tab.activeIcon : tab.inactiveIcon}
+                  size={22}
+                  color={isFocused ? '#2563EB' : '#64748B'}
+                />
+              </View>
+              <Text style={[tabBarStyles.tabLabel, isFocused && tabBarStyles.tabLabelActive]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          );
+
+          if (tab.name === 'index') {
+            return (
+              <CopilotStep
+                key={tab.name}
+                text="यह आपका होम टैब है। यहाँ से आप वापस अपने डैशबोर्ड पर जा सकते हैं।"
+                order={6}
+                name="home_tab"
+              >
+                <WalkthroughableView style={{ flex: 1, height: '100%' }}>
+                  {tabButton}
+                </WalkthroughableView>
+              </CopilotStep>
+            );
+          }
+
+          if (tab.name === 'settings') {
+            return (
+              <CopilotStep
+                key={tab.name}
+                text="यहाँ से आप अपनी प्रोफ़ाइल और सेटिंग्स मैनेज कर सकते हैं।"
+                order={8}
+                name="profile_tab"
+              >
+                <WalkthroughableView style={{ flex: 1, height: '100%' }}>
+                  {tabButton}
+                </WalkthroughableView>
+              </CopilotStep>
+            );
+          }
+
+          return (
+            <View key={tab.name} style={{ flex: 1, height: '100%' }}>
+              {tabButton}
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const tabBarStyles = StyleSheet.create({
+  floatingWrapper: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    zIndex: 999,
+    elevation: 12,
+  },
+  pillContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    elevation: 10,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+  },
+  tabItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    width: '100%',
+  },
+  iconPill: {
+    width: 52,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  iconPillActive: {
+    backgroundColor: '#EFF6FF',
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  tabLabelActive: {
+    color: '#2563EB',
+    fontWeight: '700',
+  },
+});
 
 export default function ResidentLayout() {
   const insets = useSafeAreaInsets();
@@ -86,103 +274,18 @@ export default function ResidentLayout() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
+        tabBar={(props) => <WhatsAppFloatingTabBar {...props} insets={insets} />}
         backBehavior="initialRoute"
         screenOptions={{
           headerShown: false,
-          tabBarShowLabel: true,
-          tabBarActiveTintColor: '#2563EB',
-          tabBarInactiveTintColor: '#64748B',
-          tabBarLabelStyle: {
-            fontSize: 11,
-            fontWeight: '600',
-            marginTop: -2,
-          },
-          tabBarStyle: {
-            backgroundColor: '#FFFFFF',
-            borderTopWidth: 1,
-            borderTopColor: '#F1F5F9',
-            height: 60 + Math.max(insets.bottom, 12),
-            paddingBottom: Math.max(insets.bottom, 10),
-            paddingTop: 8,
-            elevation: 12,
-            shadowColor: '#0F172A',
-            shadowOffset: { width: 0, height: -4 },
-            shadowOpacity: 0.08,
-            shadowRadius: 8,
-          },
+          tabBarHideOnKeyboard: true,
         }}
       >
-        <Tabs.Screen
-          name="index"
-          options={{
-            tabBarLabel: t('resident.tabHome'),
-            title: t('resident.tabHome'),
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="home" size={24} color={color as string} />
-            ),
-            tabBarButton: (props: any) => (
-              <CopilotStep text="यह आपका होम टैब है। यहाँ से आप वापस अपने डैशबोर्ड पर जा सकते हैं।" order={6} name="home_tab">
-                <WalkthroughableView style={{ flex: 1 }}>
-                  <TouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
-                </WalkthroughableView>
-              </CopilotStep>
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="my-complaints"
-          options={{
-            tabBarLabel: t('resident.myComplaints'),
-            title: t('resident.myComplaints'),
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="list" size={24} color={color as string} />
-            ),
-            tabBarButton: (props: any) => (
-              <CopilotStep text="इस टैब से आप अपनी सभी शिकायतें (complaints) जल्दी से चेक कर सकते हैं।" order={7} name="complaints_tab">
-                <WalkthroughableView style={{ flex: 1 }}>
-                  <TouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
-                </WalkthroughableView>
-              </CopilotStep>
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="chats"
-          options={{
-            tabBarLabel: 'Chat',
-            title: 'Chat',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? "chatbubbles" : "chatbubbles-outline"} size={24} color={color as string} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="community"
-          options={{
-            tabBarLabel: 'Community',
-            title: 'Community',
-            tabBarIcon: ({ color, focused }) => (
-              <Ionicons name={focused ? "people" : "people-outline"} size={24} color={color as string} />
-            ),
-          }}
-        />
-        <Tabs.Screen
-          name="settings"
-          options={{
-            tabBarLabel: t('resident.tabProfile'),
-            title: t('resident.tabProfile'),
-            tabBarIcon: ({ color }) => (
-              <Ionicons name="person" size={24} color={color as string} />
-            ),
-            tabBarButton: (props: any) => (
-              <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल और सेटिंग्स मैनेज कर सकते हैं।" order={8} name="profile_tab">
-                <WalkthroughableView style={{ flex: 1 }}>
-                  <TouchableOpacity {...props} style={[props.style, { flex: 1 }]} />
-                </WalkthroughableView>
-              </CopilotStep>
-            ),
-          }}
-        />
+        <Tabs.Screen name="index" />
+        <Tabs.Screen name="chats" />
+        <Tabs.Screen name="community" />
+        <Tabs.Screen name="settings" />
+        <Tabs.Screen name="my-complaints" options={{ href: null }} />
         <Tabs.Screen name="search" options={{ href: null }} />
         <Tabs.Screen 
           name="raise" 
