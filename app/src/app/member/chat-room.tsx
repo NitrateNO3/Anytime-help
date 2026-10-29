@@ -32,6 +32,59 @@ interface ChatMessageItem {
   createdAt: string;
 }
 
+// Avatar Initials & Color Helpers
+const AVATAR_PALETTES = [
+  { bg: '#3B82F6', text: '#FFFFFF' }, // Blue
+  { bg: '#8B5CF6', text: '#FFFFFF' }, // Purple
+  { bg: '#EC4899', text: '#FFFFFF' }, // Pink
+  { bg: '#10B981', text: '#FFFFFF' }, // Emerald
+  { bg: '#F59E0B', text: '#FFFFFF' }, // Amber
+  { bg: '#06B6D4', text: '#FFFFFF' }, // Cyan
+  { bg: '#6366F1', text: '#FFFFFF' }, // Indigo
+  { bg: '#F97316', text: '#FFFFFF' }, // Orange
+  { bg: '#14B8A6', text: '#FFFFFF' }, // Teal
+  { bg: '#64748B', text: '#FFFFFF' }, // Slate
+];
+
+const getSenderInitials = (name?: string, fallback = 'U'): string => {
+  if (!name || typeof name !== 'string') return fallback;
+  const trimmed = name.trim();
+  if (!trimmed) return fallback;
+
+  const clean = trimmed.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return fallback;
+
+  if (parts.length === 1) {
+    const word = parts[0];
+    if (word.includes('-')) {
+      const sub = word.split('-').filter(Boolean);
+      if (sub[0].length >= 2 && /^[A-Za-z]+$/.test(sub[0])) {
+        return sub[0].slice(0, 2).toUpperCase();
+      }
+      return word.slice(0, 2).toUpperCase();
+    }
+    return word.charAt(0).toUpperCase();
+  }
+
+  const first = parts[0].charAt(0);
+  const last = parts[parts.length - 1].charAt(0);
+  return (first + last).toUpperCase();
+};
+
+const getAvatarColor = (name?: string, isAdmin = false) => {
+  if (isAdmin) {
+    return { bg: '#1E293B', text: '#F59E0B' }; // Dark charcoal with amber letter
+  }
+  if (!name) return { bg: '#64748B', text: '#FFFFFF' };
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % AVATAR_PALETTES.length;
+  return AVATAR_PALETTES[idx];
+};
+
 // WhatsApp-like Typing Indicator with 3 animated bouncing dots
 function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
   const animValue = useRef(new Animated.Value(0)).current;
@@ -253,6 +306,13 @@ export default function MemberChatRoomScreen() {
       if (!cleanGroupId || msgGroupId === cleanGroupId || msgGroupId.includes(cleanGroupId) || cleanGroupId.includes(msgGroupId)) {
         setMessages(prev => {
           if (prev.some(m => m._id === newMsg._id)) return prev;
+          // Reconcile optimistic temp message if present
+          const tempIdx = prev.findIndex(m => (m._id.startsWith('temp_') || (m as any).is_optimistic) && (m.text || '').trim() === (newMsg.text || '').trim());
+          if (tempIdx !== -1) {
+            const copy = [...prev];
+            copy[tempIdx] = newMsg;
+            return copy;
+          }
           return [...prev, newMsg];
         });
 
@@ -369,21 +429,39 @@ export default function MemberChatRoomScreen() {
       if (res.data?.messages && Array.isArray(res.data.messages)) {
         const incoming: ChatMessageItem[] = res.data.messages;
         setMessages(prev => {
-          if (incoming.length !== prev.length || 
-              (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }, 60);
-            return incoming;
+          const pendingOptimistic = prev.filter(p => p._id.startsWith('temp_') || (p as any).is_optimistic);
+
+          if (pendingOptimistic.length === 0) {
+            if (incoming.length !== prev.length || 
+                (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
+              setTimeout(() => {
+                flatListRef.current?.scrollToEnd({ animated: true });
+              }, 60);
+              return incoming;
+            }
+            const hasEditsOrDeletes = incoming.some((m, idx) => {
+              const p = prev[idx];
+              return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
+            });
+            if (hasEditsOrDeletes) {
+              return incoming;
+            }
+            return prev;
           }
-          const hasEditsOrDeletes = incoming.some((m, idx) => {
-            const p = prev[idx];
-            return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
+
+          // Preserve pending optimistic messages that the server hasn't committed yet so they never hide
+          const unacknowledged = pendingOptimistic.filter(opt => {
+            const inIncoming = incoming.some(inc => 
+              inc._id === opt._id || 
+              (inc.text.trim() === opt.text.trim() && (
+                inc.sender_name === opt.sender_name ||
+                ((inc.sender as any)?._id || inc.sender) === ((opt.sender as any)?._id || opt.sender)
+              ))
+            );
+            return !inIncoming;
           });
-          if (hasEditsOrDeletes) {
-            return incoming;
-          }
-          return prev;
+
+          return [...incoming, ...unacknowledged];
         });
       }
     } catch {
@@ -537,14 +615,37 @@ export default function MemberChatRoomScreen() {
       return;
     }
 
-    // Case 2: Sending a new message (or quoted reply)
-    setSending(true);
+    // Case 2: Sending a new message (or quoted reply) - WhatsApp-style instant send
     const textToSend = inputText.trim();
+    const currentReplyingTo = replyingTo;
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+    // Create optimistic message object
+    const optimisticMsg: any = {
+      _id: tempId,
+      group_id: cleanGroupId,
+      sender: currentUser?._id || currentUser?.id,
+      sender_name: currentUser?.member_id || currentUser?.name || 'You',
+      sender_role: currentUser?.role || 'Member',
+      sender_designation: currentUser?.designation || '',
+      text: textToSend,
+      reply_to_message_id: currentReplyingTo ? currentReplyingTo : null,
+      createdAt: new Date().toISOString(),
+      is_optimistic: true
+    };
+
+    // Immediately render message on screen and clear input with 0ms delay
+    setMessages(prev => [...prev, optimisticMsg]);
+    setInputText('');
+    setReplyingTo(null);
+    scheduleScrollToBottom();
+
+    // Background HTTP dispatch
     const payload: any = {
       text: textToSend,
     };
-    if (replyingTo) {
-      payload.reply_to_message_id = replyingTo._id;
+    if (currentReplyingTo) {
+      payload.reply_to_message_id = currentReplyingTo._id;
     }
 
     try {
@@ -554,22 +655,24 @@ export default function MemberChatRoomScreen() {
         { headers: { 'x-auth-token': token } }
       );
 
-      // Immediately render new message on sender screen in real time
+      // Reconcile optimistic message with server-saved message
       if (res.data?.message) {
         const sentMsg = res.data.message;
         setMessages(prev => {
-          if (prev.some(m => m._id === sentMsg._id)) return prev;
+          if (prev.some(m => m._id === sentMsg._id)) {
+            return prev.filter(m => m._id !== tempId);
+          }
+          const hasTemp = prev.some(m => m._id === tempId);
+          if (hasTemp) {
+            return prev.map(m => m._id === tempId ? sentMsg : m);
+          }
           return [...prev, sentMsg];
         });
-        scheduleScrollToBottom();
       }
-
-      setInputText('');
-      setReplyingTo(null);
     } catch (err: any) {
+      // Revert optimistic message if network fails
+      setMessages(prev => prev.filter(m => m._id !== tempId));
       Alert.alert('Error', err.response?.data?.msg || 'Failed to send message');
-    } finally {
-      setSending(false);
     }
   };
 
@@ -673,7 +776,11 @@ export default function MemberChatRoomScreen() {
 
     const rawDesignation = senderObj?.designation || matchedMember?.designation || item.sender_designation;
     const designation = (rawDesignation && rawDesignation.trim().toLowerCase() !== 'member') ? rawDesignation.trim() : null;
-    const myIdDisplay = currentUser?.member_id || currentUser?.name || 'Member';
+    const actualSenderName = isAdmin 
+      ? (item.sender_role === 'Admin' ? 'Super Admin' : 'Admin')
+      : (senderObj?.name || matchedMember?.name || item.sender_name || memberId || 'Member');
+    const initials = getSenderInitials(actualSenderName);
+    const avatarColor = getAvatarColor(actualSenderName, isAdmin);
 
     return (
       <TouchableOpacity
@@ -685,6 +792,12 @@ export default function MemberChatRoomScreen() {
           isMe ? styles.messageRowMe : styles.messageRowOther
         ]}
       >
+        {!isMe && (
+          <View style={[styles.msgAvatarCircle, { backgroundColor: avatarColor.bg }]}>
+            <Text style={[styles.msgAvatarText, { color: avatarColor.text }]}>{initials}</Text>
+          </View>
+        )}
+
         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
           {/* Sender Info - Prioritizes Member ID */}
           {isMe ? (
@@ -742,6 +855,12 @@ export default function MemberChatRoomScreen() {
             )}
           </View>
         </View>
+
+        {isMe && (
+          <View style={[styles.msgAvatarCircle, { backgroundColor: avatarColor.bg }]}>
+            <Text style={[styles.msgAvatarText, { color: avatarColor.text }]}>{initials}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
@@ -880,17 +999,13 @@ export default function MemberChatRoomScreen() {
               <TouchableOpacity
                 style={[styles.sendButton, !inputText.trim() ? styles.sendButtonDisabled : null]}
                 onPress={handleSendOrUpdate}
-                disabled={!inputText.trim() || sending}
+                disabled={!inputText.trim()}
               >
-                {sending ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Ionicons 
-                    name={editingMessage ? "checkmark" : "send"} 
-                    size={18} 
-                    color="#FFFFFF" 
-                  />
-                )}
+                <Ionicons 
+                  name={editingMessage ? "checkmark" : "send"} 
+                  size={18} 
+                  color="#FFFFFF" 
+                />
               </TouchableOpacity>
             </View>
           </View>
@@ -967,6 +1082,8 @@ const styles = StyleSheet.create({
   },
   messageRow: {
     flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
     marginVertical: 4,
   },
   messageRowMe: {
@@ -975,8 +1092,27 @@ const styles = StyleSheet.create({
   messageRowOther: {
     justifyContent: 'flex-start',
   },
+  msgAvatarCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  msgAvatarText: {
+    fontSize: 11,
+    fontWeight: '700',
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
   bubble: {
-    maxWidth: '82%',
+    maxWidth: '78%',
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,

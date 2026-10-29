@@ -114,9 +114,14 @@
     "contactsWillAppear": "Admin dwara add karne par contacts yahan dikhenge"
   },
   "community": {
-    "title": "Notifications",
-    "subtitle": "System alerts & messages",
-    "noNotifications": "Koi naya notification nahi hai"
+    "title": "Community",
+    "subtitle": "Official channels & updates",
+    "noNotifications": "Koi community channel available nahi hai",
+    "follow": "Follow karein",
+    "following": "Following",
+    "readOnlyNotice": "Aap read-only access ke saath is channel ko follow kar rahe hain",
+    "followToRead": "Updates aur messages dekhne ke liye follow karein",
+    "channels": "Channels"
   },
   "register": {
     "title": "Account Banayein",

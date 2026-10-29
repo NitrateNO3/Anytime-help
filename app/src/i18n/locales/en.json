@@ -162,9 +162,14 @@
     "contactsWillAppear": "Contacts will appear here once added by the administration"
   },
   "community": {
-    "title": "Notifications",
-    "subtitle": "System alerts & messages",
-    "noNotifications": "No new notifications"
+    "title": "Community",
+    "subtitle": "Official channels & updates",
+    "noNotifications": "No community channels available",
+    "follow": "Follow",
+    "following": "Following",
+    "readOnlyNotice": "You are following this channel with read-only access",
+    "followToRead": "Follow this channel to view live updates and messages",
+    "channels": "Channels"
   },
   "register": {
     "title": "Create Account",

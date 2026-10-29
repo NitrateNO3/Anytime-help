@@ -71,6 +71,42 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Community Section room events
+  socket.on('join_community_section', (sectionId) => {
+    if (sectionId) {
+      socket.join(`community_section_${sectionId}`);
+      console.log(`Socket ${socket.id} joined community_section_${sectionId}`);
+    }
+  });
+
+  socket.on('leave_community_section', (sectionId) => {
+    if (sectionId) {
+      socket.leave(`community_section_${sectionId}`);
+      console.log(`Socket ${socket.id} left community_section_${sectionId}`);
+    }
+  });
+
+  // Community Section typing indicator broadcast
+  socket.on('community_typing_start', (data) => {
+    const sectionId = (data?.sectionId?._id || data?.sectionId || data?.section_id || '').toString().trim();
+    const userName = (data?.userName || data?.sender_name || 'Someone').toString().trim();
+    const userId = (data?.userId || '').toString().trim();
+    if (sectionId) {
+      socket.to(`community_section_${sectionId}`).emit('community_user_typing', { sectionId, userName, userId, isTyping: true });
+      socket.broadcast.emit('community_user_typing', { sectionId, userName, userId, isTyping: true });
+    }
+  });
+
+  socket.on('community_typing_stop', (data) => {
+    const sectionId = (data?.sectionId?._id || data?.sectionId || data?.section_id || '').toString().trim();
+    const userName = (data?.userName || data?.sender_name || 'Someone').toString().trim();
+    const userId = (data?.userId || '').toString().trim();
+    if (sectionId) {
+      socket.to(`community_section_${sectionId}`).emit('community_user_typing', { sectionId, userName, userId, isTyping: false });
+      socket.broadcast.emit('community_user_typing', { sectionId, userName, userId, isTyping: false });
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected:', socket.id);
   });
@@ -91,6 +127,8 @@ app.use('/api/service-bookings', require('./routes/serviceBookings'));
 app.use('/api/directory', require('./routes/directory'));
 app.use('/api/config', require('./routes/config'));
 app.use('/api/chat', require('./routes/chat'));
+app.use('/api/community', require('./routes/community'));
+app.use('/api/bottom-banners', require('./routes/bottomBanners'));
 
 const PORT = process.env.PORT || 5000;
 

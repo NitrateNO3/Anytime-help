@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Pagination } from '../components/Pagination';
 import axios from 'axios';
-import { Bell, Plus, Trash2, Edit2, Search, Filter, RotateCcw, X, Megaphone, Clock } from 'lucide-react';
+import { Bell, Plus, Trash2, Edit2, Search, Filter, RotateCcw, X, Megaphone, Clock, Sliders } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { ExportButtons } from '../components/ExportButtons';
 import { io } from 'socket.io-client';
+import BottomBanners from './BottomBanners';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 export default function Announcements() {
-  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'bottom-banners'>('list');
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterPhase, setFilterPhase] = useState('All Groups (Show Everything)');
@@ -131,12 +132,21 @@ export default function Announcements() {
     setIsCreating(true);
     const loadingToast = toast.loading('Publishing announcement...');
 
+    const finalTitle = title.trim() || (image ? 'Notice' : '');
+    const finalMessage = message.trim() || (image ? ' ' : '');
+
+    if (!image && !finalTitle) {
+      toast.error('Please attach a banner photo or enter notice title', { id: loadingToast });
+      setIsCreating(false);
+      return;
+    }
+
     try {
       const token = localStorage.getItem('adminToken');
       // Pass targetAudience: 'All' or get it from a new state if we add radio buttons
       await axios.post(`${API_URL}/announcements`, {
-        title,
-        message,
+        title: finalTitle,
+        message: finalMessage,
         phases: selectedPhases,
         targetAudience: targetAudience,
         image
@@ -201,11 +211,14 @@ export default function Announcements() {
     e.preventDefault();
     const loadingToast = toast.loading('Updating announcement...');
 
+    const finalTitle = editingAnnouncement.title?.trim() || (editingAnnouncement.image ? 'Notice' : '');
+    const finalMessage = editingAnnouncement.message?.trim() || (editingAnnouncement.image ? ' ' : '');
+
     try {
       const token = localStorage.getItem('adminToken');
       await axios.put(`${API_URL}/announcements/${editingAnnouncement._id}`, {
-        title: editingAnnouncement.title,
-        message: editingAnnouncement.message,
+        title: finalTitle,
+        message: finalMessage,
         image: editingAnnouncement.image
       }, {
         headers: { 'x-auth-token': token }
@@ -230,25 +243,17 @@ export default function Announcements() {
     setPage(1);
   };
 
-  const uploadBannerFile = async (file: File) => {
-    const loadingToast = toast.loading('Uploading banner image...');
-    try {
-      const formData = new FormData();
-      formData.append('image', file);
-      const res = await axios.post(`${API_URL}/banners/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      if (res.data?.url) {
-        toast.success('Banner uploaded successfully!', { id: loadingToast });
-        return res.data.url;
-      }
-    } catch (err) {
-      console.error('Direct banner upload fallback to base64:', err);
-    }
-    toast.dismiss(loadingToast);
-    return new Promise<string>((resolve) => {
+  const uploadBannerFile = async (file: File): Promise<string> => {
+    return new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to read image file'));
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read image file'));
       reader.readAsDataURL(file);
     });
   };
@@ -256,8 +261,12 @@ export default function Announcements() {
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const uploadedUrl = await uploadBannerFile(file);
-      setImage(uploadedUrl);
+      try {
+        const base64Url = await uploadBannerFile(file);
+        setImage(base64Url);
+      } catch (err) {
+        toast.error('Failed to load image preview');
+      }
     }
   };
 
@@ -298,10 +307,24 @@ export default function Announcements() {
             <Plus size={18} /> New Broadcast
           </button>
         )}
+        <button 
+          onClick={() => setActiveTab('bottom-banners')}
+          style={{ 
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', 
+            background: activeTab === 'bottom-banners' ? 'var(--primary)' : 'white', 
+            color: activeTab === 'bottom-banners' ? 'white' : 'var(--text-muted)',
+            border: activeTab === 'bottom-banners' ? 'none' : '1px solid var(--border-color)',
+            borderRadius: 12, cursor: 'pointer', fontWeight: 600, transition: 'all 0.2s'
+          }}
+        >
+          <Sliders size={18} /> Bottom Banners (Slider)
+        </button>
       </div>
 
       {/* Content Area */}
-      {activeTab === 'list' ? (
+      {activeTab === 'bottom-banners' ? (
+        <BottomBanners embedded={true} />
+      ) : activeTab === 'list' ? (
         <div className="glass table-container">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
             <h2 className="card-title">Recent Announcements</h2>
@@ -541,23 +564,21 @@ export default function Announcements() {
 
             <form onSubmit={handleCreate}>
               <div className="input-group">
-                <label>Announcement Title</label>
+                <label>Announcement Title <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>(Optional)</span></label>
                 <input 
                   type="text" 
                   value={title} 
                   onChange={(e) => setTitle(e.target.value)} 
-                  required
-                  placeholder="e.g. Water Supply Interruption"
+                  placeholder="e.g. Water Supply Interruption (Optional)"
                 />
               </div>
               
               <div className="input-group">
-                <label>Message Detail</label>
+                <label>Message Detail <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>(Optional)</span></label>
                 <textarea 
                   value={message} 
                   onChange={(e) => setMessage(e.target.value)} 
-                  required
-                  placeholder="Type the full message here..."
+                  placeholder="Type the full message here... (Optional if uploading photo)"
                   style={{ 
                     width: '100%', 
                     padding: '14px 16px', 
@@ -697,23 +718,23 @@ export default function Announcements() {
             </div>
             <form onSubmit={handleEditSubmit} style={{ padding: '24px', overflowY: 'auto' }}>
               <div className="form-group">
-                <label className="form-label">Title</label>
+                <label className="form-label">Title <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>(Optional)</span></label>
                 <input 
                   type="text" 
                   className="form-input"
                   value={editingAnnouncement.title} 
                   onChange={(e) => setEditingAnnouncement({...editingAnnouncement, title: e.target.value})} 
-                  required
+                  placeholder="Optional"
                 />
               </div>
               
               <div className="form-group">
-                <label className="form-label">Message</label>
+                <label className="form-label">Message <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 'normal' }}>(Optional)</span></label>
                 <textarea 
                   className="form-input"
                   value={editingAnnouncement.message} 
                   onChange={(e) => setEditingAnnouncement({...editingAnnouncement, message: e.target.value})} 
-                  required
+                  placeholder="Optional"
                   style={{ 
                     minHeight: '120px', 
                     resize: 'vertical',
@@ -754,8 +775,12 @@ export default function Announcements() {
                       onChange={async (e) => {
                         const file = e.target.files?.[0];
                         if (file) {
-                          const uploadedUrl = await uploadBannerFile(file);
-                          setEditingAnnouncement({ ...editingAnnouncement, image: uploadedUrl });
+                          try {
+                            const base64Url = await uploadBannerFile(file);
+                            setEditingAnnouncement({ ...editingAnnouncement, image: base64Url });
+                          } catch (err) {
+                            toast.error('Failed to load image preview');
+                          }
                         }
                       }}
                     />

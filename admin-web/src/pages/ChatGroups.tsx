@@ -3,7 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { 
   MessageSquare, Plus, Edit2, Trash2, Search, X, Eye, 
-  Send, Shield, RefreshCw, Check, CornerDownRight
+  Send, Shield, RefreshCw, Check, CornerDownRight, Users
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import '../index.css';
@@ -56,6 +56,72 @@ interface MessageItem {
   createdAt: string;
 }
 
+// Avatar Initials & Color Helpers
+const AVATAR_PALETTES = [
+  { bg: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Blue
+  { bg: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Purple
+  { bg: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Pink
+  { bg: 'linear-gradient(135deg, #10b981 0%, #047857 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Emerald
+  { bg: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Amber
+  { bg: 'linear-gradient(135deg, #06b6d4 0%, #0e7490 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Cyan
+  { bg: 'linear-gradient(135deg, #6366f1 0%, #4338ca 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Indigo
+  { bg: 'linear-gradient(135deg, #f97316 0%, #c2410c 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Orange
+  { bg: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Teal
+  { bg: 'linear-gradient(135deg, #475569 0%, #1e293b 100%)', text: '#ffffff', border: '1.5px solid rgba(255, 255, 255, 0.85)' }, // Slate
+];
+
+const getSenderInitials = (name?: string, fallback = 'U'): string => {
+  if (!name || typeof name !== 'string') return fallback;
+  const trimmed = name.trim();
+  if (!trimmed) return fallback;
+
+  const clean = trimmed.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return fallback;
+
+  if (parts.length === 1) {
+    const word = parts[0];
+    if (word.includes('-')) {
+      const sub = word.split('-').filter(Boolean);
+      if (sub[0].length >= 2 && /^[A-Za-z]+$/.test(sub[0])) {
+        return sub[0].slice(0, 2).toUpperCase();
+      }
+      return word.slice(0, 2).toUpperCase();
+    }
+    return word.charAt(0).toUpperCase();
+  }
+
+  const first = parts[0].charAt(0);
+  const last = parts[parts.length - 1].charAt(0);
+  return (first + last).toUpperCase();
+};
+
+const getAvatarColor = (name?: string, isAdmin = false) => {
+  if (isAdmin) {
+    return { 
+      bg: 'linear-gradient(135deg, #452b14 0%, #221307 100%)', 
+      text: '#fbbf24',
+      border: '1.5px solid rgba(245, 158, 11, 0.5)',
+      boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)'
+    };
+  }
+  if (!name) return { 
+    bg: 'linear-gradient(135deg, #475569 0%, #1e293b 100%)', 
+    text: '#ffffff', 
+    border: '1.5px solid rgba(255, 255, 255, 0.85)',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)'
+  };
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const idx = Math.abs(hash) % AVATAR_PALETTES.length;
+  return {
+    ...AVATAR_PALETTES[idx],
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)'
+  };
+};
+
 export default function ChatGroups() {
   const [groups, setGroups] = useState<ChatGroupItem[]>([]);
   const [allMembers, setAllMembers] = useState<MemberUser[]>([]);
@@ -71,9 +137,10 @@ export default function ChatGroups() {
   const [chatMessages, setChatMessages] = useState<MessageItem[]>([]);
   const [loadingChat, setLoadingChat] = useState(false);
   const [chatInput, setChatInput] = useState('');
-  const [sendingMsg, setSendingMsg] = useState(false);
   const [replyingMessage, setReplyingMessage] = useState<MessageItem | null>(null);
   const [editingMsgId, setEditingMsgId] = useState<string | null>(null);
+  const [showMembersPopover, setShowMembersPopover] = useState(false);
+  const [participantFilter, setParticipantFilter] = useState('');
 
   const adminUserStr = localStorage.getItem('adminUser');
   const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
@@ -149,6 +216,13 @@ export default function ChatGroups() {
       if (currentActiveId && gId === currentActiveId) {
         setChatMessages(prev => {
           if (prev.some(m => m._id === newMsg._id)) return prev;
+          // Reconcile optimistic temp message if present
+          const tempIdx = prev.findIndex(m => m._id.startsWith('temp_') && m.text === newMsg.text);
+          if (tempIdx !== -1) {
+            const copy = [...prev];
+            copy[tempIdx] = newMsg;
+            return copy;
+          }
           return [...prev, newMsg];
         });
 
@@ -239,17 +313,35 @@ export default function ChatGroups() {
         if (res.data?.messages && Array.isArray(res.data.messages)) {
           const incoming: MessageItem[] = res.data.messages;
           setChatMessages(prev => {
-            if (incoming.length !== prev.length || 
-                (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
-              scrollToBottom();
-              return incoming;
+            const pendingOptimistic = prev.filter(p => p._id.startsWith('temp_') || (p as any).is_optimistic);
+
+            if (pendingOptimistic.length === 0) {
+              if (incoming.length !== prev.length || 
+                  (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
+                scrollToBottom();
+                return incoming;
+              }
+              const hasChanges = incoming.some((m, idx) => {
+                const p = prev[idx];
+                return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
+              });
+              if (hasChanges) return incoming;
+              return prev;
             }
-            const hasChanges = incoming.some((m, idx) => {
-              const p = prev[idx];
-              return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
+
+            // Preserve pending optimistic messages that the server hasn't committed yet so they never hide
+            const unacknowledged = pendingOptimistic.filter(opt => {
+              const inIncoming = incoming.some(inc => 
+                inc._id === opt._id || 
+                (inc.text.trim() === opt.text.trim() && (
+                  (inc.sender_role || '').toLowerCase() === (opt.sender_role || '').toLowerCase() ||
+                  inc.sender_name === opt.sender_name
+                ))
+              );
+              return !inIncoming;
             });
-            if (hasChanges) return incoming;
-            return prev;
+
+            return [...incoming, ...unacknowledged];
           });
         }
       } catch {
@@ -304,6 +396,8 @@ export default function ChatGroups() {
   // Open Chat Room for Group
   const openChatRoom = async (group: ChatGroupItem) => {
     setActiveChatGroup(group);
+    setShowMembersPopover(false);
+    setParticipantFilter('');
     setChatMessages([]);
     setTypingUsers([]);
     setLoadingChat(true);
@@ -369,7 +463,7 @@ export default function ChatGroups() {
   // Send Message / Edit Message / Reply
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || !activeChatGroup || sendingMsg) return;
+    if (!chatInput.trim() || !activeChatGroup) return;
 
     // Immediately stop typing indicator on send
     if (isAdminTypingRef.current) {
@@ -382,66 +476,98 @@ export default function ChatGroups() {
       });
     }
 
-    setSendingMsg(true);
+    if (editingMsgId) {
+      const textToEdit = chatInput.trim();
+      const idToEdit = editingMsgId;
+      // Optimistically update
+      setChatMessages(prev => prev.map(m => m._id === idToEdit ? { ...m, text: textToEdit, is_edited: true } : m));
+      setEditingMsgId(null);
+      setChatInput('');
 
-    try {
-      if (editingMsgId) {
-        const textToEdit = chatInput.trim();
-        const idToEdit = editingMsgId;
-        // Optimistically update
-        setChatMessages(prev => prev.map(m => m._id === idToEdit ? { ...m, text: textToEdit, is_edited: true } : m));
-        setEditingMsgId(null);
-        setChatInput('');
-
+      try {
         await axios.put(
           `${API_URL}/chat/messages/${idToEdit}`,
           { new_text: textToEdit },
           getHeaders()
         );
-      } else {
-        const payload: any = {
-          text: chatInput.trim()
-        };
-        if (replyingMessage) {
-          payload.reply_to_message_id = replyingMessage._id;
-        }
+      } catch (err: any) {
+        toast.error(err.response?.data?.msg || 'Failed to edit message');
+      }
+      return;
+    }
 
-        const res = await axios.post(
-          `${API_URL}/chat/groups/${activeChatGroup._id}/messages`,
-          payload,
-          getHeaders()
-        );
+    const textToSend = chatInput.trim();
+    const currentReplying = replyingMessage;
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
 
-        if (res.data?.message) {
-          const sentMsg = res.data.message;
-          setChatMessages(prev => {
-            if (prev.some(m => m._id === sentMsg._id)) return prev;
-            return [...prev, sentMsg];
-          });
-          // Update last_message in groups array preview
-          setGroups(prev => prev.map(g => {
-            if (g._id === activeChatGroup._id) {
-              return {
-                ...g,
-                last_message: {
-                  text: sentMsg.text,
-                  sender_name: sentMsg.sender_name || 'Admin',
-                  timestamp: sentMsg.createdAt || new Date().toISOString()
-                }
-              };
-            }
-            return g;
-          }));
-        }
-        setReplyingMessage(null);
-        setChatInput('');
+    // 1. WhatsApp-style instant optimistic send (0ms delay) - message appears on screen immediately
+    const optimisticMsg: MessageItem = {
+      _id: tempId,
+      group_id: activeChatGroup._id,
+      sender: adminUser?._id || 'admin',
+      sender_name: adminName,
+      sender_role: 'Admin',
+      text: textToSend,
+      reply_to: currentReplying ? {
+        message_id: currentReplying._id,
+        sender_name: currentReplying.sender_name,
+        text: currentReplying.text
+      } : undefined,
+      createdAt: new Date().toISOString()
+    };
+
+    setChatMessages(prev => [...prev, optimisticMsg]);
+    setChatInput('');
+    setReplyingMessage(null);
+    scrollToBottom();
+
+    // 2. Background HTTP request
+    try {
+      const payload: any = {
+        text: textToSend
+      };
+      if (currentReplying) {
+        payload.reply_to_message_id = currentReplying._id;
       }
 
-      scrollToBottom();
+      const res = await axios.post(
+        `${API_URL}/chat/groups/${activeChatGroup._id}/messages`,
+        payload,
+        getHeaders()
+      );
+
+      if (res.data?.message) {
+        const sentMsg = res.data.message;
+        setChatMessages(prev => {
+          if (prev.some(m => m._id === sentMsg._id)) {
+            return prev.filter(m => m._id !== tempId);
+          }
+          const hasTemp = prev.some(m => m._id === tempId);
+          if (hasTemp) {
+            return prev.map(m => m._id === tempId ? sentMsg : m);
+          }
+          return [...prev, sentMsg];
+        });
+
+        // Update last_message in groups array preview
+        setGroups(prev => prev.map(g => {
+          if (g._id === activeChatGroup._id) {
+            return {
+              ...g,
+              last_message: {
+                text: sentMsg.text,
+                sender_name: sentMsg.sender_name || 'Admin',
+                timestamp: sentMsg.createdAt || new Date().toISOString()
+              }
+            };
+          }
+          return g;
+        }));
+      }
     } catch (err: any) {
+      // Revert optimistic message if network fails
+      setChatMessages(prev => prev.filter(m => m._id !== tempId));
       toast.error(err.response?.data?.msg || 'Failed to send message');
-    } finally {
-      setSendingMsg(false);
     }
   };
 
@@ -499,6 +625,28 @@ export default function ChatGroups() {
       setSelectedViewOnlyIds([...selectedViewOnlyIds, memberId]);
       setSelectedMemberIds(selectedMemberIds.filter(id => id !== memberId));
     }
+  };
+
+  const selectAllMembers = (asViewOnly = false) => {
+    const targetIds = filteredModalMembers.map(m => m._id);
+    if (asViewOnly) {
+      const newViewOnly = Array.from(new Set([...selectedViewOnlyIds, ...targetIds]));
+      setSelectedViewOnlyIds(newViewOnly);
+      setSelectedMemberIds(selectedMemberIds.filter(id => !targetIds.includes(id)));
+      toast.success(`Selected ${targetIds.length} members as View Only`);
+    } else {
+      const newChat = Array.from(new Set([...selectedMemberIds, ...targetIds]));
+      setSelectedMemberIds(newChat);
+      setSelectedViewOnlyIds(selectedViewOnlyIds.filter(id => !targetIds.includes(id)));
+      toast.success(`Selected ${targetIds.length} members (View & Chat)`);
+    }
+  };
+
+  const deselectAllFiltered = () => {
+    const targetIds = filteredModalMembers.map(m => m._id);
+    setSelectedMemberIds(selectedMemberIds.filter(id => !targetIds.includes(id)));
+    setSelectedViewOnlyIds(selectedViewOnlyIds.filter(id => !targetIds.includes(id)));
+    toast.success('Cleared member selection');
   };
 
   const handleSaveGroup = async (e: React.FormEvent) => {
@@ -769,38 +917,238 @@ export default function ChatGroups() {
         <div className="chat-modal-overlay">
           <div className="admin-chat-modal">
             {/* Header */}
-            <div className="chat-modal-header" style={{ padding: '14px 20px' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <MessageSquare size={18} color="#1d4ed8" />
-                  {activeChatGroup.name}
-                </h3>
-                <span style={{ fontSize: 12, color: typingUsers.length > 0 ? '#1d4ed8' : '#64748b' }}>
-                  {typingUsers.length > 0 ? (
-                    <span className="admin-typing-header">
-                      <span className="admin-typing-pulse-dot" />
-                      {typingUsers.length === 1 
-                        ? `${typingUsers[0]} is typing...` 
-                        : `${typingUsers.join(', ')} are typing...`}
+            {(() => {
+              const activeMembers = activeChatGroup.members || [];
+              const viewOnlyMembers = activeChatGroup.view_only_members || [];
+              const memberNames = activeMembers.map((m: any) => {
+                const mId = m.member_id || (allMembers.find((u: any) => u._id === m._id)?.member_id);
+                return mId || m.name || 'Member';
+              });
+              const totalActive = memberNames.length;
+              const totalViewOnly = viewOnlyMembers.length;
+
+              let participantSubtitle = 'No members';
+              if (totalActive > 0 && totalActive <= 3) {
+                participantSubtitle = `Participants: ${memberNames.join(', ')}`;
+              } else if (totalActive > 3) {
+                participantSubtitle = `${totalActive} Active Members (${memberNames.slice(0, 3).join(', ')} +${totalActive - 3} more)`;
+              }
+
+              const fullParticipantTooltip = `Group: ${activeChatGroup.name} (${activeChatGroup.group_type || 'General'} Committee)\nActive Members (${totalActive}):\n${memberNames.join(', ') || 'None'}${totalViewOnly > 0 ? `\n\nView-Only Members (${totalViewOnly})` : ''}`;
+
+              return (
+                <div 
+                  className="chat-modal-header" 
+                  style={{ 
+                    padding: '12px 18px', 
+                    flexShrink: 0, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between',
+                    gap: 12
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h3 
+                      style={{ 
+                        margin: 0, 
+                        fontSize: 16, 
+                        fontWeight: 700, 
+                        color: '#0f172a', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title={activeChatGroup.name}
+                    >
+                      <MessageSquare size={18} color="#1d4ed8" style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {activeChatGroup.name}
+                      </span>
+                    </h3>
+
+                    <div 
+                      style={{ 
+                        fontSize: 12, 
+                        color: typingUsers.length > 0 ? '#1d4ed8' : '#64748b',
+                        marginTop: 2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title={typingUsers.length > 0 ? undefined : fullParticipantTooltip}
+                    >
+                      {typingUsers.length > 0 ? (
+                        <span className="admin-typing-header">
+                          <span className="admin-typing-pulse-dot" />
+                          {typingUsers.length === 1 
+                            ? `${typingUsers[0]} is typing...` 
+                            : `${typingUsers.join(', ')} are typing...`}
+                        </span>
+                      ) : (
+                        <span>
+                          {activeChatGroup.group_type || 'General'} Committee • {participantSubtitle}
+                          {totalViewOnly > 0 && ` • ${totalViewOnly} View-Only`}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowMembersPopover(prev => !prev)}
+                      className="btn"
+                      title={showMembersPopover ? "Hide participants list" : "View all participants"}
+                      style={{
+                        padding: '5px 10px',
+                        fontSize: 12,
+                        borderRadius: 6,
+                        background: showMembersPopover ? '#e0e7ff' : '#f1f5f9',
+                        color: showMembersPopover ? '#1d4ed8' : '#475569',
+                        border: '1px solid #cbd5e1',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        cursor: 'pointer',
+                        fontWeight: 600
+                      }}
+                    >
+                      <Users size={14} color={showMembersPopover ? '#1d4ed8' : '#64748b'} />
+                      <span>{totalActive}</span>
+                    </button>
+
+                    <button 
+                      onClick={() => {
+                        setActiveChatGroup(null);
+                        setShowMembersPopover(false);
+                      }}
+                      className="btn-icon"
+                      style={{ cursor: 'pointer' }}
+                      title="Close chat"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Participants Popover Drawer */}
+            {showMembersPopover && (() => {
+              const activeMembers = activeChatGroup.members || [];
+              const viewOnlyMembers = activeChatGroup.view_only_members || [];
+              const allGroupMembers = [
+                ...activeMembers.map((m: any) => ({ ...m, isViewOnly: false })),
+                ...viewOnlyMembers.map((m: any) => ({ ...m, isViewOnly: true }))
+              ];
+
+              const filtered = allGroupMembers.filter((m: any) => {
+                const matched = allMembers.find((u: any) => u._id === m._id);
+                const memberId = (m.member_id || matched?.member_id || '').toLowerCase();
+                const name = (m.name || matched?.name || '').toLowerCase();
+                const q = participantFilter.toLowerCase();
+                return memberId.includes(q) || name.includes(q);
+              });
+
+              return (
+                <div style={{
+                  background: '#ffffff',
+                  borderBottom: '1px solid #e2e8f0',
+                  padding: '12px 18px',
+                  maxHeight: 240,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  flexShrink: 0,
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                  zIndex: 10
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Users size={15} color="#1d4ed8" />
+                      Participants ({activeMembers.length} Active Chat{viewOnlyMembers.length > 0 ? `, ${viewOnlyMembers.length} View-Only` : ''})
                     </span>
-                  ) : (
-                    <span>
-                      {activeChatGroup.group_type} Committee • Participants: {(activeChatGroup.members || []).map((m: any) => {
-                        const mId = m.member_id || (allMembers.find((u: any) => u._id === m._id)?.member_id);
-                        return mId || m.name || 'Member';
-                      }).join(', ') || 'No members'}
-                    </span>
-                  )}
-                </span>
-              </div>
-              <button 
-                onClick={() => setActiveChatGroup(null)}
-                className="btn-icon"
-                style={{ cursor: 'pointer' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setShowMembersPopover(false)} 
+                      style={{ border: 'none', background: 'none', cursor: 'pointer', color: '#64748b' }}
+                      title="Close participants list"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+
+                  <div style={{ position: 'relative', marginBottom: 8 }}>
+                    <Search size={14} style={{ position: 'absolute', left: 10, top: 9, color: '#94a3b8' }} />
+                    <input
+                      type="text"
+                      placeholder="Search member ID or name..."
+                      value={participantFilter}
+                      onChange={(e) => setParticipantFilter(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '6px 10px 6px 30px',
+                        fontSize: 12,
+                        borderRadius: 6,
+                        border: '1px solid #cbd5e1',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {filtered.length === 0 ? (
+                      <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center', padding: '12px 0' }}>
+                        No participants match "{participantFilter}"
+                      </div>
+                    ) : (
+                      filtered.map((m: any, idx: number) => {
+                        const matched = allMembers.find((u: any) => u._id === m._id);
+                        const memberId = m.member_id || matched?.member_id;
+                        const name = m.name || matched?.name || 'Member';
+                        const desig = m.designation || matched?.designation;
+
+                        return (
+                          <div
+                            key={m._id ? `${m._id}-${idx}` : idx}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '6px 10px',
+                              borderRadius: 6,
+                              background: m.isViewOnly ? '#fffbeb' : '#f8fafc',
+                              border: '1px solid #e2e8f0',
+                              fontSize: 12
+                            }}
+                          >
+                            <div>
+                              <strong style={{ color: '#0f172a' }}>{memberId ? `${memberId} - ` : ''}{name}</strong>
+                              {desig && <span style={{ color: '#64748b', marginLeft: 6 }}>({desig})</span>}
+                            </div>
+                            <span
+                              style={{
+                                fontSize: 10,
+                                fontWeight: 600,
+                                padding: '2px 8px',
+                                borderRadius: 12,
+                                background: m.isViewOnly ? '#fef3c7' : '#dcfce7',
+                                color: m.isViewOnly ? '#b45309' : '#15803d'
+                              }}
+                            >
+                              {m.isViewOnly ? 'View Only' : 'Active Chat'}
+                            </span>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Message Stream */}
             <div className="admin-chat-body">
@@ -830,74 +1178,116 @@ export default function ChatGroups() {
                   const rawDesignation = senderObj?.designation || matchedMember?.designation || msg.sender_designation;
                   const designation = (rawDesignation && rawDesignation.trim().toLowerCase() !== 'member') ? rawDesignation.trim() : null;
 
+                  const actualName = isAdminMsg 
+                    ? (adminName || 'Admin') 
+                    : (senderObj?.name || matchedMember?.name || msg.sender_name || memberId || 'Member');
+                  const initials = getSenderInitials(actualName);
+                  const avatarColor = getAvatarColor(actualName, isAdminMsg);
+
                   return (
                     <div 
                       key={msg._id} 
-                      className={`admin-bubble ${isAdminMsg ? 'admin-bubble-me' : 'admin-bubble-other'}`}
+                      className={`admin-msg-row ${isAdminMsg ? 'admin-msg-row-me' : 'admin-msg-row-other'}`}
                     >
-                      {/* Sender Info: Displays Member ID for members */}
-                      <div style={{ fontSize: 11, fontWeight: 700, color: isAdminMsg ? '#dbeafe' : '#1d4ed8', marginBottom: 2 }}>
-                        {senderLabel}{!isAdminMsg && designation ? ` (${designation})` : ''}
-                      </div>
-
-                      {/* Quoted Reply */}
-                      {msg.reply_to && (
-                        <div className={`admin-quote-preview ${isAdminMsg ? 'admin-quote-me' : 'admin-quote-other'}`}>
-                          <strong>{msg.reply_to.sender_name}</strong>
-                          <div style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            {msg.reply_to.text}
-                          </div>
+                      {/* Left Avatar for other members */}
+                      {!isAdminMsg && (
+                        <div 
+                          className="admin-msg-avatar"
+                          style={{ 
+                            background: avatarColor.bg, 
+                            color: avatarColor.text,
+                            border: avatarColor.border,
+                            boxShadow: avatarColor.boxShadow
+                          }}
+                          title={`${actualName}${designation ? ` (${designation})` : ''}`}
+                        >
+                          {initials}
                         </div>
                       )}
 
-                      {/* Message Text */}
-                      <div style={{ fontStyle: msg.is_deleted ? 'italic' : 'normal', opacity: msg.is_deleted ? 0.75 : 1 }}>
-                        {msg.is_deleted ? 'This message was deleted' : msg.text}
-                      </div>
+                      <div 
+                        className={`admin-bubble ${isAdminMsg ? 'admin-bubble-me' : 'admin-bubble-other'}`}
+                      >
+                        {/* Sender Info: Displays Member ID for members */}
+                        <div style={{ fontSize: 11, fontWeight: 700, color: isAdminMsg ? '#dbeafe' : '#1d4ed8', marginBottom: 2 }}>
+                          {senderLabel}{!isAdminMsg && designation ? ` (${designation})` : ''}
+                        </div>
 
-                      {/* Metadata & Actions */}
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, opacity: 0.75 }}>
-                        {msg.is_edited && !msg.is_deleted && <span>(edited)</span>}
-                        <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-
-                        {!msg.is_deleted && (
-                          <div style={{ display: 'flex', gap: 4, marginLeft: 6 }}>
-                            <button
-                              onClick={() => {
-                                setReplyingMessage({
-                                  ...msg,
-                                  sender_name: senderLabel
-                                });
-                                setEditingMsgId(null);
-                              }}
-                              title="Reply"
-                              style={{ border: 'none', background: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}
-                            >
-                              <CornerDownRight size={12} />
-                            </button>
-                            {isAdminMsg && (
-                              <button
-                                onClick={() => {
-                                  setEditingMsgId(msg._id);
-                                  setChatInput(msg.text);
-                                  setReplyingMessage(null);
-                                }}
-                                title="Edit"
-                                style={{ border: 'none', background: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}
-                              >
-                                <Edit2 size={11} />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => handleDeleteMessage(msg._id)}
-                              title="Delete message"
-                              style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
-                            >
-                              <Trash2 size={11} />
-                            </button>
+                        {/* Quoted Reply */}
+                        {msg.reply_to && (
+                          <div className={`admin-quote-preview ${isAdminMsg ? 'admin-quote-me' : 'admin-quote-other'}`}>
+                            <strong>{msg.reply_to.sender_name}</strong>
+                            <div style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                              {msg.reply_to.text}
+                            </div>
                           </div>
                         )}
+
+                        {/* Message Text */}
+                        <div style={{ fontStyle: msg.is_deleted ? 'italic' : 'normal', opacity: msg.is_deleted ? 0.75 : 1 }}>
+                          {msg.is_deleted ? 'This message was deleted' : msg.text}
+                        </div>
+
+                        {/* Metadata & Actions */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 6, marginTop: 4, fontSize: 10, opacity: 0.75 }}>
+                          {msg.is_edited && !msg.is_deleted && <span>(edited)</span>}
+                          <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+
+                          {!msg.is_deleted && (
+                            <div style={{ display: 'flex', gap: 4, marginLeft: 6 }}>
+                              <button
+                                onClick={() => {
+                                  setReplyingMessage({
+                                    ...msg,
+                                    sender_name: senderLabel
+                                  });
+                                  setEditingMsgId(null);
+                                }}
+                                title="Reply"
+                                style={{ border: 'none', background: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}
+                              >
+                                <CornerDownRight size={12} />
+                              </button>
+                              {isAdminMsg && (
+                                <button
+                                  onClick={() => {
+                                    setEditingMsgId(msg._id);
+                                    setChatInput(msg.text);
+                                    setReplyingMessage(null);
+                                  }}
+                                  title="Edit"
+                                  style={{ border: 'none', background: 'none', color: 'inherit', cursor: 'pointer', padding: 0 }}
+                                >
+                                  <Edit2 size={11} />
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleDeleteMessage(msg._id)}
+                                title="Delete message"
+                                style={{ border: 'none', background: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
+
+                      {/* Right Avatar for Admin (You) */}
+                      {isAdminMsg && (
+                        <div 
+                          className="admin-msg-avatar"
+                          style={{ 
+                            background: avatarColor.bg, 
+                            color: avatarColor.text,
+                            border: avatarColor.border,
+                            boxShadow: avatarColor.boxShadow
+                          }}
+                          title="Admin (You)"
+                        >
+                          {initials}
+                        </div>
+                      )}
                     </div>
                   );
                 })
@@ -907,7 +1297,7 @@ export default function ChatGroups() {
               {typingUsers.length > 0 && (
                 <div className="admin-typing-row">
                   <div className="admin-typing-avatar">
-                    {(typingUsers[0] || '?').charAt(0).toUpperCase()}
+                    {getSenderInitials(typingUsers[0])}
                   </div>
                   <div className="admin-typing-bubble">
                     <div className="typing-dots">
@@ -955,10 +1345,15 @@ export default function ChatGroups() {
                 />
                 <button
                   type="submit"
-                  disabled={!chatInput.trim() || sendingMsg}
-                  className="admin-chat-send-btn"
+                  disabled={!chatInput.trim()}
+                  className={`admin-chat-send-btn ${chatInput.trim() ? 'admin-chat-send-btn-active' : ''}`}
+                  title={editingMsgId ? "Save edited message" : "Send message (Enter)"}
                 >
-                  <Send size={16} />
+                  {editingMsgId ? (
+                    <Check size={18} strokeWidth={2.4} />
+                  ) : (
+                    <Send size={16} strokeWidth={2.2} style={{ transform: 'translate(1px, -0.5px)' }} />
+                  )}
                 </button>
               </div>
             </form>
@@ -1082,17 +1477,84 @@ export default function ChatGroups() {
                     Choose <strong>Add (View & Chat)</strong> for full communication or <strong>View Only</strong> for spectator reading access.
                   </p>
 
-                  {/* Filter members search */}
-                  <div style={{ position: 'relative', marginBottom: 10 }}>
-                    <Search size={15} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="Filter members by name, designation, phone..."
-                      value={memberSearch}
-                      onChange={(e) => setMemberSearch(e.target.value)}
-                      style={{ paddingLeft: 36, height: 38, fontSize: 13 }}
-                    />
+                  {/* Filter members search & Select All Controls */}
+                  <div style={{ display: 'flex', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+                    <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
+                      <Search size={15} style={{ position: 'absolute', left: 12, top: 11, color: '#94a3b8' }} />
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Filter members by name, designation, phone..."
+                        value={memberSearch}
+                        onChange={(e) => setMemberSearch(e.target.value)}
+                        style={{ paddingLeft: 36, height: 38, fontSize: 13, width: '100%' }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        onClick={() => selectAllMembers(false)}
+                        className="btn"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: 12,
+                          borderRadius: 8,
+                          background: '#f0fdf4',
+                          color: '#15803d',
+                          border: '1px solid #bbf7d0',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5
+                        }}
+                      >
+                        <Users size={13} />
+                        Select All (View & Chat) ({filteredModalMembers.length})
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => selectAllMembers(true)}
+                        className="btn"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: 12,
+                          borderRadius: 8,
+                          background: '#fffbeb',
+                          color: '#b45309',
+                          border: '1px solid #fde68a',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5
+                        }}
+                      >
+                        <Eye size={13} />
+                        Select All (View Only)
+                      </button>
+
+                      {(selectedMemberIds.length > 0 || selectedViewOnlyIds.length > 0) && (
+                        <button
+                          type="button"
+                          onClick={deselectAllFiltered}
+                          style={{
+                            padding: '6px 10px',
+                            fontSize: 12,
+                            borderRadius: 8,
+                            background: '#ffffff',
+                            color: '#ef4444',
+                            border: '1px solid #fca5a5',
+                            cursor: 'pointer',
+                            fontWeight: 500
+                          }}
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {/* Members List Box */}

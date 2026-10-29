@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, Sliders } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export default function AdminLayout() {
@@ -79,6 +79,13 @@ export default function AdminLayout() {
               </Link>
             </>
           )}
+
+          {(isSuperAdmin || hasAccess('Community') || hasAccess('Communities')) && (
+            <Link to="/communities" className={`nav-link ${location.pathname.startsWith('/communities') || location.pathname.startsWith('/community') ? 'active' : ''}`}>
+              <Building2 size={20} />
+              Communities
+            </Link>
+          )}
           
           {isSuperAdmin && (
             <Link to="/subadmins" className={`nav-link ${location.pathname === '/subadmins' ? 'active' : ''}`}>
@@ -105,6 +112,13 @@ export default function AdminLayout() {
             <Link to="/staff-banners" className={`nav-link ${location.pathname === '/staff-banners' ? 'active' : ''}`}>
               <ImageIcon size={20} />
               All Banners
+            </Link>
+          )}
+
+          {(hasAccess('Banners') || hasAccess('Announcements')) && (
+            <Link to="/bottom-banners" className={`nav-link ${location.pathname === '/bottom-banners' ? 'active' : ''}`}>
+              <Sliders size={20} />
+              Bottom Banners
             </Link>
           )}
           
