@@ -277,7 +277,7 @@ export default function LoginScreen() {
               <View style={styles.iconCircle}>
                 <Image 
                   source={require('../../assets/images/logo.png')} 
-                  style={{ width: 95, height: 95 }} 
+                  style={{ width: 110, height: 110 }} 
                   resizeMode="contain" 
                 />
               </View>
@@ -477,18 +477,11 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 120,
     height: 120,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 60,
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8, // Logo is now very close to the badge
-    marginBottom: 35,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    overflow: 'hidden',
+    marginTop: 8,
+    marginBottom: 20,
+    backgroundColor: 'transparent',
   },
   title: {
     fontSize: 28,
