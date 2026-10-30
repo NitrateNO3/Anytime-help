@@ -2,7 +2,7 @@
   "expo": {
     "name": "Anytime-help",
     "slug": "app",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "orientation": "portrait",
     "icon": "./assets/images/logo.png",
     "scheme": "app",
@@ -10,7 +10,7 @@
     "ios": {
       "icon": "./assets/images/logo.png",
       "bundleIdentifier": "com.princesani.app",
-      "buildNumber": "15",
+      "buildNumber": "16",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
@@ -32,7 +32,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.aman_mirza.app",
-      "versionCode": 9,
+      "versionCode": 10,
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
@@ -50,14 +50,6 @@
       "backgroundColor": "#EEF7FF"
     },
     "plugins": [
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "enableSceneSupport": true
-          }
-        }
-      ],
       "expo-router",
       [
         "expo-splash-screen",
@@ -96,7 +88,8 @@
           "photosPermission": "Anytime Help requires photo library access to allow you to select and upload photos or evidence related to your civic complaints and maintenance requests.",
           "cameraPermission": "Anytime Help requires camera access so you can take and attach real-time photos of issues (such as broken tiles or electrical repairs) when reporting a complaint."
         }
-      ]
+      ],
+      "expo-build-properties"
     ],
     "experiments": {
       "typedRoutes": true
