@@ -321,7 +321,7 @@ export default function ResidentHome() {
                 <Image 
                   source={require('../../../assets/images/logo.png')} 
                   style={{ width: '100%', height: '100%' }} 
-                  resizeMode="cover" 
+                  resizeMode="contain" 
                 />
               </View>
               <View style={styles.brandTextGroup}>
