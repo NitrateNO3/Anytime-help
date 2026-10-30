@@ -44,22 +44,19 @@
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+    "splash": {
+      "image": "./assets/images/Splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#EEF7FF"
+    },
     "plugins": [
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "enableSceneSupport": true
-          }
-        }
-      ],
       "expo-router",
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
-          "image": "./assets/images/logo.png",
-          "imageWidth": 200
+          "backgroundColor": "#EEF7FF",
+          "image": "./assets/images/Splash.png",
+          "resizeMode": "contain"
         }
       ],
       "expo-secure-store",
