@@ -50,6 +50,14 @@
       "backgroundColor": "#EEF7FF"
     },
     "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "enableSceneSupport": true
+          }
+        }
+      ],
       "expo-router",
       [
         "expo-splash-screen",
