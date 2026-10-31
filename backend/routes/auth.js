@@ -152,7 +152,7 @@ router.post('/login', async (req, res) => {
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, permissions: user.permissions } });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, assigned_locations: user.assigned_locations || [], permissions: user.permissions } });
     });
   } catch (err) {
     console.error(err.message);
@@ -211,7 +211,7 @@ router.post('/firebase-login', async (req, res) => {
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, member_id: user.member_id } });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, assigned_locations: user.assigned_locations || [], member_id: user.member_id } });
     });
   } catch (err) {
     console.error(err.message);
@@ -520,6 +520,7 @@ router.post('/verify-otp', async (req, res) => {
           family_relation: matchingFamilyMember ? matchingFamilyMember.relation : undefined,
           assigned_category: user.assigned_category, 
           assigned_categories: user.assigned_categories, 
+          assigned_locations: user.assigned_locations || [],
           member_id: user.member_id, 
           permissions: user.permissions || [],
           phase: user.phase,

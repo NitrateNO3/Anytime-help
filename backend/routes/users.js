@@ -638,6 +638,29 @@ router.post('/staff', auth, async (req, res) => {
       phone_number = `+91${phone_number}`;
     }
 
+    if (Array.isArray(assigned_locations)) {
+      assigned_locations = assigned_locations.map(loc => {
+        let rawBlocks = Array.isArray(loc.blocks) ? loc.blocks : (loc.blocks ? [loc.blocks] : ['ALL']);
+        let splitBlocks = [];
+        for (const b of rawBlocks) {
+          if (!b) continue;
+          if (typeof b === 'string') {
+            const parts = b.split(',').map(p => p.trim().replace(/^block\s*/i, '')).filter(Boolean);
+            splitBlocks.push(...parts);
+          } else {
+            splitBlocks.push(b);
+          }
+        }
+        if (splitBlocks.length === 0 || splitBlocks.some(b => typeof b === 'string' && (b.toUpperCase() === 'ALL' || b.toLowerCase().includes('all')))) {
+          splitBlocks = ['ALL'];
+        }
+        return {
+          phase: loc.phase || 'Universal',
+          blocks: [...new Set(splitBlocks)]
+        };
+      });
+    }
+
     let formattedPhase = phase;
     if (Array.isArray(assigned_locations) && assigned_locations.length > 0) {
       formattedPhase = assigned_locations.map(loc => {
@@ -1102,6 +1125,28 @@ router.put('/:id', auth, async (req, res) => {
         user.assigned_category = finalAssignedCategories.join(', ');
       }
       if (assigned_locations !== undefined) {
+        if (Array.isArray(assigned_locations)) {
+          assigned_locations = assigned_locations.map(loc => {
+            let rawBlocks = Array.isArray(loc.blocks) ? loc.blocks : (loc.blocks ? [loc.blocks] : ['ALL']);
+            let splitBlocks = [];
+            for (const b of rawBlocks) {
+              if (!b) continue;
+              if (typeof b === 'string') {
+                const parts = b.split(',').map(p => p.trim().replace(/^block\s*/i, '')).filter(Boolean);
+                splitBlocks.push(...parts);
+              } else {
+                splitBlocks.push(b);
+              }
+            }
+            if (splitBlocks.length === 0 || splitBlocks.some(b => typeof b === 'string' && (b.toUpperCase() === 'ALL' || b.toLowerCase().includes('all')))) {
+              splitBlocks = ['ALL'];
+            }
+            return {
+              phase: loc.phase || 'Universal',
+              blocks: [...new Set(splitBlocks)]
+            };
+          });
+        }
         user.assigned_locations = assigned_locations;
         if (Array.isArray(assigned_locations) && assigned_locations.length > 0) {
           user.phase = assigned_locations.map(loc => {

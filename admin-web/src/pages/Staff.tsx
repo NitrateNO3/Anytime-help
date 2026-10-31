@@ -58,23 +58,29 @@ function LocationAssignmentSection({
 
   const toggleBlock = (locIndex: number, blk: string) => {
     const loc = locations[locIndex];
-    let nextBlocks = [...(loc.blocks || [])];
+    let nextBlocks = (loc.blocks || [])
+      .flatMap(b => b.split(','))
+      .map(b => b.trim().replace(/^block\s*/i, ''))
+      .filter(Boolean);
 
     if (blk === 'ALL') {
       nextBlocks = ['ALL'];
     } else {
       nextBlocks = nextBlocks.filter(b => b !== 'ALL');
-      if (nextBlocks.includes(blk)) {
-        nextBlocks = nextBlocks.filter(b => b !== blk);
-        if (nextBlocks.length === 0) {
-          nextBlocks = ['ALL'];
+      const parts = blk.split(',').map(b => b.trim().replace(/^block\s*/i, '')).filter(Boolean);
+      for (const p of parts) {
+        if (nextBlocks.includes(p)) {
+          nextBlocks = nextBlocks.filter(b => b !== p);
+        } else {
+          nextBlocks.push(p);
         }
-      } else {
-        nextBlocks.push(blk);
+      }
+      if (nextBlocks.length === 0) {
+        nextBlocks = ['ALL'];
       }
     }
 
-    updateLocation(locIndex, { blocks: nextBlocks });
+    updateLocation(locIndex, { blocks: [...new Set(nextBlocks)] });
   };
 
   return (
@@ -666,7 +672,9 @@ export default function Staff() {
       
       const cleanLocations = assignedLocations.map(l => ({
         phase: (l.phase === 'All Groups (Universal)' || l.phase === 'Universal') ? 'Universal' : l.phase,
-        blocks: (!l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL') || l.phase.includes('Universal')) ? ['ALL'] : l.blocks
+        blocks: (!l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL') || l.phase.includes('Universal'))
+          ? ['ALL']
+          : [...new Set(l.blocks.flatMap(b => b.split(',')).map(b => b.trim().replace(/^block\s*/i, '')).filter(Boolean))]
       }));
 
       const staffPhase = hasUniversal ? 'Universal' : locSummary;
@@ -708,7 +716,9 @@ export default function Staff() {
 
       const cleanLocations = (editLocations || []).map(l => ({
         phase: (l.phase === 'All Groups (Universal)' || l.phase === 'Universal') ? 'Universal' : l.phase,
-        blocks: (!l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL') || l.phase.includes('Universal')) ? ['ALL'] : l.blocks
+        blocks: (!l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL') || l.phase.includes('Universal'))
+          ? ['ALL']
+          : [...new Set(l.blocks.flatMap(b => b.split(',')).map(b => b.trim().replace(/^block\s*/i, '')).filter(Boolean))]
       }));
 
       const hasUniversal = cleanLocations.some(l => l.phase === 'Universal');
@@ -1133,7 +1143,9 @@ export default function Staff() {
                                   if (Array.isArray(member.assigned_locations) && member.assigned_locations.length > 0) {
                                     initialLocs = member.assigned_locations.map((l: any) => ({
                                       phase: l.phase === 'Universal' ? 'All Groups (Universal)' : l.phase,
-                                      blocks: Array.isArray(l.blocks) && l.blocks.length > 0 ? l.blocks : ['ALL']
+                                      blocks: Array.isArray(l.blocks) && l.blocks.length > 0 
+                                        ? [...new Set(l.blocks.flatMap((b: string) => b.split(',')).map((b: string) => b.trim().replace(/^block\s*/i, '')).filter(Boolean))]
+                                        : ['ALL']
                                     }));
                                   } else if (member.phase) {
                                     if (member.phase === 'Universal' || member.phase === 'All') {

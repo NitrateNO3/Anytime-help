@@ -98,12 +98,15 @@ router.get('/', auth, async (req, res) => {
 
       for (const pReg of phaseRegexes) {
         if (userBlock) {
+          const escBlock = userBlock.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const blockWordRegex = new RegExp(`(^|[^a-zA-Z0-9])${escBlock}([^a-zA-Z0-9]|$)`, 'i');
           orConds.push({
             targetLocations: {
               $elemMatch: {
                 phase: pReg,
                 $or: [
                   { blocks: { $in: ['ALL', 'All Blocks', userBlock, `Block ${userBlock}`, `block ${userBlock.toLowerCase()}`] } },
+                  { blocks: blockWordRegex },
                   { blocks: { $size: 0 } },
                   { blocks: { $exists: false } }
                 ]
@@ -129,6 +132,14 @@ router.get('/', auth, async (req, res) => {
       const allowedPhases = helperGetAllowedPhases(user, 'Resident');
       const targetLocConds = helperGetLocationOrConditions(user);
       const uPhase = (user?.phase || '').trim();
+      let userBlock = (user?.block || '').trim().toUpperCase();
+      if (!userBlock && user?.address) {
+        const bMatch = user.address.match(/\bBlock[\s:-]*([A-H](?:1)?)\b/i) || 
+                       user.address.match(/\b([A-H](?:1)?)[\s-]+Block\b/i) || 
+                       user.address.match(/\b([A-H](?:1)?)[- ]?\d+/i);
+        if (bMatch) userBlock = bMatch[1].toUpperCase();
+      }
+      const userBlockRegex = userBlock ? new RegExp(`(^|[^a-zA-Z0-9])${userBlock.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-zA-Z0-9]|$)`, 'i') : null;
       const isSL2 = !uPhase || uPhase.toLowerCase().includes('sushant lok 2') || (user?.address && user.address.toLowerCase().includes('sushant lok 2'));
       const isSL3 = (uPhase && uPhase.toLowerCase().includes('sushant lok 3')) || (user?.address && user.address.toLowerCase().includes('sushant lok 3'));
 
@@ -150,6 +161,7 @@ router.get('/', auth, async (req, res) => {
                 { phases: { $exists: false } },
                 { phases: null },
                 { phases: 'All' },
+                ...(userBlockRegex ? [{ phases: userBlockRegex }] : []),
                 ...(isSL2 ? [{ phases: { $regex: /Sushant Lok 2/i } }] : []),
                 ...(isSL3 ? [{ phases: { $regex: /Sushant Lok 3/i } }] : [])
               ]
@@ -176,6 +188,14 @@ router.get('/', auth, async (req, res) => {
       const allowedPhases = helperGetAllowedPhases(user, 'Member');
       const targetLocConds = helperGetLocationOrConditions(user);
       const uPhase = (user?.phase || '').trim();
+      let userBlock = (user?.block || '').trim().toUpperCase();
+      if (!userBlock && user?.address) {
+        const bMatch = user.address.match(/\bBlock[\s:-]*([A-H](?:1)?)\b/i) || 
+                       user.address.match(/\b([A-H](?:1)?)[\s-]+Block\b/i) || 
+                       user.address.match(/\b([A-H](?:1)?)[- ]?\d+/i);
+        if (bMatch) userBlock = bMatch[1].toUpperCase();
+      }
+      const userBlockRegex = userBlock ? new RegExp(`(^|[^a-zA-Z0-9])${userBlock.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-zA-Z0-9]|$)`, 'i') : null;
       const isSL2 = !uPhase || uPhase.toLowerCase().includes('sushant lok 2') || (user?.address && user.address.toLowerCase().includes('sushant lok 2'));
       const isSL3 = (uPhase && uPhase.toLowerCase().includes('sushant lok 3')) || (user?.address && user.address.toLowerCase().includes('sushant lok 3'));
 
@@ -198,6 +218,7 @@ router.get('/', auth, async (req, res) => {
                 { phases: null },
                 { phases: 'All' },
                 { targetAudience: 'Members' },
+                ...(userBlockRegex ? [{ phases: userBlockRegex }] : []),
                 ...(isSL2 ? [{ phases: { $regex: /Sushant Lok 2/i } }] : []),
                 ...(isSL3 ? [{ phases: { $regex: /Sushant Lok 3/i } }] : [])
               ]
@@ -397,6 +418,28 @@ router.post('/', auth, async (req, res) => {
       }
     }
 
+    // Ensure all blocks in finalTargetLocations are cleanly normalized and split by commas
+    finalTargetLocations = (finalTargetLocations || []).map(loc => {
+      let rawBlocks = Array.isArray(loc.blocks) ? loc.blocks : (loc.blocks ? [loc.blocks] : ['ALL']);
+      let splitBlocks = [];
+      for (const b of rawBlocks) {
+        if (!b) continue;
+        if (typeof b === 'string') {
+          const parts = b.split(',').map(p => p.trim().replace(/^block\s*/i, '')).filter(Boolean);
+          splitBlocks.push(...parts);
+        } else {
+          splitBlocks.push(b);
+        }
+      }
+      if (splitBlocks.length === 0 || splitBlocks.some(b => typeof b === 'string' && (b.toUpperCase() === 'ALL' || b.toLowerCase().includes('all')))) {
+        splitBlocks = ['ALL'];
+      }
+      return {
+        phase: loc.phase || 'Universal',
+        blocks: [...new Set(splitBlocks)]
+      };
+    });
+
     // Auto-generate finalPhases if not explicitly set
     if (!finalPhases || finalPhases.length === 0) {
       if (finalTargetLocations.length > 0) {
@@ -408,6 +451,12 @@ router.post('/', auth, async (req, res) => {
           for (const loc of finalTargetLocations) {
             if (loc.phase) {
               phSet.add(loc.phase);
+              const isSL2Loc = loc.phase.toLowerCase().includes('sushant lok 2');
+              const hasCDE = (loc.blocks || []).some(b => ['C', 'D', 'E'].includes(String(b).toUpperCase()));
+              const hasFG = (loc.blocks || []).some(b => ['F', 'G'].includes(String(b).toUpperCase()));
+              if (isSL2Loc && hasCDE) phSet.add('Sushant Lok 2 - C,D,E');
+              if (isSL2Loc && hasFG) phSet.add('Sushant Lok 2 - F,G');
+
               if (Array.isArray(loc.blocks)) {
                 loc.blocks.forEach(b => {
                   if (b && b !== 'ALL' && b !== 'All Blocks') {
@@ -524,19 +573,24 @@ router.post('/', auth, async (req, res) => {
               };
             }
 
-            const isAllBlocks = !loc.blocks || loc.blocks.length === 0 || loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks');
+            const normalizedBlocks = (loc.blocks || [])
+              .flatMap(b => (typeof b === 'string' ? b.split(',') : [b]))
+              .map(b => String(b).replace(/^block\s*/i, '').trim())
+              .filter(Boolean);
+
+            const isAllBlocks = normalizedBlocks.length === 0 || normalizedBlocks.includes('ALL') || normalizedBlocks.some(b => b.toUpperCase() === 'ALL');
             
             if (isAllBlocks) {
               locConditions.push(phaseCond);
             } else {
-              const blkRegexPatterns = loc.blocks.map(b => {
-                const cleanB = b.replace(/^block\s*/i, '').trim();
-                return `(\\bBlock\\s*${cleanB}\\b|\\b${cleanB}-?\\d+)`;
+              const blkRegexPatterns = normalizedBlocks.map(b => {
+                const escB = b.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                return `(\\bBlock\\s*${escB}\\b|\\b${escB}[\\s-]*\\d+)`;
               }).join('|');
 
               const blockCond = {
                 $or: [
-                  { block: { $in: loc.blocks.map(b => b.replace(/^block\s*/i, '').trim()) } },
+                  { block: { $in: normalizedBlocks } },
                   { address: { $regex: new RegExp(blkRegexPatterns, 'i') } }
                 ]
               };
@@ -689,7 +743,28 @@ router.put('/:id', auth, async (req, res) => {
     if (title) announcement.title = title;
     if (message !== undefined) announcement.message = message;
     if (phases !== undefined) announcement.phases = phases;
-    if (targetLocations !== undefined) announcement.targetLocations = targetLocations;
+    if (targetLocations !== undefined) {
+      announcement.targetLocations = (targetLocations || []).map(loc => {
+        let rawBlocks = Array.isArray(loc.blocks) ? loc.blocks : (loc.blocks ? [loc.blocks] : ['ALL']);
+        let splitBlocks = [];
+        for (const b of rawBlocks) {
+          if (!b) continue;
+          if (typeof b === 'string') {
+            const parts = b.split(',').map(p => p.trim().replace(/^block\s*/i, '')).filter(Boolean);
+            splitBlocks.push(...parts);
+          } else {
+            splitBlocks.push(b);
+          }
+        }
+        if (splitBlocks.length === 0 || splitBlocks.some(b => typeof b === 'string' && (b.toUpperCase() === 'ALL' || b.toLowerCase().includes('all')))) {
+          splitBlocks = ['ALL'];
+        }
+        return {
+          phase: loc.phase || 'Universal',
+          blocks: [...new Set(splitBlocks)]
+        };
+      });
+    }
     if (targetAudience !== undefined) announcement.targetAudience = targetAudience;
     if (image !== undefined) {
       if (image && image.startsWith('data:image')) {
