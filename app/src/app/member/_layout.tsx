@@ -273,6 +273,7 @@ export default function MemberLayout() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
+        id={undefined}
         tabBar={(props) => <WhatsAppFloatingTabBar {...props} insets={insets} />}
         backBehavior="history"
         screenOptions={{

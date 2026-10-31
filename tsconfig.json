@@ -1,37 +1,28 @@
 {
+  "extends": "./app/node_modules/expo/tsconfig.base.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "lib": [
-      "DOM",
-      "ESNext"
-    ],
-    "allowJs": true,
-    "skipLibCheck": true,
     "strict": false,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "preserve",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "jsx": "react-jsx",
-    "ignoreDeprecations": "6.0",
-    "baseUrl": "./app",
     "paths": {
       "@/*": [
-        "./src/*"
+        "./app/src/*"
       ],
       "@/assets/*": [
-        "./assets/*"
+        "./app/assets/*"
       ]
     }
   },
   "include": [
     "app/**/*.ts",
-    "app/**/*.tsx"
+    "app/**/*.tsx",
+    "app/.expo/types/**/*.ts",
+    "app/expo-env.d.ts",
+    "app/types.d.ts"
   ],
   "exclude": [
     "node_modules",
     "**/node_modules",
-    "**/node_modules/**"
+    "**/node_modules/**",
+    "admin-web",
+    "backend"
   ]
 }

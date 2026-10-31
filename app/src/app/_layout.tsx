@@ -273,7 +273,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <CopilotProvider overlay="svg" animated={true} backdropColor="rgba(0, 0, 0, 0.7)">
-          <Stack screenOptions={{ headerShown: false, gestureEnabled: false }} />
+          <Stack id={undefined} screenOptions={{ headerShown: false, gestureEnabled: false }} />
         </CopilotProvider>
         <Toast />
         

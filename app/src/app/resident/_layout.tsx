@@ -273,6 +273,7 @@ export default function ResidentLayout() {
   return (
     <View style={{ flex: 1 }}>
       <Tabs
+        id={undefined}
         tabBar={(props) => <WhatsAppFloatingTabBar {...props} insets={insets} />}
         backBehavior="initialRoute"
         screenOptions={{
