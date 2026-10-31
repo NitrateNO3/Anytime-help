@@ -143,8 +143,21 @@ router.get('/', auth, async (req, res) => {
       const isSL2 = !uPhase || uPhase.toLowerCase().includes('sushant lok 2') || (user?.address && user.address.toLowerCase().includes('sushant lok 2'));
       const isSL3 = (uPhase && uPhase.toLowerCase().includes('sushant lok 3')) || (user?.address && user.address.toLowerCase().includes('sushant lok 3'));
 
+      const hasAllStaffPerm = user?.permissions && (
+        user.permissions.includes('All Staff Announcements') || 
+        user.permissions.includes('Staff Announcements (All)')
+      );
+
+      let staffAnnCond = null;
+      if (hasAllStaffPerm) {
+        const staffUsers = await User.find({ role: { $in: ['Staff', 'PaidStaff'] } }).select('_id');
+        const staffIds = staffUsers.map(s => s._id);
+        staffAnnCond = { createdBy: { $in: staffIds } };
+      }
+
       query.$or = [
         ...targetLocConds,
+        ...(staffAnnCond ? [staffAnnCond] : []),
         {
           $and: [
             {
@@ -199,8 +212,21 @@ router.get('/', auth, async (req, res) => {
       const isSL2 = !uPhase || uPhase.toLowerCase().includes('sushant lok 2') || (user?.address && user.address.toLowerCase().includes('sushant lok 2'));
       const isSL3 = (uPhase && uPhase.toLowerCase().includes('sushant lok 3')) || (user?.address && user.address.toLowerCase().includes('sushant lok 3'));
 
+      const hasAllStaffPerm = user?.permissions && (
+        user.permissions.includes('All Staff Announcements') || 
+        user.permissions.includes('Staff Announcements (All)')
+      );
+
+      let staffAnnCond = null;
+      if (hasAllStaffPerm) {
+        const staffUsers = await User.find({ role: { $in: ['Staff', 'PaidStaff'] } }).select('_id');
+        const staffIds = staffUsers.map(s => s._id);
+        staffAnnCond = { createdBy: { $in: staffIds } };
+      }
+
       query.$or = [
         ...targetLocConds,
+        ...(staffAnnCond ? [staffAnnCond] : []),
         {
           $and: [
             {
@@ -658,6 +684,23 @@ router.post('/', auth, async (req, res) => {
         }
       }
       
+      // If posted by Staff or PaidStaff, also notify Members who have 'All Staff Announcements' permission
+      if (req.user.role === 'Staff' || req.user.role === 'PaidStaff') {
+        const staffPermMembers = await User.find({
+          permissions: { $in: ['All Staff Announcements', 'Staff Announcements (All)'] }
+        }).select('_id');
+
+        if (staffPermMembers.length > 0) {
+          const permMemberIds = staffPermMembers.map(m => m._id);
+          userQuery = {
+            $or: [
+              userQuery,
+              { _id: { $in: permMemberIds } }
+            ]
+          };
+        }
+      }
+
       userQuery.expoPushToken = { $exists: true, $ne: '' };
 
       const User = require('../models/User');

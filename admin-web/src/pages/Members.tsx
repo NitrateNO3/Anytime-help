@@ -45,7 +45,15 @@ export default function Members() {
   const [editingUser, setEditingUser] = useState<any>(null);
   const [isSaving, setIsSaving] = useState(false);
   
-  const availablePermissions = ['All Complaints', 'Resident', 'Announcements (All)', 'Announcements (Residents)', 'Announcements (Members)', 'Change Complaint Status'];
+  const availablePermissions = [
+    'All Complaints', 
+    'Resident', 
+    'Announcements (All)', 
+    'Announcements (Residents)', 
+    'Announcements (Members)', 
+    'All Staff Announcements',
+    'Change Complaint Status'
+  ];
 
   useEffect(() => {
     if (activeTab === 'list') {
