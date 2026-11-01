@@ -51,7 +51,7 @@ router.get('/me', auth, async (req, res) => {
 // @access  Private
 router.put('/me', auth, async (req, res) => {
   try {
-    const { name, phone_number, address, gender, property_type, phase, block, house_no } = req.body;
+    const { name, phone_number, address, gender, property_type, phase, block, house_no, state, city, area, pincode, location_id } = req.body;
     let user = await User.findById(req.user.id);
     
     if (!user) {
@@ -70,6 +70,11 @@ router.put('/me', auth, async (req, res) => {
       if (phase !== undefined) user.phase = phase;
       if (block !== undefined) user.block = block;
       if (house_no !== undefined) user.house_no = house_no;
+      if (state !== undefined) user.state = state;
+      if (city !== undefined) user.city = city;
+      if (area !== undefined) user.area = area;
+      if (pincode !== undefined) user.pincode = pincode;
+      if (location_id !== undefined) user.location_id = location_id;
     }
 
     await user.save();
@@ -482,7 +487,7 @@ router.get('/members', auth, async (req, res) => {
 // @desc    Create a new resident member
 // @access  Admin Private
 router.post('/residents', auth, async (req, res) => {
-  let { name, phone_number, phase, address, relation, property_type, block, house_no } = req.body;
+  let { name, phone_number, phase, address, relation, property_type, block, house_no, state, city, area, pincode, location_id } = req.body;
 
   try {
     if (!checkAccess(req.user, 'Residents')) {
@@ -508,7 +513,7 @@ router.post('/residents', auth, async (req, res) => {
       phase = String(phase).trim();
     }
     if (!address && house_no && block) {
-      address = `House/Flat: ${house_no}, ${phase || 'Sushant Lok 2'}, Block ${block}, (${property_type || 'Owned'})`;
+      address = `House/Flat: ${house_no}, ${phase || area || 'Sushant Lok 2'}, Block ${block}, (${property_type || 'Owned'})`;
     }
 
     let existingActiveUser = await User.findOne({ phone_number, has_logged_in: true });
@@ -518,11 +523,16 @@ router.post('/residents', auth, async (req, res) => {
       name,
       phone_number,
       role: 'Resident',
-      phase,
+      phase: phase || area || undefined,
       block,
       house_no,
       property_type,
       address,
+      state: state || undefined,
+      city: city || undefined,
+      area: area || undefined,
+      pincode: pincode || undefined,
+      location_id: location_id || undefined,
       relation: relation || property_type,
       has_logged_in: hasLoggedIn
     });

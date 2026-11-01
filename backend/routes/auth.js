@@ -13,7 +13,27 @@ const otpStore = new Map();
 // @desc    Register user (Resident or Staff)
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, phone_number, firebase_uid, role, department, address, relation, phase, block, house_no, property_type, family_members, gender, otp } = req.body;
+  const { 
+    name, 
+    phone_number, 
+    firebase_uid, 
+    role, 
+    department, 
+    address, 
+    relation, 
+    phase, 
+    block, 
+    house_no, 
+    property_type, 
+    family_members, 
+    gender, 
+    otp,
+    state,
+    city,
+    area,
+    pincode,
+    location_id
+  } = req.body;
 
   try {
     if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
@@ -101,8 +121,13 @@ router.post('/register', async (req, res) => {
       role: role || 'Resident', 
       department, 
       address, 
+      state: state || undefined,
+      city: city || undefined,
+      area: area || undefined,
+      pincode: pincode || undefined,
+      location_id: location_id || undefined,
       relation, 
-      phase, 
+      phase: phase || area || undefined, 
       block,
       house_no,
       property_type,

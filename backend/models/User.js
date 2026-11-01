@@ -20,6 +20,11 @@ const userSchema = new mongoose.Schema({
   house_no: { type: String, required: false }, // House/Flat number
   property_type: { type: String, required: false }, // 'Owned' or 'Rented'
   address: { type: String, required: false }, // For Resident/Member
+  state: { type: String, required: false },
+  city: { type: String, required: false },
+  area: { type: String, required: false },
+  pincode: { type: String, required: false },
+  location_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Location', required: false },
   relation: { type: String, required: false }, // e.g., 'Tenant', 'Family Member'
   designation: { type: String, required: false }, // For Member (e.g. 'President', 'Secretary')
   member_id: { type: String, required: false }, // For Members
