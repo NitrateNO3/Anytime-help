@@ -619,12 +619,16 @@ router.get('/', auth, async (req, res) => {
     if (skipStats) {
       complaints = await complaintsQuery;
     } else {
-      let statsQuery = query;
-      if (req.query.overall_stats === 'true') {
+      let statsQuery = { ...query };
+      delete statsQuery.status;
+      if (req.query.overall_stats === 'true' && (!req.query.category || req.query.category === 'ALL')) {
         statsQuery = {};
         if (req.query.departmentId) statsQuery.department = req.query.departmentId;
         if (req.query.phase && req.query.phase !== 'ALL') {
           statsQuery.phase = { $regex: new RegExp(req.query.phase.trim(), 'i') };
+        }
+        if (req.user.role === 'Resident' || req.query.mine === 'true') {
+          statsQuery.user = req.user.id;
         }
       }
       [complaints, total, pending, inProgress, resolved] = await Promise.all([
