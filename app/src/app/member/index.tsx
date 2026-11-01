@@ -625,7 +625,8 @@ export default function MemberHome() {
               </CopilotStep>
             </View>
 
-            {/* 4: Residents List */}
+            {/* 4: Residents List (only if admin granted 'Resident' permission) */}
+            {user?.permissions?.some((p: string) => ['Resident', 'Residents', 'Residents List'].includes(p)) && (
             <View style={styles.gridItemColumn}>
               <CopilotStep text="सभी निवासियों की सूची देखें।" order={5} name="residents_list">
                 <WalkthroughableView>
@@ -644,6 +645,7 @@ export default function MemberHome() {
                 </WalkthroughableView>
               </CopilotStep>
             </View>
+            )}
 
             {/* 5: Directory */}
             <View style={styles.gridItemColumn}>

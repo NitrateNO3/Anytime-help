@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import { getLocalizedAddress } from '../../utils/localization';
 
@@ -69,8 +70,16 @@ export default function ResidentsScreen() {
       setHasMore(pageNum < totalPages);
       setPage(pageNum);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching residents:', error);
+      if (error?.response?.status === 403) {
+        Toast.show({
+          type: 'error',
+          text1: t('common.accessDenied', { defaultValue: 'Access Denied' }),
+          text2: t('member.noResidentPermission', { defaultValue: 'You do not have permission to view residents.' })
+        });
+        router.replace('/member' as any);
+      }
     } finally {
       setLoading(false);
       setLoadingMore(false);
