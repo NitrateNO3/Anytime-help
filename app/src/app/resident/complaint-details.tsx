@@ -6,7 +6,6 @@ import { useRouter, useGlobalSearchParams, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import FreeMapView from '../../components/FreeMapView';
-import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import * as ImagePicker from 'expo-image-picker';
@@ -53,8 +52,6 @@ export default function ComplaintDetails() {
   const [isPhotoLoading, setIsPhotoLoading] = useState(false);
   const [isReplying, setIsReplying] = useState(false);
   const [fullTextModal, setFullTextModal] = useState<{title: string, text: string} | null>(null);
-  const [complaintCoords, setComplaintCoords] = useState<{latitude: number, longitude: number} | null>(null);
-  const [showAllStaff, setShowAllStaff] = useState(false);
 
   useEffect(() => {
     fetchComplaintDetails();
@@ -100,44 +97,6 @@ export default function ComplaintDetails() {
       if (res.data) {
         const found = res.data;
         setComplaint(found);
-
-        // Attempt to geocode complaint location
-        if (found.location || found.address) {
-          try {
-            const locStr = found.address || found.location;
-            if (locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
-              const parts = locStr.split(',');
-              setComplaintCoords({ latitude: parseFloat(parts[0]), longitude: parseFloat(parts[1]) });
-            } else {
-              let coordsFound = false;
-              try {
-                const geocoded = await Location.geocodeAsync(locStr);
-                if (geocoded && geocoded.length > 0) {
-                  setComplaintCoords({ latitude: geocoded[0].latitude, longitude: geocoded[0].longitude });
-                  coordsFound = true;
-                }
-              } catch(e) {}
-              
-              if (!coordsFound) {
-                try {
-                  const geoRes = await axios.get(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(locStr)}&format=json&limit=1`, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
-                  });
-                  if (geoRes.data && geoRes.data.length > 0) {
-                    setComplaintCoords({ latitude: parseFloat(geoRes.data[0].lat), longitude: parseFloat(geoRes.data[0].lon) });
-                    coordsFound = true;
-                  }
-                } catch(e) {}
-              }
-              
-              if (!coordsFound) {
-                setComplaintCoords({ latitude: 28.4510, longitude: 77.0784 });
-              }
-            }
-          } catch(e) {
-            console.log('Error geocoding:', e);
-          }
-        }
       } else {
         Toast.show({ type: 'error', text1: 'Error', text2: 'Complaint not found' });
       }
@@ -263,31 +222,6 @@ export default function ComplaintDetails() {
     }
   };
 
-  const staffMembers: any[] = React.useMemo(() => {
-    if (!complaint) return [];
-    let list: any[] = [];
-    if (Array.isArray(complaint.assigned_staff_list) && complaint.assigned_staff_list.length > 0) {
-      list = complaint.assigned_staff_list;
-    } else if (complaint.assigned_staff) {
-      list = [{ ...complaint.assigned_staff, is_primary: true }];
-    }
-
-    // Filter staff by complaint's phase/address — show Universal staff + matching phase only
-    const complaintPhase = (complaint.phase || complaint.user?.phase || '').toLowerCase().trim();
-    if (complaintPhase && list.length > 0) {
-      const filtered = list.filter((s: any) => {
-        const staffPhase = (s.phase || '').toLowerCase();
-        return (
-          staffPhase.includes('universal') ||
-          staffPhase === complaintPhase
-        );
-      });
-      if (filtered.length > 0) return filtered;
-    }
-
-    return list;
-  }, [complaint]);
-
   const resolutionData = parseResolutionData(complaint?.after_image || null);
 
   const shareComplaintOnWhatsApp = async () => {
@@ -348,48 +282,7 @@ export default function ComplaintDetails() {
     }
   };
 
-  const shareLocationOnWhatsApp = shareComplaintOnWhatsApp;
 
-  const shareLocationGeneral = async () => {
-    let searchQ = complaintCoords ? `${complaintCoords.latitude},${complaintCoords.longitude}` : '';
-    const locStr = complaint?.user?.address || complaint?.address || complaint?.location;
-    if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
-      searchQ = encodeURIComponent(locStr);
-    }
-    const mapUrl = `https://www.google.com/maps/search/?api=1&query=${searchQ}`;
-    try {
-      await Share.share({ 
-        message: Platform.OS === 'android' ? `Location for grievance: ${mapUrl}` : 'Location for grievance',
-        url: Platform.OS === 'ios' ? mapUrl : undefined
-      });
-    } catch(e) {}
-  };
-
-  const callStaffPhone = (phoneNumber?: string) => {
-    if (!phoneNumber) {
-      Alert.alert('Phone Unavailable', 'Phone number is not provided for this staff member.');
-      return;
-    }
-    const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
-    Linking.openURL(`tel:${cleanPhone}`).catch(() => {
-      Alert.alert('Error', 'Unable to initiate call on this device.');
-    });
-  };
-
-  const whatsappStaffPhone = (phoneNumber?: string, staffName?: string) => {
-    if (!phoneNumber) {
-      Alert.alert('Phone Unavailable', 'Phone number is not provided for this staff member.');
-      return;
-    }
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
-    const finalPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
-    const compId = complaint?.complaint_id || (complaint?._id ? `#AH-${complaint._id.slice(-5).toUpperCase()}` : '');
-    const message = `Hello ${staffName || 'Staff'}, this is regarding complaint "${complaint?.title || ''}" (${compId})...`;
-    const whatsappUrl = `whatsapp://send?phone=${finalPhone}&text=${encodeURIComponent(message)}`;
-    Linking.openURL(whatsappUrl).catch(() => {
-      Alert.alert('Error', 'WhatsApp is not installed on this device.');
-    });
-  };
 
   if (loading || (complaint && complaint._id !== id)) {
     return (
@@ -489,168 +382,6 @@ export default function ComplaintDetails() {
             <Ionicons name="location" size={20} color="#1D4ED8" />
             <Text style={styles.locationText}>{complaint.location || complaint.address}</Text>
           </View>
-        </View>
-
-        {complaintCoords && (
-          <View style={{ marginTop: -8, marginBottom: 20 }}>
-            <View style={{ width: '100%', height: 180, borderRadius: 16, overflow: 'hidden', borderWidth: 1, borderColor: '#E2E8F0' }}>
-              <FreeMapView
-                latitude={complaintCoords.latitude}
-                longitude={complaintCoords.longitude}
-                interactive={false}
-              />
-            </View>
-            <View style={{ flexDirection: 'row', marginTop: 12, gap: 8 }}>
-              <TouchableOpacity 
-                style={[styles.actionBtnPrimary, { flex: 1, backgroundColor: '#10B981', flexDirection: 'row', justifyContent: 'center', height: 44, borderRadius: 10 }]}
-                onPress={() => {
-                  let searchQ = `${complaintCoords.latitude},${complaintCoords.longitude}`;
-                  const locStr = complaint.address || complaint.location;
-                  if (locStr && !locStr.match(/^[\d\.-]+,\s*[\d\.-]+$/)) {
-                    searchQ = encodeURIComponent(locStr);
-                  }
-                  const url = Platform.select({
-                    ios: `maps:0,0?q=${searchQ}`,
-                    android: `google.navigation:q=${searchQ}`
-                  });
-                  if (url) {
-                    Linking.openURL(url).catch(() => {
-                      Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${searchQ}`).catch(() => {
-                        Alert.alert('Notice', 'Could not open map navigation application.');
-                      });
-                    });
-                  }
-                }}
-              >
-                <Ionicons name="navigate" size={17} color="#FFF" style={{ marginRight: 6 }} />
-                <Text style={{ color: '#FFF', fontWeight: '700', fontSize: 13 }}>Navigate</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.actionBtnPrimary, { width: 44, backgroundColor: '#3B82F6', justifyContent: 'center', alignItems: 'center', height: 44, borderRadius: 10 }]}
-                onPress={shareLocationGeneral}
-              >
-                <Ionicons name="share-social" size={18} color="#FFF" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-        
-        {/* Assigned Duty Staff Card */}
-        <View style={styles.section}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ backgroundColor: '#EFF6FF', padding: 6, borderRadius: 10 }}>
-                <Ionicons name="construct" size={18} color="#2563EB" />
-              </View>
-              <View>
-                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
-                  Duty Staff ({staffMembers.length})
-                </Text>
-              </View>
-            </View>
-            {staffMembers.length > 0 && (
-              <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: '#15803D' }}>Duty On</Text>
-              </View>
-            )}
-          </View>
-
-          <Text style={{ fontSize: 12, color: '#64748B', marginBottom: 12, marginLeft: 2 }}>
-            Assigned for {complaint.category || complaint.title || 'this category'}
-          </Text>
-
-          {staffMembers.length === 0 ? (
-            <View style={{ backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A', padding: 12, borderRadius: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Ionicons name="time-outline" size={22} color="#D97706" />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#B45309' }}>Staff Assignment Pending</Text>
-                <Text style={{ fontSize: 12, color: '#92400E', marginTop: 1 }}>
-                  Duty staff for {complaint.category || 'this category'} will be assigned shortly.
-                </Text>
-              </View>
-            </View>
-          ) : (
-            <View style={{ gap: 8 }}>
-              {((staffMembers.length <= 2 || showAllStaff) ? staffMembers : staffMembers.slice(0, 2)).map((staff: any, idx: number) => {
-                const staffPhone = staff.phone_number || staff.phone;
-                const isPrimary = staff.is_primary || (complaint.assigned_staff && (staff._id === complaint.assigned_staff._id || staff._id === complaint.assigned_staff));
-
-                return (
-                  <View 
-                    key={staff._id || idx} 
-                    style={{
-                      backgroundColor: isPrimary ? '#F0FDF4' : '#F8FAFC',
-                      borderWidth: 1,
-                      borderColor: isPrimary ? '#86EFAC' : '#E2E8F0',
-                      borderRadius: 12,
-                      padding: 10,
-                      shadowColor: '#000',
-                      shadowOffset: { width: 0, height: 1 },
-                      shadowOpacity: 0.03,
-                      shadowRadius: 2,
-                      elevation: 1
-                    }}
-                  >
-                    {/* Top Row: Name, Avatar, Phase, Primary Badge */}
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                        <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: isPrimary ? '#22C55E' : '#3B82F6', justifyContent: 'center', alignItems: 'center' }}>
-                          <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 13 }}>
-                            {(staff.name || 'S').charAt(0).toUpperCase()}
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                            <Text style={{ fontSize: 14, fontWeight: '700', color: '#0F172A' }} numberOfLines={1}>
-                              {staff.name || 'Staff Member'}
-                            </Text>
-                            {isPrimary ? (
-                              <View style={{ backgroundColor: '#15803D', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>
-                                <Text style={{ fontSize: 9, fontWeight: '800', color: '#FFFFFF' }}>ASSIGNED</Text>
-                              </View>
-                            ) : (
-                              <View style={{ backgroundColor: '#E0E7FF', paddingHorizontal: 5, paddingVertical: 1.5, borderRadius: 4 }}>
-                                <Text style={{ fontSize: 9, fontWeight: '700', color: '#3730A3' }}>DUTY</Text>
-                              </View>
-                            )}
-                          </View>
-                          <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '500', marginTop: 1 }} numberOfLines={1}>
-                            {staff.assigned_category || staff.role || 'Staff'} {staff.phase ? `• ${staff.phase}` : ''}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Phone, Call & WhatsApp hidden for privacy */}
-                  </View>
-                );
-              })}
-
-              {/* Show More / Show Less Toggle Button for multiple staff */}
-              {staffMembers.length > 2 && (
-                <TouchableOpacity
-                  onPress={() => setShowAllStaff(!showAllStaff)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#F1F5F9',
-                    paddingVertical: 8,
-                    borderRadius: 10,
-                    marginTop: 2,
-                    gap: 6
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name={showAllStaff ? "chevron-up" : "chevron-down"} size={15} color="#2563EB" />
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#2563EB' }}>
-                    {showAllStaff ? 'Show Less' : `View All ${staffMembers.length} Duty Staff (+${staffMembers.length - 2} more)`}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-          )}
         </View>
 
         {/* Description */}
