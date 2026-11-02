@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 
 // In-memory store for OTPs (Key: phone_number, Value: { otp, expiresAt })
@@ -114,25 +115,27 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    user = new User({ 
-      name, 
-      phone_number: dbPhoneNumber, 
-      firebase_uid, 
-      role: role || 'Resident', 
-      department, 
-      address, 
+    const validLocationId = location_id && mongoose.Types.ObjectId.isValid(location_id) ? location_id : undefined;
+
+    user = new User({
+      name,
+      phone_number: dbPhoneNumber,
+      firebase_uid,
+      role: role || 'Resident',
+      department,
+      address,
       state: state || undefined,
       city: city || undefined,
       area: area || undefined,
       pincode: pincode || undefined,
-      location_id: location_id || undefined,
-      relation, 
-      phase: phase || area || undefined, 
+      location_id: validLocationId,
+      relation,
+      phase: phase || area || undefined,
       block,
       house_no,
       property_type,
-      family_members: family_members || [], 
-      gender 
+      family_members: family_members || [],
+      gender
     });
 
     await user.save();
@@ -151,8 +154,8 @@ router.post('/register', async (req, res) => {
       user: { id: user.id, name: user.name, role: user.role, phone_number: user.phone_number } 
     });
   } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+    console.error('Registration error:', err);
+    res.status(500).json({ msg: 'Server error' });
   }
 });
 
