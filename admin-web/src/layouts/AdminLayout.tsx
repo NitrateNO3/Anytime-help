@@ -137,7 +137,44 @@ export default function AdminLayout() {
           )}
         </nav>
 
-        <div className="nav-link" onClick={handleLogout} style={{ color: 'var(--danger)', marginTop: 'auto' }}>
+        {/* Logged-in User Profile Card */}
+        <div style={{
+          marginTop: 'auto',
+          marginBottom: 10,
+          padding: '10px 12px',
+          background: '#F8FAFC',
+          borderRadius: 10,
+          border: '1px solid #E2E8F0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10
+        }}>
+          <div style={{
+            width: 34,
+            height: 34,
+            borderRadius: '50%',
+            background: isSuperAdmin ? 'linear-gradient(135deg, #2563EB, #1D4ED8)' : 'linear-gradient(135deg, #64748B, #475569)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#FFFFFF',
+            fontWeight: 700,
+            fontSize: 14,
+            flexShrink: 0
+          }}>
+            {adminUser?.name ? adminUser.name.charAt(0).toUpperCase() : 'A'}
+          </div>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {adminUser?.name || 'Admin User'}
+            </div>
+            <div style={{ fontSize: 11, color: isSuperAdmin ? '#2563EB' : 'var(--text-muted)', fontWeight: 600 }}>
+              {adminUser?.role === 'Admin' ? (adminUser?.email === 'admin@anytimehelp.com' ? 'Main Super Admin' : 'Super Admin') : 'Sub-Admin'}
+            </div>
+          </div>
+        </div>
+
+        <div className="nav-link" onClick={handleLogout} style={{ color: 'var(--danger)' }}>
           <LogOut size={20} />
           Sign Out
         </div>

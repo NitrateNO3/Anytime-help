@@ -370,11 +370,20 @@ export default function SubAdmins() {
                 <tbody>
                   {currentSubAdmins.map(user => {
                     const isSelf = currentUserId === user._id || adminUser?.email === user.email;
+                    const isPrimary = user.email === 'admin@anytimehelp.com';
+                    const isCurrentPrimary = adminUser?.email === 'admin@anytimehelp.com';
+                    const canDelete = !isSelf && !isPrimary && (user.role !== 'Admin' || isCurrentPrimary);
+
                     return (
                       <tr key={user._id}>
                         <td style={{ fontWeight: 600 }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <span>{user.name}</span>
+                            {isPrimary && (
+                              <span style={{ fontSize: 11, background: '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                                Main Admin
+                              </span>
+                            )}
                             {isSelf && (
                               <span style={{ fontSize: 11, background: '#EFF6FF', color: '#2563EB', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
                                 You
@@ -395,7 +404,7 @@ export default function SubAdmins() {
                             color: user.role === 'Admin' ? '#1D4ED8' : '#475569'
                           }}>
                             {user.role === 'Admin' ? <ShieldCheck size={14} color="#1D4ED8" /> : <ShieldAlert size={14} color="#64748B" />}
-                            {user.role === 'Admin' ? 'Super Admin' : 'Sub-Admin'}
+                            {user.role === 'Admin' ? (isPrimary ? 'Main Super Admin' : 'Super Admin') : 'Sub-Admin'}
                           </span>
                         </td>
                         <td style={{ color: 'var(--text-muted)' }}>{user.email}</td>
@@ -429,7 +438,7 @@ export default function SubAdmins() {
                                 <Edit2 size={18} color="var(--primary)" />
                               </button>
                               
-                              {!isSelf && (
+                              {canDelete && (
                                 <button 
                                   onClick={() => handleDelete(user._id, user.role)}
                                   style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
