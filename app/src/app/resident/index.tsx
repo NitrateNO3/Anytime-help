@@ -515,7 +515,7 @@ export default function ResidentHome() {
                 <WalkthroughableView>
                   <TouchableOpacity 
                     style={styles.actionTouchable}
-                    onPress={() => router.navigate('/resident/my-complaints')}
+                    onPress={() => router.push('/resident-complaints' as any)}
                     activeOpacity={0.75}
                   >
                     <View style={[styles.circleIcon, { backgroundColor: '#D1FAE5', borderColor: '#A7F3D0' }]}>

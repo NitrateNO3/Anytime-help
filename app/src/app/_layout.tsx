@@ -142,15 +142,15 @@ export default function RootLayout() {
             if (userRole === 'Staff' || userRole === 'PaidStaff' || userRole === 'Admin' || userRole === 'SubAdmin') {
               router.push(`/task-details?id=${complaintId}` as any);
             } else if (userRole === 'Member') {
-              router.push(`/member/complaint-details?id=${complaintId}` as any);
+              router.push(`/member-complaint-details?id=${complaintId}` as any);
             } else {
-              router.push(`/resident/complaint-details?id=${complaintId}` as any);
+              router.push(`/resident-complaint-details?id=${complaintId}` as any);
             }
           } else if (type === 'announcement') {
             if (userRole === 'Member') {
-              router.push('/member/announcements' as any);
+              router.push('/member-announcements' as any);
             } else {
-              router.push('/resident/announcements' as any);
+              router.push('/resident-announcements' as any);
             }
           }
         }, 500);

@@ -271,7 +271,7 @@ export default function ComplaintDetails() {
                 headers: { 'x-auth-token': token }
               });
               Toast.show({ type: 'success', text1: 'Deleted', text2: 'Complaint removed successfully' });
-              router.replace('/member/my-complaints');
+              (router.canGoBack() ? router.back() : router.replace('/member-complaints' as any));
             } catch (error) {
               console.error('Delete error', error);
               Toast.show({ type: 'error', text1: 'Error', text2: 'Could not delete complaint.' });
@@ -524,7 +524,7 @@ export default function ComplaintDetails() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.navigate('/member/my-complaints')} style={styles.backButton}>
+          <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/member-complaints' as any))} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1E293B" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Loading Details...</Text>
@@ -541,7 +541,7 @@ export default function ComplaintDetails() {
     return (
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.navigate('/member/my-complaints')} style={styles.backButton}>
+          <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/member-complaints' as any))} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1E293B" />
           </TouchableOpacity>
           <View style={{ width: 40 }} />
@@ -564,7 +564,7 @@ export default function ComplaintDetails() {
       <StatusBar barStyle="dark-content" />
       
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.navigate('/member/my-complaints')} style={styles.backButton}>
+        <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace('/member-complaints' as any))} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#1E293B" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Details</Text>

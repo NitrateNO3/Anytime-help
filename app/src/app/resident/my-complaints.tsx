@@ -228,7 +228,7 @@ export default function MyComplaints() {
       }
 
       const onBackPress = () => {
-        router.replace('/resident');
+        (router.canGoBack() ? router.back() : router.replace('/resident'));
         return true;
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -306,7 +306,7 @@ export default function MyComplaints() {
       {/* Header */}
       <View style={styles.headerBar}>
         <TouchableOpacity 
-          onPress={() => router.replace('/resident')} 
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/resident'))} 
           style={styles.backButton}
           activeOpacity={0.7}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -388,7 +388,7 @@ export default function MyComplaints() {
                 key={item._id} 
                 style={styles.card} 
                 activeOpacity={0.8}
-                onPress={() => router.push(`/resident/complaint-details?id=${item._id}`)}
+                onPress={() => router.push(`/resident-complaint-details?id=${item._id}` as any)}
               >
                 {item.before_image ? (
                   <View style={styles.imageContainer}>

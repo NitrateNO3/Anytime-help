@@ -532,7 +532,7 @@ export default function ResidentRaiseComplaint() {
                 setStep(1);
                 setDescription('');
                 setImage(null);
-                router.replace({ pathname: '/resident/my-complaints', params: { view: 'mine' } } as any);
+                router.replace({ pathname: '/resident-complaints', params: { view: 'mine' } } as any);
               }}
             >
               <Text style={styles.doneBtnText}>Done</Text>
@@ -595,7 +595,7 @@ export default function ResidentRaiseComplaint() {
                 setStep(1);
                 setDescription('');
                 setImage(null);
-                router.replace({ pathname: '/resident/my-complaints', params: { view: 'mine' } } as any);
+                router.replace({ pathname: '/resident-complaints', params: { view: 'mine' } } as any);
               }}
             >
               <Text style={[styles.doneBtnText, { color: '#4B5563' }]}>Close</Text>

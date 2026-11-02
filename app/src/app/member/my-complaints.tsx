@@ -266,7 +266,7 @@ export default function MyComplaints() {
       }
 
       const onBackPress = () => {
-        router.replace('/member' as any);
+        (router.canGoBack() ? router.back() : router.replace('/member' as any));
         return true;
       };
       const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
@@ -363,7 +363,7 @@ export default function MyComplaints() {
       {/* Header */}
       <View style={styles.headerBar}>
         <TouchableOpacity 
-          onPress={() => router.replace('/member' as any)} 
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/member' as any))} 
           style={styles.backButton}
           activeOpacity={0.7}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -531,7 +531,7 @@ export default function MyComplaints() {
                   item.is_escalated && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FFF5F5' }
                 ]} 
                 activeOpacity={0.8}
-                onPress={() => router.push(`/member/complaint-details?id=${item._id}` as any)}
+                onPress={() => router.push(`/member-complaint-details?id=${item._id}` as any)}
               >
                 {item.before_image ? (
                   <View style={styles.imageContainer}>
