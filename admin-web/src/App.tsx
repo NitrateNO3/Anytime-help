@@ -19,7 +19,6 @@ import StaffBanners from './pages/StaffBanners';
 import ChatGroups from './pages/ChatGroups';
 import Communities from './pages/Communities';
 import BottomBanners from './pages/BottomBanners';
-import Locations from './pages/Locations';
 
 // Global axios interceptor for 401 Unauthorized errors
 axios.interceptors.response.use(
@@ -53,7 +52,6 @@ function IndexRedirect() {
     if (perms.includes('Banners')) return <Navigate to="/banners" replace />;
     if (perms.includes('Staff Banner') || perms.includes('Staff Banners')) return <Navigate to="/staff-banners" replace />;
     if (perms.includes('Directory')) return <Navigate to="/directory" replace />;
-    if (perms.includes('Locations')) return <Navigate to="/locations" replace />;
     return <Navigate to="/residents" replace />;
   }
   return <Navigate to="/login" replace />;
@@ -73,7 +71,6 @@ function App() {
             <Route path="staff" element={<Staff />} />
             <Route path="categories" element={<Categories />} />
             <Route path="residents" element={<Residents />} />
-            <Route path="locations" element={<Locations />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="banners" element={<Banners />} />
             <Route path="staff-banners" element={<StaffBanners />} />

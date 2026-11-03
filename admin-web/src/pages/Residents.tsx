@@ -736,9 +736,7 @@ export default function Residents() {
                 { header: 'Name', key: 'name' },
                 { header: 'Phone Number', key: 'phone_number' },
                 { header: 'Address', key: (r: any) => formatAddress(r.address, r) },
-                { header: 'Area / Phase', key: (r: any) => r.area || r.phase || '' },
-                { header: 'City', key: (r: any) => r.city || '' },
-                { header: 'Pincode', key: (r: any) => r.pincode || '' },
+                { header: 'Phase', key: 'phase' },
                 { header: 'Relation', key: 'relation' },
                 { header: 'Joined Date', key: (r: any) => new Date(r.createdAt).toLocaleDateString() }
               ]}
@@ -837,10 +835,7 @@ export default function Residents() {
                         {formatAddress(r.address, r)}
                       </span>
                     </td>
-                    <td style={{ padding: '16px', color: 'var(--text-muted)' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: 13 }}>{r.area || r.phase || 'Unassigned'}</div>
-                      {r.city ? <div style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>{r.city}{r.pincode ? ` (${r.pincode})` : ''}</div> : null}
-                    </td>
+                    <td style={{ padding: '16px', color: 'var(--text-muted)' }}>{r.phase || 'Unassigned'}</td>
                     <td style={{ padding: '16px' }}>
                       <span style={{ 
                         padding: '4px 10px', 

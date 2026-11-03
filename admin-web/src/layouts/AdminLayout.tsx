@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, Sliders, MapPin } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, Sliders } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export default function AdminLayout() {
@@ -51,13 +51,6 @@ export default function AdminLayout() {
             <Link to="/residents" className={`nav-link ${location.pathname === '/residents' ? 'active' : ''}`}>
               <Home size={20} />
               Residents
-            </Link>
-          )}
-
-          {(isSuperAdmin || hasAccess('Locations')) && (
-            <Link to="/locations" className={`nav-link ${location.pathname === '/locations' ? 'active' : ''}`}>
-              <MapPin size={20} />
-              Locations
             </Link>
           )}
           
