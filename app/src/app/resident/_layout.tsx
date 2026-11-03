@@ -286,28 +286,26 @@ export default function ResidentLayout() {
         <Tabs.Screen name="chats" />
         <Tabs.Screen name="community" />
         <Tabs.Screen name="settings" />
-        <Tabs.Screen name="my-complaints" options={{ href: null }} />
-        <Tabs.Screen name="search" options={{ href: null }} />
+        <Tabs.Screen name="my-complaints" />
+        <Tabs.Screen name="search" />
         <Tabs.Screen 
           name="raise" 
           options={{ 
-            href: null,
             tabBarStyle: { display: 'none' }
           }} 
         />
-        <Tabs.Screen name="privacy" options={{ href: null }} />
-        <Tabs.Screen name="about" options={{ href: null }} />
-        <Tabs.Screen name="support" options={{ href: null }} />
+        <Tabs.Screen name="privacy" />
+        <Tabs.Screen name="about" />
+        <Tabs.Screen name="support" />
         <Tabs.Screen 
           name="book-service" 
           options={{ 
-            href: null,
             tabBarStyle: { display: 'none' }
           }} 
         />
-        <Tabs.Screen name="announcements" options={{ href: null }} />
-        <Tabs.Screen name="edit-profile" options={{ href: null }} />
-        <Tabs.Screen name="complaint-details" options={{ href: null, tabBarStyle: { display: 'none' } }} />
+        <Tabs.Screen name="announcements" />
+        <Tabs.Screen name="edit-profile" />
+        <Tabs.Screen name="complaint-details" options={{ tabBarStyle: { display: 'none' } }} />
       </Tabs>
 
       <ForceBlockUpdateModal
