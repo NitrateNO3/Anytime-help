@@ -30,10 +30,8 @@ export default function AdminLayout() {
       .catch(() => {});
   }, [isPlatformAdmin]);
 
-  // Area-specific screens need an area picked first
-  useEffect(() => {
-    if (isPlatformAdmin && !selectedArea && location.pathname !== '/areas') navigate('/areas');
-  }, [isPlatformAdmin, selectedArea, location.pathname]);
+  // Area-specific screens need an area picked first (see the prompt below)
+  const needsArea = isPlatformAdmin && !selectedArea && location.pathname !== '/areas';
 
   const switchArea = (id: string) => {
     setSelectedArea(id || null);
@@ -81,7 +79,7 @@ export default function AdminLayout() {
               value={selectedArea || ''}
               onChange={(e) => switchArea(e.target.value)}
             >
-              <option value="">Select an area…</option>
+              <option value="">Super Admin</option>
               {areas.map((a) => <option key={a._id} value={a._id}>{a.name}</option>)}
             </select>
           </div>
@@ -193,7 +191,30 @@ export default function AdminLayout() {
 
       {/* Main Content */}
       <main className="main-content">
-        <Outlet />
+        {needsArea ? (
+          <div style={{ maxWidth: 560, margin: '60px auto', textAlign: 'center', background: 'white', border: '1px solid var(--border-color)', borderRadius: 16, padding: '36px 28px' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 16, background: 'rgba(37, 99, 235, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <MapPin size={28} color="var(--primary)" />
+            </div>
+            <h2 style={{ margin: '0 0 8px', fontSize: 22 }}>Please select an area</h2>
+            <p style={{ margin: '0 0 24px', color: 'var(--text-muted)', fontSize: 15, lineHeight: 1.5 }}>
+              You are viewing as Super Admin. Select the area (sub admin) whose data you want to see.
+            </p>
+            {areas.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {areas.map((a) => (
+                  <button key={a._id} className="btn btn-secondary" onClick={() => switchArea(a._id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px 16px', fontSize: 15 }}>
+                    <MapPin size={16} /> {a.name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <Link to="/areas" className="btn btn-primary" style={{ display: 'inline-flex' }}>Go to Areas</Link>
+            )}
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </main>
     </div>
   );
