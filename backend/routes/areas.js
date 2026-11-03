@@ -22,6 +22,9 @@ const cleanPhases = (phases) => (Array.isArray(phases) ? phases : [])
   .filter((p) => p.name);
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
+const cleanType = (t) => (t === 'village' ? 'village' : 'sector');
+// Villages have no blocks
+const phasesFor = (type, phases) => cleanPhases(phases).map((p) => (type === 'village' ? { ...p, blocks: [] } : p));
 
 const createAreaAdmin = async (areaId, { name, email, password }) => {
   if (!email || !password) throw Object.assign(new Error('Admin email and password are required'), { status: 400 });
@@ -38,7 +41,7 @@ const publicAdmin = (u) => ({ _id: u._id, name: u.name, email: u.email, area: u.
 // @access  Public
 router.get('/public', async (req, res) => {
   try {
-    const areas = await Area.find({ is_active: true }).select('name city phases').sort({ name: 1 });
+    const areas = await Area.find({ is_active: true }).select('name city type phases').sort({ name: 1 });
     res.json(areas);
   } catch (err) {
     console.error(err.message);
@@ -104,7 +107,8 @@ router.post('/', async (req, res) => {
       if (await User.findOne({ email: admin.email.trim() })) return res.status(400).json({ msg: 'A user already exists with this email' });
     }
 
-    const area = await Area.create({ name, city: req.body.city || '', phases: cleanPhases(req.body.phases) });
+    const type = cleanType(req.body.type);
+    const area = await Area.create({ name, city: req.body.city || '', type, phases: phasesFor(type, req.body.phases) });
     let createdAdmin = null;
     if (admin && admin.email) createdAdmin = await createAreaAdmin(area._id, admin);
 
@@ -130,7 +134,10 @@ router.put('/:id', async (req, res) => {
       area.name = name;
     }
     if (req.body.city !== undefined) area.city = req.body.city;
-    if (req.body.phases !== undefined) area.phases = cleanPhases(req.body.phases);
+    if (req.body.type !== undefined) area.type = cleanType(req.body.type);
+    if (req.body.phases !== undefined || req.body.type !== undefined) {
+      area.phases = phasesFor(area.type, req.body.phases !== undefined ? req.body.phases : area.phases);
+    }
     if (req.body.is_active !== undefined) area.is_active = !!req.body.is_active;
     await area.save();
     res.json(area);

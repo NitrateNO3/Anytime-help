@@ -6,11 +6,13 @@ import { MapPin, Plus, Pencil, Trash2, UserPlus, X, ArrowRight, Users } from 'lu
 import { API_URL, isPlatformSuperAdmin, getSelectedArea, setSelectedArea } from '../lib/area';
 
 type Phase = { name: string; blocks: string[] };
+type AreaType = 'sector' | 'village';
 type AreaAdmin = { _id: string; name: string; email: string; last_login_at?: string };
 type Area = {
   _id: string;
   name: string;
   city: string;
+  type?: AreaType;
   phases: Phase[];
   is_active: boolean;
   admins: AreaAdmin[];
@@ -18,7 +20,7 @@ type Area = {
 };
 
 type PhaseRow = { name: string; blocks: string };
-const emptyAreaForm = { name: '', city: '', phases: [{ name: '', blocks: '' }] as PhaseRow[], adminName: '', adminEmail: '', adminPassword: '' };
+const emptyAreaForm = { name: '', city: '', type: 'sector' as AreaType, phases: [{ name: '', blocks: '' }] as PhaseRow[], adminName: '', adminEmail: '', adminPassword: '' };
 
 const authHeaders = () => ({ headers: { 'x-auth-token': localStorage.getItem('adminToken') || '' } });
 const errMsg = (err: any, fallback: string) => err?.response?.data?.msg || err?.response?.data?.message || fallback;
@@ -66,6 +68,7 @@ export default function Areas() {
       ...emptyAreaForm,
       name: area.name,
       city: area.city || '',
+      type: area.type === 'village' ? 'village' : 'sector',
       phases: area.phases.length ? area.phases.map((p) => ({ name: p.name, blocks: p.blocks.join(', ') })) : [{ name: '', blocks: '' }],
     });
     setAreaModal({ mode: 'edit', area });
@@ -77,21 +80,24 @@ export default function Areas() {
 
   const saveArea = async () => {
     if (!form.name.trim()) return toast.error('Area name is required');
+    const isVillage = form.type === 'village';
     const phases = form.phases
       .filter((p) => p.name.trim())
-      .map((p) => ({ name: p.name.trim(), blocks: p.blocks.split(',').map((b) => b.trim()).filter(Boolean) }));
-    if (!phases.length) return toast.error('Add at least one phase / sector');
+      .map((p) => ({ name: p.name.trim(), blocks: isVillage ? [] : p.blocks.split(',').map((b) => b.trim()).filter(Boolean) }));
+    if (!phases.length) return toast.error(isVillage ? 'Add at least one village' : 'Add at least one phase / sector');
+    const names = phases.map((p) => p.name.toLowerCase());
+    if (new Set(names).size !== names.length) return toast.error(isVillage ? 'Each village name must be different' : 'Each phase name must be different');
 
     setSaving(true);
     try {
       if (areaModal?.mode === 'edit') {
-        await axios.put(`${API_URL}/areas/${areaModal.area._id}`, { name: form.name, city: form.city, phases }, authHeaders());
+        await axios.put(`${API_URL}/areas/${areaModal.area._id}`, { name: form.name, city: form.city, type: form.type, phases }, authHeaders());
         toast.success('Area updated');
       } else {
         const admin = form.adminEmail || form.adminPassword
           ? { name: form.adminName, email: form.adminEmail, password: form.adminPassword }
           : undefined;
-        const res = await axios.post(`${API_URL}/areas`, { name: form.name, city: form.city, phases, admin }, authHeaders());
+        const res = await axios.post(`${API_URL}/areas`, { name: form.name, city: form.city, type: form.type, phases, admin }, authHeaders());
         if (!getSelectedArea()) setSelectedArea(res.data._id);
         toast.success('Area created. It now shows on the app registration screen.');
       }
@@ -211,10 +217,11 @@ export default function Areas() {
                 <span className={`badge ${area.is_active ? 'resolved' : 'pending'}`}>{area.is_active ? 'Visible on registration' : 'Hidden'}</span>
                 <span className="badge progress"><Users size={12} style={{ verticalAlign: -2 }} /> {area.stats?.Resident || 0} residents</span>
                 <span className="badge progress">{area.stats?.Staff || 0} staff</span>
+                {area.type === 'village' && <span className="badge progress">Villages</span>}
               </div>
 
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Phases / Blocks</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>{area.type === 'village' ? `Villages (${area.phases.length})` : 'Phases / Blocks'}</div>
                 {area.phases.length === 0 ? (
                   <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>None set</div>
                 ) : area.phases.map((p) => (
@@ -280,19 +287,60 @@ export default function Areas() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Phases / Sectors and their blocks *</label>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px' }}>Residents choose these when they register. Separate blocks with commas. For a village, leave Blocks empty: residents then enter an optional house no. and landmark instead.</p>
+                <label className="form-label">Area type *</label>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {([
+                    ['sector', 'Sectors / Phases', 'With blocks. Residents pick block + house no.'],
+                    ['village', 'Villages', 'Several villages, one admin. Residents give house no. + landmark.'],
+                  ] as [AreaType, string, string][]).map(([value, title, hint]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setForm({ ...form, type: value })}
+                      style={{
+                        flex: '1 1 200px', textAlign: 'left', padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
+                        border: `1.5px solid ${form.type === value ? 'var(--primary)' : 'var(--border-color)'}`,
+                        background: form.type === value ? 'rgba(37, 99, 235, 0.06)' : 'white',
+                      }}
+                    >
+                      <div style={{ fontWeight: 700, fontSize: 14 }}>{title}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{hint}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="form-group">
+                {form.type === 'village' ? (
+                  <>
+                    <label className="form-label">Villages *</label>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px' }}>Each village shows up separately on the app registration screen. Residents of every village fill the same form: house no. and nearby landmark (both optional).</p>
+                  </>
+                ) : (
+                  <>
+                    <label className="form-label">Phases / Sectors and their blocks *</label>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px' }}>Residents choose these when they register. Separate blocks with commas.</p>
+                  </>
+                )}
                 {form.phases.map((p, i) => (
                   <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                    <input className="form-input" style={{ flex: '1 1 160px' }} value={p.name} onChange={(e) => updatePhase(i, 'name', e.target.value)} placeholder="Phase name, e.g. Phase 1" />
-                    <input className="form-input" style={{ flex: '1 1 160px' }} value={p.blocks} onChange={(e) => updatePhase(i, 'blocks', e.target.value)} placeholder="Blocks, e.g. A, B, C (empty for a village)" />
+                    <input
+                      className="form-input"
+                      style={{ flex: '1 1 160px' }}
+                      value={p.name}
+                      onChange={(e) => updatePhase(i, 'name', e.target.value)}
+                      placeholder={form.type === 'village' ? `Village ${i + 1} name, e.g. Ghata` : 'Phase name, e.g. Phase 1'}
+                    />
+                    {form.type !== 'village' && (
+                      <input className="form-input" style={{ flex: '1 1 160px' }} value={p.blocks} onChange={(e) => updatePhase(i, 'blocks', e.target.value)} placeholder="Blocks, e.g. A, B, C" />
+                    )}
                     {form.phases.length > 1 && (
-                      <button className="btn-icon" title="Remove phase" onClick={() => setForm({ ...form, phases: form.phases.filter((_, idx) => idx !== i) })}><X size={16} /></button>
+                      <button className="btn-icon" title={form.type === 'village' ? 'Remove village' : 'Remove phase'} onClick={() => setForm({ ...form, phases: form.phases.filter((_, idx) => idx !== i) })}><X size={16} /></button>
                     )}
                   </div>
                 ))}
                 <button className="btn btn-secondary" onClick={() => setForm({ ...form, phases: [...form.phases, { name: '', blocks: '' }] })} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Plus size={16} /> Add phase
+                  <Plus size={16} /> {form.type === 'village' ? 'Add village' : 'Add phase'}
                 </button>
               </div>
 

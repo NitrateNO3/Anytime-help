@@ -73,7 +73,7 @@ export default function RegisterScreen() {
 
   // Areas (societies / clients) and their phases come from the backend, so a
   // new area added by the super admin shows up here without an app update.
-  type AreaOption = { _id: string; name: string; city?: string; phases: { name: string; blocks: string[] }[] };
+  type AreaOption = { _id: string; name: string; city?: string; type?: 'sector' | 'village'; phases: { name: string; blocks: string[] }[] };
   const FALLBACK_PHASES = [
     { name: 'Sushant Lok 2', blocks: ['C', 'D', 'E', 'F', 'G'] },
     { name: 'Sushant Lok 3', blocks: ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H'] },
@@ -105,19 +105,23 @@ export default function RegisterScreen() {
   // If areas couldn't be loaded, keep the original built-in phases
   const phaseOptions = areas.length === 0 ? FALLBACK_PHASES : (selectedArea?.phases || []);
 
-  const getBlockOptions = () => phaseOptions.find((p) => p.name === phase)?.blocks || [];
+  const getBlockOptions = () =>
+    selectedArea?.type === 'village' ? [] : (phaseOptions.find((p) => p.name === phase)?.blocks || []);
 
   // Every phase / sector / village of every area, as one list to pick from.
   // A phase with blocks is a residential sector; one without blocks is a
   // village (address = optional house no. + landmark). Picking one also
   // picks its area, so many villages can share one area and one admin.
-  type LocationOption = { key: string; areaId: string; areaName: string; city: string; phase: string; blocks: string[] };
+  type LocationOption = { key: string; areaId: string; areaName: string; city: string; phase: string; blocks: string[]; village: boolean };
   const locations: LocationOption[] = areas.length === 0
-    ? FALLBACK_PHASES.map((p) => ({ key: p.name, areaId: '', areaName: '', city: '', phase: p.name, blocks: p.blocks }))
+    ? FALLBACK_PHASES.map((p) => ({ key: p.name, areaId: '', areaName: '', city: '', phase: p.name, blocks: p.blocks, village: false }))
     : areas.flatMap((a) => (a.phases || []).map((p) => ({
-        key: `${a._id}:${p.name}`, areaId: a._id, areaName: a.name, city: a.city || '', phase: p.name, blocks: p.blocks || [],
+        key: `${a._id}:${p.name}`, areaId: a._id, areaName: a.name, city: a.city || '', phase: p.name,
+        // Villages-type areas: same form for every village (no blocks)
+        blocks: a.type === 'village' ? [] : (p.blocks || []),
+        village: a.type === 'village' || !(p.blocks || []).length,
       })));
-  const isVillage = (l: { blocks: string[] }) => l.blocks.length === 0;
+  const isVillage = (l: LocationOption) => l.village;
   const locationType = (l: LocationOption) => (isVillage(l) ? 'Village' : 'Residential sector');
   const locationSubtitle = (l: LocationOption) =>
     [locationType(l), isVillage(l) ? (l.city || l.areaName) : (l.areaName || l.city)].filter(Boolean).join(' · ');
