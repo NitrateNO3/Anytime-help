@@ -96,17 +96,7 @@ router.delete('/:id', auth, async (req, res) => {
       return res.status(400).json({ message: 'Cannot delete non-admin users from this route' });
     }
 
-    // Safety 1: Protect Main Super Admin account from deletion
-    if (user.email === 'admin@anytimehelp.com') {
-      return res.status(403).json({ message: 'Primary Main Super Admin account cannot be deleted' });
-    }
-
-    // Safety 2: Only Main Super Admin can delete other Super Admin accounts
-    if (user.role === 'Admin' && req.user.email !== 'admin@anytimehelp.com') {
-      return res.status(403).json({ message: 'Only the Primary Main Super Admin can delete Super Admin accounts' });
-    }
-
-    // Safety 3: ensure at least one Super Admin remains
+    // Safety: ensure at least one Super Admin remains
     if (user.role === 'Admin') {
       const remainingAdmins = await User.countDocuments({ role: 'Admin', _id: { $ne: user._id } });
       if (remainingAdmins === 0) {
@@ -143,10 +133,6 @@ router.put('/:id', auth, async (req, res) => {
     }
 
     if (role && ['Admin', 'SubAdmin'].includes(role)) {
-      if (user.email === 'admin@anytimehelp.com' && role !== 'Admin') {
-        return res.status(400).json({ message: 'Cannot demote the Primary Main Super Admin account' });
-      }
-
       // Prevent self-demotion if they are the only remaining Super Admin
       if (user.role === 'Admin' && role === 'SubAdmin') {
         const remainingAdmins = await User.countDocuments({ role: 'Admin', _id: { $ne: user._id } });
