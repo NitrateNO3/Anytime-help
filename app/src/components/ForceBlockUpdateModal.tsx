@@ -38,6 +38,13 @@ export function isProfileBlockUpdateRequired(user: any): boolean {
   const address = (user.address || '').trim();
   const block = (user.block || '').trim();
 
+  // This check only repairs Sushant Lok's legacy grouped-block data. Residents
+  // of other areas have their own phases (from the area chosen at registration),
+  // which are never in VALID_PHASES; don't force them into Sushant Lok's blocks.
+  if (phase && !phase.toLowerCase().includes('sushant lok')) {
+    return false;
+  }
+
   // 1. If phase is missing or not a standard individual phase
   if (!phase || !VALID_PHASES.includes(phase as any)) {
     return true;
