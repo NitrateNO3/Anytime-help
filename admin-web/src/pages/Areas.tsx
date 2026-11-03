@@ -19,8 +19,19 @@ type Area = {
   stats: Record<string, number>;
 };
 
-type PhaseRow = { name: string; blocks: string };
-const emptyAreaForm = { name: '', city: '', type: 'sector' as AreaType, phases: [{ name: '', blocks: '' }] as PhaseRow[], adminName: '', adminEmail: '', adminPassword: '' };
+// One phase in the form: its blocks as a list, plus the block being typed
+type PhaseRow = { name: string; blocks: string[]; draft: string };
+const emptyPhaseRow: PhaseRow = { name: '', blocks: [], draft: '' };
+const emptyAreaForm = { name: '', city: '', type: 'sector' as AreaType, phases: [emptyPhaseRow] as PhaseRow[], adminName: '', adminEmail: '', adminPassword: '' };
+
+// "A, B, B1" -> ['A', 'B', 'B1'] added to existing blocks, without duplicates (case-insensitive)
+const mergeBlocks = (existing: string[], text: string) => {
+  const out = [...existing];
+  text.split(',').map((b) => b.trim()).filter(Boolean).forEach((b) => {
+    if (!out.some((x) => x.toLowerCase() === b.toLowerCase())) out.push(b);
+  });
+  return out;
+};
 
 const authHeaders = () => ({ headers: { 'x-auth-token': localStorage.getItem('adminToken') || '' } });
 const errMsg = (err: any, fallback: string) => err?.response?.data?.msg || err?.response?.data?.message || fallback;
@@ -69,13 +80,24 @@ export default function Areas() {
       name: area.name,
       city: area.city || '',
       type: area.type === 'village' ? 'village' : 'sector',
-      phases: area.phases.length ? area.phases.map((p) => ({ name: p.name, blocks: p.blocks.join(', ') })) : [{ name: '', blocks: '' }],
+      phases: area.phases.length ? area.phases.map((p) => ({ name: p.name, blocks: [...p.blocks], draft: '' })) : [emptyPhaseRow],
     });
     setAreaModal({ mode: 'edit', area });
   };
 
-  const updatePhase = (i: number, key: keyof PhaseRow, value: string) => {
-    setForm((f) => ({ ...f, phases: f.phases.map((p, idx) => (idx === i ? { ...p, [key]: value } : p)) }));
+  const updatePhase = (i: number, patch: Partial<PhaseRow>) => {
+    setForm((f) => ({ ...f, phases: f.phases.map((p, idx) => (idx === i ? { ...p, ...patch } : p)) }));
+  };
+
+  const addBlocks = (i: number) => {
+    setForm((f) => ({
+      ...f,
+      phases: f.phases.map((p, idx) => (idx === i ? { ...p, blocks: mergeBlocks(p.blocks, p.draft), draft: '' } : p)),
+    }));
+  };
+
+  const removeBlock = (i: number, block: string) => {
+    setForm((f) => ({ ...f, phases: f.phases.map((p, idx) => (idx === i ? { ...p, blocks: p.blocks.filter((b) => b !== block) } : p)) }));
   };
 
   const saveArea = async () => {
@@ -83,8 +105,11 @@ export default function Areas() {
     const isVillage = form.type === 'village';
     const phases = form.phases
       .filter((p) => p.name.trim())
-      .map((p) => ({ name: p.name.trim(), blocks: isVillage ? [] : p.blocks.split(',').map((b) => b.trim()).filter(Boolean) }));
+      // A block typed but not yet added with Enter / "Add block" still counts
+      .map((p) => ({ name: p.name.trim(), blocks: isVillage ? [] : mergeBlocks(p.blocks, p.draft) }));
     if (!phases.length) return toast.error(isVillage ? 'Add at least one village' : 'Add at least one phase / sector');
+    const noBlocks = phases.find((p) => !isVillage && p.blocks.length === 0);
+    if (noBlocks) return toast.error(`Add at least one block to "${noBlocks.name}"`);
     const names = phases.map((p) => p.name.toLowerCase());
     if (new Set(names).size !== names.length) return toast.error(isVillage ? 'Each village name must be different' : 'Each phase name must be different');
 
@@ -319,27 +344,59 @@ export default function Areas() {
                 ) : (
                   <>
                     <label className="form-label">Phases / Sectors and their blocks *</label>
-                    <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px' }}>Residents choose these when they register. Separate blocks with commas.</p>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px' }}>Residents choose a phase and then one of its blocks when they register. Add as many phases as needed, and as many blocks in each phase.</p>
                   </>
                 )}
-                {form.phases.map((p, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-                    <input
-                      className="form-input"
-                      style={{ flex: '1 1 160px' }}
-                      value={p.name}
-                      onChange={(e) => updatePhase(i, 'name', e.target.value)}
-                      placeholder={form.type === 'village' ? `Village ${i + 1} name, e.g. Ghata` : 'Phase name, e.g. Phase 1'}
-                    />
-                    {form.type !== 'village' && (
-                      <input className="form-input" style={{ flex: '1 1 160px' }} value={p.blocks} onChange={(e) => updatePhase(i, 'blocks', e.target.value)} placeholder="Blocks, e.g. A, B, C" />
-                    )}
-                    {form.phases.length > 1 && (
-                      <button className="btn-icon" title={form.type === 'village' ? 'Remove village' : 'Remove phase'} onClick={() => setForm({ ...form, phases: form.phases.filter((_, idx) => idx !== i) })}><X size={16} /></button>
-                    )}
-                  </div>
-                ))}
-                <button className="btn btn-secondary" onClick={() => setForm({ ...form, phases: [...form.phases, { name: '', blocks: '' }] })} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                {form.phases.map((p, i) => {
+                  const removeRow = form.phases.length > 1 && (
+                    <button className="btn-icon" title={form.type === 'village' ? 'Remove village' : 'Remove phase'} onClick={() => setForm({ ...form, phases: form.phases.filter((_, idx) => idx !== i) })}><X size={16} /></button>
+                  );
+                  if (form.type === 'village') {
+                    return (
+                      <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                        <input className="form-input" style={{ flex: 1 }} value={p.name} onChange={(e) => updatePhase(i, { name: e.target.value })} placeholder={`Village ${i + 1} name, e.g. Ghata`} />
+                        {removeRow}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={i} style={{ border: '1px solid var(--border-color)', borderRadius: 12, padding: 14, marginBottom: 10, background: '#F8FAFC' }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>PHASE {i + 1}</span>
+                        <input className="form-input" style={{ flex: 1, background: 'white' }} value={p.name} onChange={(e) => updatePhase(i, { name: e.target.value })} placeholder="Phase name, e.g. Sushant Lok 2" />
+                        {removeRow}
+                      </div>
+
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', margin: '12px 0 6px' }}>
+                        BLOCKS {p.blocks.length > 0 && `(${p.blocks.length})`}
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: p.blocks.length ? 8 : 0 }}>
+                        {p.blocks.map((b) => (
+                          <span key={b} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'white', border: '1px solid var(--primary)', color: 'var(--primary)', borderRadius: 999, padding: '4px 6px 4px 12px', fontSize: 13, fontWeight: 600 }}>
+                            {b}
+                            <button type="button" title={`Remove block ${b}`} onClick={() => removeBlock(i, b)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--primary)', display: 'flex', padding: 2 }}>
+                              <X size={13} />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                          className="form-input"
+                          style={{ flex: 1, background: 'white' }}
+                          value={p.draft}
+                          onChange={(e) => updatePhase(i, { draft: e.target.value })}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addBlocks(i); } }}
+                          placeholder="Block name, e.g. A (press Enter to add)"
+                        />
+                        <button type="button" className="btn btn-secondary" onClick={() => addBlocks(i)} disabled={!p.draft.trim()} style={{ display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+                          <Plus size={15} /> Add block
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+                <button className="btn btn-secondary" onClick={() => setForm({ ...form, phases: [...form.phases, { ...emptyPhaseRow }] })} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Plus size={16} /> {form.type === 'village' ? 'Add village' : 'Add phase'}
                 </button>
               </div>
