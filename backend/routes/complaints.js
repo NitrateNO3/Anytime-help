@@ -627,7 +627,9 @@ router.get('/', auth, async (req, res) => {
         if (req.query.phase && req.query.phase !== 'ALL') {
           statsQuery.phase = { $regex: new RegExp(req.query.phase.trim(), 'i') };
         }
-        if (req.user.role === 'Resident' || req.query.mine === 'true') {
+        // Overall stats are society-wide (already limited to the user's area by
+        // the areaScope plugin), also for Residents. Only mine=true narrows them.
+        if (req.query.mine === 'true') {
           statsQuery.user = req.user.id;
         }
       }
