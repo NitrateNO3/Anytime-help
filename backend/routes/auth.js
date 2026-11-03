@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Area = require('../models/Area');
 const { setCurrentArea, getDefaultArea } = require('../utils/areaContext');
@@ -61,7 +62,9 @@ router.post('/register', async (req, res) => {
     // Area the resident is registering into. Older app builds don't send one,
     // so they fall back to the original area.
     let area = null;
-    if (areaId) {
+    // App builds from the reverted location feature send the phase name
+    // (e.g. "Sushant Lok 3") as `area`; treat anything that isn't an id as legacy.
+    if (areaId && mongoose.Types.ObjectId.isValid(String(areaId))) {
       area = await Area.findOne({ _id: areaId, is_active: true }).catch(() => null);
       if (!area) return res.status(400).json({ msg: 'Please select a valid area' });
     } else {

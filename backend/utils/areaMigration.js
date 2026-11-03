@@ -44,7 +44,10 @@ async function migrate() {
 
     for (const name of SCOPED_MODELS) {
       const Model = mongoose.model(name);
-      const filter = { area: { $exists: false } };
+      // Missing area, or a leftover non-ObjectId value (the reverted location
+      // feature stored the phase name as a string in `area`). Such strings
+      // break every save with a CastError and hide the doc from scoped queries.
+      const filter = { $or: [{ area: { $exists: false } }, { area: { $not: { $type: 'objectId' } } }] };
       if (name === 'User') filter.role = { $ne: 'SuperAdmin' };
       const res = await Model.collection.updateMany(filter, { $set: { area: area._id } });
       if (res.modifiedCount) console.log(`[areas] ${name}: assigned ${res.modifiedCount} docs to "${area.name}"`);
