@@ -193,13 +193,12 @@ router.post('/login', async (req, res) => {
 // shares the code. One number may be set on both an Admin and a SubAdmin; the
 // portal tab decides which account is signed in.
 //
-// Testing bypass: OTP "0786" signs in without SMS, only for ADMIN_BYPASS_PHONES
-// (comma separated, default below). Override the code with ADMIN_BYPASS_OTP, or
-// set ADMIN_BYPASS_OTP=off to disable it without a code change.
+// Testing bypass: set ADMIN_BYPASS_OTP in the server environment (never in
+// code). That code then signs in without SMS, only for ADMIN_BYPASS_PHONES
+// (comma separated, default below). Remove the variable to turn it off.
 // ---------------------------------------------------------------------------
 const ADMIN_PORTAL_ROLES = { Admin: ['SuperAdmin', 'Admin'], SubAdmin: ['SubAdmin'] };
 const DEFAULT_ADMIN_BYPASS_PHONES = ['8650214489', '9810922338'];
-const DEFAULT_ADMIN_BYPASS_OTP = '0786';
 const adminOtpFailures = new Map(); // phone -> { count, lockedUntil }
 const ADMIN_MAX_FAILS = 5;
 const ADMIN_LOCK_MS = 15 * 60 * 1000;
@@ -216,14 +215,21 @@ const findAdminByPhone = async (phone10, portal) => {
   return users.find((u) => u.role === 'SuperAdmin') || users[0] || null;
 };
 
+const bypassCode = () => {
+  const code = (process.env.ADMIN_BYPASS_OTP || '').trim();
+  return code && code.toLowerCase() !== 'off' ? code : '';
+};
+
+// Only while a bypass code is configured
 const isBypassPhone = (phone10) => {
+  if (!bypassCode()) return false;
   const phones = (process.env.ADMIN_BYPASS_PHONES || '').split(',').map(toLocal10).filter(Boolean);
   return (phones.length ? phones : DEFAULT_ADMIN_BYPASS_PHONES).includes(phone10);
 };
 
 const adminBypassAllowed = (phone10, otp) => {
-  const code = (process.env.ADMIN_BYPASS_OTP || DEFAULT_ADMIN_BYPASS_OTP).trim();
-  if (!code || code.toLowerCase() === 'off' || otp !== code) return false;
+  const code = bypassCode();
+  if (!code || otp !== code) return false;
   return isBypassPhone(phone10);
 };
 
