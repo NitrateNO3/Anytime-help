@@ -1,9 +1,9 @@
 import React, { useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, BackHandler, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { WebView } from 'react-native-webview';
+import PolicyHtml from '../components/PolicyHtml';
 
 const privacyPolicyHTML = `
 <!DOCTYPE html>
@@ -101,11 +101,9 @@ export default function StaffPrivacyPolicy() {
         <Text style={styles.headerTitle}>Privacy Policy & Terms</Text>
         <View style={{ width: 36 }} />
       </View>
-      <WebView 
-        originWhitelist={['*']}
-        source={{ html: privacyPolicyHTML }}
-        style={{ flex: 1, backgroundColor: '#F8FAFC' }}
-      />
+      <ScrollView style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+        <PolicyHtml html={privacyPolicyHTML} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
