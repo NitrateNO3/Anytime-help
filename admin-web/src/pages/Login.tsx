@@ -10,10 +10,22 @@ export default function Login() {
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const [shortCode, setShortCode] = useState(false);
   const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loginType, setLoginType] = useState<'Admin' | 'SubAdmin'>('Admin');
   const navigate = useNavigate();
+
+  // Sign in as soon as the OTP is filled: 6 digits right away; a 4-digit
+  // testing code (only offered for some numbers) after a short pause
+  useEffect(() => {
+    if (!otpSent || loading) return;
+    if (otp.length === 6) { verifyOtp(); return; }
+    if (shortCode && otp.length === 4) {
+      const id = setTimeout(() => verifyOtp(), 700);
+      return () => clearTimeout(id);
+    }
+  }, [otp]);
 
   useEffect(() => {
     if (timer <= 0) return;
@@ -37,6 +49,7 @@ export default function Login() {
     try {
       const res = await axios.post(`${API_URL}/auth/admin/send-otp`, { phone_number: phone, portal: loginType });
       setOtpSent(true);
+      setShortCode(!!res.data?.short_code);
       setOtp('');
       setTimer(60);
       toast.success(res.data?.msg || 'OTP sent');
@@ -47,12 +60,14 @@ export default function Login() {
     }
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otpSent) {
-      sendOtp();
-      return;
-    }
+    if (!otpSent) sendOtp();
+    else verifyOtp();
+  };
+
+  const verifyOtp = async () => {
+    if (loading) return;
     if (!otp.trim()) {
       toast.error('Please enter the OTP');
       return;

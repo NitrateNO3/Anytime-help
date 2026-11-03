@@ -193,12 +193,13 @@ router.post('/login', async (req, res) => {
 // shares the code. One number may be set on both an Admin and a SubAdmin; the
 // portal tab decides which account is signed in.
 //
-// Testing bypass: set ADMIN_BYPASS_OTP (e.g. "0786") in the server environment.
-// It only works for ADMIN_BYPASS_PHONES (comma separated, default below) and is
-// off whenever the variable is not set.
+// Testing bypass: OTP "0786" signs in without SMS, only for ADMIN_BYPASS_PHONES
+// (comma separated, default below). Override the code with ADMIN_BYPASS_OTP, or
+// set ADMIN_BYPASS_OTP=off to disable it without a code change.
 // ---------------------------------------------------------------------------
 const ADMIN_PORTAL_ROLES = { Admin: ['SuperAdmin', 'Admin'], SubAdmin: ['SubAdmin'] };
 const DEFAULT_ADMIN_BYPASS_PHONES = ['8650214489', '9810922338'];
+const DEFAULT_ADMIN_BYPASS_OTP = '0786';
 const adminOtpFailures = new Map(); // phone -> { count, lockedUntil }
 const ADMIN_MAX_FAILS = 5;
 const ADMIN_LOCK_MS = 15 * 60 * 1000;
@@ -215,11 +216,15 @@ const findAdminByPhone = async (phone10, portal) => {
   return users.find((u) => u.role === 'SuperAdmin') || users[0] || null;
 };
 
-const adminBypassAllowed = (phone10, otp) => {
-  const code = (process.env.ADMIN_BYPASS_OTP || '').trim();
-  if (!code || otp !== code) return false;
+const isBypassPhone = (phone10) => {
   const phones = (process.env.ADMIN_BYPASS_PHONES || '').split(',').map(toLocal10).filter(Boolean);
   return (phones.length ? phones : DEFAULT_ADMIN_BYPASS_PHONES).includes(phone10);
+};
+
+const adminBypassAllowed = (phone10, otp) => {
+  const code = (process.env.ADMIN_BYPASS_OTP || DEFAULT_ADMIN_BYPASS_OTP).trim();
+  if (!code || code.toLowerCase() === 'off' || otp !== code) return false;
+  return isBypassPhone(phone10);
 };
 
 const adminLockedFor = (phone10) => {
@@ -249,6 +254,7 @@ router.post('/admin/send-otp', async (req, res) => {
     const fast2smsKey = process.env.FAST2SMS_API_KEY;
     if (!fast2smsKey) {
       console.warn('[admin-otp] FAST2SMS_API_KEY not set; OTP not sent');
+      if (isBypassPhone(phone10)) return res.json({ msg: 'Enter your OTP', short_code: true });
       return res.status(503).json({ msg: 'SMS service is not configured. Please contact support.' });
     }
     try {
@@ -261,10 +267,13 @@ router.post('/admin/send-otp', async (req, res) => {
     } catch (smsErr) {
       // Never reveal the OTP when SMS fails: this login controls the admin panel
       console.error('[admin-otp] SMS failed:', smsErr.message);
-      return res.status(502).json({ msg: 'Could not send the OTP right now. Please try again.' });
+      if (!isBypassPhone(phone10)) {
+        return res.status(502).json({ msg: 'Could not send the OTP right now. Please try again.' });
+      }
     }
 
-    res.json({ msg: `OTP sent to +91 ${phone10.slice(0, 2)}XXXXX${phone10.slice(-3)}` });
+    // short_code: this number may also use the 4-digit testing code (never sent)
+    res.json({ msg: `OTP sent to +91 ${phone10.slice(0, 2)}XXXXX${phone10.slice(-3)}`, ...(isBypassPhone(phone10) ? { short_code: true } : {}) });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ msg: 'Server error' });
