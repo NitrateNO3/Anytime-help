@@ -10,6 +10,11 @@ import { socketAuth } from '../lib/area';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
+
+// '+919810922338' -> '9810922338'
+const local10 = (p?: string) => (p || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').slice(-10);
+const digitsOnly = (v: string) => v.replace(/\D/g, '').slice(0, 10);
+
 export default function SubAdmins() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [subadmins, setSubAdmins] = useState<any[]>([]);
@@ -29,8 +34,8 @@ export default function SubAdmins() {
     if (search.trim()) {
       const s = search.toLowerCase();
       const n = admin.name?.toLowerCase() || '';
-      const e = admin.email?.toLowerCase() || '';
-      if (!n.includes(s) && !e.includes(s)) match = false;
+      const ph = local10(admin.phone_number);
+      if (!n.includes(s) && !ph.includes(s.replace(/\D/g, '') || '\u0000')) match = false;
     }
     return match;
   });
@@ -40,8 +45,7 @@ export default function SubAdmins() {
 
   // Form State
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
   const [permissions, setPermissions] = useState<string[]>(['Residents', 'Staff Team']);
   const [isCreating, setIsCreating] = useState(false);
   
@@ -97,8 +101,8 @@ export default function SubAdmins() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error('Email and password are required');
+    if (phone.length !== 10) {
+      toast.error('Please enter a valid 10-digit mobile number');
       return;
     }
     
@@ -110,8 +114,7 @@ export default function SubAdmins() {
       
       await axios.post(`${API_URL}/subadmins`, {
         name,
-        email,
-        password,
+        phone_number: phone,
         permissions
       }, {
         headers: { 'x-auth-token': token }
@@ -121,8 +124,7 @@ export default function SubAdmins() {
       
       // Reset form
       setName('');
-      setEmail('');
-      setPassword('');
+      setPhone('');
       setPermissions(['Residents', 'Staff Team']);
       
       // Auto switch back to list
@@ -172,15 +174,18 @@ export default function SubAdmins() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if ((editingUser.phone || '').length !== 10) {
+      toast.error('Please enter a valid 10-digit mobile number');
+      return;
+    }
     const loadingToast = toast.loading('Updating sub-admin...');
 
     try {
       const token = localStorage.getItem('adminToken');
       await axios.put(`${API_URL}/subadmins/${editingUser._id}`, {
         name: editingUser.name,
-        email: editingUser.email,
+        phone_number: editingUser.phone,
         permissions: editingUser.permissions,
-        password: editingUser.password || undefined // Only send if changed
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -249,7 +254,7 @@ export default function SubAdmins() {
                 fetchAllData={async () => filteredSubAdmins}
                 columns={[
                   { header: 'Name', key: 'name' },
-                  { header: 'Email', key: 'email' },
+                  { header: 'Mobile', key: (r: any) => (r.phone_number ? `+91 ${local10(r.phone_number)}` : '') },
                   { header: 'Permissions', key: (r: any) => r.permissions?.join(', ') || 'N/A' },
                   { header: 'Role', key: 'role' },
                   { header: 'Created At', key: (r: any) => new Date(r.createdAt).toLocaleString() }
@@ -296,7 +301,7 @@ export default function SubAdmins() {
               <Search size={18} color="var(--text-muted)" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)' }} />
               <input
                 type="text"
-                placeholder="Search by name or email..."
+                placeholder="Search by name or mobile..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 style={{
@@ -348,7 +353,7 @@ export default function SubAdmins() {
                   {currentSubAdmins.map(user => (
                     <tr key={user._id}>
                       <td style={{ fontWeight: 600 }}>{user.name}</td>
-                      <td style={{ color: 'var(--text-muted)' }}>{user.email}</td>
+                      <td style={{ color: user.phone_number ? 'var(--text-muted)' : 'var(--danger)' }}>{user.phone_number ? `+91 ${local10(user.phone_number)}` : 'No mobile: cannot sign in'}</td>
                       <td>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {user.permissions && user.permissions.length > 0 ? user.permissions.map((p: string) => (
@@ -364,7 +369,7 @@ export default function SubAdmins() {
                         <td style={{ textAlign: 'center' }}>
                           <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
                             <button 
-                              onClick={() => setEditingUser({ ...user, password: '' })}
+                              onClick={() => setEditingUser({ ...user, phone: local10(user.phone_number) })}
                               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 8, borderRadius: 8 }}
                               onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)'}
                               onMouseOut={(e) => e.currentTarget.style.background = 'none'}
@@ -411,26 +416,16 @@ export default function SubAdmins() {
               </div>
 
               <div className="input-group">
-                <label>Email Address *</label>
-                <input 
-                  type="email" 
-                  value={email} 
-                  onChange={(e) => setEmail(e.target.value)} 
+                <label>Mobile Number *</label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => setPhone(digitsOnly(e.target.value))}
                   required
-                  placeholder="subadmin@society.com"
+                  placeholder="10-digit mobile number"
                 />
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>They will use this to login to the admin portal.</p>
-              </div>
-              
-              <div className="input-group">
-                <label>Password *</label>
-                <input 
-                  type="text" 
-                  value={password} 
-                  onChange={(e) => setPassword(e.target.value)} 
-                  required
-                  placeholder="Set a password"
-                />
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>They sign in to the admin portal (Sub-Admin tab) with an OTP sent to this number.</p>
               </div>
 
               <div className="input-group" style={{ marginBottom: 24 }}>
@@ -484,24 +479,15 @@ export default function SubAdmins() {
               </div>
               
               <div className="form-group">
-                <label className="form-label">Email</label>
-                <input 
-                  type="email" 
+                <label className="form-label">Mobile Number (login) *</label>
+                <input
+                  type="tel"
+                  inputMode="numeric"
                   className="form-input"
-                  value={editingUser.email} 
-                  onChange={(e) => setEditingUser({...editingUser, email: e.target.value})} 
+                  value={editingUser.phone || ''}
+                  onChange={(e) => setEditingUser({...editingUser, phone: digitsOnly(e.target.value)})}
+                  placeholder="10-digit mobile number"
                   required
-                />
-              </div>
-              
-              <div className="form-group">
-                <label className="form-label">New Password (leave blank to keep current)</label>
-                <input 
-                  type="password" 
-                  className="form-input"
-                  value={editingUser.password} 
-                  onChange={(e) => setEditingUser({...editingUser, password: e.target.value})} 
-                  placeholder="Enter new password"
                 />
               </div>
               

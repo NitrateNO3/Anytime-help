@@ -7,7 +7,11 @@ import { API_URL, isPlatformSuperAdmin, getSelectedArea, setSelectedArea } from 
 
 type Phase = { name: string; blocks: string[] };
 type AreaType = 'sector' | 'village';
-type AreaAdmin = { _id: string; name: string; email: string; last_login_at?: string };
+type AreaAdmin = { _id: string; name: string; email?: string; phone_number?: string; last_login_at?: string };
+
+// '+919810922338' -> '9810922338'
+const local10 = (p?: string) => (p || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').slice(-10);
+const digitsOnly = (v: string) => v.replace(/\D/g, '').slice(0, 10);
 type Area = {
   _id: string;
   name: string;
@@ -29,7 +33,7 @@ const emptyAreaForm = {
   name: '', city: '', type: 'sector' as AreaType,
   phases: [emptyPhaseRow] as PhaseRow[],
   savedPhases: {} as Partial<Record<AreaType, PhaseRow[]>>,
-  adminName: '', adminEmail: '', adminPassword: '',
+  adminName: '', adminPhone: '',
 };
 
 // "A, B, B1" -> ['A', 'B', 'B1'] added to existing blocks, without duplicates (case-insensitive)
@@ -56,7 +60,7 @@ export default function Areas() {
 
   // Admin add / edit modal
   const [adminModal, setAdminModal] = useState<null | { area: Area; admin?: AreaAdmin }>(null);
-  const [adminForm, setAdminForm] = useState({ name: '', email: '', password: '' });
+  const [adminForm, setAdminForm] = useState({ name: '', phone_number: '' });
 
   useEffect(() => {
     if (!isPlatformSuperAdmin()) {
@@ -136,9 +140,11 @@ export default function Areas() {
         await axios.put(`${API_URL}/areas/${areaModal.area._id}`, { name: form.name, city: form.city, type: form.type, phases }, authHeaders());
         toast.success('Area updated');
       } else {
-        const admin = form.adminEmail || form.adminPassword
-          ? { name: form.adminName, email: form.adminEmail, password: form.adminPassword }
-          : undefined;
+        if (form.adminPhone && form.adminPhone.length !== 10) {
+          setSaving(false);
+          return toast.error('Admin mobile number must be 10 digits');
+        }
+        const admin = form.adminPhone ? { name: form.adminName, phone_number: form.adminPhone } : undefined;
         const res = await axios.post(`${API_URL}/areas`, { name: form.name, city: form.city, type: form.type, phases, admin }, authHeaders());
         if (!getSelectedArea()) setSelectedArea(res.data._id);
         toast.success('Area created. It now shows on the app registration screen.');
@@ -177,15 +183,14 @@ export default function Areas() {
   };
 
   const openAdminModal = (area: Area, admin?: AreaAdmin) => {
-    setAdminForm({ name: admin?.name || '', email: admin?.email || '', password: '' });
+    setAdminForm({ name: admin?.name || '', phone_number: local10(admin?.phone_number) });
     setAdminModal({ area, admin });
   };
 
   const saveAdmin = async () => {
     if (!adminModal) return;
     const { area, admin } = adminModal;
-    if (!adminForm.email.trim()) return toast.error('Email is required');
-    if (!admin && !adminForm.password) return toast.error('Password is required');
+    if (adminForm.phone_number.length !== 10) return toast.error('Please enter a valid 10-digit mobile number');
     setSaving(true);
     try {
       if (admin) {
@@ -205,7 +210,7 @@ export default function Areas() {
   };
 
   const removeAdmin = async (area: Area, admin: AreaAdmin) => {
-    if (!window.confirm(`Remove ${admin.name || admin.email} as admin of ${area.name}?`)) return;
+    if (!window.confirm(`Remove ${admin.name || admin.phone_number || admin.email} as admin of ${area.name}?`)) return;
     try {
       await axios.delete(`${API_URL}/areas/${area._id}/admins/${admin._id}`, authHeaders());
       toast.success('Admin removed');
@@ -285,7 +290,7 @@ export default function Areas() {
                   <div key={a._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderTop: '1px solid var(--border-color)' }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 600, fontSize: 14 }}>{a.name}</div>
-                      <div style={{ fontSize: 13, color: 'var(--text-muted)', overflowWrap: 'anywhere' }}>{a.email}</div>
+                      <div style={{ fontSize: 13, color: a.phone_number ? 'var(--text-muted)' : 'var(--danger)', overflowWrap: 'anywhere' }}>{a.phone_number ? `+91 ${local10(a.phone_number)}` : 'No mobile number: cannot sign in'}</div>
                     </div>
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
                       <button className="btn-icon" title="Edit admin" onClick={() => openAdminModal(area, a)}><Pencil size={15} /></button>
@@ -421,14 +426,12 @@ export default function Areas() {
               {areaModal.mode === 'create' && (
                 <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
                   <label className="form-label">Area admin (can be added later)</label>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px' }}>The admin signs in with an OTP sent to this mobile number.</p>
                   <div className="form-group">
                     <input className="form-input" value={form.adminName} onChange={(e) => setForm({ ...form, adminName: e.target.value })} placeholder="Admin name" />
                   </div>
-                  <div className="form-group">
-                    <input className="form-input" type="email" value={form.adminEmail} onChange={(e) => setForm({ ...form, adminEmail: e.target.value })} placeholder="Admin email (login ID)" />
-                  </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
-                    <input className="form-input" type="password" value={form.adminPassword} onChange={(e) => setForm({ ...form, adminPassword: e.target.value })} placeholder="Admin password" />
+                    <input className="form-input" type="tel" inputMode="numeric" value={form.adminPhone} onChange={(e) => setForm({ ...form, adminPhone: digitsOnly(e.target.value) })} placeholder="Admin mobile number (10 digits)" />
                   </div>
                 </div>
               )}
@@ -453,13 +456,13 @@ export default function Areas() {
                 <label className="form-label">Name</label>
                 <input className="form-input" value={adminForm.name} onChange={(e) => setAdminForm({ ...adminForm, name: e.target.value })} />
               </div>
-              <div className="form-group">
-                <label className="form-label">Email (login ID) *</label>
-                <input className="form-input" type="email" value={adminForm.email} onChange={(e) => setAdminForm({ ...adminForm, email: e.target.value })} />
-              </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">{adminModal.admin ? 'New password (leave blank to keep)' : 'Password *'}</label>
-                <input className="form-input" type="password" value={adminForm.password} onChange={(e) => setAdminForm({ ...adminForm, password: e.target.value })} />
+                <label className="form-label">Mobile number (login) *</label>
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontWeight: 600 }}>+91</span>
+                  <input className="form-input" style={{ paddingLeft: 46 }} type="tel" inputMode="numeric" value={adminForm.phone_number} onChange={(e) => setAdminForm({ ...adminForm, phone_number: digitsOnly(e.target.value) })} placeholder="10-digit mobile number" />
+                </div>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '6px 0 0' }}>The OTP for signing in is sent to this number.</p>
               </div>
             </div>
             <div className="modal-footer">

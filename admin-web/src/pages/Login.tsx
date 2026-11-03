@@ -1,27 +1,69 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import logoImg from '../assets/logo.png';
 
+const API_URL = 'https://anytime-help.onrender.com/api';
+
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [timer, setTimer] = useState(0);
   const [loading, setLoading] = useState(false);
   const [loginType, setLoginType] = useState<'Admin' | 'SubAdmin'>('Admin');
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (timer <= 0) return;
+    const id = setTimeout(() => setTimer((t) => t - 1), 1000);
+    return () => clearTimeout(id);
+  }, [timer]);
+
+  const switchPortal = (type: 'Admin' | 'SubAdmin') => {
+    setLoginType(type);
+    setOtpSent(false);
+    setOtp('');
+    setTimer(0);
+  };
+
+  const sendOtp = async () => {
+    if (phone.length !== 10) {
+      toast.error('Please enter a valid 10-digit mobile number');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/auth/admin/send-otp`, { phone_number: phone, portal: loginType });
+      setOtpSent(true);
+      setOtp('');
+      setTimer(60);
+      toast.success(res.data?.msg || 'OTP sent');
+    } catch (err: any) {
+      toast.error(err.response?.data?.msg || 'Could not send OTP');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!otpSent) {
+      sendOtp();
+      return;
+    }
+    if (!otp.trim()) {
+      toast.error('Please enter the OTP');
+      return;
+    }
     setLoading(true);
-    const API_URL = 'https://anytime-help.onrender.com/api';
-    
+
     try {
-      const res = await axios.post(`${API_URL}/auth/login`, {
-        email,
-        password
+      const res = await axios.post(`${API_URL}/auth/admin/verify-otp`, {
+        phone_number: phone,
+        otp: otp.trim(),
+        portal: loginType,
       });
 
       // A platform Super Admin signs in from the Admin tab and is treated as a
@@ -76,18 +118,20 @@ export default function Login() {
 
           <h2 className="login-title" style={{ textAlign: 'left' }}>Welcome Back</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: '30px', fontSize: '15px' }}>
-            Enter your credentials to access the admin portal and manage the society.
+            Enter your registered mobile number. We will send an OTP to it.
           </p>
 
           <div style={{ display: 'flex', gap: 10, marginBottom: 30, background: '#F1F5F9', padding: 6, borderRadius: 12 }}>
             <button
-              onClick={() => setLoginType('Admin')}
+              type="button"
+              onClick={() => switchPortal('Admin')}
               style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: loginType === 'Admin' ? 'white' : 'transparent', color: loginType === 'Admin' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 700, cursor: 'pointer', boxShadow: loginType === 'Admin' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
             >
               Super Admin
             </button>
             <button
-              onClick={() => setLoginType('SubAdmin')}
+              type="button"
+              onClick={() => switchPortal('SubAdmin')}
               style={{ flex: 1, padding: '12px', borderRadius: 8, border: 'none', background: loginType === 'SubAdmin' ? 'white' : 'transparent', color: loginType === 'SubAdmin' ? 'var(--primary)' : 'var(--text-muted)', fontWeight: 700, cursor: 'pointer', boxShadow: loginType === 'SubAdmin' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
             >
               Sub-Admin
@@ -96,49 +140,49 @@ export default function Login() {
 
           <form onSubmit={handleLogin}>
             <div className="input-group">
-              <label>Email Address</label>
-              <input 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)} 
-                required
-                placeholder="Email Address"
-              />
-            </div>
-            <div className="input-group" style={{ position: 'relative' }}>
-              <label>Password</label>
-              <input 
-                type={showPassword ? "text" : "password"} 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)} 
-                required
-                placeholder="••••••••"
-                style={{ paddingRight: '48px' }}
-              />
-              <button 
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{ 
-                  position: 'absolute', 
-                  right: '16px', 
-                  top: '38px', 
-                  background: 'none', 
-                  border: 'none', 
-                  cursor: 'pointer',
-                  color: 'var(--text-muted)',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
-                }}
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
+              <label>Mobile Number</label>
+              <div style={{ position: 'relative' }}>
+                <span style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', fontWeight: 600, color: 'var(--text-main)' }}>+91</span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  value={phone}
+                  onChange={(e) => { setPhone(e.target.value.replace(/\D/g, '').slice(0, 10)); if (otpSent) { setOtpSent(false); setOtp(''); } }}
+                  required
+                  placeholder="10-digit mobile number"
+                  style={{ paddingLeft: 52 }}
+                  autoFocus
+                />
+              </div>
             </div>
 
+            {otpSent && (
+              <div className="input-group">
+                <label>OTP</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="Enter OTP"
+                  style={{ letterSpacing: 6, fontWeight: 700, fontSize: 18 }}
+                  autoFocus
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 13, color: 'var(--text-muted)' }}>
+                  <span>Sent to +91 {phone.slice(0, 2)}XXXXX{phone.slice(-3)}</span>
+                  {timer > 0 ? (
+                    <span>Resend in {timer}s</span>
+                  ) : (
+                    <button type="button" onClick={sendOtp} disabled={loading} style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', padding: 0 }}>
+                      Resend OTP
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
-            <button type="submit" className="btn-primary" disabled={loading}>
-              {loading ? 'Authenticating...' : 'Sign In'}
+            <button type="submit" className="btn-primary" disabled={loading || phone.length !== 10 || (otpSent && !otp)}>
+              {loading ? (otpSent ? 'Verifying...' : 'Sending OTP...') : (otpSent ? 'Verify & Sign In' : 'Send OTP')}
             </button>
           </form>
         </div>

@@ -184,6 +184,143 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Admin panel login by phone OTP (replaces email + password)
+//
+// portal 'Admin'    -> SuperAdmin or area Admin accounts
+// portal 'SubAdmin' -> SubAdmin accounts
+// The OTP goes to the number saved on that account; whoever holds that phone
+// shares the code. One number may be set on both an Admin and a SubAdmin; the
+// portal tab decides which account is signed in.
+//
+// Testing bypass: set ADMIN_BYPASS_OTP (e.g. "0786") in the server environment.
+// It only works for ADMIN_BYPASS_PHONES (comma separated, default below) and is
+// off whenever the variable is not set.
+// ---------------------------------------------------------------------------
+const ADMIN_PORTAL_ROLES = { Admin: ['SuperAdmin', 'Admin'], SubAdmin: ['SubAdmin'] };
+const DEFAULT_ADMIN_BYPASS_PHONES = ['8650214489', '9810922338'];
+const adminOtpFailures = new Map(); // phone -> { count, lockedUntil }
+const ADMIN_MAX_FAILS = 5;
+const ADMIN_LOCK_MS = 15 * 60 * 1000;
+
+const toLocal10 = (p) => String(p || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '').slice(-10);
+
+const findAdminByPhone = async (phone10, portal) => {
+  const roles = ADMIN_PORTAL_ROLES[portal] || ADMIN_PORTAL_ROLES.Admin;
+  const users = await User.find({
+    role: { $in: roles },
+    phone_number: { $in: [`+91${phone10}`, phone10] },
+  });
+  // Admin portal: a SuperAdmin wins over an area Admin with the same number
+  return users.find((u) => u.role === 'SuperAdmin') || users[0] || null;
+};
+
+const adminBypassAllowed = (phone10, otp) => {
+  const code = (process.env.ADMIN_BYPASS_OTP || '').trim();
+  if (!code || otp !== code) return false;
+  const phones = (process.env.ADMIN_BYPASS_PHONES || '').split(',').map(toLocal10).filter(Boolean);
+  return (phones.length ? phones : DEFAULT_ADMIN_BYPASS_PHONES).includes(phone10);
+};
+
+const adminLockedFor = (phone10) => {
+  const f = adminOtpFailures.get(phone10);
+  return f && f.lockedUntil > Date.now() ? Math.ceil((f.lockedUntil - Date.now()) / 60000) : 0;
+};
+
+// @route   POST api/auth/admin/send-otp
+// @body    { phone_number, portal: 'Admin' | 'SubAdmin' }
+router.post('/admin/send-otp', async (req, res) => {
+  try {
+    const portal = req.body.portal === 'SubAdmin' ? 'SubAdmin' : 'Admin';
+    const phone10 = toLocal10(req.body.phone_number);
+    if (phone10.length !== 10) return res.status(400).json({ msg: 'Please enter a valid 10-digit mobile number' });
+
+    const locked = adminLockedFor(phone10);
+    if (locked) return res.status(429).json({ msg: `Too many wrong attempts. Try again in ${locked} min.` });
+
+    const user = await findAdminByPhone(phone10, portal);
+    if (!user) {
+      return res.status(400).json({ msg: `This number is not registered for the ${portal === 'SubAdmin' ? 'Sub-Admin' : 'Super Admin'} portal.` });
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    otpStore.set(`admin_${portal}_${phone10}`, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
+
+    const fast2smsKey = process.env.FAST2SMS_API_KEY;
+    if (!fast2smsKey) {
+      console.warn('[admin-otp] FAST2SMS_API_KEY not set; OTP not sent');
+      return res.status(503).json({ msg: 'SMS service is not configured. Please contact support.' });
+    }
+    try {
+      const response = await axios.post(
+        'https://www.fast2sms.com/dev/bulkV2',
+        { route: 'dlt', sender_id: 'ANTHLP', message: '225661', variables_values: otp, flash: 0, numbers: phone10 },
+        { headers: { authorization: fast2smsKey } }
+      );
+      if (response.data && response.data.return === false) throw new Error(JSON.stringify(response.data));
+    } catch (smsErr) {
+      // Never reveal the OTP when SMS fails: this login controls the admin panel
+      console.error('[admin-otp] SMS failed:', smsErr.message);
+      return res.status(502).json({ msg: 'Could not send the OTP right now. Please try again.' });
+    }
+
+    res.json({ msg: `OTP sent to +91 ${phone10.slice(0, 2)}XXXXX${phone10.slice(-3)}` });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// @route   POST api/auth/admin/verify-otp
+// @body    { phone_number, otp, portal: 'Admin' | 'SubAdmin' }
+router.post('/admin/verify-otp', async (req, res) => {
+  try {
+    const portal = req.body.portal === 'SubAdmin' ? 'SubAdmin' : 'Admin';
+    const phone10 = toLocal10(req.body.phone_number);
+    const otp = String(req.body.otp || '').trim();
+    if (phone10.length !== 10 || !otp) return res.status(400).json({ msg: 'Phone number and OTP are required' });
+
+    const locked = adminLockedFor(phone10);
+    if (locked) return res.status(429).json({ msg: `Too many wrong attempts. Try again in ${locked} min.` });
+
+    const key = `admin_${portal}_${phone10}`;
+    const stored = otpStore.get(key);
+    const validOtp = stored && Date.now() <= stored.expiresAt && stored.otp === otp;
+
+    if (!validOtp && !adminBypassAllowed(phone10, otp)) {
+      const f = adminOtpFailures.get(phone10) || { count: 0, lockedUntil: 0 };
+      f.count += 1;
+      if (f.count >= ADMIN_MAX_FAILS) {
+        f.count = 0;
+        f.lockedUntil = Date.now() + ADMIN_LOCK_MS;
+        otpStore.delete(key);
+      }
+      adminOtpFailures.set(phone10, f);
+      const expired = stored && Date.now() > stored.expiresAt;
+      return res.status(400).json({ msg: expired ? 'OTP expired. Please request a new one.' : 'Invalid OTP' });
+    }
+
+    otpStore.delete(key);
+    adminOtpFailures.delete(phone10);
+
+    const user = await findAdminByPhone(phone10, portal);
+    if (!user) return res.status(400).json({ msg: 'This number is no longer registered for this portal.' });
+
+    user.has_logged_in = true;
+    user.last_login_at = new Date();
+    await user.save();
+
+    const payload = { user: { id: user.id, role: user.role, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, permissions: user.permissions } };
+    jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
+      if (err) return res.status(500).json({ msg: 'Server error' });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, phone_number: user.phone_number, area: user.area || null, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, assigned_locations: user.assigned_locations || [], permissions: user.permissions } });
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 // @route   POST api/auth/firebase-login
 // @desc    Authenticate or Register user via Firebase Phone Auth
 // @access  Public
@@ -359,18 +496,23 @@ router.post('/send-otp', async (req, res) => {
       }
     }
 
-    // NORMAL LOGIN FLOW: Check if user is registered before sending OTP
-    let userExists = await User.findOne({
+    // NORMAL LOGIN FLOW: Check if user is registered before sending OTP.
+    // Admin-panel accounts (SuperAdmin) can share a number with an app user,
+    // so ignore them here and prefer the account matching the requested role.
+    const candidates = await User.find({
+      role: { $ne: 'SuperAdmin' },
       $or: [
         { phone_number: dbPhoneNumber },
-        { "family_members.phone_number": phone_number } // check without +91 as well just in case, or with +91. Best to check both.
+        { "family_members.phone_number": phone_number },
+        { "family_members.phone_number": dbPhoneNumber }
       ]
     });
-    
-    // Also check if family member phone number has +91
-    if (!userExists) {
-      userExists = await User.findOne({ "family_members.phone_number": dbPhoneNumber });
-    }
+    const isAppUser = (u) => !['Admin', 'SubAdmin'].includes(u.role);
+    let userExists = (role ? candidates.find((u) => u.role === role) : null)
+      || (role === 'Resident' ? candidates.find((u) => u.role === 'Member') : null)
+      || candidates.find(isAppUser)
+      || candidates[0]
+      || null;
     
     if (!userExists) {
       // Auto-register Reviewer test accounts
@@ -487,7 +629,9 @@ router.post('/verify-otp', async (req, res) => {
     otpStore.delete(phone_number);
 
     const dbPhoneNumber = `+91${phone_number}`;
+    // The SuperAdmin account only signs in to the admin panel
     let users = await User.find({
+      role: { $ne: 'SuperAdmin' },
       $or: [
         { phone_number: dbPhoneNumber },
         { "family_members.phone_number": phone_number },

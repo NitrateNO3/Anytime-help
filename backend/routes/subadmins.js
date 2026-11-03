@@ -1,9 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { runUnscoped } = require('../utils/areaContext');
+
+// Sub-Admins sign in to the admin panel with an OTP sent to their phone number
+// (see /api/auth/admin/send-otp), so the number is their login ID.
+const cleanPhone = (p) => {
+  const d = String(p || '').replace(/\D/g, '').replace(/^91(?=\d{10}$)/, '');
+  return d.length === 10 ? `+91${d}` : null;
+};
+
+// A number can belong to only one Sub-Admin (across all areas)
+const phoneTakenBy = (phone, exceptId) => runUnscoped(() => User.findOne({
+  role: 'SubAdmin',
+  phone_number: { $in: [phone, phone.replace(/^\+91/, '')] },
+  ...(exceptId ? { _id: { $ne: exceptId } } : {}),
+}).select('name').lean().exec());
+
+const publicSubAdmin = (u) => ({ _id: u._id, email: u.email, phone_number: u.phone_number, name: u.name, role: u.role, permissions: u.permissions });
 
 // @route   POST api/subadmins
 // @desc    Create a new Sub-Admin
@@ -14,31 +29,26 @@ router.post('/', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied: Only Super Admin can create Sub-Admins' });
     }
 
-    const { email, password, name, permissions } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required' });
+    const { name, phone_number, permissions } = req.body;
+    const phone = cleanPhone(phone_number);
+    if (!phone) {
+      return res.status(400).json({ message: 'Please enter a valid 10-digit mobile number' });
     }
 
-    // Emails are login IDs, so they must be unique across all areas
-    let user = await runUnscoped(() => User.findOne({ email }).exec());
-    if (user) {
-      return res.status(400).json({ message: 'User already exists with this email' });
+    const taken = await phoneTakenBy(phone);
+    if (taken) {
+      return res.status(400).json({ message: `This number is already used by Sub-Admin "${taken.name || 'Sub-Admin'}"` });
     }
 
-    user = new User({
+    const user = new User({
       name: name || 'Sub-Admin',
-      email,
-      password,
+      phone_number: phone,
       role: 'SubAdmin',
       permissions: permissions || []
     });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(password, salt);
-
     await user.save();
-    res.json({ message: 'Sub-Admin created successfully', user: { _id: user._id, email: user.email, name: user.name, role: user.role, permissions: user.permissions } });
+    res.json({ message: 'Sub-Admin created successfully', user: publicSubAdmin(user) });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
@@ -97,9 +107,9 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(403).json({ message: 'Access denied' });
     }
 
-    const { name, email, password, permissions } = req.body;
+    const { name, phone_number, permissions } = req.body;
     let user = await User.findById(req.params.id);
-    
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -108,17 +118,19 @@ router.put('/:id', auth, async (req, res) => {
       return res.status(400).json({ message: 'Cannot edit non-SubAdmin users from this route' });
     }
 
-    user.name = name || user.name;
-    user.email = email || user.email;
-    user.permissions = permissions || user.permissions;
-
-    if (password) {
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(password, salt);
+    if (phone_number !== undefined) {
+      const phone = cleanPhone(phone_number);
+      if (!phone) return res.status(400).json({ message: 'Please enter a valid 10-digit mobile number' });
+      const taken = await phoneTakenBy(phone, user._id);
+      if (taken) return res.status(400).json({ message: `This number is already used by Sub-Admin "${taken.name || 'Sub-Admin'}"` });
+      user.phone_number = phone;
     }
 
+    user.name = name || user.name;
+    user.permissions = permissions || user.permissions;
+
     await user.save();
-    res.json({ message: 'Sub-Admin updated successfully', user: { _id: user._id, email: user.email, name: user.name, role: user.role, permissions: user.permissions } });
+    res.json({ message: 'Sub-Admin updated successfully', user: publicSubAdmin(user) });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
