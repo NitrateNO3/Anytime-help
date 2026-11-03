@@ -33,7 +33,9 @@ const userSchema = new mongoose.Schema({
   last_login_at: { type: Date, required: false },
   unread_notifications: { type: Number, default: 0 },
   terms_accepted_at: { type: Date, required: false }, // When the user accepted the registration terms
-  terms_version: { type: String, required: false }
+  terms_version: { type: String, required: false },
+  // Extra numbers that can sign in to the admin panel for this account (OTP)
+  login_phones: { type: [String], default: undefined }
 }, { timestamps: true });
 
 userSchema.index({ role: 1, phase: 1 });

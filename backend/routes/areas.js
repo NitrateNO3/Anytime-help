@@ -40,7 +40,7 @@ const assertAdminPhoneFree = async (phone, exceptId) => {
   const local = phone.replace(/^\+91/, '');
   const taken = await User.findOne({
     role: { $in: ['SuperAdmin', 'Admin'] },
-    phone_number: { $in: [phone, local] },
+    $or: [{ phone_number: { $in: [phone, local] } }, { login_phones: { $in: [phone, local] } }],
     ...(exceptId ? { _id: { $ne: exceptId } } : {}),
   }).select('name').lean().exec();
   if (taken) throw badRequest(`This number is already used by admin "${taken.name || 'Admin'}"`);

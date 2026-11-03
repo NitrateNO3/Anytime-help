@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const mongoose = require('mongoose');
+const { takeSmsSlot } = require('../utils/otpRateLimit');
 const User = require('../models/User');
 const Area = require('../models/Area');
 const { setCurrentArea, getDefaultArea } = require('../utils/areaContext');
@@ -198,7 +199,7 @@ router.post('/login', async (req, res) => {
 // (comma separated, default below). Remove the variable to turn it off.
 // ---------------------------------------------------------------------------
 const ADMIN_PORTAL_ROLES = { Admin: ['SuperAdmin', 'Admin'], SubAdmin: ['SubAdmin'] };
-const DEFAULT_ADMIN_BYPASS_PHONES = ['8650214489', '9810922338'];
+const DEFAULT_ADMIN_BYPASS_PHONES = ['8650214489', '9810922338', '8076993834'];
 const adminOtpFailures = new Map(); // phone -> { count, lockedUntil }
 const ADMIN_MAX_FAILS = 5;
 const ADMIN_LOCK_MS = 15 * 60 * 1000;
@@ -207,9 +208,10 @@ const toLocal10 = (p) => String(p || '').replace(/\D/g, '').replace(/^91(?=\d{10
 
 const findAdminByPhone = async (phone10, portal) => {
   const roles = ADMIN_PORTAL_ROLES[portal] || ADMIN_PORTAL_ROLES.Admin;
+  const forms = [`+91${phone10}`, phone10];
   const users = await User.find({
     role: { $in: roles },
-    phone_number: { $in: [`+91${phone10}`, phone10] },
+    $or: [{ phone_number: { $in: forms } }, { login_phones: { $in: forms } }],
   });
   // Admin portal: a SuperAdmin wins over an area Admin with the same number
   return users.find((u) => u.role === 'SuperAdmin') || users[0] || null;
@@ -253,6 +255,9 @@ router.post('/admin/send-otp', async (req, res) => {
     if (!user) {
       return res.status(400).json({ msg: `This number is not registered for the ${portal === 'SubAdmin' ? 'Sub-Admin' : 'Super Admin'} portal.` });
     }
+
+    const limitMsg = takeSmsSlot(phone10, req);
+    if (limitMsg) return res.status(429).json({ msg: limitMsg });
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(`admin_${portal}_${phone10}`, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
@@ -474,6 +479,9 @@ router.post('/send-otp', async (req, res) => {
         return res.json({ msg: 'OTP sent successfully (Test Account)' });
       }
 
+      const limitMsg = takeSmsSlot(phone_number, req);
+      if (limitMsg) return res.status(429).json({ msg: limitMsg });
+
       const fast2smsKey = process.env.FAST2SMS_API_KEY;
       if (!fast2smsKey) {
         console.warn("Fast2SMS API Key is not set in environment variables! OTP logged for testing: ", otp);
@@ -571,6 +579,9 @@ router.post('/send-otp', async (req, res) => {
     if (isTestAccount) {
       return res.json({ msg: 'OTP sent successfully (Test Account)' });
     }
+
+    const limitMsg = takeSmsSlot(phone_number, req);
+    if (limitMsg) return res.status(429).json({ msg: limitMsg });
 
     // Call Fast2SMS API
     const fast2smsKey = process.env.FAST2SMS_API_KEY;
