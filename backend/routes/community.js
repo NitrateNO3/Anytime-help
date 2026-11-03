@@ -10,7 +10,7 @@ const User = require('../models/User');
  * Check if a user can access/view a community based on role
  */
 const canUserAccessCommunity = (community, user) => {
-  if (user.role === 'Admin' || user.role === 'SubAdmin') return true;
+  if (user.role === 'Admin' || user.role === 'SubAdmin' || user.role === 'SuperAdmin') return true;
   if (!community.target_roles || community.target_roles.length === 0) return true;
   if (community.target_roles.includes('All')) return true;
   return community.target_roles.includes(user.role);
@@ -22,7 +22,7 @@ const canUserAccessCommunity = (community, user) => {
  * Assigned members are scoped strictly to their particular section.
  */
 const getSectionUserAccess = (section, user) => {
-  const isAdmin = user.role === 'Admin' || user.role === 'SubAdmin';
+  const isAdmin = user.role === 'Admin' || user.role === 'SubAdmin' || user.role === 'SuperAdmin';
   if (isAdmin) {
     return {
       can_view: true,
@@ -624,9 +624,9 @@ router.get('/sections/:sectionId/messages', auth, async (req, res) => {
     const formatted = messages.reverse().map(m => {
       const obj = m.toObject();
       if (obj.sender && typeof obj.sender === 'object') {
-        const isAdmin = obj.sender.role === 'Admin' || obj.sender.role === 'SubAdmin';
+        const isAdmin = obj.sender.role === 'Admin' || obj.sender.role === 'SubAdmin' || obj.sender.role === 'SuperAdmin';
         if (isAdmin) {
-          obj.sender_name = obj.sender.role === 'Admin' ? 'Super Admin' : 'Admin';
+          obj.sender_name = (obj.sender.role === 'Admin' || obj.sender.role === 'SuperAdmin') ? 'Super Admin' : 'Admin';
         } else if (obj.sender.member_id && obj.sender.member_id.trim()) {
           obj.sender_name = obj.sender.member_id.trim();
         } else if (obj.sender.name && obj.sender.name.trim()) {

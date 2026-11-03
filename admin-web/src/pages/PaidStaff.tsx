@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Trash2, UserPlus, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../lib/area';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -31,7 +32,7 @@ export default function PaidStaff() {
       fetchServices();
     }
     
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth(), transports: ['websocket', 'polling'] });
     socket.on('staff_changed', () => {
       if (activeTab === 'list') fetchStaff(false);
     });

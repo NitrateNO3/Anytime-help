@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
   phone_number: { type: String, required: false },
   firebase_uid: { type: String, required: false },
   expoPushToken: { type: String, required: false },
-  role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'SubAdmin', 'PaidStaff', 'Member'], default: 'Resident' },
+  role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'SubAdmin', 'PaidStaff', 'Member', 'SuperAdmin'], default: 'Resident' },
   gender: { type: String, enum: ['Male', 'Female', 'Other'] },
   assigned_category: { type: String, required: false }, // Legacy support
   assigned_categories: { type: [String], default: [] }, // New array for multiple categories
@@ -38,6 +38,22 @@ userSchema.index({ role: 1, phase: 1 });
 userSchema.index({ firebase_uid: 1 });
 userSchema.index({ assigned_categories: 1 });
 userSchema.index({ 'assigned_locations.phase': 1 });
+
+// Area scoping. SuperAdmin accounts have no area but stay visible everywhere so
+// populated refs (created_by, replies, etc.) still resolve when a super admin acts
+// inside an area.
+userSchema.plugin(require('./plugins/areaScope'), {
+  extraFilter: () => ({ role: 'SuperAdmin' }),
+});
+userSchema.index({ area: 1, role: 1 });
+
+// The auth middleware presents a SuperAdmin to route handlers as role 'Admin' so
+// every existing admin check passes. Never persist that in-memory role.
+userSchema.pre('save', function () {
+  if (this.$locals && this.$locals.isSuperAdmin) this.role = 'SuperAdmin';
+  // SuperAdmins belong to no area
+  if (this.role === 'SuperAdmin') this.area = undefined;
+});
 
 const User = mongoose.model('User', userSchema);
 

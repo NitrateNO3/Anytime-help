@@ -6,6 +6,7 @@ import { Stack, useRouter, Redirect } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import * as SecureStore from 'expo-secure-store';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../utils/socketAuth';
 import axios from 'axios';
 import Constants from 'expo-constants';
 import '../i18n';
@@ -186,7 +187,7 @@ export default function RootLayout() {
     }
 
     console.log('Connecting to socket at:', API_URL);
-    const socket = io(API_URL, {
+    const socket = io(API_URL, { ...socketAuth,
       transports: ['websocket'],
       forceNew: true
     });

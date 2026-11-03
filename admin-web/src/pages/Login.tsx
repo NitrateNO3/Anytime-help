@@ -24,6 +24,17 @@ export default function Login() {
         password
       });
 
+      // A platform Super Admin signs in from the Admin tab and is treated as a
+      // full Admin inside whichever area it selects.
+      if (res.data.user.role === 'SuperAdmin' && loginType === 'Admin') {
+        localStorage.setItem('adminToken', res.data.token);
+        localStorage.setItem('adminUser', JSON.stringify({ ...res.data.user, role: 'Admin', isSuperAdmin: true }));
+        localStorage.removeItem('selectedAreaId');
+        toast.success('Logged in successfully!');
+        navigate('/areas');
+        return;
+      }
+
       if (res.data.user.role !== loginType) {
         toast.error(`Unauthorized: Please log in using the correct portal.`);
         setLoading(false);
@@ -32,6 +43,7 @@ export default function Login() {
 
       localStorage.setItem('adminToken', res.data.token);
       localStorage.setItem('adminUser', JSON.stringify(res.data.user));
+      localStorage.removeItem('selectedAreaId');
       toast.success('Logged in successfully!');
       
       if (loginType === 'SubAdmin') {

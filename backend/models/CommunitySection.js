@@ -56,4 +56,6 @@ communitySectionSchema.index({ community_id: 1, is_active: 1 });
 communitySectionSchema.index({ followers: 1 });
 communitySectionSchema.index({ assigned_members: 1 });
 
+communitySectionSchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('CommunitySection', communitySectionSchema);

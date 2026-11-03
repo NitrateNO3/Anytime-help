@@ -19,6 +19,17 @@ import StaffBanners from './pages/StaffBanners';
 import ChatGroups from './pages/ChatGroups';
 import Communities from './pages/Communities';
 import BottomBanners from './pages/BottomBanners';
+import Areas from './pages/Areas';
+import { areaHeaders } from './lib/area';
+
+// Multi-area: a platform Super Admin's requests are scoped to the area picked
+// in the sidebar switcher. Area admins are always scoped to their own area
+// by the backend, so nothing is added for them.
+axios.interceptors.request.use((config) => {
+  const headers = areaHeaders();
+  for (const [k, v] of Object.entries(headers)) config.headers.set(k, v);
+  return config;
+});
 
 // Global axios interceptor for 401 Unauthorized errors
 axios.interceptors.response.use(
@@ -28,6 +39,7 @@ axios.interceptors.response.use(
       // Token is invalid or expired
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminUser');
+      localStorage.removeItem('selectedAreaId');
       // Redirect to login if not already there
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
@@ -41,6 +53,7 @@ function IndexRedirect() {
   const adminUserStr = localStorage.getItem('adminUser');
   const user = adminUserStr ? JSON.parse(adminUserStr) : null;
   
+  if (user?.isSuperAdmin && !localStorage.getItem('selectedAreaId')) return <Navigate to="/areas" replace />;
   if (user?.role === 'Admin') return <Navigate to="/dashboard" replace />;
   if (user?.role === 'SubAdmin') {
     const perms = user.permissions || [];
@@ -84,6 +97,7 @@ function App() {
             <Route path="communities" element={<Communities />} />
             <Route path="community" element={<Navigate to="/communities" replace />} />
             <Route path="subadmins" element={<SubAdmins />} />
+            <Route path="areas" element={<Areas />} />
           </Route>
         </Routes>
       </BrowserRouter>

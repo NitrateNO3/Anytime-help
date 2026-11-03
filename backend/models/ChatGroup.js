@@ -71,4 +71,6 @@ chatGroupSchema.index({ is_active: 1, members: 1 });
 chatGroupSchema.index({ is_active: 1, can_other_members_view: 1 });
 chatGroupSchema.index({ is_active: 1, can_residents_view: 1 });
 
+chatGroupSchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('ChatGroup', chatGroupSchema);

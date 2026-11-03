@@ -18,6 +18,7 @@ import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../../utils/socketAuth';
 import ForceBlockUpdateModal from '../../components/ForceBlockUpdateModal';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -43,7 +44,7 @@ export default function MemberEditProfileScreen() {
   useEffect(() => {
     loadUserData();
 
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth, transports: ['websocket', 'polling'] });
     socket.on('user_updated', async (data: any) => {
       const storedUser = await SecureStore.getItemAsync('userData');
       if (storedUser) {

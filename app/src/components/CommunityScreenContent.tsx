@@ -11,6 +11,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { io, Socket } from 'socket.io-client';
+import { socketAuth } from '../utils/socketAuth';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -304,7 +305,7 @@ export default function CommunityScreenContent({
   }, [activeSection]);
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { 
+    const socket = io(SOCKET_URL, { ...socketAuth, 
       transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true

@@ -166,4 +166,6 @@ complaintSchema.index({ department: 1, status: 1 });
 complaintSchema.index({ assigned_staff: 1, status: 1 });
 complaintSchema.index({ category: 1 });
 
+complaintSchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('Complaint', complaintSchema);

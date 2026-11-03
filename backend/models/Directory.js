@@ -17,4 +17,6 @@ const DirectorySchema = new mongoose.Schema({
 
 DirectorySchema.index({ phases: 1, order: 1 });
 
+DirectorySchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('Directory', DirectorySchema);

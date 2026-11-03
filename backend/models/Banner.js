@@ -11,4 +11,6 @@ const BannerSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+BannerSchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('Banner', BannerSchema);

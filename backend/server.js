@@ -4,9 +4,13 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const connectDB = require('./config/db');
+const areaContext = require('./middleware/areaContext');
+const runAreaMigration = require('./utils/areaMigration');
+const { attachAreaRooms, areaScopedIo } = require('./utils/areaSocket');
 
 // Connect Database
 connectDB();
+runAreaMigration();
 
 const app = express();
 
@@ -25,6 +29,9 @@ app.use(cors({
   credentials: true
 }));
 
+// Multi-area: every request runs in the context of one area (see middleware/areaContext.js)
+app.use(areaContext);
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -33,8 +40,9 @@ const io = new Server(server, {
   }
 });
 
-// Pass io to routes
-app.set('io', io);
+// Sockets join a per-area room; routes get an io whose emit() only reaches the current area
+attachAreaRooms(io);
+app.set('io', areaScopedIo(io));
 
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
@@ -114,6 +122,7 @@ io.on('connection', (socket) => {
 
 // Define Routes
 app.use('/api/auth', require('./routes/auth'));
+app.use('/api/areas', require('./routes/areas'));
 app.use('/api/departments', require('./routes/departments'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/subadmins', require('./routes/subadmins'));

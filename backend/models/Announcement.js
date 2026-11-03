@@ -60,4 +60,6 @@ AnnouncementSchema.index({ active: 1, date: -1 });
 AnnouncementSchema.index({ phases: 1 });
 AnnouncementSchema.index({ 'targetLocations.phase': 1 });
 
+AnnouncementSchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('Announcement', AnnouncementSchema);

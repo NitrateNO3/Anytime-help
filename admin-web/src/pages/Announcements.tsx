@@ -5,6 +5,7 @@ import { Bell, Plus, Trash2, Edit2, Search, Filter, RotateCcw, X, Megaphone, Clo
 import toast from 'react-hot-toast';
 import { ExportButtons } from '../components/ExportButtons';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../lib/area';
 import BottomBanners from './BottomBanners';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -56,7 +57,7 @@ export default function Announcements() {
     if (activeTab === 'list') {
       fetchAnnouncements(page, filterPhase);
     }
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth(), transports: ['websocket', 'polling'] });
     socket.on('announcement_changed', () => {
       if (activeTab === 'list') fetchAnnouncements(page, filterPhase, debouncedSearch, dateFrom, dateTo, false);
     });

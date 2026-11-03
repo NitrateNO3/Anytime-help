@@ -4,6 +4,8 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/User');
+const Area = require('../models/Area');
+const { setCurrentArea, getDefaultArea } = require('../utils/areaContext');
 
 // In-memory store for OTPs (Key: phone_number, Value: { otp, expiresAt })
 // Note: In production, consider using Redis or a Database for scalability.
@@ -13,7 +15,7 @@ const otpStore = new Map();
 // @desc    Register user (Resident or Staff)
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, phone_number, firebase_uid, role, department, address, relation, phase, block, house_no, property_type, family_members, gender, otp } = req.body;
+  const { name, phone_number, firebase_uid, role, department, address, relation, phase, block, house_no, property_type, family_members, gender, otp, area: areaId } = req.body;
 
   try {
     if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
@@ -55,6 +57,18 @@ router.post('/register', async (req, res) => {
       $or: [{ phone_number: dbPhoneNumber }, { phone_number: cleanPhone }] 
     });
     if (user) return res.status(400).json({ msg: 'User already exists with this phone number' });
+
+    // Area the resident is registering into. Older app builds don't send one,
+    // so they fall back to the original area.
+    let area = null;
+    if (areaId) {
+      area = await Area.findOne({ _id: areaId, is_active: true }).catch(() => null);
+      if (!area) return res.status(400).json({ msg: 'Please select a valid area' });
+    } else {
+      area = getDefaultArea() ? { _id: getDefaultArea() } : null;
+    }
+    // From here on (address checks, save, live events) work inside that area
+    if (area) setCurrentArea(area._id);
 
     // Handle address logic for Residents
     if (role === 'Resident' && address) {
@@ -107,7 +121,8 @@ router.post('/register', async (req, res) => {
       house_no,
       property_type,
       family_members: family_members || [], 
-      gender 
+      gender,
+      area: area ? area._id : undefined
     });
 
     await user.save();
@@ -152,7 +167,7 @@ router.post('/login', async (req, res) => {
     
     jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '7d' }, (err, token) => {
       if (err) throw err;
-      res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, assigned_locations: user.assigned_locations || [], permissions: user.permissions } });
+      res.json({ token, user: { id: user.id, name: user.name, role: user.role, email: user.email, area: user.area || null, assigned_category: user.assigned_category, assigned_categories: user.assigned_categories, assigned_locations: user.assigned_locations || [], permissions: user.permissions } });
     });
   } catch (err) {
     console.error(err.message);

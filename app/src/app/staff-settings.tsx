@@ -7,6 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../utils/socketAuth';
 
 import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
 import DeleteAccountModal from '../components/DeleteAccountModal';
@@ -51,7 +52,7 @@ export default function SettingsScreen() {
   };
 
   useEffect(() => {
-    const socket = io(API_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(API_URL, { ...socketAuth, transports: ['websocket', 'polling'] });
     socket.on('user_updated', async (data: any) => {
       try {
         if (!data || !data.userId) return;

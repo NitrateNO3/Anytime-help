@@ -75,4 +75,6 @@ const chatMessageSchema = new mongoose.Schema({
 
 chatMessageSchema.index({ group_id: 1, createdAt: 1 });
 
+chatMessageSchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('ChatMessage', chatMessageSchema);

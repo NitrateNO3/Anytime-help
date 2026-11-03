@@ -42,4 +42,6 @@ const BottomBannerSchema = new mongoose.Schema({
 
 BottomBannerSchema.index({ targetAudience: 1, isActive: 1, order: 1 });
 
+BottomBannerSchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('BottomBanner', BottomBannerSchema);

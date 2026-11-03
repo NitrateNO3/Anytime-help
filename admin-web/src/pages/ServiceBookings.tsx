@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ClipboardList, Clock, CheckCircle, AlertCircle, PlayCircle, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../lib/area';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -18,7 +19,7 @@ export default function ServiceBookings() {
   useEffect(() => {
     fetchBookings();
     
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth(), transports: ['websocket', 'polling'] });
     socket.on('booking_updated', () => fetchBookings(false));
     socket.on('new_service_booking', () => fetchBookings(false));
 

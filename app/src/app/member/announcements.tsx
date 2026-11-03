@@ -7,6 +7,7 @@ import * as SecureStore from 'expo-secure-store';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../../utils/socketAuth';
 import * as ImagePicker from 'expo-image-picker';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -73,7 +74,7 @@ export default function Announcements() {
       fetchAnnouncements();
       import('../../services/pushNotifications').then(({ clearAppBadge }) => clearAppBadge());
 
-      const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
+      const socket = io(API_URL.replace('/api', ''), { ...socketAuth, transports: ['websocket', 'polling'] });
       socket.on('announcement_changed', () => {
         fetchAnnouncements();
       });

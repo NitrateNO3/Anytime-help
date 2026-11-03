@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { runUnscoped } = require('../utils/areaContext');
 
 // @route   POST api/subadmins
 // @desc    Create a new Sub-Admin
@@ -19,7 +20,8 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ message: 'Email and password are required' });
     }
 
-    let user = await User.findOne({ email });
+    // Emails are login IDs, so they must be unique across all areas
+    let user = await runUnscoped(() => User.findOne({ email }).exec());
     if (user) {
       return res.status(400).json({ message: 'User already exists with this email' });
     }

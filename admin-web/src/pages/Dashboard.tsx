@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Activity, CheckCircle, Clock, Trash2, Search, Filter, RotateCcw, X, AlertCircle, Hash } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../lib/area';
 import { ExportButtons } from '../components/ExportButtons';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -91,7 +92,7 @@ export default function Dashboard() {
 
   // Live Socket.io updates
   useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth(), transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', () => {
       fetchComplaints(page, false);
     });

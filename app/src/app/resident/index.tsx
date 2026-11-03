@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../../utils/socketAuth';
 
 import Toast from 'react-native-toast-message';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
@@ -233,7 +234,7 @@ export default function ResidentHome() {
       fetchBottomBanners();
       fetchStats();
 
-      const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
+      const socket = io(API_URL.replace('/api', ''), { ...socketAuth, transports: ['websocket', 'polling'] });
       socket.on('announcement_changed', () => {
         fetchAnnouncementsData();
       });

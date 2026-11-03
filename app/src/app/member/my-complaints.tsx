@@ -8,6 +8,7 @@ import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { LinearGradient } from 'expo-linear-gradient';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../../utils/socketAuth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -226,7 +227,7 @@ export default function MyComplaints() {
   }, [view]);
 
   React.useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth, transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', () => {
       const { viewMode: v, searchQuery: s, selectedCategory: c, selectedStatus: st } = stateRef.current;
       fetchComplaints(1, false, s, c, v, st);

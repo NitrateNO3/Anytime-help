@@ -10,6 +10,7 @@ import * as SecureStore from 'expo-secure-store';
 import { StatusBar } from 'expo-status-bar';
 import { getLocalizedCategoryTitle, getLocalizedSubCategoryTitle } from '../utils/localization';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../utils/socketAuth';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -84,7 +85,7 @@ export default function StaffRaiseComplaint() {
   );
 
   useEffect(() => {
-    const socket = io(API_URL.replace('/api', ''), { transports: ['websocket', 'polling'] });
+    const socket = io(API_URL.replace('/api', ''), { ...socketAuth, transports: ['websocket', 'polling'] });
     socket.on('categories_updated', () => {
       fetchCategories();
     });

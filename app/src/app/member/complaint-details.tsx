@@ -10,6 +10,7 @@ import * as Location from 'expo-location';
 import { useTranslation } from 'react-i18next';
 import Toast from 'react-native-toast-message';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../../utils/socketAuth';
 import * as ImagePicker from 'expo-image-picker';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -138,7 +139,7 @@ export default function ComplaintDetails() {
     fetchComplaintDetails();
     loadPermissions();
 
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth, transports: ['websocket', 'polling'] });
     socket.on('complaint_changed', (payload: any) => {
       if (payload && payload.data && (payload.data._id === id || payload.data.id === id)) {
         setComplaint(payload.data);

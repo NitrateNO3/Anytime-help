@@ -5,6 +5,7 @@ import { UserPlus, Users, Trash2, Edit2, Search, Filter, RotateCcw, X } from 'lu
 import toast from 'react-hot-toast';
 import { ExportButtons } from '../components/ExportButtons';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../lib/area';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -63,7 +64,7 @@ export default function Members() {
 
   useEffect(() => {
     const socketURL = API_URL.replace('/api', '');
-    const socket = io(socketURL);
+    const socket = io(socketURL, socketAuth());
 
     socket.on('user_created', (newUser: any) => {
       if (newUser.role === 'Member') {

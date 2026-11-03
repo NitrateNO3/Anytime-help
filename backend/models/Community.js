@@ -39,4 +39,6 @@ const communitySchema = new mongoose.Schema({
 
 communitySchema.index({ is_active: 1, createdAt: -1 });
 
+communitySchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('Community', communitySchema);

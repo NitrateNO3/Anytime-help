@@ -67,4 +67,6 @@ const communityMessageSchema = new mongoose.Schema({
 
 communityMessageSchema.index({ section_id: 1, createdAt: 1 });
 
+communityMessageSchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('CommunityMessage', communityMessageSchema);

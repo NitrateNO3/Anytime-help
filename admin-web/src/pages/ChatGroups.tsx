@@ -6,6 +6,7 @@ import {
   Send, Shield, RefreshCw, Check, CornerDownRight, Users
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
+import { socketAuth } from '../lib/area';
 import '../index.css';
 import './ChatGroups.css';
 
@@ -177,7 +178,7 @@ export default function ChatGroups() {
     fetchGroups();
     fetchMembers();
 
-    const socket = io(SOCKET_URL, { 
+    const socket = io(SOCKET_URL, { ...socketAuth(), 
       transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true,

@@ -8,6 +8,7 @@ import {
   MessageCircle, Building2, Layers, CheckCircle2
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
+import { socketAuth } from '../lib/area';
 import '../index.css';
 import './Communities.css';
 
@@ -207,7 +208,7 @@ export default function Communities() {
     fetchCommunities();
     fetchUsers();
 
-    const socket = io(SOCKET_URL, { 
+    const socket = io(SOCKET_URL, { ...socketAuth(), 
       transports: ['websocket', 'polling'],
       autoConnect: true,
       reconnection: true

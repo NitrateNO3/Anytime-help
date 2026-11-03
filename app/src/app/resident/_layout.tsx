@@ -10,6 +10,7 @@ import { walkthroughable, CopilotStep } from 'react-native-copilot';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../../utils/socketAuth';
 import ForceBlockUpdateModal, { isProfileBlockUpdateRequired } from '../../components/ForceBlockUpdateModal';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -258,7 +259,7 @@ export default function ResidentLayout() {
   useEffect(() => {
     checkUserProfile();
 
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth, transports: ['websocket', 'polling'] });
     socket.on('user_updated', (data: any) => {
       if (userData && (userData._id === data.userId || userData.id === data.userId)) {
         checkUserProfile();

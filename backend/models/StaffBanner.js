@@ -44,4 +44,6 @@ const StaffBannerSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
+StaffBannerSchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('StaffBanner', StaffBannerSchema);

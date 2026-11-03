@@ -19,6 +19,7 @@ import {
   FolderPlus
 } from 'lucide-react';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../lib/area';
 import '../index.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://anytime-help.onrender.com/api');
@@ -126,7 +127,7 @@ export default function BottomBanners({ embedded = false }: BottomBannersProps) 
   useEffect(() => {
     fetchBanners();
 
-    const socket = io(SOCKET_BASE, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_BASE, { ...socketAuth(), transports: ['websocket', 'polling'] });
     socket.on('bottom_banners_changed', () => {
       fetchBanners();
     });

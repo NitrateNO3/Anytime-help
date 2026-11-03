@@ -9,6 +9,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../../utils/socketAuth';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -56,7 +57,7 @@ export default function MemberChatsScreen() {
   );
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth, transports: ['websocket', 'polling'] });
 
     socket.on('chat_group_created', () => fetchGroups(false));
     socket.on('chat_group_updated', () => fetchGroups(false));

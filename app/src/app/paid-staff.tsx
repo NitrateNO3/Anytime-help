@@ -7,6 +7,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../utils/socketAuth';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -94,7 +95,7 @@ export default function PaidStaffScreen() {
   );
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth, transports: ['websocket', 'polling'] });
     socket.on('new_service_booking', () => {
       if (activeTab === 'Available') fetchBookings();
     });

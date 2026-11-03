@@ -10,7 +10,7 @@ const categorySchema = new mongoose.Schema({
   title: {
     type: String,
     required: true,
-    unique: true,
+    // unique per area, see compound index below
   },
   title_hi: {
     type: String,
@@ -43,5 +43,8 @@ const categorySchema = new mongoose.Schema({
 }, { timestamps: true });
 
 categorySchema.index({ order: 1 });
+
+categorySchema.plugin(require('./plugins/areaScope'));
+categorySchema.index({ area: 1, title: 1 }, { unique: true });
 
 module.exports = mongoose.model('Category', categorySchema);

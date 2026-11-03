@@ -1,6 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import axios from 'axios';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, Sliders } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, Sliders, MapPin } from 'lucide-react';
+import { API_URL, getSelectedArea, setSelectedArea } from '../lib/area';
 import logoImg from '../assets/logo.png';
 
 export default function AdminLayout() {
@@ -9,6 +11,35 @@ export default function AdminLayout() {
   const adminUserStr = localStorage.getItem('adminUser');
   const adminUser = adminUserStr ? JSON.parse(adminUserStr) : null;
   const isSuperAdmin = adminUser?.role === 'Admin';
+  // Platform super admin: manages all areas and switches between them
+  const isPlatformAdmin = !!adminUser?.isSuperAdmin;
+  const [areas, setAreas] = useState<{ _id: string; name: string }[]>([]);
+  const selectedArea = getSelectedArea();
+
+  useEffect(() => {
+    if (!isPlatformAdmin) return;
+    axios.get(`${API_URL}/areas`, { headers: { 'x-auth-token': localStorage.getItem('adminToken') || '' } })
+      .then((res) => {
+        setAreas(res.data);
+        // Forget a selection that no longer exists
+        if (selectedArea && !res.data.some((a: any) => a._id === selectedArea)) {
+          setSelectedArea(null);
+          navigate('/areas');
+        }
+      })
+      .catch(() => {});
+  }, [isPlatformAdmin]);
+
+  // Area-specific screens need an area picked first
+  useEffect(() => {
+    if (isPlatformAdmin && !selectedArea && location.pathname !== '/areas') navigate('/areas');
+  }, [isPlatformAdmin, selectedArea, location.pathname]);
+
+  const switchArea = (id: string) => {
+    setSelectedArea(id || null);
+    // Full reload so every screen and socket reconnects inside the new area
+    window.location.href = id ? (location.pathname === '/areas' ? '/dashboard' : location.pathname) : '/areas';
+  };
   
   const hasAccess = (section: string) => {
     if (isSuperAdmin) return true;
@@ -27,6 +58,7 @@ export default function AdminLayout() {
   const handleLogout = () => {
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminUser');
+    localStorage.removeItem('selectedAreaId');
     navigate('/login');
   };
 
@@ -39,7 +71,30 @@ export default function AdminLayout() {
           Anytime Help
         </div>
 
+        {isPlatformAdmin && (
+          <div style={{ padding: '0 12px 16px' }}>
+            <label htmlFor="area-switcher" style={{ display: 'block', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 6 }}>Viewing area</label>
+            <select
+              id="area-switcher"
+              className="form-input"
+              style={{ padding: '10px 12px', fontSize: 14 }}
+              value={selectedArea || ''}
+              onChange={(e) => switchArea(e.target.value)}
+            >
+              <option value="">Select an area…</option>
+              {areas.map((a) => <option key={a._id} value={a._id}>{a.name}</option>)}
+            </select>
+          </div>
+        )}
+
         <nav style={{ flex: 1 }}>
+          {isPlatformAdmin && (
+            <Link to="/areas" className={`nav-link ${location.pathname === '/areas' ? 'active' : ''}`}>
+              <MapPin size={20} />
+              Areas
+            </Link>
+          )}
+
           {hasAccess('Overview') && (
             <Link to="/dashboard" className={`nav-link ${location.pathname === '/dashboard' ? 'active' : ''}`}>
               <LayoutDashboard size={20} />

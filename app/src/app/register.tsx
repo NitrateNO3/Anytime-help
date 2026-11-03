@@ -69,12 +69,49 @@ export default function RegisterScreen() {
 
   // Constants
   const propertyTypes = ['Owned', 'Rented'];
-  const phasesList = ['Sushant Lok 2', 'Sushant Lok 3'];
-  
-  const getBlockOptions = () => {
-    if (phase === 'Sushant Lok 2') return ['C', 'D', 'E', 'F', 'G'];
-    if (phase === 'Sushant Lok 3') return ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H'];
-    return [];
+
+  // Areas (societies / clients) and their phases come from the backend, so a
+  // new area added by the super admin shows up here without an app update.
+  type AreaOption = { _id: string; name: string; city?: string; phases: { name: string; blocks: string[] }[] };
+  const FALLBACK_PHASES = [
+    { name: 'Sushant Lok 2', blocks: ['C', 'D', 'E', 'F', 'G'] },
+    { name: 'Sushant Lok 3', blocks: ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H'] },
+  ];
+  const [areas, setAreas] = useState<AreaOption[]>([]);
+  const [areaId, setAreaId] = useState('');
+
+  useEffect(() => {
+    axios.get(`${API_URL}/areas/public`)
+      .then((res) => {
+        const list: AreaOption[] = Array.isArray(res.data) ? res.data : [];
+        setAreas(list);
+        // Only one area: pick it so the user doesn't have to
+        if (list.length === 1) setAreaId(list[0]._id);
+      })
+      .catch(() => setAreas([])); // offline / old backend: fall back to built-in phases
+  }, []);
+
+  // Drop a saved selection (e.g. from the draft) that is no longer offered
+  useEffect(() => {
+    if (areas.length > 0 && areaId && !areas.some((a) => a._id === areaId)) {
+      setAreaId(areas.length === 1 ? areas[0]._id : '');
+      setPhase('');
+      setBlock('');
+    }
+  }, [areas, areaId]);
+
+  const selectedArea = areas.find((a) => a._id === areaId);
+  // If areas couldn't be loaded, keep the original built-in phases
+  const phaseOptions = areas.length === 0 ? FALLBACK_PHASES : (selectedArea?.phases || []);
+  const phasesList = phaseOptions.map((p) => p.name);
+
+  const getBlockOptions = () => phaseOptions.find((p) => p.name === phase)?.blocks || [];
+
+  const selectArea = (id: string) => {
+    if (id === areaId) return;
+    setAreaId(id);
+    setPhase('');
+    setBlock('');
   };
 
   // Animations
@@ -96,6 +133,7 @@ export default function RegisterScreen() {
           if (parsed.phase) setPhase(parsed.phase);
           if (parsed.block) setBlock(parsed.block);
           if (parsed.houseNo) setHouseNo(parsed.houseNo);
+          if (parsed.areaId) setAreaId(parsed.areaId);
         }
       } catch (e) {}
     };
@@ -104,11 +142,11 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     const saveDraft = async () => {
-      const draft = { name, phoneNumber, gender, propertyType, phase, block, houseNo };
+      const draft = { name, phoneNumber, gender, propertyType, phase, block, houseNo, areaId };
       await AsyncStorage.setItem('register_draft', JSON.stringify(draft));
     };
     saveDraft();
-  }, [name, phoneNumber, gender, propertyType, phase, block, houseNo]);
+  }, [name, phoneNumber, gender, propertyType, phase, block, houseNo, areaId]);
 
   useEffect(() => {
     Animated.timing(progressAnim, {
@@ -228,7 +266,12 @@ export default function RegisterScreen() {
         return;
       }
     } else if (step === 1) {
-      if (!propertyType || !phase || !block || !houseNo) {
+      if (areas.length > 0 && !areaId) {
+        Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please select your area / society' });
+        return;
+      }
+      const needsBlock = getBlockOptions().length > 0;
+      if (!propertyType || !phase || (needsBlock && !block) || !houseNo) {
         Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please complete all property details' });
         return;
       }
@@ -292,7 +335,8 @@ export default function RegisterScreen() {
         block,
         house_no: houseNo,
         family_members,
-        gender
+        gender,
+        ...(areaId ? { area: areaId } : {})
       };
 
       const res = await axios.post(`${API_URL}/auth/register`, payload);
@@ -403,6 +447,28 @@ export default function RegisterScreen() {
         ))}
       </View>
 
+      {areas.length > 1 && (
+        <>
+          <Text style={styles.label}>{t('register.selectArea', 'Select Your Area / Society')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 24}}>
+            {areas.map((a) => (
+              <TouchableOpacity
+                key={a._id}
+                activeOpacity={0.7}
+                style={[styles.smallChip, areaId === a._id && styles.smallChipActive]}
+                onPress={() => selectArea(a._id)}
+              >
+                <Text style={[styles.smallChipText, areaId === a._id && styles.smallChipTextActive]}>
+                  {a.city ? `${a.name}, ${a.city}` : a.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
+      )}
+
+      {(areas.length === 0 || areaId) ? (
+      <>
       <Text style={styles.label}>{t('register.selectPhase')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 24}}>
         {phasesList.map((p) => (
@@ -417,7 +483,7 @@ export default function RegisterScreen() {
         ))}
       </ScrollView>
 
-      {phase ? (
+      {phase && getBlockOptions().length > 0 ? (
         <>
           <Text style={styles.label}>{t('register.selectBlock')}</Text>
           <View style={styles.gridContainer}>
@@ -433,6 +499,8 @@ export default function RegisterScreen() {
             ))}
           </View>
         </>
+      ) : null}
+      </>
       ) : null}
 
       <View style={{marginTop: 8}}>

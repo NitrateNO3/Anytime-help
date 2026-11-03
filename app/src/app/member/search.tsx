@@ -7,6 +7,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../../utils/socketAuth';
 import { getLocalizedRole, getLocalizedNameWithRole } from '../../utils/localization';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -35,7 +36,7 @@ export default function DirectoryScreen() {
   );
 
   useEffect(() => {
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth, transports: ['websocket', 'polling'] });
     
     socket.on('directory_updated', (payload) => {
       if (!payload) {

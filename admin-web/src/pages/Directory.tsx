@@ -3,6 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { Plus, Edit, Trash2, Phone, X } from 'lucide-react';
 import { io } from 'socket.io-client';
+import { socketAuth } from '../lib/area';
 import '../index.css';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -30,7 +31,7 @@ export default function Directory() {
   useEffect(() => {
     fetchContacts(page, filterPhase);
 
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
+    const socket = io(SOCKET_URL, { ...socketAuth(), transports: ['websocket', 'polling'] });
     socket.on('directory_updated', () => {
       fetchContacts(page, filterPhase, false);
     });

@@ -1,3 +1,5 @@
+const { currentArea } = require('../utils/areaContext');
+
 const cacheMap = new Map();
 
 const cache = (durationSeconds) => {
@@ -8,7 +10,8 @@ const cache = (durationSeconds) => {
     }
     
     // Construct cache key based on URL and query params
-    const key = '__express__' + (req.originalUrl || req.url);
+    // Include the area so one client never gets another client's cached response
+    const key = '__express__' + (currentArea() || 'all') + '__' + (req.originalUrl || req.url);
     const cachedItem = cacheMap.get(key);
     
     if (cachedItem && cachedItem.expiry > Date.now()) {

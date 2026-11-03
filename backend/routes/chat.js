@@ -10,7 +10,7 @@ const User = require('../models/User');
  * Returns: { can_view: boolean, can_send: boolean, is_member: boolean, is_view_only: boolean, is_admin: boolean }
  */
 const getGroupPermissions = (group, user) => {
-  const isAdmin = user.role === 'Admin' || user.role === 'SubAdmin';
+  const isAdmin = user.role === 'Admin' || user.role === 'SubAdmin' || user.role === 'SuperAdmin';
   if (isAdmin) {
     return { can_view: true, can_send: true, is_member: true, is_view_only: false, is_admin: true };
   }
@@ -128,7 +128,7 @@ router.get('/groups', auth, async (req, res) => {
     const user = req.user;
     let query = { is_active: true };
 
-    if (user.role === 'Admin' || user.role === 'SubAdmin') {
+    if (user.role === 'Admin' || user.role === 'SubAdmin' || user.role === 'SuperAdmin') {
       // Admins see all groups
       query = { is_active: true };
     } else if (user.role === 'Member') {
@@ -171,9 +171,9 @@ router.get('/groups', auth, async (req, res) => {
                       (g.view_only_members || []).find(m => m._id.toString() === sid) ||
                       (g.created_by && g.created_by._id.toString() === sid ? g.created_by : null);
         if (found) {
-          const isAdmin = found.role === 'Admin' || found.role === 'SubAdmin';
+          const isAdmin = found.role === 'Admin' || found.role === 'SubAdmin' || found.role === 'SuperAdmin';
           if (isAdmin) {
-            gObj.last_message.sender_name = found.role === 'Admin' ? 'Super Admin' : 'Admin';
+            gObj.last_message.sender_name = (found.role === 'Admin' || found.role === 'SuperAdmin') ? 'Super Admin' : 'Admin';
           } else if (found.member_id && found.member_id.trim()) {
             gObj.last_message.sender_name = found.member_id.trim();
           } else if (found.name) {
@@ -345,9 +345,9 @@ router.get('/groups/:id/messages', auth, async (req, res) => {
     const formattedMessages = messages.reverse().map(m => {
       const obj = m.toObject();
       if (obj.sender && typeof obj.sender === 'object') {
-        const isAdmin = obj.sender.role === 'Admin' || obj.sender.role === 'SubAdmin';
+        const isAdmin = obj.sender.role === 'Admin' || obj.sender.role === 'SubAdmin' || obj.sender.role === 'SuperAdmin';
         if (isAdmin) {
-          obj.sender_name = obj.sender.role === 'Admin' ? 'Super Admin' : 'Admin';
+          obj.sender_name = (obj.sender.role === 'Admin' || obj.sender.role === 'SuperAdmin') ? 'Super Admin' : 'Admin';
         } else if (obj.sender.member_id && obj.sender.member_id.trim()) {
           obj.sender_name = obj.sender.member_id.trim();
         } else if (obj.sender.name && obj.sender.name.trim()) {
@@ -396,9 +396,9 @@ router.post('/groups/:id/messages', auth, async (req, res) => {
       if (parentMsg && parentMsg.group_id.toString() === group._id.toString()) {
         let replySenderName = parentMsg.sender_name;
         if (parentMsg.sender && typeof parentMsg.sender === 'object') {
-          const parentIsAdmin = parentMsg.sender.role === 'Admin' || parentMsg.sender.role === 'SubAdmin';
+          const parentIsAdmin = parentMsg.sender.role === 'Admin' || parentMsg.sender.role === 'SubAdmin' || parentMsg.sender.role === 'SuperAdmin';
           if (parentIsAdmin) {
-            replySenderName = parentMsg.sender.role === 'Admin' ? 'Super Admin' : 'Admin';
+            replySenderName = (parentMsg.sender.role === 'Admin' || parentMsg.sender.role === 'SuperAdmin') ? 'Super Admin' : 'Admin';
           } else if (parentMsg.sender.member_id && parentMsg.sender.member_id.trim()) {
             replySenderName = parentMsg.sender.member_id.trim();
           }
@@ -411,10 +411,10 @@ router.post('/groups/:id/messages', auth, async (req, res) => {
       }
     }
 
-    const isAdmin = req.user.role === 'Admin' || req.user.role === 'SubAdmin';
+    const isAdmin = req.user.role === 'Admin' || req.user.role === 'SubAdmin' || req.user.role === 'SuperAdmin';
     let senderName = '';
     if (isAdmin) {
-      senderName = req.user.role === 'Admin' ? 'Super Admin' : 'Admin';
+      senderName = (req.user.role === 'Admin' || req.user.role === 'SuperAdmin') ? 'Super Admin' : 'Admin';
     } else if (req.user.member_id && req.user.member_id.trim()) {
       senderName = req.user.member_id.trim();
     } else {

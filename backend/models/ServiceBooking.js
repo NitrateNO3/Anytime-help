@@ -20,4 +20,6 @@ serviceBookingSchema.index({ resident: 1 });
 serviceBookingSchema.index({ status: 1 });
 serviceBookingSchema.index({ assigned_staff: 1 });
 
+serviceBookingSchema.plugin(require('./plugins/areaScope'));
+
 module.exports = mongoose.model('ServiceBooking', serviceBookingSchema);
