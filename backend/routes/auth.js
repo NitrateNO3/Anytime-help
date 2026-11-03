@@ -73,8 +73,12 @@ router.post('/register', async (req, res) => {
     // From here on (address checks, save, live events) work inside that area
     if (area) setCurrentArea(area._id);
 
-    // Handle address logic for Residents
-    if (role === 'Resident' && address) {
+    // Handle address logic for Residents.
+    // Village addresses may have no house number; those can't identify one
+    // home, so they are never treated as duplicates. (Old app builds don't
+    // send house_no at all and keep the check.)
+    const hasHouseNo = house_no === undefined || String(house_no).trim() !== '';
+    if (role === 'Resident' && address && hasHouseNo) {
       // Normalize address to keep only alphanumeric characters for comparison
       const normalizeAddress = (str) => (str || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
       const normalizedInputAddress = normalizeAddress(address);
@@ -243,7 +247,7 @@ router.post('/firebase-login', async (req, res) => {
 // @desc    Generate and send OTP via Fast2SMS
 // @access  Public
 router.post('/send-otp', async (req, res) => {
-  let { phone_number, role, type, address, relation } = req.body;
+  let { phone_number, role, type, address, relation, house_no } = req.body;
   
   try {
     if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
@@ -273,7 +277,9 @@ router.post('/send-otp', async (req, res) => {
       }
 
       // Check address duplication if provided during registration
-      if ((role === 'Resident' || !role) && address) {
+      // Same rule as /register: no house number (villages) -> no duplicate check
+      const hasHouseNo = house_no === undefined || String(house_no).trim() !== '';
+      if ((role === 'Resident' || !role) && address && hasHouseNo) {
         const normalizeAddress = (str) => (str || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         const normalizedInputAddress = normalizeAddress(address);
         const allResidents = await User.find({ role: 'Resident', address: { $exists: true, $ne: null } });

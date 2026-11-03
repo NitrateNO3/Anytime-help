@@ -40,7 +40,8 @@ export default function RegisterScreen() {
   const { t, i18n } = useTranslation();
   
   const [step, setStep] = useState(0);
-  const maxStep = 4; 
+  // About you -> Select your area -> Your address -> Verify & submit
+  const maxStep = 3;
   const isCompleteRef = useRef(false);
 
   // Form State
@@ -52,12 +53,9 @@ export default function RegisterScreen() {
   const [phase, setPhase] = useState('');
   const [block, setBlock] = useState('');
   const [houseNo, setHouseNo] = useState('');
+  const [landmark, setLandmark] = useState('');
+  const [areaSearch, setAreaSearch] = useState('');
   
-  const [addFamily, setAddFamily] = useState(false);
-  const [familyRelation, setFamilyRelation] = useState('');
-  const [customRelation, setCustomRelation] = useState('');
-  const [familyName, setFamilyName] = useState('');
-  const [familyPhone, setFamilyPhone] = useState('');
 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -67,6 +65,7 @@ export default function RegisterScreen() {
 
   // OTP Verification State
   const [verificationCode, setVerificationCode] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
   const [timer, setTimer] = useState(0);
 
   // Constants
@@ -105,15 +104,41 @@ export default function RegisterScreen() {
   const selectedArea = areas.find((a) => a._id === areaId);
   // If areas couldn't be loaded, keep the original built-in phases
   const phaseOptions = areas.length === 0 ? FALLBACK_PHASES : (selectedArea?.phases || []);
-  const phasesList = phaseOptions.map((p) => p.name);
 
   const getBlockOptions = () => phaseOptions.find((p) => p.name === phase)?.blocks || [];
 
-  const selectArea = (id: string) => {
-    if (id === areaId) return;
-    setAreaId(id);
-    setPhase('');
-    setBlock('');
+  // Every phase / sector / village of every area, as one list to pick from.
+  // A phase with blocks is a residential sector; one without blocks is a
+  // village (address = optional house no. + landmark). Picking one also
+  // picks its area, so many villages can share one area and one admin.
+  type LocationOption = { key: string; areaId: string; areaName: string; city: string; phase: string; blocks: string[] };
+  const locations: LocationOption[] = areas.length === 0
+    ? FALLBACK_PHASES.map((p) => ({ key: p.name, areaId: '', areaName: '', city: '', phase: p.name, blocks: p.blocks }))
+    : areas.flatMap((a) => (a.phases || []).map((p) => ({
+        key: `${a._id}:${p.name}`, areaId: a._id, areaName: a.name, city: a.city || '', phase: p.name, blocks: p.blocks || [],
+      })));
+  const isVillage = (l: { blocks: string[] }) => l.blocks.length === 0;
+  const locationType = (l: LocationOption) => (isVillage(l) ? 'Village' : 'Residential sector');
+  const locationSubtitle = (l: LocationOption) =>
+    [locationType(l), isVillage(l) ? (l.city || l.areaName) : (l.areaName || l.city)].filter(Boolean).join(' · ');
+  const selectedLocation = locations.find((l) => l.phase === phase && (areas.length === 0 || l.areaId === areaId));
+  const filteredLocations = locations.filter((l) =>
+    !areaSearch.trim() || `${l.phase} ${l.areaName} ${l.city}`.toLowerCase().includes(areaSearch.trim().toLowerCase()));
+
+  const selectLocation = (l: LocationOption) => {
+    if (l.areaId !== areaId) setAreaId(l.areaId);
+    if (l.phase !== phase) { setPhase(l.phase); setBlock(''); }
+  };
+
+  // Address saved on the user, e.g. "House/Flat: 218, Near Shiv Mandir, Ghata, (Owned)"
+  const buildAddress = () => {
+    const parts: string[] = [];
+    if (houseNo.trim()) parts.push(`House/Flat: ${houseNo.trim()}`);
+    if (landmark.trim()) parts.push(landmark.trim());
+    if (phase) parts.push(phase);
+    if (block) parts.push(`Block ${block}`);
+    if (propertyType) parts.push(`(${propertyType})`);
+    return parts.join(', ');
   };
 
   // Animations
@@ -135,6 +160,7 @@ export default function RegisterScreen() {
           if (parsed.phase) setPhase(parsed.phase);
           if (parsed.block) setBlock(parsed.block);
           if (parsed.houseNo) setHouseNo(parsed.houseNo);
+          if (parsed.landmark) setLandmark(parsed.landmark);
           if (parsed.areaId) setAreaId(parsed.areaId);
         }
       } catch (e) {}
@@ -144,11 +170,11 @@ export default function RegisterScreen() {
 
   useEffect(() => {
     const saveDraft = async () => {
-      const draft = { name, phoneNumber, gender, propertyType, phase, block, houseNo, areaId };
+      const draft = { name, phoneNumber, gender, propertyType, phase, block, houseNo, landmark, areaId };
       await AsyncStorage.setItem('register_draft', JSON.stringify(draft));
     };
     saveDraft();
-  }, [name, phoneNumber, gender, propertyType, phase, block, houseNo, areaId]);
+  }, [name, phoneNumber, gender, propertyType, phase, block, houseNo, landmark, areaId]);
 
   useEffect(() => {
     Animated.timing(progressAnim, {
@@ -161,7 +187,7 @@ export default function RegisterScreen() {
   // Step 4 OTP Countdown Timer
   useEffect(() => {
     let interval: any = null;
-    if (step === 4 && timer > 0) {
+    if (step === 3 && otpSent && timer > 0) {
       interval = setInterval(() => setTimer((prev) => prev - 1), 1000);
     } else if (interval) {
       clearInterval(interval);
@@ -169,7 +195,7 @@ export default function RegisterScreen() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [step, timer]);
+  }, [step, otpSent, timer]);
 
   useEffect(() => {
     const backAction = () => {
@@ -221,25 +247,17 @@ export default function RegisterScreen() {
 
     setLoading(true);
     try {
-      let addressParts = [];
-      if (houseNo) addressParts.push(`House/Flat: ${houseNo}`);
-      if (phase) addressParts.push(phase);
-      if (block) addressParts.push(`Block ${block}`);
-      if (propertyType) addressParts.push(`(${propertyType})`);
-      const combinedAddress = addressParts.join(', ');
-
       const res = await axios.post(`${API_URL}/auth/send-otp`, {
         phone_number: phoneNumber,
         type: 'register',
         role: 'Resident',
-        address: combinedAddress,
+        address: buildAddress(),
+        house_no: houseNo.trim(),
         relation: isDuplicateAddress ? relation : propertyType
       });
 
       setTimer(60);
-      if (!isResend) {
-        goToStep(4);
-      }
+      setOtpSent(true);
       Toast.show({
         type: 'success',
         text1: 'OTP Sent',
@@ -263,40 +281,39 @@ export default function RegisterScreen() {
 
   const handleNext = () => {
     if (step === 0) {
-      if (!name || !phoneNumber || phoneNumber.length < 10 || !gender) {
-        Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter all personal details' });
+      if (!name.trim() || !phoneNumber || phoneNumber.length < 10 || !gender || !propertyType) {
+        Toast.show({ type: 'error', text1: 'Validation Error', text2: 'Please enter all your details' });
         return;
       }
     } else if (step === 1) {
-      if (areas.length > 0 && !areaId) {
-        Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please select your area / society' });
-        return;
-      }
-      const needsBlock = getBlockOptions().length > 0;
-      if (!propertyType || !phase || (needsBlock && !block) || !houseNo) {
-        Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please complete all property details' });
+      if (!selectedLocation) {
+        Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please select your area' });
         return;
       }
     } else if (step === 2) {
-      if (addFamily) {
-        if (!familyRelation || !familyName || !familyPhone || familyPhone.length < 10 || (familyRelation === 'Other' && !customRelation)) {
-          Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please fill in family details correctly' });
-          return;
-        }
-        if (familyPhone.replace(/^\+91/, '').trim() === phoneNumber.replace(/^\+91/, '').trim()) {
-          Toast.show({ type: 'error', text1: 'Invalid Phone Number', text2: 'Family member phone cannot be the same as your phone number' });
-          return;
-        }
+      // Sectors need block + house no.; village address fields are optional
+      if (getBlockOptions().length > 0 && (!block || !houseNo.trim())) {
+        Toast.show({ type: 'error', text1: 'Missing Details', text2: 'Please select your block and enter your house no.' });
+        return;
       }
     } else if (step === 3) {
-      handleSendRegisterOTP();
+      if (otpSent) handleRegister();
+      else handleSendRegisterOTP();
       return;
     }
-    
+
     if (step < maxStep) goToStep(step + 1);
   };
 
+  // Leaving the verify step (back / change details) needs a fresh OTP
+  const resetOtp = () => {
+    setOtpSent(false);
+    setVerificationCode('');
+    setTimer(0);
+  };
+
   const handleBack = () => {
+    if (step === 3) resetOtp();
     if (step > 0) goToStep(step - 1);
   };
 
@@ -309,34 +326,19 @@ export default function RegisterScreen() {
     setLoading(true);
     try {
       const formattedPhone = phoneNumber.startsWith('+') ? phoneNumber : `+91${phoneNumber}`;
-      let addressParts = [];
-      if (houseNo) addressParts.push(`House/Flat: ${houseNo}`);
-      if (phase) addressParts.push(phase);
-      if (block) addressParts.push(`Block ${block}`);
-      if (propertyType) addressParts.push(`(${propertyType})`);
-      const combinedAddress = addressParts.join(', ');
-
-      const family_members = [];
-      if (addFamily && familyRelation && familyName && familyPhone) {
-        family_members.push({
-          relation: familyRelation === 'Other' ? customRelation : familyRelation,
-          name: familyName,
-          phone_number: familyPhone.startsWith('+') ? familyPhone : `+91${familyPhone}`
-        });
-      }
 
       const payload: any = { 
         name, 
         phone_number: formattedPhone, 
         otp: verificationCode.trim(),
         role: 'Resident',
-        address: combinedAddress,
+        address: buildAddress(),
         property_type: propertyType,
         relation: isDuplicateAddress ? relation : propertyType,
         phase,
         block,
-        house_no: houseNo,
-        family_members,
+        house_no: houseNo.trim(),
+        family_members: [], // added later from Settings
         gender,
         terms_accepted: agreedToTerms,
         terms_version: REGISTER_TERMS_VERSION,
@@ -367,7 +369,7 @@ export default function RegisterScreen() {
       const errorCode = err.response?.data?.error_code;
       if (errorCode === 'DUPLICATE_ADDRESS') {
         setIsDuplicateAddress(true);
-        goToStep(3);
+        resetOtp();
         Toast.show({ type: 'info', text1: 'Address Taken', text2: 'Someone is already registered here. Please specify your relation.' });
       } else {
         Toast.show({ 
@@ -388,315 +390,337 @@ export default function RegisterScreen() {
   };
 
   // Renders
-  const renderStep0 = () => (
+  const renderAboutYou = () => (
     <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Create Account</Text>
-      <Text style={styles.stepSubtitle}>Enter your personal details to get started.</Text>
-      
-      <FocusableInput 
+      <Text style={styles.stepTitle}>About you</Text>
+      <Text style={styles.stepSubtitle}>Tell us who you are. This helps your RWA verify you.</Text>
+
+      <FocusableInput
         label={t('register.fullName')}
         icon="person-outline"
-        placeholder="e.g. John Doe"
+        placeholder="e.g. Aarav Mehta"
         value={name}
         onChangeText={setName}
         autoCapitalize="words"
       />
 
       <Text style={styles.label}>{t('register.genderLabel')}</Text>
-      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
-        {['Male', 'Female'].map((gen) => (
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+        {['Male', 'Female', 'Other'].map((gen) => (
           <TouchableOpacity
             key={gen}
             activeOpacity={0.7}
-            style={[styles.smallChip, { flex: 1, alignItems: 'center' }, gender === gen && styles.smallChipActive]}
+            style={[styles.smallChip, { flex: 1, alignItems: 'center', marginRight: 0, paddingHorizontal: 8 }, gender === gen && styles.smallChipActive]}
             onPress={() => setGender(gen)}
           >
             <Text style={[styles.smallChipText, gender === gen && styles.smallChipTextActive]}>
-              {t('register.' + gen.toLowerCase()) || gen}
+              {t('register.' + gen.toLowerCase(), gen)}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <FocusableInput 
+      <FocusableInput
         label={t('register.phonePlaceholder').replace(' (+91)', '')}
         icon="call-outline"
         prefix="+91"
-        placeholder="9876543210"
+        placeholder="10-digit mobile number"
         keyboardType="phone-pad"
         maxLength={10}
         value={phoneNumber}
-        onChangeText={setPhoneNumber}
+        onChangeText={(v: string) => setPhoneNumber(v.replace(/[^0-9]/g, ''))}
       />
-    </View>
-  );
 
-  const renderStep1 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Property Details</Text>
-      <Text style={styles.stepSubtitle}>Where is your property located?</Text>
-      
-      <Text style={styles.label}>Property Status</Text>
+      <Text style={styles.label}>Your home is</Text>
       <View style={styles.chipsContainer}>
         {propertyTypes.map((type) => (
-          <TouchableOpacity 
+          <TouchableOpacity
             key={type}
             activeOpacity={0.8}
             style={[styles.chip, propertyType === type && styles.chipActive]}
             onPress={() => setPropertyType(type)}
           >
+            {propertyType === type && (
+              <Ionicons name="checkmark-circle" size={20} color="#2563EB" style={styles.chipCheck} />
+            )}
             <Ionicons name={type === 'Owned' ? 'home-outline' : 'key-outline'} size={24} color={propertyType === type ? '#2563EB' : '#64748B'} />
-            <Text style={[styles.chipText, propertyType === type && styles.chipTextActive]}>{t('register.' + type.toLowerCase()) || type}</Text>
+            <Text style={[styles.chipText, propertyType === type && styles.chipTextActive]}>{t('register.' + type.toLowerCase(), type)}</Text>
           </TouchableOpacity>
         ))}
       </View>
+    </View>
+  );
 
-      {areas.length > 1 && (
-        <>
-          <Text style={styles.label}>{t('register.selectArea', 'Select Your Area / Society')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 24}}>
-            {areas.map((a) => (
+  const renderSelectArea = () => (
+    <View style={styles.stepContainer}>
+      <Text style={styles.stepTitle}>Select your area</Text>
+      <Text style={styles.stepSubtitle}>Search or scroll to find where you live.</Text>
+
+      <View style={[styles.inputBox, styles.searchBox]}>
+        <Ionicons name="search" size={20} color="#2563EB" style={styles.inputIcon} />
+        <TextInput
+          style={styles.input}
+          placeholder="Search area name"
+          placeholderTextColor="#94A3B8"
+          value={areaSearch}
+          onChangeText={setAreaSearch}
+          autoCorrect={false}
+        />
+        {areaSearch.length > 0 && (
+          <TouchableOpacity onPress={() => setAreaSearch('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="close" size={20} color="#64748B" />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.listHeader}>
+        <Text style={styles.listHeaderText}>AREAS ON ANYTIME HELP</Text>
+        <Text style={styles.listHeaderCount}>
+          {filteredLocations.length} {filteredLocations.length === 1 ? 'area' : 'areas'}
+        </Text>
+      </View>
+
+      {filteredLocations.length === 0 ? (
+        <View style={styles.emptyList}>
+          <Ionicons name="location-outline" size={28} color="#94A3B8" />
+          <Text style={styles.emptyListText}>No area found for "{areaSearch.trim()}"</Text>
+        </View>
+      ) : (
+        <View style={styles.locationList}>
+          {filteredLocations.map((l, i) => {
+            const active = selectedLocation?.key === l.key;
+            return (
               <TouchableOpacity
-                key={a._id}
+                key={l.key}
                 activeOpacity={0.7}
-                style={[styles.smallChip, areaId === a._id && styles.smallChipActive]}
-                onPress={() => selectArea(a._id)}
+                onPress={() => selectLocation(l)}
+                style={[styles.locationRow, i === filteredLocations.length - 1 && { borderBottomWidth: 0 }, active && styles.locationRowActive]}
               >
-                <Text style={[styles.smallChipText, areaId === a._id && styles.smallChipTextActive]}>
-                  {a.city ? `${a.name}, ${a.city}` : a.name}
-                </Text>
+                <View style={[styles.locationAvatar, active && styles.locationAvatarActive]}>
+                  <Text style={[styles.locationAvatarText, active && { color: '#FFFFFF' }]}>{l.phase.charAt(0).toUpperCase()}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.locationName}>{l.phase}</Text>
+                  <Text style={styles.locationSub}>{locationSubtitle(l)}</Text>
+                </View>
+                <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={24} color={active ? '#2563EB' : '#CBD5E1'} />
               </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </>
+            );
+          })}
+        </View>
       )}
 
-      {(areas.length === 0 || areaId) ? (
-      <>
-      <Text style={styles.label}>{t('register.selectPhase')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 24}}>
-        {phasesList.map((p) => (
-          <TouchableOpacity 
-            key={p}
-            activeOpacity={0.7}
-            style={[styles.smallChip, phase === p && styles.smallChipActive]}
-            onPress={() => { setPhase(p); setBlock(''); }}
-          >
-            <Text style={[styles.smallChipText, phase === p && styles.smallChipTextActive]}>{p}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      {phase && getBlockOptions().length > 0 ? (
-        <>
-          <Text style={styles.label}>{t('register.selectBlock')}</Text>
-          <View style={styles.gridContainer}>
-            {getBlockOptions().map((b) => (
-              <TouchableOpacity 
-                key={b}
-                activeOpacity={0.7}
-                style={[styles.gridItem, block === b && styles.gridItemActive]}
-                onPress={() => setBlock(b)}
-              >
-                <Text style={[styles.gridItemText, block === b && styles.gridItemTextActive]}>{b}</Text>
-              </TouchableOpacity>
-            ))}
+      {selectedLocation && (
+        <View style={styles.selectedBanner}>
+          <Ionicons name="checkmark-circle" size={26} color="#2563EB" />
+          <View style={{ marginLeft: 10, flex: 1 }}>
+            <Text style={styles.selectedBannerTitle}>{selectedLocation.phase} selected</Text>
+            <Text style={styles.selectedBannerSub}>
+              {isVillage(selectedLocation) ? 'Next: house no. and landmark (optional)' : 'Next: block and house no.'}
+            </Text>
           </View>
-        </>
-      ) : null}
-      </>
-      ) : null}
+        </View>
+      )}
+    </View>
+  );
 
-      <View style={{marginTop: 8}}>
-        <FocusableInput 
-          label={t('register.houseNo')}
+  const renderAddress = () => {
+    const blocks = getBlockOptions();
+    const village = blocks.length === 0;
+    return (
+      <View style={styles.stepContainer}>
+        <Text style={styles.stepTitle}>Your address</Text>
+        <Text style={styles.stepSubtitle}>Addresses in {phase} are recorded like this.</Text>
+
+        <View style={styles.areaCard}>
+          <View style={styles.areaCardIcon}>
+            <Ionicons name={village ? 'home-outline' : 'business-outline'} size={20} color="#FFFFFF" />
+          </View>
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.areaCardTitle}>{phase}</Text>
+            <Text style={styles.areaCardSub}>{village ? 'Village address · all fields optional' : 'Residential sector · block and house no.'}</Text>
+          </View>
+          <TouchableOpacity style={styles.changeBtn} onPress={() => goToStep(1)}>
+            <Text style={styles.changeBtnText}>Change</Text>
+          </TouchableOpacity>
+        </View>
+
+        {!village && (
+          <>
+            <Text style={styles.label}>{t('register.selectBlock')}</Text>
+            <View style={styles.gridContainer}>
+              {blocks.map((b) => (
+                <TouchableOpacity
+                  key={b}
+                  activeOpacity={0.7}
+                  style={[styles.gridItem, block === b && styles.gridItemActive]}
+                  onPress={() => setBlock(b)}
+                >
+                  <Text style={[styles.gridItemText, block === b && styles.gridItemTextActive]}>{b}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </>
+        )}
+
+        <FocusableInput
+          label={village ? 'House no. (optional)' : t('register.houseNo')}
           icon="business-outline"
-          placeholder="e.g. 102A, 45-B"
+          placeholder={village ? 'e.g. 218' : 'e.g. 102A, 45-B'}
           value={houseNo}
           onChangeText={setHouseNo}
           autoCapitalize="characters"
         />
-      </View>
-    </View>
-  );
 
-  const renderStep2 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>Family Members</Text>
-      <Text style={styles.stepSubtitle}>Add a family member to your account (Optional).</Text>
-      
-      <View style={styles.chipsContainer}>
-        <TouchableOpacity activeOpacity={0.8} style={[styles.chip, {flexDirection: 'row', gap: 8}, !addFamily && styles.chipActive]} onPress={() => setAddFamily(false)}>
-          <Ionicons name="close-circle-outline" size={20} color={!addFamily ? '#2563EB' : '#64748B'} />
-          <Text style={[styles.chipText, {marginTop: 0}, !addFamily && styles.chipTextActive]}>{t('register.no')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity activeOpacity={0.8} style={[styles.chip, {flexDirection: 'row', gap: 8}, addFamily && styles.chipActive]} onPress={() => setAddFamily(true)}>
-          <Ionicons name="add-circle-outline" size={20} color={addFamily ? '#2563EB' : '#64748B'} />
-          <Text style={[styles.chipText, {marginTop: 0}, addFamily && styles.chipTextActive]}>{t('register.yes')}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {addFamily && (
-        <View style={{marginTop: 16}}>
-          <Text style={styles.label}>Relation</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{flexGrow: 0, marginBottom: 24}}>
-            {['Mother', 'Father', 'Brother', 'Sister', 'Other'].map((rel) => (
-              <TouchableOpacity 
-                key={rel}
-                activeOpacity={0.7}
-                style={[styles.smallChip, familyRelation === rel && styles.smallChipActive]}
-                onPress={() => setFamilyRelation(rel)}
-              >
-                <Text style={[styles.smallChipText, familyRelation === rel && styles.smallChipTextActive]}>{t('register.' + rel.toLowerCase()) || rel}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {familyRelation === 'Other' && (
-            <FocusableInput label={t('register.customRelation')} icon="people-outline" placeholder={t('register.customRelation')} value={customRelation} onChangeText={setCustomRelation} />
-          )}
-
-          <FocusableInput label={t('register.theirName')} icon="person-outline" placeholder={t('register.theirName')} value={familyName} onChangeText={setFamilyName} />
-          
-          <FocusableInput label={t('register.phonePlaceholder').replace(' (+91)', '')} icon="call-outline" prefix="+91" placeholder="9876543210" keyboardType="phone-pad" maxLength={10} value={familyPhone} onChangeText={setFamilyPhone} />
-        </View>
-      )}
-    </View>
-  );
-
-  const renderStep3 = () => (
-    <View style={styles.stepContainer}>
-      {isDuplicateAddress ? (
-        <View style={styles.warningBox}>
-          <Ionicons name="alert-circle" size={24} color="#DC2626" />
-          <View style={{marginLeft: 12, flex: 1}}>
-            <Text style={styles.warningTitle}>Address Already Exists</Text>
-            <Text style={{fontSize: 14, color: '#991B1B', marginTop: 4, lineHeight: 20}}>Someone else is registered here. Please specify your relation (e.g. Tenant, Son).</Text>
-          </View>
-        </View>
-      ) : (
-        <>
-          <Text style={styles.stepTitle}>Review Details</Text>
-          <Text style={styles.stepSubtitle}>Ensure your information is correct before finishing.</Text>
-        </>
-      )}
-
-      {isDuplicateAddress && (
-        <View style={{marginBottom: 20}}>
-          <FocusableInput label="Your Relation" icon="people-outline" placeholder="e.g. Family Member, Tenant" value={relation} onChangeText={setRelation} />
-        </View>
-      )}
-      
-      <View style={styles.summaryCard}>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>{t('register.nameLabel')}</Text>
-          <Text style={styles.summaryValue}>{name}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>{t('register.phoneLabel')}</Text>
-          <Text style={styles.summaryValue}>+91 {phoneNumber}</Text>
-        </View>
-        <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>{t('register.addressLabel')}</Text>
-          <Text style={styles.summaryValue}>{houseNo}, Block {block}, {phase} ({t('register.' + propertyType.toLowerCase()) || propertyType})</Text>
-        </View>
-        {addFamily && (
-          <View style={[styles.summaryRow, { marginBottom: 0 }]}>
-            <Text style={styles.summaryLabel}>{t('register.familyLabel')}</Text>
-            <Text style={styles.summaryValue}>{familyName} ({t('register.' + familyRelation.toLowerCase()) || familyRelation})</Text>
-          </View>
+        {village && (
+          <FocusableInput
+            label="Nearby landmark (optional)"
+            icon="navigate-outline"
+            placeholder="e.g. Near Shiv Mandir"
+            value={landmark}
+            onChangeText={setLandmark}
+          />
         )}
-      </View>
 
-      <TouchableOpacity 
-        style={[styles.termsBox, agreedToTerms && {borderColor: '#2563EB', backgroundColor: '#EFF6FF'}]}
-        // Ticking requires reading the terms first; un-ticking is always allowed
-        onPress={() => (agreedToTerms ? setAgreedToTerms(false) : setShowTerms(true))}
-        activeOpacity={0.7}
-      >
-        <Ionicons name={agreedToTerms ? "checkbox" : "square-outline"} size={24} color={agreedToTerms ? "#2563EB" : "#94A3B8"} />
-        <Text style={[styles.termsText, agreedToTerms && {color: '#1E3A8A'}]}>
-          I have read the{' '}
-          <Text style={styles.termsLink} onPress={() => setShowTerms(true)}>Terms of Use and Privacy Consent</Text>
-          . I agree to Anytime Help using my contact details, address, and complaint information to map and send my complaint to the relevant RWA chairman or authorised representatives, and to contact me about its resolution.
-        </Text>
-      </TouchableOpacity>
-
-      <RegisterTermsModal
-        visible={showTerms}
-        areaName={areas.find((a) => a._id === areaId)?.name}
-        onClose={() => setShowTerms(false)}
-        onAgree={() => {
-          setAgreedToTerms(true);
-          setShowTerms(false);
-        }}
-      />
-    </View>
-  );
-
-  const renderStep4 = () => (
-    <View style={styles.stepContainer}>
-      <Text style={styles.stepTitle}>{t('register.verifyMobile') || 'Verify Mobile Number'}</Text>
-      <Text style={styles.stepSubtitle}>
-        {(t('register.otpSentSubtitle') || 'Enter the 6-digit OTP sent to {{phone}}.').replace('{{phone}}', `+91 ${phoneNumber}`)}
-      </Text>
-
-      <View style={styles.phoneBadgeContainer}>
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          <Ionicons name="call" size={16} color="#2563EB" style={{ marginRight: 8 }} />
-          <Text style={styles.phoneBadgeText}>+91 {phoneNumber}</Text>
-        </View>
-        <TouchableOpacity 
-          onPress={() => goToStep(0)} 
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        >
-          <Text style={styles.editPhoneText}>{t('register.changePhone') || 'Change'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <FocusableInput 
-        label={t('register.enterOtp') || 'Enter 6-digit OTP'}
-        icon="keypad-outline"
-        placeholder="123456"
-        keyboardType="number-pad"
-        maxLength={6}
-        value={verificationCode}
-        onChangeText={setVerificationCode}
-        autoFocus={true}
-      />
-
-      <View style={styles.resendRow}>
-        {timer > 0 ? (
-          <Text style={styles.timerText}>
-            {(t('register.resendOtpIn') || 'Resend OTP in {{timer}}s').replace('{{timer}}', timer.toString())}
+        <View style={styles.infoNote}>
+          <Ionicons name="information-circle-outline" size={18} color="#64748B" />
+          <Text style={styles.infoNoteText}>
+            These fields are set for {phase} by the Anytime Help admin, so your address matches how your RWA records it.
           </Text>
-        ) : (
-          <TouchableOpacity onPress={() => handleSendRegisterOTP(true)} disabled={loading}>
-            <Text style={styles.resendLink}>{t('register.resendOtp') || 'Resend OTP'}</Text>
-          </TouchableOpacity>
-        )}
+        </View>
       </View>
-    </View>
-  );
+    );
+  };
+
+  const renderVerify = () => {
+    const addressText = [
+      houseNo.trim() && (block ? houseNo.trim() : `House ${houseNo.trim()}`),
+      landmark.trim(),
+      block && `Block ${block}`,
+      phase,
+    ].filter(Boolean).join(', ');
+    const rows: [string, string][] = [
+      [t('register.nameLabel', 'Name'), name.trim()],
+      [t('register.phoneLabel', 'Mobile'), `+91 ${phoneNumber}`],
+      ['Gender', t('register.' + gender.toLowerCase(), gender)],
+      ['Home', t('register.' + propertyType.toLowerCase(), propertyType)],
+      ['Area', phase],
+      [t('register.addressLabel', 'Address'), addressText || '—'],
+    ];
+    return (
+      <View style={styles.stepContainer}>
+        <Text style={styles.stepTitle}>Verify & submit</Text>
+        <Text style={styles.stepSubtitle}>Check your details and enter the OTP.</Text>
+
+        {isDuplicateAddress && (
+          <>
+            <View style={styles.warningBox}>
+              <Ionicons name="alert-circle" size={24} color="#DC2626" />
+              <View style={{ marginLeft: 12, flex: 1 }}>
+                <Text style={styles.warningTitle}>Address Already Exists</Text>
+                <Text style={{ fontSize: 14, color: '#991B1B', marginTop: 4, lineHeight: 20 }}>Someone else is registered here. Please specify your relation (e.g. Tenant, Son).</Text>
+              </View>
+            </View>
+            <FocusableInput label="Your Relation" icon="people-outline" placeholder="e.g. Family Member, Tenant" value={relation} onChangeText={setRelation} />
+          </>
+        )}
+
+        <View style={styles.summaryCard}>
+          {rows.map(([label, value], i) => (
+            <View key={label} style={[styles.summaryRow, i === rows.length - 1 && { marginBottom: 0, borderBottomWidth: 0, paddingBottom: 0 }]}>
+              <Text style={styles.summaryLabel}>{label}</Text>
+              <Text style={styles.summaryValue}>{value}</Text>
+            </View>
+          ))}
+        </View>
+
+        {!otpSent ? (
+          <TouchableOpacity
+            style={[styles.termsBox, agreedToTerms && { borderColor: '#2563EB', backgroundColor: '#EFF6FF' }]}
+            // Ticking requires reading the terms first; un-ticking is always allowed
+            onPress={() => (agreedToTerms ? setAgreedToTerms(false) : setShowTerms(true))}
+            activeOpacity={0.7}
+          >
+            <Ionicons name={agreedToTerms ? 'checkbox' : 'square-outline'} size={24} color={agreedToTerms ? '#2563EB' : '#94A3B8'} />
+            <Text style={[styles.termsText, agreedToTerms && { color: '#1E3A8A' }]}>
+              I have read the{' '}
+              <Text style={styles.termsLink} onPress={() => setShowTerms(true)}>Terms of Use and Privacy Consent</Text>
+              . I agree to Anytime Help using my contact details, address, and complaint information to map and send my complaint to the relevant RWA chairman or authorised representatives, and to contact me about its resolution.
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <>
+            <Text style={styles.label}>
+              Enter the 6-digit OTP sent to +91 {phoneNumber.slice(0, 2)}XXXXX{phoneNumber.slice(-3)}
+            </Text>
+            <View style={[styles.inputBox, styles.otpBox]}>
+              <TextInput
+                style={[styles.input, styles.otpInput]}
+                placeholder="• • • • • •"
+                placeholderTextColor="#94A3B8"
+                keyboardType="number-pad"
+                maxLength={6}
+                value={verificationCode}
+                onChangeText={(v) => setVerificationCode(v.replace(/[^0-9]/g, ''))}
+                autoFocus
+              />
+            </View>
+            <View style={styles.resendRow}>
+              <Text style={styles.timerText}>Didn’t get it?</Text>
+              {timer > 0 ? (
+                <Text style={styles.timerText}>
+                  {(t('register.resendOtpIn') || 'Resend OTP in {{timer}}s').replace('{{timer}}', timer.toString())}
+                </Text>
+              ) : (
+                <TouchableOpacity onPress={() => handleSendRegisterOTP(true)} disabled={loading}>
+                  <Text style={styles.resendLink}>{t('register.resendOtp') || 'Resend OTP'}</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </>
+        )}
+
+        <RegisterTermsModal
+          visible={showTerms}
+          areaName={phase || selectedArea?.name}
+          onClose={() => setShowTerms(false)}
+          onAgree={() => {
+            setAgreedToTerms(true);
+            setShowTerms(false);
+          }}
+        />
+      </View>
+    );
+  };
 
   const getStepContent = () => {
     switch (step) {
-      case 0: return renderStep0();
-      case 1: return renderStep1();
-      case 2: return renderStep2();
-      case 3: return renderStep3();
-      case 4: return renderStep4();
-      default: return renderStep0();
+      case 0: return renderAboutYou();
+      case 1: return renderSelectArea();
+      case 2: return renderAddress();
+      case 3: return renderVerify();
+      default: return renderAboutYou();
     }
   };
 
   const isNextDisabled = () => {
-    if (step === 0) return !name || phoneNumber.length < 10 || !gender;
-    if (step === 1) return !propertyType || !phase || !block || !houseNo;
-    if (step === 2) return addFamily && (!familyRelation || !familyName || familyPhone.length < 10);
-    if (step === 3) return !agreedToTerms || (isDuplicateAddress && !relation);
-    if (step === 4) return verificationCode.length !== 6;
+    if (step === 0) return !name.trim() || phoneNumber.length < 10 || !gender || !propertyType;
+    if (step === 1) return !selectedLocation;
+    if (step === 2) return getBlockOptions().length > 0 && (!block || !houseNo.trim());
+    if (step === 3) {
+      if (!otpSent) return !agreedToTerms || (isDuplicateAddress && !relation.trim());
+      return verificationCode.length !== 6;
+    }
     return false;
+  };
+
+  const primaryLabel = () => {
+    if (step === 1) return selectedLocation ? `Continue with ${selectedLocation.phase}` : 'Select your area';
+    if (step === 3) {
+      if (loading) return otpSent ? (t('register.creating') || 'Creating Account...') : (t('login.sendingOtp') || 'Sending OTP...');
+      return otpSent ? 'Submit for verification' : (t('register.sendOtpBtn') || 'Send OTP & Verify');
+    }
+    return t('register.continueBtn') || 'Continue';
   };
 
   return (
@@ -749,39 +773,15 @@ export default function RegisterScreen() {
 
       {/* Footer Controls */}
       <View style={styles.footer}>
-        {step === maxStep ? (
-          <TouchableOpacity 
-            activeOpacity={0.8}
-            style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]} 
-            onPress={handleRegister}
-            disabled={isNextDisabled() || loading}
-          >
-            <Text style={styles.primaryBtnText}>
-              {loading ? (t('register.creating') || 'Creating Account...') : (t('register.completeRegBtn') || 'Complete Registration')}
-            </Text>
-          </TouchableOpacity>
-        ) : step === 3 ? (
-          <TouchableOpacity 
-            activeOpacity={0.8}
-            style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]} 
-            onPress={handleNext}
-            disabled={isNextDisabled() || loading}
-          >
-            <Text style={styles.primaryBtnText}>
-              {loading ? (t('login.sendingOtp') || 'Sending OTP...') : (t('register.sendOtpBtn') || 'Send OTP & Verify')}
-            </Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity 
-            activeOpacity={0.8}
-            style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]} 
-            onPress={handleNext}
-            disabled={isNextDisabled()}
-          >
-            <Text style={styles.primaryBtnText}>{t('register.continueBtn') || 'Continue'}</Text>
-          </TouchableOpacity>
-        )}
-        
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={[styles.primaryBtn, isNextDisabled() && styles.disabledBtn]}
+          onPress={handleNext}
+          disabled={isNextDisabled() || loading}
+        >
+          <Text style={styles.primaryBtnText}>{primaryLabel()}</Text>
+        </TouchableOpacity>
+
         {step === 0 && (
           <View style={styles.loginLinkRow}>
             <Text style={styles.loginHintText}>{t('register.alreadyHave')} </Text>
@@ -843,6 +843,34 @@ const styles = StyleSheet.create({
   summaryLabel: { fontSize: 14, color: '#64748B', fontWeight: '500' },
   summaryValue: { fontSize: 14, color: '#0F172A', fontWeight: '600', maxWidth: '60%', textAlign: 'right' },
   
+  chipCheck: { position: 'absolute', top: 10, right: 10 },
+  searchBox: { borderColor: '#BFDBFE', backgroundColor: '#FFFFFF', marginBottom: 20 },
+  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  listHeaderText: { fontSize: 12, fontWeight: '700', color: '#475569', letterSpacing: 0.5 },
+  listHeaderCount: { fontSize: 12, color: '#64748B', fontWeight: '600' },
+  locationList: { borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
+  locationRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9', backgroundColor: '#FFFFFF' },
+  locationRowActive: { backgroundColor: '#EFF6FF' },
+  locationAvatar: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
+  locationAvatarActive: { backgroundColor: '#2563EB' },
+  locationAvatarText: { fontSize: 16, fontWeight: '700', color: '#1D4ED8' },
+  locationName: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
+  locationSub: { fontSize: 13, color: '#64748B', marginTop: 2 },
+  emptyList: { alignItems: 'center', paddingVertical: 32, gap: 8 },
+  emptyListText: { fontSize: 14, color: '#64748B' },
+  selectedBanner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 14, padding: 14 },
+  selectedBannerTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  selectedBannerSub: { fontSize: 12, color: '#475569', marginTop: 2 },
+  areaCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 16, padding: 14, marginBottom: 24 },
+  areaCardIcon: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#1D4ED8', alignItems: 'center', justifyContent: 'center' },
+  areaCardTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
+  areaCardSub: { fontSize: 12, color: '#475569', marginTop: 2 },
+  changeBtn: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
+  changeBtnText: { fontSize: 13, fontWeight: '700', color: '#1D4ED8' },
+  infoNote: { flexDirection: 'row', backgroundColor: '#F8FAFC', borderRadius: 12, padding: 14, gap: 8 },
+  infoNoteText: { flex: 1, fontSize: 13, color: '#475569', lineHeight: 19 },
+  otpBox: { justifyContent: 'center', marginBottom: 12 },
+  otpInput: { textAlign: 'center', fontSize: 22, letterSpacing: 10, fontWeight: '700' },
   termsBox: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1.5, borderColor: '#F1F5F9' },
   termsText: { flex: 1, fontSize: 13, color: '#475569', marginLeft: 12, lineHeight: 20 },
   termsLink: { color: '#2563EB', fontWeight: '700', textDecorationLine: 'underline' },
@@ -853,7 +881,7 @@ const styles = StyleSheet.create({
   phoneBadgeContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#EFF6FF', paddingVertical: 14, paddingHorizontal: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1.5, borderColor: '#DBEAFE' },
   phoneBadgeText: { fontSize: 15, fontWeight: '700', color: '#1E40AF' },
   editPhoneText: { fontSize: 13, fontWeight: '700', color: '#2563EB', textDecorationLine: 'underline' },
-  resendRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8, marginBottom: 20 },
+  resendRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4, marginBottom: 20 },
   timerText: { color: '#64748B', fontSize: 14, fontWeight: '500' },
   resendLink: { color: '#2563EB', fontSize: 14, fontWeight: '700' },
 

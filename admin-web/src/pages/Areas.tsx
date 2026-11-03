@@ -266,11 +266,11 @@ export default function Areas() {
 
               <div className="form-group">
                 <label className="form-label">Phases / Sectors and their blocks *</label>
-                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px' }}>Residents choose these when they register. Separate blocks with commas.</p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 10px' }}>Residents choose these when they register. Separate blocks with commas. For a village, leave Blocks empty: residents then enter an optional house no. and landmark instead.</p>
                 {form.phases.map((p, i) => (
                   <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                     <input className="form-input" style={{ flex: '1 1 160px' }} value={p.name} onChange={(e) => updatePhase(i, 'name', e.target.value)} placeholder="Phase name, e.g. Phase 1" />
-                    <input className="form-input" style={{ flex: '1 1 160px' }} value={p.blocks} onChange={(e) => updatePhase(i, 'blocks', e.target.value)} placeholder="Blocks, e.g. A, B, C" />
+                    <input className="form-input" style={{ flex: '1 1 160px' }} value={p.blocks} onChange={(e) => updatePhase(i, 'blocks', e.target.value)} placeholder="Blocks, e.g. A, B, C (empty for a village)" />
                     {form.phases.length > 1 && (
                       <button className="btn-icon" title="Remove phase" onClick={() => setForm({ ...form, phases: form.phases.filter((_, idx) => idx !== i) })}><X size={16} /></button>
                     )}
