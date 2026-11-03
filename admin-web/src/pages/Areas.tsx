@@ -22,7 +22,15 @@ type Area = {
 // One phase in the form: its blocks as a list, plus the block being typed
 type PhaseRow = { name: string; blocks: string[]; draft: string };
 const emptyPhaseRow: PhaseRow = { name: '', blocks: [], draft: '' };
-const emptyAreaForm = { name: '', city: '', type: 'sector' as AreaType, phases: [emptyPhaseRow] as PhaseRow[], adminName: '', adminEmail: '', adminPassword: '' };
+// `phases` is the list for the selected type. The other type's list is kept
+// in `savedPhases`, so switching Villages <-> Sectors never mixes the two and
+// switching back restores what was typed.
+const emptyAreaForm = {
+  name: '', city: '', type: 'sector' as AreaType,
+  phases: [emptyPhaseRow] as PhaseRow[],
+  savedPhases: {} as Partial<Record<AreaType, PhaseRow[]>>,
+  adminName: '', adminEmail: '', adminPassword: '',
+};
 
 // "A, B, B1" -> ['A', 'B', 'B1'] added to existing blocks, without duplicates (case-insensitive)
 const mergeBlocks = (existing: string[], text: string) => {
@@ -87,6 +95,15 @@ export default function Areas() {
 
   const updatePhase = (i: number, patch: Partial<PhaseRow>) => {
     setForm((f) => ({ ...f, phases: f.phases.map((p, idx) => (idx === i ? { ...p, ...patch } : p)) }));
+  };
+
+  const switchType = (type: AreaType) => {
+    setForm((f) => (f.type === type ? f : {
+      ...f,
+      type,
+      phases: f.savedPhases[type] || [emptyPhaseRow],
+      savedPhases: { ...f.savedPhases, [f.type]: f.phases },
+    }));
   };
 
   const addBlocks = (i: number) => {
@@ -321,7 +338,7 @@ export default function Areas() {
                     <button
                       key={value}
                       type="button"
-                      onClick={() => setForm({ ...form, type: value })}
+                      onClick={() => switchType(value)}
                       style={{
                         flex: '1 1 200px', textAlign: 'left', padding: '12px 14px', borderRadius: 12, cursor: 'pointer',
                         border: `1.5px solid ${form.type === value ? 'var(--primary)' : 'var(--border-color)'}`,
