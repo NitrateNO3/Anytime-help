@@ -9,6 +9,7 @@ import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getNextLanguage, getLanguageBadge } from '../utils/localization';
+import RegisterTermsModal, { REGISTER_TERMS_VERSION } from '../components/RegisterTermsModal';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -59,6 +60,7 @@ export default function RegisterScreen() {
   const [familyPhone, setFamilyPhone] = useState('');
 
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
   const [isDuplicateAddress, setIsDuplicateAddress] = useState(false);
   const [relation, setRelation] = useState('');
   const [loading, setLoading] = useState(false);
@@ -336,6 +338,8 @@ export default function RegisterScreen() {
         house_no: houseNo,
         family_members,
         gender,
+        terms_accepted: agreedToTerms,
+        terms_version: REGISTER_TERMS_VERSION,
         ...(areaId ? { area: areaId } : {})
       };
 
@@ -606,14 +610,27 @@ export default function RegisterScreen() {
 
       <TouchableOpacity 
         style={[styles.termsBox, agreedToTerms && {borderColor: '#2563EB', backgroundColor: '#EFF6FF'}]}
-        onPress={() => setAgreedToTerms(!agreedToTerms)}
+        // Ticking requires reading the terms first; un-ticking is always allowed
+        onPress={() => (agreedToTerms ? setAgreedToTerms(false) : setShowTerms(true))}
         activeOpacity={0.7}
       >
         <Ionicons name={agreedToTerms ? "checkbox" : "square-outline"} size={24} color={agreedToTerms ? "#2563EB" : "#94A3B8"} />
         <Text style={[styles.termsText, agreedToTerms && {color: '#1E3A8A'}]}>
-          I agree to the Anytime Help Community Rules and Terms & Conditions.
+          I have read the{' '}
+          <Text style={styles.termsLink} onPress={() => setShowTerms(true)}>Terms of Use and Privacy Consent</Text>
+          . I agree to Anytime Help using my contact details, address, and complaint information to map and send my complaint to the relevant RWA chairman or authorised representatives, and to contact me about its resolution.
         </Text>
       </TouchableOpacity>
+
+      <RegisterTermsModal
+        visible={showTerms}
+        areaName={areas.find((a) => a._id === areaId)?.name}
+        onClose={() => setShowTerms(false)}
+        onAgree={() => {
+          setAgreedToTerms(true);
+          setShowTerms(false);
+        }}
+      />
     </View>
   );
 
@@ -828,6 +845,7 @@ const styles = StyleSheet.create({
   
   termsBox: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1.5, borderColor: '#F1F5F9' },
   termsText: { flex: 1, fontSize: 13, color: '#475569', marginLeft: 12, lineHeight: 20 },
+  termsLink: { color: '#2563EB', fontWeight: '700', textDecorationLine: 'underline' },
 
   warningBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', padding: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1.5, borderColor: '#FEE2E2' },
   warningTitle: { fontSize: 15, fontWeight: '700', color: '#991B1B' },

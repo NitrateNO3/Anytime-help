@@ -16,7 +16,7 @@ const otpStore = new Map();
 // @desc    Register user (Resident or Staff)
 // @access  Public
 router.post('/register', async (req, res) => {
-  const { name, phone_number, firebase_uid, role, department, address, relation, phase, block, house_no, property_type, family_members, gender, otp, area: areaId } = req.body;
+  const { name, phone_number, firebase_uid, role, department, address, relation, phase, block, house_no, property_type, family_members, gender, otp, area: areaId, terms_accepted, terms_version } = req.body;
 
   try {
     if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
@@ -125,7 +125,9 @@ router.post('/register', async (req, res) => {
       property_type,
       family_members: family_members || [], 
       gender,
-      area: area ? area._id : undefined
+      area: area ? area._id : undefined,
+      // Consent given on the registration screen (newer app builds only)
+      ...(terms_accepted === true ? { terms_accepted_at: new Date(), terms_version: String(terms_version || '').slice(0, 32) || undefined } : {})
     });
 
     await user.save();

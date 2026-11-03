@@ -31,7 +31,9 @@ const userSchema = new mongoose.Schema({
   }],
   has_logged_in: { type: Boolean, default: false },
   last_login_at: { type: Date, required: false },
-  unread_notifications: { type: Number, default: 0 }
+  unread_notifications: { type: Number, default: 0 },
+  terms_accepted_at: { type: Date, required: false }, // When the user accepted the registration terms
+  terms_version: { type: String, required: false }
 }, { timestamps: true });
 
 userSchema.index({ role: 1, phase: 1 });
