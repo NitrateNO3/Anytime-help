@@ -182,6 +182,48 @@ router.put('/:id/admins/:userId', async (req, res) => {
 
 // @route   DELETE /api/areas/:id/admins/:userId
 // @desc    Remove an admin from an area
+// @route   DELETE /api/areas/:id
+// @desc    Delete an empty area (e.g. a test area). Refused while the area has
+//          any users, complaints or service bookings, and for the original
+//          area. Leftover setup data (categories, banners, ...) is deleted too.
+router.delete('/:id', async (req, res) => {
+  try {
+    if (!isValidId(req.params.id)) return res.status(400).json({ msg: 'Invalid area id' });
+    const area = await Area.findById(req.params.id);
+    if (!area) return res.status(404).json({ msg: 'Area not found' });
+
+    const first = await Area.findOne().sort({ createdAt: 1 }).select('_id').lean();
+    if (first && String(first._id) === String(area._id)) {
+      return res.status(400).json({ msg: 'The original area cannot be deleted' });
+    }
+
+    const model = (name) => (mongoose.modelNames().includes(name) ? mongoose.model(name) : null);
+    const blockers = [['User', 'users'], ['Complaint', 'complaints'], ['ServiceBooking', 'service bookings']];
+    for (const [name, label] of blockers) {
+      const M = model(name);
+      const n = M ? await M.countDocuments({ area: area._id }) : 0;
+      if (n) {
+        return res.status(400).json({ msg: `"${area.name}" still has ${n} ${label}. Remove them first, or hide the area instead.` });
+      }
+    }
+
+    const SETUP_MODELS = [
+      'Announcement', 'Banner', 'BottomBanner', 'Category', 'ChatGroup', 'ChatMessage',
+      'Community', 'CommunityMessage', 'CommunitySection', 'Department', 'Directory',
+      'PaidService', 'StaffBanner',
+    ];
+    for (const name of SETUP_MODELS) {
+      const M = model(name);
+      if (M) await M.deleteMany({ area: area._id });
+    }
+    await area.deleteOne();
+    res.json({ msg: `Area "${area.name}" deleted` });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 router.delete('/:id/admins/:userId', async (req, res) => {
   try {
     if (!isValidId(req.params.userId)) return res.status(400).json({ msg: 'Invalid user id' });

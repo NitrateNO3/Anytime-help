@@ -116,6 +116,18 @@ export default function Areas() {
     }
   };
 
+  const deleteArea = async (area: Area) => {
+    if (!window.confirm(`Delete "${area.name}" permanently? Only an empty area (no residents, staff, admins or complaints) can be deleted. Its categories and other setup are deleted too.`)) return;
+    try {
+      await axios.delete(`${API_URL}/areas/${area._id}`, authHeaders());
+      if (getSelectedArea() === area._id) setSelectedArea(null);
+      toast.success(`"${area.name}" deleted`);
+      fetchAreas();
+    } catch (err) {
+      toast.error(errMsg(err, 'Failed to delete area'));
+    }
+  };
+
   const openAdminModal = (area: Area, admin?: AreaAdmin) => {
     setAdminForm({ name: admin?.name || '', email: admin?.email || '', password: '' });
     setAdminModal({ area, admin });
@@ -240,6 +252,9 @@ export default function Areas() {
                 </button>
                 <button className="btn btn-secondary" onClick={() => toggleActive(area)}>
                   {area.is_active ? 'Hide' : 'Show'}
+                </button>
+                <button className="btn-icon" title="Delete area" onClick={() => deleteArea(area)} style={{ color: 'var(--danger)' }}>
+                  <Trash2 size={16} />
                 </button>
               </div>
             </div>
