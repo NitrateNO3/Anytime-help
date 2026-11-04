@@ -19,7 +19,7 @@ import axios from 'axios';
 import Toast from 'react-native-toast-message';
 import { io } from 'socket.io-client';
 import { socketAuth } from '../../utils/socketAuth';
-import ForceBlockUpdateModal from '../../components/ForceBlockUpdateModal';
+import ForceBlockUpdateModal, { useUserArea, landmarkFromAddress } from '../../components/ForceBlockUpdateModal';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -40,6 +40,8 @@ export default function MemberEditProfileScreen() {
   const [token, setToken] = useState('');
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [rawUserData, setRawUserData] = useState<any>(null);
+  // Village residents have no block: show village + landmark instead
+  const { isVillage } = useUserArea(rawUserData);
 
   useEffect(() => {
     loadUserData();
@@ -247,7 +249,7 @@ export default function MemberEditProfileScreen() {
                 activeOpacity={0.7}
               >
                 <Ionicons name="pencil" size={11} color="#2563EB" />
-                <Text style={styles.editableBadgeText}>Update Block</Text>
+                <Text style={styles.editableBadgeText}>{isVillage ? 'Update Address' : 'Update Block'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -258,12 +260,14 @@ export default function MemberEditProfileScreen() {
             >
               <View style={styles.addressRow}>
                 <View style={styles.addressCol}>
-                  <Text style={styles.addressFieldLabel}>Phase</Text>
-                  <Text style={styles.addressFieldValue}>{phase || 'Sushant Lok 2'}</Text>
+                  <Text style={styles.addressFieldLabel}>{isVillage ? 'Village' : 'Phase'}</Text>
+                  <Text style={styles.addressFieldValue}>{phase || '---'}</Text>
                 </View>
                 <View style={styles.addressCol}>
-                  <Text style={styles.addressFieldLabel}>Block</Text>
-                  <Text style={styles.addressFieldValue}>{block ? `Block ${block}` : '---'}</Text>
+                  <Text style={styles.addressFieldLabel}>{isVillage ? 'Landmark' : 'Block'}</Text>
+                  <Text style={styles.addressFieldValue}>
+                    {isVillage ? landmarkFromAddress(formattedAddress, phase) || '---' : block ? `Block ${block}` : '---'}
+                  </Text>
                 </View>
               </View>
 
@@ -294,7 +298,7 @@ export default function MemberEditProfileScreen() {
             >
               <Ionicons name="information-circle-outline" size={16} color="#2563EB" style={{ marginRight: 6 }} />
               <Text style={[styles.noticeText, { color: '#2563EB', fontWeight: '500' }]}>
-                Tap here to update your Block and Flat details anytime.
+                {isVillage ? 'Tap here to update your house no. and landmark anytime.' : 'Tap here to update your Block and Flat details anytime.'}
               </Text>
             </TouchableOpacity>
           </View>

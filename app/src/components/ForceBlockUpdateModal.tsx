@@ -28,6 +28,65 @@ export const PHASE_BLOCKS: Record<string, string[]> = {
   'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
 };
 
+export type AreaPhase = { name: string; blocks: string[] };
+type PublicArea = { _id: string; name: string; type?: 'sector' | 'village'; phases: AreaPhase[] };
+
+const FALLBACK_PHASES: AreaPhase[] = VALID_PHASES.map((name) => ({ name, blocks: PHASE_BLOCKS[name] }));
+
+let areasCache: PublicArea[] | null = null;
+
+/**
+ * The phases (sectors / villages) of the area the user registered in, and
+ * whether the user lives in a village (no blocks; optional house no. + landmark).
+ * Falls back to Sushant Lok's phases when the area can't be found.
+ */
+export function useUserArea(user: any) {
+  const [areas, setAreas] = useState<PublicArea[] | null>(areasCache);
+
+  useEffect(() => {
+    if (areasCache) return;
+    axios.get(`${API_URL}/areas/public`)
+      .then((res) => {
+        areasCache = Array.isArray(res.data) ? res.data : [];
+        setAreas(areasCache);
+      })
+      .catch(() => setAreas([]));
+  }, []);
+
+  const areaId = user?.area && typeof user.area === 'object' ? user.area._id : user?.area;
+  const userPhase = String(user?.phase || '').trim();
+  const area =
+    (areas || []).find((a) => String(a._id) === String(areaId || '')) ||
+    (userPhase ? (areas || []).find((a) => (a.phases || []).some((p) => p.name === userPhase)) : undefined);
+
+  const isVillageArea = area?.type === 'village';
+  const phases: AreaPhase[] = area
+    ? (area.phases || []).map((p) => ({ name: p.name, blocks: isVillageArea ? [] : p.blocks || [] }))
+    : FALLBACK_PHASES;
+  const current = phases.find((p) => p.name === userPhase);
+  // A village: a village-type area, or a phase without blocks. Until areas
+  // load, treat a non-Sushant Lok phase without a block as a village too.
+  const isVillage = area
+    ? isVillageArea || (!!current && current.blocks.length === 0)
+    : !!userPhase && !userPhase.toLowerCase().includes('sushant lok') && !user?.block;
+
+  return { phases, isVillage, loaded: areas !== null };
+}
+
+/** The landmark part of an address like "House/Flat: 218, Near Shiv Mandir, Ghata, (Owned)" */
+export function landmarkFromAddress(address: string, phase: string): string {
+  return String(address || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter((part) =>
+      part &&
+      !/^House\/Flat:/i.test(part) &&
+      !/^Block\s+/i.test(part) &&
+      !/^\(.*\)$/.test(part) &&
+      part !== String(phase || '').trim())
+    .join(', ');
+}
+
 /**
  * Checks whether a user account has legacy/grouped block data and requires updating to individual block.
  */
@@ -101,9 +160,11 @@ export default function ForceBlockUpdateModal({
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
 
-  const [phase, setPhase] = useState<string>('Sushant Lok 2');
+  const { phases, isVillage: userIsVillage } = useUserArea(userData);
+  const [phase, setPhase] = useState<string>('');
   const [block, setBlock] = useState<string>('');
   const [houseNo, setHouseNo] = useState<string>('');
+  const [landmark, setLandmark] = useState<string>('');
   const [propertyType, setPropertyType] = useState<string>('Owned');
   const [loading, setLoading] = useState<boolean>(false);
   const [errorText, setErrorText] = useState<string>('');
@@ -120,13 +181,16 @@ export default function ForceBlockUpdateModal({
     if (!userData) return;
     setErrorText('');
 
-    // Detect initial Phase
+    // Detect initial Phase (from the user's own area)
     const userPhase = (userData.phase || '').trim();
-    if (userPhase.includes('Sushant Lok 3') || (userData.address || '').includes('Sushant Lok 3')) {
+    if (phases.some((p) => p.name === userPhase)) {
+      setPhase(userPhase);
+    } else if (phases.some((p) => p.name === 'Sushant Lok 3') && (userData.address || '').includes('Sushant Lok 3')) {
       setPhase('Sushant Lok 3');
     } else {
-      setPhase('Sushant Lok 2');
+      setPhase(phases[0]?.name || userPhase);
     }
+    setLandmark(landmarkFromAddress(userData.address || '', userPhase));
 
     // Detect initial House No
     if (userData.house_no) {
@@ -142,7 +206,7 @@ export default function ForceBlockUpdateModal({
     }
 
     // Detect initial Block (only if single valid block)
-    const validBlocks = PHASE_BLOCKS[userPhase] || PHASE_BLOCKS['Sushant Lok 2'];
+    const validBlocks = phases.find((p) => p.name === userPhase)?.blocks || phases[0]?.blocks || [];
     if (userData.block && validBlocks.includes(userData.block)) {
       setBlock(userData.block);
     } else if (userData.address) {
@@ -164,7 +228,8 @@ export default function ForceBlockUpdateModal({
     } else {
       setPropertyType('Owned');
     }
-  }, [userData, visible]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userData, visible, phases.map((p) => p.name).join('|')]);
 
   // Handle hardware back button on Android
   useEffect(() => {
@@ -183,7 +248,7 @@ export default function ForceBlockUpdateModal({
     setPhase(selectedPhase);
     setErrorText('');
     // If current block is not in the new phase, reset block
-    const availableBlocks = PHASE_BLOCKS[selectedPhase] || [];
+    const availableBlocks = phases.find((p) => p.name === selectedPhase)?.blocks || [];
     if (!availableBlocks.includes(block)) {
       setBlock('');
     }
@@ -195,12 +260,12 @@ export default function ForceBlockUpdateModal({
       return;
     }
 
-    if (!block) {
+    if (!isVillage && !block) {
       setErrorText('Please select your exact Block.');
       return;
     }
 
-    if (!houseNo.trim()) {
+    if (!isVillage && !houseNo.trim()) {
       setErrorText('Please enter your House / Flat number.');
       return;
     }
@@ -216,11 +281,11 @@ export default function ForceBlockUpdateModal({
       }
 
       // Generate standard address format
-      const combinedAddress = `House/Flat: ${houseNo.trim()}, ${phase}, Block ${block}, (${propertyType})`;
+      const combinedAddress = buildAddress();
 
       const payload = {
         phase,
-        block,
+        block: isVillage ? '' : block,
         house_no: houseNo.trim(),
         property_type: propertyType,
         address: combinedAddress
@@ -258,7 +323,19 @@ export default function ForceBlockUpdateModal({
     }
   };
 
-  const currentBlocks = PHASE_BLOCKS[phase] || [];
+  const currentBlocks = phases.find((p) => p.name === phase)?.blocks || [];
+  // Village: no blocks, house no. and landmark are optional (same as registration)
+  const isVillage = phase ? currentBlocks.length === 0 : userIsVillage;
+
+  function buildAddress() {
+    const parts: string[] = [];
+    if (houseNo.trim()) parts.push(`House/Flat: ${houseNo.trim()}`);
+    if (isVillage && landmark.trim()) parts.push(landmark.trim());
+    if (phase) parts.push(phase);
+    if (!isVillage && block) parts.push(`Block ${block}`);
+    if (propertyType) parts.push(`(${propertyType})`);
+    return parts.join(', ');
+  }
 
   // Calculate safe paddings that guarantee the card is never covered by the Android system navigation bar
   const topPadding = Math.max(insets.top, Platform.OS === 'android' ? 24 : 12) + 8;
@@ -300,7 +377,7 @@ export default function ForceBlockUpdateModal({
                     <Ionicons name="shield-checkmark" size={11} color="#D97706" />
                     <Text style={styles.badgeText}>ACTION REQUIRED</Text>
                   </View>
-                  <Text style={styles.title}>Update Block Details</Text>
+                  <Text style={styles.title}>{isVillage ? 'Update Address Details' : 'Update Block Details'}</Text>
                 </View>
                 <TouchableOpacity
                   style={styles.closeBtn}
@@ -314,7 +391,9 @@ export default function ForceBlockUpdateModal({
                 </TouchableOpacity>
               </View>
               <Text style={styles.subtitle}>
-                Confirm your exact Block and House number so maintenance staff can reach your premises promptly.
+                {isVillage
+                  ? 'Confirm your village, house number and landmark so maintenance staff can reach your premises promptly.'
+                  : 'Confirm your exact Block and House number so maintenance staff can reach your premises promptly.'}
               </Text>
             </View>
 
@@ -328,10 +407,10 @@ export default function ForceBlockUpdateModal({
               {/* Section 1: Phase */}
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>
-                  1. Select Phase <Text style={styles.required}>*</Text>
+                  1. {isVillage ? 'Select Village' : 'Select Phase'} <Text style={styles.required}>*</Text>
                 </Text>
                 <View style={styles.phaseRow}>
-                  {VALID_PHASES.map((p) => {
+                  {phases.map(({ name: p }) => {
                     const isSelected = phase === p;
                     return (
                       <TouchableOpacity
@@ -355,7 +434,8 @@ export default function ForceBlockUpdateModal({
                 </View>
               </View>
 
-              {/* Section 2: Block */}
+              {/* Section 2: Block (sectors only) */}
+              {!isVillage && (
               <View style={styles.section}>
                 <View style={styles.blockLabelRow}>
                   <Text style={styles.sectionLabel}>
@@ -384,17 +464,18 @@ export default function ForceBlockUpdateModal({
                   })}
                 </View>
               </View>
+              )}
 
               {/* Section 3: House / Flat Number */}
               <View style={styles.section}>
                 <Text style={styles.sectionLabel}>
-                  3. House / Flat Number <Text style={styles.required}>*</Text>
+                  {isVillage ? '2. House No. (optional)' : <>3. House / Flat Number <Text style={styles.required}>*</Text></>}
                 </Text>
                 <View style={styles.inputContainer}>
                   <Ionicons name="home-outline" size={18} color="#64748B" style={styles.inputIcon} />
                   <TextInput
                     style={styles.textInput}
-                    placeholder="e.g. 104, B-12, Flat 302"
+                    placeholder={isVillage ? 'e.g. 218' : 'e.g. 104, B-12, Flat 302'}
                     placeholderTextColor="#94A3B8"
                     value={houseNo}
                     onChangeText={(val) => {
@@ -406,6 +487,28 @@ export default function ForceBlockUpdateModal({
                   />
                 </View>
               </View>
+
+              {/* Landmark (villages only) */}
+              {isVillage && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionLabel}>3. Landmark (optional)</Text>
+                  <View style={styles.inputContainer}>
+                    <Ionicons name="navigate-outline" size={18} color="#64748B" style={styles.inputIcon} />
+                    <TextInput
+                      style={styles.textInput}
+                      placeholder="e.g. Near Shiv Mandir"
+                      placeholderTextColor="#94A3B8"
+                      value={landmark}
+                      onChangeText={(val) => {
+                        setLandmark(val);
+                        if (errorText) setErrorText('');
+                      }}
+                      returnKeyType="done"
+                      onSubmitEditing={handleSave}
+                    />
+                  </View>
+                </View>
+              )}
 
               {/* Section 4: Property Type */}
               <View style={styles.section}>
@@ -439,8 +542,9 @@ export default function ForceBlockUpdateModal({
               <View style={styles.previewBox}>
                 <Text style={styles.previewLabel}>NEW ADDRESS PREVIEW</Text>
                 <Text style={styles.previewText}>
-                  {houseNo.trim() ? `House/Flat: ${houseNo.trim()}, ` : ''}
-                  {phase}, Block {block || '___'} ({propertyType})
+                  {isVillage
+                    ? buildAddress()
+                    : `${houseNo.trim() ? `House/Flat: ${houseNo.trim()}, ` : ''}${phase}, Block ${block || '___'} (${propertyType})`}
                 </Text>
               </View>
             </ScrollView>
@@ -605,10 +709,12 @@ const styles = StyleSheet.create({
   },
   phaseRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10
   },
   phaseChip: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '45%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
