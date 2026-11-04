@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const mongoose = require('mongoose');
-const { takeSmsSlot } = require('../utils/otpRateLimit');
+const { takeSmsSlot, smsCooldown } = require('../utils/otpRateLimit');
 const User = require('../models/User');
 const Area = require('../models/Area');
 const { setCurrentArea, getDefaultArea } = require('../utils/areaContext');
@@ -238,7 +238,7 @@ router.post('/admin/send-otp', async (req, res) => {
     }
 
     const limitMsg = takeSmsSlot(phone10, req);
-    if (limitMsg) return res.status(429).json({ msg: limitMsg });
+    if (limitMsg) return res.status(429).json({ msg: limitMsg, cooldown: smsCooldown(phone10) });
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     otpStore.set(`admin_${portal}_${phone10}`, { otp, expiresAt: Date.now() + 5 * 60 * 1000 });
@@ -261,7 +261,7 @@ router.post('/admin/send-otp', async (req, res) => {
       return res.status(502).json({ msg: 'Could not send the OTP right now. Please try again.' });
     }
 
-    res.json({ msg: `OTP sent to +91 ${phone10.slice(0, 2)}XXXXX${phone10.slice(-3)}` });
+    res.json({ cooldown: smsCooldown(phone10), msg: `OTP sent to +91 ${phone10.slice(0, 2)}XXXXX${phone10.slice(-3)}` });
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ msg: 'Server error' });
@@ -455,16 +455,16 @@ router.post('/send-otp', async (req, res) => {
       });
 
       if (isTestAccount) {
-        return res.json({ msg: 'OTP sent successfully (Test Account)' });
+        return res.json({ cooldown: smsCooldown(phone_number), msg: 'OTP sent successfully (Test Account)' });
       }
 
       const limitMsg = takeSmsSlot(phone_number, req);
-      if (limitMsg) return res.status(429).json({ msg: limitMsg });
+      if (limitMsg) return res.status(429).json({ msg: limitMsg, cooldown: smsCooldown(phone_number) });
 
       const fast2smsKey = process.env.FAST2SMS_API_KEY;
       if (!fast2smsKey) {
         console.warn("Fast2SMS API Key is not set in environment variables! OTP logged for testing: ", otp);
-        return res.json({ msg: 'OTP generated (Dev mode: API key missing)', dev_otp: otp });
+        return res.json({ cooldown: smsCooldown(phone_number), msg: 'OTP generated (Dev mode: API key missing)', dev_otp: otp });
       }
 
       try {
@@ -487,14 +487,14 @@ router.post('/send-otp', async (req, res) => {
 
         if (response.data.return === false) {
            console.warn("Fast2SMS DLT API returned false. Fallback to Dev Mode. OTP:", otp, response.data);
-           return res.json({ msg: `Test Mode OTP: ${otp} (Fast2SMS failed)`, dev_otp: otp });
+           return res.json({ cooldown: smsCooldown(phone_number), msg: `Test Mode OTP: ${otp} (Fast2SMS failed)`, dev_otp: otp });
         }
 
         console.log("Fast2SMS DLT sent successfully:", response.data);
-        return res.json({ msg: 'OTP sent successfully to your mobile number' });
+        return res.json({ cooldown: smsCooldown(phone_number), msg: 'OTP sent successfully to your mobile number' });
       } catch (apiError) {
         console.warn("Fast2SMS API threw an error. Fallback to Dev Mode. OTP:", otp);
-        return res.json({ msg: `Test Mode OTP: ${otp}`, dev_otp: otp });
+        return res.json({ cooldown: smsCooldown(phone_number), msg: `Test Mode OTP: ${otp}`, dev_otp: otp });
       }
     }
 
@@ -556,17 +556,17 @@ router.post('/send-otp', async (req, res) => {
 
     // Bypass Fast2SMS for Review Accounts
     if (isTestAccount) {
-      return res.json({ msg: 'OTP sent successfully (Test Account)' });
+      return res.json({ cooldown: smsCooldown(phone_number), msg: 'OTP sent successfully (Test Account)' });
     }
 
     const limitMsg = takeSmsSlot(phone_number, req);
-    if (limitMsg) return res.status(429).json({ msg: limitMsg });
+    if (limitMsg) return res.status(429).json({ msg: limitMsg, cooldown: smsCooldown(phone_number) });
 
     // Call Fast2SMS API
     const fast2smsKey = process.env.FAST2SMS_API_KEY;
     if (!fast2smsKey) {
       console.warn("Fast2SMS API Key is not set in environment variables! OTP logged for testing: ", otp);
-      return res.json({ msg: 'OTP generated (Dev mode: API key missing)', dev_otp: otp });
+      return res.json({ cooldown: smsCooldown(phone_number), msg: 'OTP generated (Dev mode: API key missing)', dev_otp: otp });
     }
 
     try {
@@ -589,14 +589,14 @@ router.post('/send-otp', async (req, res) => {
 
       if (response.data.return === false) {
          console.warn("Fast2SMS DLT API returned false. Fallback to Dev Mode. OTP:", otp, response.data);
-         return res.json({ msg: `Test Mode OTP: ${otp} (Fast2SMS failed)`, dev_otp: otp });
+         return res.json({ cooldown: smsCooldown(phone_number), msg: `Test Mode OTP: ${otp} (Fast2SMS failed)`, dev_otp: otp });
       }
 
       console.log("Fast2SMS DLT sent successfully:", response.data);
-      res.json({ msg: 'OTP sent successfully to your mobile number' });
+      res.json({ cooldown: smsCooldown(phone_number), msg: 'OTP sent successfully to your mobile number' });
     } catch (apiError) {
       console.warn("Fast2SMS API threw an error. Fallback to Dev Mode. OTP:", otp);
-      return res.json({ msg: `Test Mode OTP: ${otp}`, dev_otp: otp });
+      return res.json({ cooldown: smsCooldown(phone_number), msg: `Test Mode OTP: ${otp}`, dev_otp: otp });
     }
   } catch (err) {
     console.error(err.message);

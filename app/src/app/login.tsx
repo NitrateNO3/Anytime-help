@@ -152,9 +152,10 @@ export default function LoginScreen() {
       });
 
       setStep('OTP');
-      setTimer(60); // Start 60-second countdown
+      setTimer(Number(res.data?.cooldown) || 0); // Countdown only after 3 back-to-back OTPs
       Toast.show({ type: 'success', text1: 'OTP Sent', text2: res.data.msg || 'Please check your messages' });
     } catch (err: any) {
+      if (err.response?.data?.cooldown) setTimer(Number(err.response.data.cooldown));
       Toast.show({ type: 'error', text1: 'Failed to send OTP', text2: err.response?.data?.msg || err.message });
     } finally {
       setLoading(false);

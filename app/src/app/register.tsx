@@ -260,7 +260,7 @@ export default function RegisterScreen() {
         relation: isDuplicateAddress ? relation : propertyType
       });
 
-      setTimer(60);
+      setTimer(Number(res.data?.cooldown) || 0);
       setOtpSent(true);
       Toast.show({
         type: 'success',
@@ -276,6 +276,7 @@ export default function RegisterScreen() {
         setIsDuplicateAddress(true);
         Toast.show({ type: 'info', text1: 'Address Taken', text2: 'Someone is already registered here. Please specify your relation.' });
       } else {
+        if (err.response?.data?.cooldown) setTimer(Number(err.response.data.cooldown));
         Toast.show({ type: 'error', text1: 'Failed to send OTP', text2: err.response?.data?.msg || err.message });
       }
     } finally {

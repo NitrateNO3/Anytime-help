@@ -43,9 +43,10 @@ export default function Login() {
       const res = await axios.post(`${API_URL}/auth/admin/send-otp`, { phone_number: phone, portal: loginType });
       setOtpSent(true);
       setOtp('');
-      setTimer(60);
+      setTimer(Number(res.data?.cooldown) || 0);
       toast.success(res.data?.msg || 'OTP sent');
     } catch (err: any) {
+      if (err.response?.data?.cooldown) setTimer(Number(err.response.data.cooldown));
       toast.error(err.response?.data?.msg || 'Could not send OTP');
     } finally {
       setLoading(false);
