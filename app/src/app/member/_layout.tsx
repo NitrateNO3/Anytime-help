@@ -305,7 +305,7 @@ export default function MemberLayout() {
         />
         <Tabs.Screen name="announcements" />
         <Tabs.Screen name="residents" />
-        <Tabs.Screen name="edit-profile" />
+        <Tabs.Screen name="edit-profile" options={{ tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen name="complaint-details" options={{ tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen name="chat-room" options={{ tabBarStyle: { display: 'none' } }} />
       </Tabs>

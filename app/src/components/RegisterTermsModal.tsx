@@ -12,7 +12,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import PolicyHtml from './PolicyHtml';
 
@@ -98,6 +98,9 @@ export default function RegisterTermsModal({ visible, areaName, onAgree, onClose
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      {/* A Modal is a separate native view: it needs its own provider or the
+          safe-area insets read 0 on iOS and the header sits under the status bar */}
+      <SafeAreaProvider>
       <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
@@ -133,6 +136,7 @@ export default function RegisterTermsModal({ visible, areaName, onAgree, onClose
           </TouchableOpacity>
         </View>
       </SafeAreaView>
+      </SafeAreaProvider>
     </Modal>
   );
 }

@@ -304,7 +304,7 @@ export default function ResidentLayout() {
           }} 
         />
         <Tabs.Screen name="announcements" />
-        <Tabs.Screen name="edit-profile" />
+        <Tabs.Screen name="edit-profile" options={{ tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen name="complaint-details" options={{ tabBarStyle: { display: 'none' } }} />
       </Tabs>
 
