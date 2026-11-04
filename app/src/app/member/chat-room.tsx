@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Pressable,
   KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Alert,
-  Keyboard, Animated, Easing, BackHandler, AppState, Modal,
+  Keyboard, Animated, Easing, BackHandler, AppState, Modal, LayoutAnimation,
   NativeScrollEvent, NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -191,7 +191,10 @@ export default function MemberChatRoomScreen() {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const currentUserRef = useRef<any>(null);
   const [groupDetails, setGroupDetails] = useState<any>(null);
-  const [headerHeight, setHeaderHeight] = useState(60);
+  // iOS: space kept under the composer while the keyboard is open. Measured
+  // from the keyboard itself, minus the bottom safe area the screen already
+  // pads, so the input sits right on top of the keyboard with no gap.
+  const [iosKeyboardSpace, setIosKeyboardSpace] = useState(0);
 
   const [replyingTo, setReplyingTo] = useState<ChatMessageItem | null>(null);
   const [editingMessage, setEditingMessage] = useState<ChatMessageItem | null>(null);
@@ -217,6 +220,25 @@ export default function MemberChatRoomScreen() {
   const cacheKeyRef = useRef<string | null>(null);
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    const animate = (duration?: number) => {
+      LayoutAnimation.configureNext({
+        duration: duration || 250,
+        update: { type: LayoutAnimation.Types.keyboard },
+      });
+    };
+    const show = Keyboard.addListener('keyboardWillShow', (e) => {
+      animate(e.duration);
+      setIosKeyboardSpace(Math.max(e.endCoordinates.height - insets.bottom, 0));
+    });
+    const hide = Keyboard.addListener('keyboardWillHide', (e) => {
+      animate(e.duration);
+      setIosKeyboardSpace(0);
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, [insets.bottom]);
 
   const myId = idOf(currentUser);
   const roleLower = (currentUser?.role || '').toLowerCase();
@@ -788,7 +810,7 @@ export default function MemberChatRoomScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" />
 
-      <View style={styles.header} onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
+      <View style={styles.header}>
         <TouchableOpacity onPress={handleBackToChats} style={styles.backButton} hitSlop={8}>
           <Ionicons name="chevron-back" size={26} color="#0F172A" />
         </TouchableOpacity>
@@ -809,10 +831,12 @@ export default function MemberChatRoomScreen() {
         )}
       </View>
 
+      {/* Android resizes the window for the keyboard; iOS uses the measured
+          keyboard space below instead of KeyboardAvoidingView offsets */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + headerHeight : 0}
+        behavior={Platform.OS === 'android' ? 'height' : undefined}
+        enabled={Platform.OS === 'android'}
       >
         <View style={styles.chatArea}>
           {loading && messages.length === 0 ? (
@@ -924,6 +948,7 @@ export default function MemberChatRoomScreen() {
             <Text style={styles.viewOnlyFooterText}>Only committee members can send messages in this group.</Text>
           </View>
         )}
+        {Platform.OS === 'ios' && iosKeyboardSpace > 0 && <View style={{ height: iosKeyboardSpace }} />}
       </KeyboardAvoidingView>
 
       {/* Long-press actions */}

@@ -50,6 +50,23 @@ const getGroupPermissions = (group, user) => {
   return { can_view: false, can_send: false, is_member: false, is_view_only: false, is_admin: false };
 };
 
+// Recompute a group's cached last_message from its newest message, so the chat
+// list never keeps showing text that was edited or deleted.
+const refreshGroupLastMessage = async (groupId, io) => {
+  const latest = await ChatMessage.findOne({ group_id: groupId }).sort({ createdAt: -1, _id: -1 }).lean();
+  const last_message = latest
+    ? {
+        text: latest.is_deleted ? 'This message was deleted' : (latest.text || 'Sent an attachment'),
+        sender_id: latest.sender,
+        sender_name: latest.sender_name,
+        sender_role: latest.sender_role,
+        timestamp: latest.createdAt,
+      }
+    : { text: '', sender_name: '', sender_role: '' };
+  await ChatGroup.updateOne({ _id: groupId }, { $set: { last_message } });
+  if (io) io.emit('chat_group_last_message', { group_id: groupId, last_message });
+};
+
 // ==========================================
 // 1. CHAT GROUP MANAGEMENT (ADMIN & LISTING)
 // ==========================================
@@ -547,6 +564,7 @@ router.put('/messages/:message_id', auth, async (req, res) => {
       io.to(`chat_group_${message.group_id}`).emit('message_edited', editPayload);
       io.emit('message_edited', editPayload);
     }
+    await refreshGroupLastMessage(message.group_id, io).catch((e) => console.error('last_message refresh failed:', e.message));
 
     res.json({ success: true, message });
   } catch (err) {
@@ -588,6 +606,7 @@ router.delete('/messages/:message_id', auth, async (req, res) => {
       io.to(`chat_group_${message.group_id}`).emit('message_deleted', deletePayload);
       io.emit('message_deleted', deletePayload);
     }
+    await refreshGroupLastMessage(message.group_id, io).catch((e) => console.error('last_message refresh failed:', e.message));
 
     res.json({ success: true, msg: 'Message deleted' });
   } catch (err) {
