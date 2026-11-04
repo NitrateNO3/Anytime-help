@@ -731,27 +731,27 @@ export default function MemberChatRoomScreen() {
             </View>
           ) : null}
 
-          {m.is_deleted ? (
-            <View style={styles.deletedRow}>
-              <Ionicons name="ban-outline" size={14} color={isMe ? 'rgba(255,255,255,0.75)' : '#94A3B8'} />
-              <Text style={[styles.deletedText, isMe && { color: 'rgba(255,255,255,0.8)' }]}>This message was deleted</Text>
-            </View>
-          ) : (
-            <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>
-              {m.text}
-              {/* spacer so the last line never runs under the time */}
-              <Text style={styles.timeSpacer}>{'      '}{m.is_edited ? '          ' : ''}{isMe ? '    ' : ''}</Text>
-            </Text>
-          )}
-
-          <View style={styles.meta}>
-            {m.is_edited && !m.is_deleted && <Text style={[styles.metaText, isMe && styles.metaTextMe]}>edited</Text>}
-            <Text style={[styles.metaText, isMe && styles.metaTextMe]}>{formatTime(m.createdAt)}</Text>
-            {isMe && !m.is_deleted && (
-              m.failed
-                ? <Ionicons name="alert-circle" size={13} color="#FCA5A5" />
-                : <Ionicons name={pending ? 'time-outline' : 'checkmark-done'} size={13} color="rgba(255,255,255,0.85)" />
+          {/* Text and time share one wrapping row: short messages keep the time
+              on the same line, long ones push it to its own line, never overlapping */}
+          <View style={styles.bodyRow}>
+            {m.is_deleted ? (
+              <View style={styles.deletedRow}>
+                <Ionicons name="ban-outline" size={14} color={isMe ? 'rgba(255,255,255,0.75)' : '#94A3B8'} />
+                <Text style={[styles.deletedText, isMe && { color: 'rgba(255,255,255,0.8)' }]}>This message was deleted</Text>
+              </View>
+            ) : (
+              <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>{m.text}</Text>
             )}
+
+            <View style={styles.meta}>
+              {m.is_edited && !m.is_deleted && <Text style={[styles.metaText, isMe && styles.metaTextMe]}>edited</Text>}
+              <Text style={[styles.metaText, isMe && styles.metaTextMe]}>{formatTime(m.createdAt)}</Text>
+              {isMe && !m.is_deleted && (
+                m.failed
+                  ? <Ionicons name="alert-circle" size={13} color="#FCA5A5" />
+                  : <Ionicons name={pending ? 'time-outline' : 'checkmark-done'} size={13} color="rgba(255,255,255,0.85)" />
+              )}
+            </View>
           </View>
         </Pressable>
 
@@ -1063,17 +1063,17 @@ const styles = StyleSheet.create({
   quoteSender: { fontSize: 11.5, fontWeight: '700', color: '#2563EB', marginBottom: 1 },
   quoteText: { fontSize: 12.5, color: '#475569', lineHeight: 17 },
 
-  msgText: { fontSize: 15, lineHeight: 21 },
+  msgText: { fontSize: 15, lineHeight: 21, flexShrink: 1 },
   msgTextMe: { color: '#FFFFFF' },
   msgTextOther: { color: '#0F172A' },
-  timeSpacer: { fontSize: 11 },
-  deletedRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingRight: 52, paddingVertical: 1 },
+  bodyRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-end' },
+  deletedRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 1, flexShrink: 1 },
   deletedText: { fontSize: 14, fontStyle: 'italic', color: '#94A3B8' },
 
   meta: {
-    position: 'absolute',
-    right: 9,
-    bottom: 5,
+    marginLeft: 'auto',
+    paddingLeft: 10,
+    paddingTop: 3,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
