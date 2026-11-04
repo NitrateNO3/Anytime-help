@@ -55,7 +55,10 @@ router.post('/register', async (req, res) => {
     }
 
     const dbPhoneNumber = phone_number.startsWith('+91') ? phone_number : `+91${cleanPhone}`;
+    // The SuperAdmin account lives only in the admin panel, so its number can
+    // also register as an app user (login already ignores SuperAdmin the same way)
     let user = await User.findOne({ 
+      role: { $ne: 'SuperAdmin' },
       $or: [{ phone_number: dbPhoneNumber }, { phone_number: cleanPhone }] 
     });
     if (user) return res.status(400).json({ msg: 'User already exists with this phone number' });
@@ -394,7 +397,9 @@ router.post('/send-otp', async (req, res) => {
 
     // Handle REGISTRATION flow OTP
     if (type === 'register') {
+      // SuperAdmin (admin panel only) does not block app registration
       let existingUser = await User.findOne({
+        role: { $ne: 'SuperAdmin' },
         $or: [
           { phone_number: dbPhoneNumber },
           { phone_number: phone_number },
