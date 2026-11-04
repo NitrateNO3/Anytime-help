@@ -148,6 +148,18 @@ export default function RootLayout() {
             } else {
               router.push(`/resident-complaint-details?id=${complaintId}` as any);
             }
+          } else if (type === 'chat' && data.groupId) {
+            const isResident = userRole === 'Resident';
+            router.push({
+              pathname: (isResident ? '/resident-chat-room' : '/member-chat-room') as any,
+              params: {
+                groupId: String(data.groupId),
+                groupName: String(data.groupName || ''),
+                groupType: String(data.groupType || ''),
+                canSend: data.canSend === '1' ? '1' : '0',
+                returnTo: isResident ? '/resident/chats' : '/member/chats',
+              },
+            });
           } else if (type === 'announcement') {
             if (userRole === 'Member') {
               router.push('/member-announcements' as any);

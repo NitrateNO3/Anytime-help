@@ -4,6 +4,12 @@ const auth = require('../middleware/auth');
 const ChatGroup = require('../models/ChatGroup');
 const ChatMessage = require('../models/ChatMessage');
 const User = require('../models/User');
+const ChatReadState = require('../models/ChatReadState');
+const { sendPushNotifications } = require('../utils/push');
+
+// Unread counting starts when the feature shipped, so old history does not
+// show up as hundreds of unread messages for everyone.
+const UNREAD_COUNTING_SINCE = new Date('2026-11-04T14:00:00Z');
 
 /**
  * Helper to determine a user's permissions on a specific group
@@ -65,6 +71,40 @@ const refreshGroupLastMessage = async (groupId, io) => {
     : { text: '', sender_name: '', sender_role: '' };
   await ChatGroup.updateOne({ _id: groupId }, { $set: { last_message } });
   if (io) io.emit('chat_group_last_message', { group_id: groupId, last_message });
+};
+
+// Who gets a push for a new message: chat members (can reply) and users given
+// view access by name, plus every committee member when the group is open to
+// all members. Residents who can only browse a resident-visible group are not
+// pinged for every message. The sender is never notified.
+const notifyGroupMessage = async (group, msg, sender) => {
+  const memberIds = (group.members || []).map((id) => id.toString());
+  const viewIds = (group.view_only_members || []).map((id) => id.toString());
+
+  const or = [{ _id: { $in: [...memberIds, ...viewIds] } }];
+  if (group.can_other_members_view) or.push({ role: 'Member' });
+
+  const recipients = await User.find({
+    $or: or,
+    _id: { $ne: sender._id },
+    expoPushToken: { $exists: true, $nin: [null, ''] },
+  }).select('_id expoPushToken').lean();
+  if (!recipients.length) return;
+
+  const text = msg.text || '';
+  const preview = text.length > 140 ? `${text.slice(0, 137)}...` : text;
+  const body = `${msg.sender_name}: ${preview || 'Sent an attachment'}`;
+  const base = { type: 'chat', groupId: group._id.toString(), groupName: group.name, groupType: group.group_type || '' };
+
+  // canSend decides whether the chat opens with the message box
+  const canSendTokens = [];
+  const viewTokens = [];
+  recipients.forEach((u) => {
+    (memberIds.includes(u._id.toString()) ? canSendTokens : viewTokens).push(u.expoPushToken);
+  });
+  // badge null: leave the app icon badge as it is
+  if (canSendTokens.length) await sendPushNotifications(canSendTokens, group.name, body, { ...base, canSend: '1' }, null);
+  if (viewTokens.length) await sendPushNotifications(viewTokens, group.name, body, { ...base, canSend: '0' }, null);
 };
 
 // ==========================================
@@ -140,6 +180,78 @@ router.post('/groups', auth, async (req, res) => {
 // @route   GET api/chat/groups
 // @desc    Get all chat groups accessible by current user based on role & permissions
 // @access  Private
+// Groups a user may open (null = none)
+const visibleGroupsQuery = (user) => {
+  if (user.role === 'Admin' || user.role === 'SubAdmin' || user.role === 'SuperAdmin') {
+    return { is_active: true };
+  }
+  if (user.role === 'Member') {
+    return { is_active: true, $or: [{ members: user._id }, { view_only_members: user._id }, { can_other_members_view: true }] };
+  }
+  if (user.role === 'Resident') {
+    return { is_active: true, $or: [{ members: user._id }, { view_only_members: user._id }, { can_residents_view: true }] };
+  }
+  return null;
+};
+
+// { groupId: unreadCount } for the given groups
+const unreadCountsFor = async (user, groupIds) => {
+  if (!groupIds.length) return {};
+  const states = await ChatReadState.find({ user: user._id, group: { $in: groupIds } }).lean();
+  const lastRead = new Map(states.map((st) => [st.group.toString(), st.last_read_at]));
+  const counts = await Promise.all(groupIds.map((gid) => {
+    const read = lastRead.get(gid.toString());
+    const after = read && read > UNREAD_COUNTING_SINCE ? read : UNREAD_COUNTING_SINCE;
+    return ChatMessage.countDocuments({
+      group_id: gid,
+      sender: { $ne: user._id },
+      is_deleted: { $ne: true },
+      createdAt: { $gt: after },
+    });
+  }));
+  const out = {};
+  groupIds.forEach((gid, i) => { out[gid.toString()] = counts[i]; });
+  return out;
+};
+
+// @route   GET api/chat/unread
+// @desc    Unread message counts for the chat tab badge
+// @access  Private
+router.get('/unread', auth, async (req, res) => {
+  try {
+    const query = visibleGroupsQuery(req.user);
+    if (!query) return res.json({ total: 0, groups: {} });
+    const groups = await ChatGroup.find(query).select('_id').lean();
+    const counts = await unreadCountsFor(req.user, groups.map((g) => g._id));
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    res.json({ total, groups: counts });
+  } catch (err) {
+    console.error('Error fetching unread counts:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
+// @route   POST api/chat/groups/:id/read
+// @desc    Mark a group as read up to now
+// @access  Private
+router.post('/groups/:id/read', auth, async (req, res) => {
+  try {
+    const group = await ChatGroup.findById(req.params.id)
+      .select('_id members view_only_members can_other_members_view can_residents_view is_active');
+    if (!group || !group.is_active) return res.status(404).json({ msg: 'Chat group not found' });
+    if (!getGroupPermissions(group, req.user).can_view) return res.status(403).json({ msg: 'Access denied' });
+    await ChatReadState.updateOne(
+      { user: req.user._id, group: group._id },
+      { $set: { last_read_at: new Date() } },
+      { upsert: true },
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error marking chat read:', err);
+    res.status(500).json({ msg: 'Server error' });
+  }
+});
+
 router.get('/groups', auth, async (req, res) => {
   try {
     const user = req.user;
@@ -215,6 +327,9 @@ router.get('/groups', auth, async (req, res) => {
         user_access: perms // { can_view, can_send, is_member, is_admin }
       };
     });
+
+    const unread = await unreadCountsFor(user, groups.map((g) => g._id)).catch(() => ({}));
+    formatted.forEach((g) => { g.unread_count = unread[g._id.toString()] || 0; });
 
     res.json(formatted);
   } catch (err) {
@@ -364,11 +479,16 @@ router.get('/groups/:id/messages', auth, async (req, res) => {
     //                          time (catch-up after reconnect / app resume)
     //   ?before=<ISO date>     legacy date cursor, still accepted
     const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
-    const { before, before_id, since } = req.query;
+    const { before, before_id, since, q } = req.query;
 
     const msgQuery = { group_id: group._id };
     let sortNewestFirst = true;
-    if (since) {
+    if (q && String(q).trim()) {
+      // ?q=<text>: search inside this group, newest matches first
+      const escaped = String(q).trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      msgQuery.text = { $regex: escaped, $options: 'i' };
+      msgQuery.is_deleted = { $ne: true };
+    } else if (since) {
       const sinceDate = new Date(since);
       if (!isNaN(sinceDate.getTime())) {
         msgQuery.updatedAt = { $gt: sinceDate };
@@ -512,6 +632,11 @@ router.post('/groups/:id/messages', auth, async (req, res) => {
     }
 
     res.status(201).json({ success: true, message: newMsg });
+
+    // Push notification after the response, so sending never waits for it
+    setImmediate(() => {
+      notifyGroupMessage(group, newMsg, req.user).catch((e) => console.error('Chat push failed:', e.message));
+    });
   } catch (err) {
     console.error('Error sending message:', err);
     res.status(500).json({ msg: 'Server error sending message' });

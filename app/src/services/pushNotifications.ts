@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import { getActiveChatGroup, refreshChatUnreadSoon } from '../utils/chatUnread';
 
 let Notifications: any = null;
 try {
@@ -10,11 +11,17 @@ try {
     Notifications = require('expo-notifications');
     if (Notifications && typeof Notifications.setNotificationHandler === 'function') {
       Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowAlert: true,
-          shouldPlaySound: true,
-          shouldSetBadge: false,
-        }),
+        handleNotification: async (notification: any) => {
+          const data = notification?.request?.content?.data;
+          if (data?.type === 'chat') {
+            refreshChatUnreadSoon(300);
+            // Already looking at this chat: no banner or sound
+            if (data.groupId && data.groupId === getActiveChatGroup()) {
+              return { shouldShowAlert: false, shouldShowBanner: false, shouldShowList: false, shouldPlaySound: false, shouldSetBadge: false };
+            }
+          }
+          return { shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: false };
+        },
       });
     }
   }

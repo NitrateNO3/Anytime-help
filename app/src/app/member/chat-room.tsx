@@ -11,7 +11,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Pressable,
   KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Alert,
-  Keyboard, Animated, Easing, BackHandler, AppState, Modal, LayoutAnimation,
+  Keyboard, Animated, Easing, BackHandler, AppState, Modal, LayoutAnimation, Linking, PanResponder,
   NativeScrollEvent, NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../../utils/socketAuth';
 import { getChatCacheUserId, chatRoomCacheKey } from '../../utils/chatCache';
+import { markChatRead, setActiveChatGroup } from '../../utils/chatUnread';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -172,6 +173,86 @@ function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
   );
 }
 
+// ---------- tappable phone numbers, links and emails ----------
+
+// URL | email | Indian phone number (10 digits, optional +91 / 0, spaces or dashes allowed)
+const LINK_RE = /(https?:\/\/[^\s]+|www\.[^\s]+\.[^\s]+|[\w.+-]+@[\w-]+\.[\w.-]+|(?:\+91[\s-]?|0)?[6-9]\d{4}[\s-]?\d{5}\b)/g;
+
+const openLink = (raw: string) => {
+  let url = raw.trim().replace(/[),.;!?]+$/, '');
+  if (/@/.test(url) && !/^https?:/i.test(url)) url = `mailto:${url}`;
+  else if (/^[+\d]/.test(url) && !/^https?:/i.test(url)) url = `tel:${url.replace(/[\s-]/g, '')}`;
+  else if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+  Linking.openURL(url).catch(() => Alert.alert('Cannot open', raw));
+};
+
+function LinkedText({ text, style, linkStyle, onLongPress }: { text: string; style: any; linkStyle: any; onLongPress?: () => void }) {
+  const parts = useMemo(() => {
+    const out: { t: string; link: boolean }[] = [];
+    let last = 0;
+    text.replace(LINK_RE, (match, _g, offset: number) => {
+      if (offset > last) out.push({ t: text.slice(last, offset), link: false });
+      out.push({ t: match, link: true });
+      last = offset + match.length;
+      return match;
+    });
+    if (last < text.length) out.push({ t: text.slice(last), link: false });
+    return out;
+  }, [text]);
+
+  if (parts.length === 1 && !parts[0].link) return <Text style={style}>{text}</Text>;
+  return (
+    <Text style={style}>
+      {parts.map((p, i) => (p.link
+        ? <Text key={i} style={linkStyle} onPress={() => openLink(p.t)} onLongPress={onLongPress} suppressHighlighting={false}>{p.t}</Text>
+        : <Text key={i}>{p.t}</Text>))}
+    </Text>
+  );
+}
+
+// ---------- swipe right to reply ----------
+
+const SWIPE_TRIGGER = 56;
+
+function SwipeToReply({ enabled, onReply, children }: { enabled: boolean; onReply: () => void; children: React.ReactNode }) {
+  const dx = useRef(new Animated.Value(0)).current;
+  const triggered = useRef(false);
+  const onReplyRef = useRef(onReply);
+  onReplyRef.current = onReply;
+
+  const responder = useMemo(() => PanResponder.create({
+    // Only clear horizontal drags to the right; vertical scrolling stays with the list
+    onMoveShouldSetPanResponder: (_, g) => enabled && g.dx > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderMove: (_, g) => {
+      const x = Math.max(0, Math.min(g.dx, 90));
+      dx.setValue(x);
+      triggered.current = x >= SWIPE_TRIGGER;
+    },
+    onPanResponderRelease: () => {
+      if (triggered.current) onReplyRef.current();
+      triggered.current = false;
+      Animated.spring(dx, { toValue: 0, useNativeDriver: true, speed: 20, bounciness: 6 }).start();
+    },
+    onPanResponderTerminate: () => {
+      triggered.current = false;
+      Animated.spring(dx, { toValue: 0, useNativeDriver: true }).start();
+    },
+  }), [enabled, dx]);
+
+  const iconOpacity = dx.interpolate({ inputRange: [0, SWIPE_TRIGGER], outputRange: [0, 1], extrapolate: 'clamp' });
+  const iconScale = dx.interpolate({ inputRange: [0, SWIPE_TRIGGER], outputRange: [0.5, 1], extrapolate: 'clamp' });
+
+  return (
+    <View {...responder.panHandlers}>
+      <Animated.View style={[styles.swipeIcon, { opacity: iconOpacity, transform: [{ scale: iconScale }] }]}>
+        <Ionicons name="arrow-undo" size={16} color="#2563EB" />
+      </Animated.View>
+      <Animated.View style={{ transform: [{ translateX: dx }] }}>{children}</Animated.View>
+    </View>
+  );
+}
+
 // ---------- screen ----------
 
 export default function MemberChatRoomScreen() {
@@ -200,6 +281,17 @@ export default function MemberChatRoomScreen() {
   const [editingMessage, setEditingMessage] = useState<ChatMessageItem | null>(null);
   const [actionMessage, setActionMessage] = useState<ChatMessageItem | null>(null);
 
+  // Jump to a message (reply quote / search result) and flash it
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const pendingJumpRef = useRef<string | null>(null);
+  const highlightTimerRef = useRef<any>(null);
+
+  // In-chat search
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<ChatMessageItem[]>([]);
+  const [searching, setSearching] = useState(false);
+
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const isTypingRef = useRef(false);
   const lastTypingHeartbeatRef = useRef(0);
@@ -220,6 +312,17 @@ export default function MemberChatRoomScreen() {
   const cacheKeyRef = useRef<string | null>(null);
 
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  // This chat is open: it counts as read now and again when leaving
+  useEffect(() => {
+    if (!cleanGroupId) return;
+    setActiveChatGroup(cleanGroupId);
+    markChatRead(cleanGroupId);
+    return () => {
+      setActiveChatGroup(null);
+      markChatRead(cleanGroupId);
+    };
+  }, [cleanGroupId]);
 
   useEffect(() => {
     if (Platform.OS !== 'ios') return;
@@ -262,11 +365,12 @@ export default function MemberChatRoomScreen() {
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       if (actionMessage) { setActionMessage(null); return true; }
+      if (searchOpen) { setSearchOpen(false); setSearchQuery(''); setSearchResults([]); return true; }
       handleBackToChats();
       return true;
     });
     return () => sub.remove();
-  }, [handleBackToChats, actionMessage]);
+  }, [handleBackToChats, actionMessage, searchOpen]);
 
   // ---------- data ----------
 
@@ -355,6 +459,61 @@ export default function MemberChatRoomScreen() {
       setLoadingOlder(false);
     }
   };
+
+  // Bring a message into the list (loading older pages if needed), scroll to it and flash it
+  const jumpToMessage = async (messageId?: string) => {
+    if (!messageId) return;
+    Keyboard.dismiss();
+    if (!messagesRef.current.some((m) => m._id === messageId)) {
+      let more = true;
+      for (let page = 0; page < 30 && more; page++) {
+        const oldest = messagesRef.current.find((m) => !isTemp(m));
+        if (!oldest) break;
+        try {
+          const data = await fetchPage({ before_id: oldest._id, limit: 50 });
+          const list: ChatMessageItem[] = Array.isArray(data.messages) ? data.messages : [];
+          more = !!data.has_more && list.length > 0;
+          const merged = mergeMessages(messagesRef.current, list);
+          messagesRef.current = merged;
+          setMessages(merged);
+          setHasMore(more);
+          if (list.some((m) => m._id === messageId)) break;
+        } catch {
+          break;
+        }
+      }
+      if (!messagesRef.current.some((m) => m._id === messageId)) {
+        Alert.alert('Message not found', 'The original message may have been removed.');
+        return;
+      }
+    }
+    pendingJumpRef.current = messageId;
+    setRowsVersion((v) => v + 1);
+  };
+
+  const [rowsVersion, setRowsVersion] = useState(0);
+
+  // Search inside this group (server side, so old messages are found too)
+  useEffect(() => {
+    if (!searchOpen) return;
+    const q = searchQuery.trim();
+    if (q.length < 2) { setSearchResults([]); setSearching(false); return; }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const data = await fetchPage({ q, limit: 50 });
+        setSearchResults(Array.isArray(data.messages) ? data.messages.slice().reverse() : []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, searchOpen]);
+
+  const closeSearch = () => { setSearchOpen(false); setSearchQuery(''); setSearchResults([]); };
 
   // Initial load: cache first, then the server, all in parallel
   useEffect(() => {
@@ -450,6 +609,8 @@ export default function MemberChatRoomScreen() {
       if (newMsg.sender_name) setTypingUsers((prev) => prev.filter((u) => u !== newMsg.sender_name));
       const mine = idOf(newMsg.sender) === idOf(currentUserRef.current);
       if (!exists && !mine && !atBottomRef.current) setUnseenCount((c) => c + 1);
+      // Seen while the chat is open (batched)
+      if (!exists && !mine && AppState.currentState === 'active') markChatRead(cleanGroupId, 1500);
     });
 
     socket.on('message_edited', ({ message_id, group_id, new_text }: any) => {
@@ -483,7 +644,7 @@ export default function MemberChatRoomScreen() {
 
     // Back in the foreground: catch up on what changed
     const appSub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') syncChanges();
+      if (state === 'active') { syncChanges(); markChatRead(cleanGroupId, 500); }
     });
 
     // Cheap safety net (an empty delta most of the time) in case an event was missed
@@ -690,6 +851,28 @@ export default function MemberChatRoomScreen() {
     return out;
   }, [messages]);
 
+  useEffect(() => {
+    const id = pendingJumpRef.current;
+    if (!id) return;
+    const index = rows.findIndex((r) => r.kind === 'msg' && r.msg._id === id);
+    if (index === -1) return;
+    pendingJumpRef.current = null;
+    setTimeout(() => {
+      flatListRef.current?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+    }, 60);
+    setHighlightId(id);
+    if (highlightTimerRef.current) clearTimeout(highlightTimerRef.current);
+    highlightTimerRef.current = setTimeout(() => setHighlightId(null), 1800);
+  }, [rows, rowsVersion]);
+
+  const onScrollToIndexFailed = (info: { index: number; averageItemLength: number }) => {
+    // Row not measured yet: get close first, then retry precisely
+    flatListRef.current?.scrollToOffset({ offset: info.averageItemLength * info.index, animated: false });
+    setTimeout(() => {
+      flatListRef.current?.scrollToIndex({ index: info.index, viewPosition: 0.5, animated: true });
+    }, 120);
+  };
+
   const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const y = e.nativeEvent.contentOffset.y; // inverted: 0 is the newest message
     const atBottom = y < 120;
@@ -713,9 +896,17 @@ export default function MemberChatRoomScreen() {
     const isMe = Boolean(myId && info.senderId === myId);
     const showHeader = !isMe && item.firstOfGroup;
     const pending = isTemp(m) && !m.failed;
+    const canSwipe = isWriteAllowed && !m.is_deleted && !isTemp(m);
+    const openActions = () => { if (!m.is_deleted && !isTemp(m)) { Keyboard.dismiss(); setActionMessage(m); } };
 
     return (
-      <View style={[styles.msgRow, isMe ? styles.msgRowMe : styles.msgRowOther, item.lastOfGroup ? styles.msgRowGroupEnd : null]}>
+      <SwipeToReply enabled={canSwipe} onReply={() => { setEditingMessage(null); setReplyingTo(m); }}>
+      <View style={[
+        styles.msgRow,
+        isMe ? styles.msgRowMe : styles.msgRowOther,
+        item.lastOfGroup ? styles.msgRowGroupEnd : null,
+        highlightId === m._id && styles.msgRowHighlight,
+      ]}>
         {!isMe && (
           <View style={styles.avatarSlot}>
             {item.firstOfGroup && (
@@ -728,7 +919,7 @@ export default function MemberChatRoomScreen() {
 
         <Pressable
           onPress={() => (m.failed ? retrySend(m) : Keyboard.dismiss())}
-          onLongPress={() => { if (!m.is_deleted && !isTemp(m)) { Keyboard.dismiss(); setActionMessage(m); } }}
+          onLongPress={openActions}
           delayLongPress={280}
           style={({ pressed }) => [
             styles.bubble,
@@ -747,10 +938,14 @@ export default function MemberChatRoomScreen() {
           )}
 
           {m.reply_to?.text ? (
-            <View style={[styles.quote, isMe ? styles.quoteMe : styles.quoteOther]}>
+            <Pressable
+              onPress={() => jumpToMessage(idOf(m.reply_to?.message_id))}
+              onLongPress={openActions}
+              style={[styles.quote, isMe ? styles.quoteMe : styles.quoteOther]}
+            >
               <Text style={[styles.quoteSender, isMe && { color: '#DBEAFE' }]} numberOfLines={1}>{m.reply_to.sender_name}</Text>
               <Text style={[styles.quoteText, isMe && { color: '#EFF6FF' }]} numberOfLines={2}>{m.reply_to.text}</Text>
-            </View>
+            </Pressable>
           ) : null}
 
           {/* Text and time share one wrapping row: short messages keep the time
@@ -762,7 +957,12 @@ export default function MemberChatRoomScreen() {
                 <Text style={[styles.deletedText, isMe && { color: 'rgba(255,255,255,0.8)' }]}>This message was deleted</Text>
               </View>
             ) : (
-              <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>{m.text}</Text>
+              <LinkedText
+                text={m.text}
+                style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}
+                linkStyle={isMe ? styles.linkMe : styles.linkOther}
+                onLongPress={openActions}
+              />
             )}
 
             <View style={styles.meta}>
@@ -783,6 +983,7 @@ export default function MemberChatRoomScreen() {
           </TouchableOpacity>
         )}
       </View>
+      </SwipeToReply>
     );
   };
 
@@ -810,6 +1011,30 @@ export default function MemberChatRoomScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" />
 
+      {searchOpen ? (
+        <View style={styles.header}>
+          <TouchableOpacity onPress={closeSearch} style={styles.backButton} hitSlop={8}>
+            <Ionicons name="chevron-back" size={26} color="#0F172A" />
+          </TouchableOpacity>
+          <View style={styles.searchBox}>
+            <Ionicons name="search" size={17} color="#94A3B8" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search messages"
+              placeholderTextColor="#94A3B8"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoFocus
+              returnKeyType="search"
+            />
+            {searchQuery ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={8}>
+                <Ionicons name="close-circle" size={18} color="#94A3B8" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
+      ) : (
       <View style={styles.header}>
         <TouchableOpacity onPress={handleBackToChats} style={styles.backButton} hitSlop={8}>
           <Ionicons name="chevron-back" size={26} color="#0F172A" />
@@ -829,7 +1054,11 @@ export default function MemberChatRoomScreen() {
             <Text style={styles.viewOnlyBadgeText}>View only</Text>
           </View>
         )}
+        <TouchableOpacity onPress={() => setSearchOpen(true)} style={styles.headerIconBtn} hitSlop={8}>
+          <Ionicons name="search" size={21} color="#334155" />
+        </TouchableOpacity>
       </View>
+      )}
 
       {/* Android resizes the window for the keyboard; iOS uses the measured
           keyboard space below instead of KeyboardAvoidingView offsets */}
@@ -867,6 +1096,7 @@ export default function MemberChatRoomScreen() {
               onScroll={onScroll}
               scrollEventThrottle={64}
               onEndReached={loadOlder}
+              onScrollToIndexFailed={onScrollToIndexFailed}
               onEndReachedThreshold={0.4}
               initialNumToRender={20}
               maxToRenderPerBatch={15}
@@ -885,7 +1115,38 @@ export default function MemberChatRoomScreen() {
             />
           )}
 
-          {showJump && (
+          {searchOpen && (
+            <View style={styles.searchOverlay}>
+              {searchQuery.trim().length < 2 ? (
+                <Text style={styles.searchHint}>Type at least 2 letters to search this chat</Text>
+              ) : searching ? (
+                <ActivityIndicator style={{ marginTop: 24 }} color="#2563EB" />
+              ) : searchResults.length === 0 ? (
+                <Text style={styles.searchHint}>No messages found</Text>
+              ) : (
+                <FlatList
+                  data={searchResults}
+                  keyExtractor={(m) => `s_${m._id}`}
+                  keyboardShouldPersistTaps="handled"
+                  ListHeaderComponent={<Text style={styles.searchCount}>{searchResults.length}{searchResults.length >= 50 ? '+' : ''} results</Text>}
+                  renderItem={({ item: r }) => (
+                    <TouchableOpacity
+                      style={styles.searchItem}
+                      onPress={() => { const id = r._id; closeSearch(); jumpToMessage(id); }}
+                    >
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                        <Text style={styles.searchItemName} numberOfLines={1}>{displayNameFor(r)}</Text>
+                        <Text style={styles.searchItemDate}>{dayLabel(new Date(r.createdAt))}, {formatTime(r.createdAt)}</Text>
+                      </View>
+                      <Text style={styles.searchItemText} numberOfLines={2}>{r.text}</Text>
+                    </TouchableOpacity>
+                  )}
+                />
+              )}
+            </View>
+          )}
+
+          {showJump && !searchOpen && (
             <TouchableOpacity style={styles.jumpBtn} onPress={() => scrollToLatest()} activeOpacity={0.85}>
               <Ionicons name="chevron-down" size={22} color="#334155" />
               {unseenCount > 0 && (
@@ -1054,6 +1315,43 @@ const styles = StyleSheet.create({
   // message rows
   msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 2 },
   msgRowGroupEnd: { marginBottom: 6 },
+  msgRowHighlight: { backgroundColor: 'rgba(37,99,235,0.14)', borderRadius: 10 },
+  swipeIcon: {
+    position: 'absolute',
+    left: 4,
+    top: 0,
+    bottom: 0,
+    width: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkMe: { color: '#FFFFFF', textDecorationLine: 'underline', fontWeight: '600' },
+  linkOther: { color: '#2563EB', textDecorationLine: 'underline' },
+  headerIconBtn: { padding: 6, marginLeft: 4 },
+  searchBox: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 40,
+    marginLeft: 4,
+  },
+  searchInput: { flex: 1, fontSize: 15, color: '#0F172A', paddingVertical: 0 },
+  searchOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: '#FFFFFF', zIndex: 5 },
+  searchHint: { textAlign: 'center', color: '#64748B', fontSize: 13.5, marginTop: 28, paddingHorizontal: 24 },
+  searchCount: { fontSize: 12, fontWeight: '600', color: '#64748B', paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  searchItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E2E8F0',
+  },
+  searchItemName: { fontSize: 13, fontWeight: '700', color: '#2563EB', flexShrink: 1, marginRight: 8 },
+  searchItemDate: { fontSize: 11.5, color: '#94A3B8' },
+  searchItemText: { fontSize: 14, color: '#334155', marginTop: 3, lineHeight: 19 },
   msgRowMe: { justifyContent: 'flex-end', paddingLeft: 48 },
   msgRowOther: { justifyContent: 'flex-start', paddingRight: 48 },
   avatarSlot: { width: 32, marginRight: 6, alignSelf: 'flex-start' },

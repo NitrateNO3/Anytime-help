@@ -33,7 +33,8 @@ const sendPushNotifications = async (tokensOrObjects, title, body, data = {}, de
         title,
         body,
         data,
-        badge: badgeVal,
+        // null/undefined: leave the app icon badge unchanged
+        ...(typeof badgeVal === 'number' ? { badge: badgeVal } : {}),
         channelId: 'default',
         priority: 'high',
         _displayInForeground: true

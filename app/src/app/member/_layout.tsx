@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Tabs, useRouter, usePathname } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { View, Text, StyleSheet, Platform } from 'react-native';
+import { View, Text, StyleSheet, Platform, AppState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +11,7 @@ import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { socketAuth } from '../../utils/socketAuth';
+import { useChatUnread, refreshChatUnread, refreshChatUnreadSoon } from '../../utils/chatUnread';
 import ForceBlockUpdateModal, { isProfileBlockUpdateRequired } from '../../components/ForceBlockUpdateModal';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -55,6 +56,7 @@ const TABS: TabDefinition[] = [
 function WhatsAppFloatingTabBar({ state, descriptors, insets }: any) {
   const router = useRouter();
   const pathname = usePathname();
+  const chatUnread = useChatUnread();
 
   const focusedRoute = state?.routes ? state.routes[state.index] : null;
   const focusedDescriptor = descriptors && focusedRoute ? descriptors[focusedRoute.key] : null;
@@ -100,6 +102,11 @@ function WhatsAppFloatingTabBar({ state, descriptors, insets }: any) {
                   size={22}
                   color={isFocused ? '#2563EB' : '#64748B'}
                 />
+                {tab.name === 'chats' && chatUnread.total > 0 && (
+                  <View style={tabBarStyles.unreadDot}>
+                    <Text style={tabBarStyles.unreadDotText}>{chatUnread.total > 99 ? '99+' : chatUnread.total}</Text>
+                  </View>
+                )}
               </View>
               <Text style={[tabBarStyles.tabLabel, isFocused && tabBarStyles.tabLabelActive]}>
                 {tab.label}
@@ -149,6 +156,21 @@ function WhatsAppFloatingTabBar({ state, descriptors, insets }: any) {
 }
 
 const tabBarStyles = StyleSheet.create({
+  unreadDot: {
+    position: 'absolute',
+    top: -5,
+    right: 4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 4,
+    backgroundColor: '#EF4444',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  unreadDotText: { color: '#FFFFFF', fontSize: 9.5, fontWeight: '800', includeFontPadding: false },
   floatingWrapper: {
     position: 'absolute',
     left: 0,
@@ -260,6 +282,11 @@ export default function MemberLayout() {
     checkUserProfile();
 
     const socket = io(SOCKET_URL, { ...socketAuth, transports: ['websocket', 'polling'] });
+    // Chat tab unread count: on open, on new messages, and back in the foreground
+    refreshChatUnread();
+    socket.on('new_message', () => refreshChatUnreadSoon());
+    socket.on('chat_group_last_message', () => refreshChatUnreadSoon());
+    const appStateSub = AppState.addEventListener('change', (st) => { if (st === 'active') refreshChatUnread(); });
     socket.on('user_updated', (data: any) => {
       if (userData && (userData._id === data.userId || userData.id === data.userId)) {
         checkUserProfile();
@@ -267,6 +294,7 @@ export default function MemberLayout() {
     });
 
     return () => {
+      appStateSub.remove();
       socket.disconnect();
     };
   }, []);

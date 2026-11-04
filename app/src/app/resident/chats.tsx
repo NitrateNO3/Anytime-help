@@ -10,6 +10,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getChatCacheUserId, chatGroupsCacheKey } from '../../utils/chatCache';
+import { setChatUnreadFromGroups, refreshChatUnreadSoon, useChatUnread } from '../../utils/chatUnread';
 import { io } from 'socket.io-client';
 import { socketAuth } from '../../utils/socketAuth';
 
@@ -44,6 +45,7 @@ export default function ResidentChatsScreen() {
   const [groups, setGroups] = useState<ChatGroupItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const unread = useChatUnread();
 
   useFocusEffect(
     useCallback(() => {
@@ -81,6 +83,7 @@ export default function ResidentChatsScreen() {
     socket.on('new_message', (newMsg: any) => {
       try {
         if (!newMsg) return;
+        refreshChatUnreadSoon();
         const gId = (newMsg.group_id?._id || newMsg.group_id || '').toString();
         setGroups(prev => prev.map(g => {
           if (g?._id && g._id.toString() === gId) {
@@ -128,6 +131,7 @@ export default function ResidentChatsScreen() {
       });
       if (Array.isArray(res.data)) {
         setGroups(res.data);
+        setChatUnreadFromGroups(res.data);
         AsyncStorage.setItem(GROUPS_CACHE_KEY, JSON.stringify(res.data)).catch(() => {});
       }
     } catch (e) {
@@ -162,6 +166,7 @@ export default function ResidentChatsScreen() {
   const renderGroupItem = ({ item }: { item: ChatGroupItem }) => {
     const isViewOnly = item.user_access?.is_view_only;
     const canSend = item.user_access?.can_send;
+    const unreadCount = unread.groups[item._id] ?? (item as any).unread_count ?? 0;
 
     return (
       <TouchableOpacity
@@ -193,13 +198,13 @@ export default function ResidentChatsScreen() {
             <Text style={styles.groupName} numberOfLines={1}>
               {item.name}
             </Text>
-            <Text style={styles.timeText}>
+            <Text style={[styles.timeText, unreadCount > 0 && styles.timeTextUnread]}>
               {formatTime(item.last_message?.timestamp || item.createdAt)}
             </Text>
           </View>
 
           {/* Subtitle / Last Message */}
-          <Text style={styles.lastMessageText} numberOfLines={1}>
+          <Text style={[styles.lastMessageText, unreadCount > 0 && styles.lastMessageTextUnread]} numberOfLines={1}>
             {item.last_message?.text 
               ? `${item.last_message.sender_name ? item.last_message.sender_name + ': ' : ''}${item.last_message.text}`
               : (item.description || 'Tap to open discussion')}
@@ -225,7 +230,13 @@ export default function ResidentChatsScreen() {
           </View>
         </View>
 
-        <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+        {unreadCount > 0 ? (
+          <View style={styles.unreadBadge}>
+            <Text style={styles.unreadBadgeText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+          </View>
+        ) : (
+          <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
+        )}
       </TouchableOpacity>
     );
   };
@@ -371,6 +382,19 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8
   },
+  timeTextUnread: { color: '#2563EB', fontWeight: '700' },
+  lastMessageTextUnread: { color: '#0F172A', fontWeight: '600' },
+  unreadBadge: {
+    minWidth: 22,
+    height: 22,
+    borderRadius: 11,
+    paddingHorizontal: 6,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  unreadBadgeText: { color: '#FFFFFF', fontSize: 11.5, fontWeight: '700' },
   timeText: {
     fontSize: 11,
     color: '#94A3B8',
