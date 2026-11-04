@@ -1,19 +1,36 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { 
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, 
+// Group chat room (members and residents).
+//
+// Loading works the way WhatsApp does it:
+//   1. The last messages seen are cached on the phone, so a chat opens instantly.
+//   2. Only the newest page (PAGE_SIZE messages) comes from the server; older
+//      pages load in chunks as the user scrolls up.
+//   3. Live messages, edits and deletes come over the socket. After a reconnect
+//      or when the app comes back to the foreground, only what changed since
+//      the last sync is fetched (`?since=`), instead of re-downloading the chat.
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import {
+  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Pressable,
   KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Alert,
-  Keyboard, TouchableWithoutFeedback, Animated, Easing, BackHandler
+  Keyboard, Animated, Easing, BackHandler, AppState, Modal,
+  NativeScrollEvent, NativeSyntheticEvent,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../../utils/socketAuth';
+import { getChatCacheUserId, chatRoomCacheKey } from '../../utils/chatCache';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
+
+const PAGE_SIZE = 30;          // messages per chunk from the server
+const CACHE_LIMIT = 60;        // newest messages kept on the phone per chat
+const SAFETY_SYNC_MS = 20000;  // light catch-up in case a socket event was missed
+const GROUP_GAP_MS = 5 * 60 * 1000; // consecutive messages within 5 min are grouped
 
 interface ChatMessageItem {
   _id: string;
@@ -31,173 +48,131 @@ interface ChatMessageItem {
   is_edited?: boolean;
   is_deleted?: boolean;
   createdAt: string;
+  updatedAt?: string;
+  // client-only
+  is_optimistic?: boolean;
+  failed?: boolean;
+  reply_to_message_id?: string;
 }
 
-// Avatar Initials & Color Helpers
+type ListRow =
+  | { kind: 'msg'; key: string; msg: ChatMessageItem; firstOfGroup: boolean; lastOfGroup: boolean }
+  | { kind: 'date'; key: string; label: string };
+
+// ---------- helpers ----------
+
 const AVATAR_PALETTES = [
-  { bg: '#3B82F6', text: '#FFFFFF' }, // Blue
-  { bg: '#8B5CF6', text: '#FFFFFF' }, // Purple
-  { bg: '#EC4899', text: '#FFFFFF' }, // Pink
-  { bg: '#10B981', text: '#FFFFFF' }, // Emerald
-  { bg: '#F59E0B', text: '#FFFFFF' }, // Amber
-  { bg: '#06B6D4', text: '#FFFFFF' }, // Cyan
-  { bg: '#6366F1', text: '#FFFFFF' }, // Indigo
-  { bg: '#F97316', text: '#FFFFFF' }, // Orange
-  { bg: '#14B8A6', text: '#FFFFFF' }, // Teal
-  { bg: '#64748B', text: '#FFFFFF' }, // Slate
+  '#2563EB', '#7C3AED', '#DB2777', '#059669', '#D97706',
+  '#0891B2', '#4F46E5', '#EA580C', '#0D9488', '#475569',
 ];
 
 const getSenderInitials = (name?: string, fallback = 'U'): string => {
   if (!name || typeof name !== 'string') return fallback;
-  const trimmed = name.trim();
-  if (!trimmed) return fallback;
-
-  const clean = trimmed.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
+  const clean = name.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
   const parts = clean.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return fallback;
-
   if (parts.length === 1) {
     const word = parts[0];
     if (word.includes('-')) {
       const sub = word.split('-').filter(Boolean);
-      if (sub[0].length >= 2 && /^[A-Za-z]+$/.test(sub[0])) {
-        return sub[0].slice(0, 2).toUpperCase();
-      }
+      if (sub[0] && sub[0].length >= 2 && /^[A-Za-z]+$/.test(sub[0])) return sub[0].slice(0, 2).toUpperCase();
       return word.slice(0, 2).toUpperCase();
     }
     return word.charAt(0).toUpperCase();
   }
-
-  const first = parts[0].charAt(0);
-  const last = parts[parts.length - 1].charAt(0);
-  return (first + last).toUpperCase();
+  return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
 };
 
-const getAvatarColor = (name?: string, isAdmin = false) => {
-  if (isAdmin) {
-    return { bg: '#1E293B', text: '#F59E0B' }; // Dark charcoal with amber letter
-  }
-  if (!name) return { bg: '#64748B', text: '#FFFFFF' };
+const colorForName = (name?: string, isAdmin = false) => {
+  if (isAdmin) return '#0F172A';
+  if (!name) return '#475569';
   let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const idx = Math.abs(hash) % AVATAR_PALETTES.length;
-  return AVATAR_PALETTES[idx];
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return AVATAR_PALETTES[Math.abs(hash) % AVATAR_PALETTES.length];
 };
 
-// WhatsApp-like Typing Indicator with 3 animated bouncing dots
+const idOf = (v: any) => ((v && (v._id || v.id)) || v || '').toString().trim();
+
+const isTemp = (m: ChatMessageItem) => m._id.startsWith('temp_') || !!m.is_optimistic;
+
+const sortChrono = (a: ChatMessageItem, b: ChatMessageItem) => {
+  const t = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  if (t !== 0) return t;
+  return a._id < b._id ? -1 : a._id > b._id ? 1 : 0;
+};
+
+// Merge server messages into the current list: replace by id, keep pending
+// optimistic messages the server has not confirmed yet, keep chronological order.
+const mergeMessages = (prev: ChatMessageItem[], incoming: ChatMessageItem[]) => {
+  if (!incoming.length) return prev;
+  const byId = new Map<string, ChatMessageItem>();
+  prev.forEach((m) => byId.set(m._id, m));
+  incoming.forEach((m) => byId.set(m._id, { ...byId.get(m._id), ...m }));
+  let merged = Array.from(byId.values());
+  // Drop an optimistic copy once the real message with the same text from the same sender exists
+  const temps = merged.filter(isTemp);
+  if (temps.length) {
+    const real = merged.filter((m) => !isTemp(m));
+    merged = merged.filter((m) => {
+      if (!isTemp(m) || m.failed) return true;
+      return !real.some((r) => r.text.trim() === m.text.trim() && idOf(r.sender) === idOf(m.sender)
+        && new Date(r.createdAt).getTime() >= new Date(m.createdAt).getTime() - 60000);
+    });
+  }
+  return merged.sort(sortChrono);
+};
+
+const dayLabel = (d: Date) => {
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  const sameYear = d.getFullYear() === today.getFullYear();
+  return d.toLocaleDateString([], { day: 'numeric', month: 'long', ...(sameYear ? {} : { year: 'numeric' }) });
+};
+
+const formatTime = (dateStr: string) => {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+// ---------- typing indicator ----------
+
 function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
-  const animValue = useRef(new Animated.Value(0)).current;
+  const anim = useRef(new Animated.Value(0)).current;
+  const active = typingUsers.length > 0;
 
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(animValue, {
-        toValue: 1,
-        duration: 1200,
-        easing: Easing.linear,
-        useNativeDriver: true,
-      })
-    );
-    animation.start();
+    if (!active) return;
+    const loop = Animated.loop(Animated.timing(anim, { toValue: 1, duration: 1200, easing: Easing.linear, useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [active, anim]);
 
-    return () => {
-      animation.stop();
-    };
-  }, [animValue]);
+  if (!active) return null;
 
-  if (!typingUsers || typingUsers.length === 0) return null;
-
-  const label = typingUsers.length === 1 
-    ? `${typingUsers[0]} is typing...` 
-    : `${typingUsers.join(', ')} are typing...`;
-
-  const primaryName = typingUsers[0] || '?';
-  const initial = primaryName.charAt(0).toUpperCase();
-
-  // Dot 1: Peak bounce at 20% of cycle
-  const translateY1 = animValue.interpolate({
-    inputRange: [0, 0.2, 0.4, 1.0],
-    outputRange: [0, -6, 0, 0],
-  });
-  const opacity1 = animValue.interpolate({
-    inputRange: [0, 0.2, 0.4, 1.0],
-    outputRange: [0.35, 1, 0.35, 0.35],
-  });
-  const scale1 = animValue.interpolate({
-    inputRange: [0, 0.2, 0.4, 1.0],
-    outputRange: [0.85, 1.25, 0.85, 0.85],
+  const dot = (peak: number) => ({
+    opacity: anim.interpolate({ inputRange: [0, Math.max(peak - 0.2, 0), peak, Math.min(peak + 0.2, 1), 1], outputRange: [0.35, 0.35, 1, 0.35, 0.35] }),
+    transform: [{ translateY: anim.interpolate({ inputRange: [0, Math.max(peak - 0.2, 0), peak, Math.min(peak + 0.2, 1), 1], outputRange: [0, 0, -4, 0, 0] }) }],
   });
 
-  // Dot 2: Peak bounce at 40% of cycle
-  const translateY2 = animValue.interpolate({
-    inputRange: [0, 0.2, 0.4, 0.6, 1.0],
-    outputRange: [0, 0, -6, 0, 0],
-  });
-  const opacity2 = animValue.interpolate({
-    inputRange: [0, 0.2, 0.4, 0.6, 1.0],
-    outputRange: [0.35, 0.35, 1, 0.35, 0.35],
-  });
-  const scale2 = animValue.interpolate({
-    inputRange: [0, 0.2, 0.4, 0.6, 1.0],
-    outputRange: [0.85, 0.85, 1.25, 0.85, 0.85],
-  });
-
-  // Dot 3: Peak bounce at 60% of cycle
-  const translateY3 = animValue.interpolate({
-    inputRange: [0, 0.4, 0.6, 0.8, 1.0],
-    outputRange: [0, 0, -6, 0, 0],
-  });
-  const opacity3 = animValue.interpolate({
-    inputRange: [0, 0.4, 0.6, 0.8, 1.0],
-    outputRange: [0.35, 0.35, 1, 0.35, 0.35],
-  });
-  const scale3 = animValue.interpolate({
-    inputRange: [0, 0.4, 0.6, 0.8, 1.0],
-    outputRange: [0.85, 0.85, 1.25, 0.85, 0.85],
-  });
+  const label = typingUsers.length === 1 ? `${typingUsers[0]} is typing` : `${typingUsers.length} people are typing`;
 
   return (
     <View style={styles.typingRow}>
-      {/* Clean circular avatar with white border and soft shadow */}
-      <View style={styles.typingAvatar}>
-        <Text style={styles.typingAvatarText}>{initial}</Text>
-      </View>
       <View style={styles.typingBubble}>
-        <Animated.View 
-          style={[
-            styles.typingDot, 
-            { 
-              transform: [{ translateY: translateY1 }, { scale: scale1 }],
-              opacity: opacity1,
-            }
-          ]} 
-        />
-        <Animated.View 
-          style={[
-            styles.typingDot, 
-            { 
-              transform: [{ translateY: translateY2 }, { scale: scale2 }],
-              opacity: opacity2,
-            }
-          ]} 
-        />
-        <Animated.View 
-          style={[
-            styles.typingDot, 
-            { 
-              transform: [{ translateY: translateY3 }, { scale: scale3 }],
-              opacity: opacity3,
-            }
-          ]} 
-        />
+        <Animated.View style={[styles.typingDot, dot(0.2)]} />
+        <Animated.View style={[styles.typingDot, dot(0.4)]} />
+        <Animated.View style={[styles.typingDot, dot(0.6)]} />
       </View>
-      <Text style={styles.typingLabelText} numberOfLines={1}>
-        {label}
-      </Text>
+      <Text style={styles.typingLabel} numberOfLines={1}>{label}</Text>
     </View>
   );
 }
+
+// ---------- screen ----------
 
 export default function MemberChatRoomScreen() {
   const router = useRouter();
@@ -206,1181 +181,1040 @@ export default function MemberChatRoomScreen() {
 
   const cleanGroupId = (Array.isArray(groupId) ? groupId[0] : (groupId || '')).toString().trim();
   const isWriteAllowed = canSend === '1';
+  const title = (Array.isArray(groupName) ? groupName[0] : groupName) || 'Committee Chat';
 
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [inputText, setInputText] = useState('');
-  const [sending, setSending] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const currentUserRef = useRef<any>(null);
   const [groupDetails, setGroupDetails] = useState<any>(null);
-  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [headerHeight, setHeaderHeight] = useState(60);
 
-  // Back button routing: Always route back safely to the caller's chat list
+  const [replyingTo, setReplyingTo] = useState<ChatMessageItem | null>(null);
+  const [editingMessage, setEditingMessage] = useState<ChatMessageItem | null>(null);
+  const [actionMessage, setActionMessage] = useState<ChatMessageItem | null>(null);
+
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const isTypingRef = useRef(false);
+  const lastTypingHeartbeatRef = useRef(0);
+  const typingTimeoutRef = useRef<any>(null);
+  const typingTimersRef = useRef<{ [userName: string]: any }>({});
+
+  const [showJump, setShowJump] = useState(false);
+  const [unseenCount, setUnseenCount] = useState(0);
+  const atBottomRef = useRef(true);
+
+  const flatListRef = useRef<FlatList<ListRow>>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const tokenRef = useRef<string | null>(null);
+  const lastSyncRef = useRef<string | null>(null);
+  const messagesRef = useRef<ChatMessageItem[]>([]);
+  const loadingOlderRef = useRef(false);
+  const syncingRef = useRef(false);
+  const cacheKeyRef = useRef<string | null>(null);
+
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
+  const myId = idOf(currentUser);
+  const roleLower = (currentUser?.role || '').toLowerCase();
+  const iAmAdmin = roleLower === 'admin' || roleLower === 'subadmin';
+
+  // ---------- navigation ----------
+
   const handleBackToChats = useCallback(() => {
     if (returnTo && typeof returnTo === 'string') {
       router.replace(returnTo as any);
       return;
     }
-    const userRole = currentUser?.role || currentUserRef.current?.role;
-    if (userRole === 'Resident') {
+    if ((currentUserRef.current?.role || currentUser?.role) === 'Resident') {
       router.replace('/resident/chats' as any);
       return;
     }
-    if (router.canGoBack()) {
-      router.back();
-    } else {
-      router.replace('/member/chats' as any);
-    }
+    if (router.canGoBack()) router.back();
+    else router.replace('/member/chats' as any);
   }, [router, returnTo, currentUser?.role]);
 
   useEffect(() => {
-    const backSub = BackHandler.addEventListener('hardwareBackPress', () => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (actionMessage) { setActionMessage(null); return true; }
       handleBackToChats();
       return true;
     });
-    return () => backSub.remove();
-  }, [handleBackToChats]);
+    return () => sub.remove();
+  }, [handleBackToChats, actionMessage]);
 
-  // WhatsApp-like reply & edit state
-  const [replyingTo, setReplyingTo] = useState<ChatMessageItem | null>(null);
-  const [editingMessage, setEditingMessage] = useState<ChatMessageItem | null>(null);
+  // ---------- data ----------
 
-  // WhatsApp-like continuous typing indicator state
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const isTypingRef = useRef<boolean>(false);
-  const lastTypingHeartbeatRef = useRef<number>(0);
-  const typingTimeoutRef = useRef<any>(null);
-  const typingTimersRef = useRef<{ [userName: string]: any }>({});
+  const getToken = async () => {
+    if (!tokenRef.current) tokenRef.current = await SecureStore.getItemAsync('userToken');
+    return tokenRef.current;
+  };
 
-  const flatListRef = useRef<FlatList>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const saveCache = useCallback((list: ChatMessageItem[]) => {
+    if (!cleanGroupId || !cacheKeyRef.current) return;
+    const confirmed = list.filter((m) => !isTemp(m)).slice(-CACHE_LIMIT);
+    AsyncStorage.setItem(cacheKeyRef.current, JSON.stringify({ messages: confirmed, lastSync: lastSyncRef.current }))
+      .catch(() => {});
+  }, [cleanGroupId]);
 
-  // Staggered multi-stage smooth scrolling to bottom (immediate, 60ms, 150ms, 280ms, 420ms)
-  // Ensures messages are scrolled completely above the chatting bar even as Android keyboard resizes
-  const scrollToBottom = useCallback((animated = true) => {
-    requestAnimationFrame(() => {
-      flatListRef.current?.scrollToEnd({ animated });
-    });
-  }, []);
-
-  const scheduleScrollToBottom = useCallback(() => {
-    scrollToBottom(false);
-    setTimeout(() => scrollToBottom(true), 60);
-    setTimeout(() => scrollToBottom(true), 150);
-    setTimeout(() => scrollToBottom(true), 280);
-    setTimeout(() => scrollToBottom(true), 420);
-  }, [scrollToBottom]);
-
-  // Auto-scroll when typing indicator appears in the chats
+  // Persist the newest messages shortly after they change
   useEffect(() => {
-    if (typingUsers.length > 0) {
-      scheduleScrollToBottom();
-    }
-  }, [typingUsers, scheduleScrollToBottom]);
+    if (loading) return;
+    const t = setTimeout(() => saveCache(messages), 800);
+    return () => clearTimeout(t);
+  }, [messages, loading, saveCache]);
 
-  useEffect(() => {
-    loadUserAndMessages();
-
-    // Setup Socket.io connection with auto-reconnection
-    const socket = io(SOCKET_URL, { ...socketAuth, 
-      transports: ['websocket', 'polling'],
-      autoConnect: true,
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 1000
+  const fetchPage = async (params: Record<string, string | number>) => {
+    const token = await getToken();
+    const res = await axios.get(`${API_URL}/chat/groups/${cleanGroupId}/messages`, {
+      headers: { 'x-auth-token': token },
+      params,
     });
-    socketRef.current = socket;
+    return res.data || {};
+  };
 
-    socket.emit('join_chat_group', cleanGroupId);
-
-    const onJoin = () => {
-      if (cleanGroupId) {
-        socket.emit('join_chat_group', cleanGroupId);
-      }
-    };
-    socket.on('connect', onJoin);
-    socket.on('reconnect', onJoin);
-
-    socket.on('new_message', (newMsg: ChatMessageItem) => {
-      const msgGroupId = ((newMsg.group_id as any)?._id || newMsg.group_id || '').toString().trim();
-      if (!cleanGroupId || msgGroupId === cleanGroupId || msgGroupId.includes(cleanGroupId) || cleanGroupId.includes(msgGroupId)) {
-        setMessages(prev => {
-          if (prev.some(m => m._id === newMsg._id)) return prev;
-          // Reconcile optimistic temp message if present
-          const tempIdx = prev.findIndex(m => (m._id.startsWith('temp_') || (m as any).is_optimistic) && (m.text || '').trim() === (newMsg.text || '').trim());
-          if (tempIdx !== -1) {
-            const copy = [...prev];
-            copy[tempIdx] = newMsg;
-            return copy;
-          }
-          return [...prev, newMsg];
-        });
-
-        // Clear typing indicator for the sender who just sent the message
-        if (newMsg.sender_name) {
-          setTypingUsers(prev => prev.filter(u => u !== newMsg.sender_name));
-        }
-
-        scheduleScrollToBottom();
-      }
+  // Newest page from the server (first open without cache, or cache too stale)
+  const loadLatest = async () => {
+    const data = await fetchPage({ limit: PAGE_SIZE });
+    const list: ChatMessageItem[] = Array.isArray(data.messages) ? data.messages : [];
+    lastSyncRef.current = data.server_time || new Date().toISOString();
+    setHasMore(data.has_more ?? list.length >= PAGE_SIZE);
+    setMessages((prev) => {
+      const pending = prev.filter(isTemp);
+      return mergeMessages(list, pending);
     });
+  };
 
-    socket.on('message_edited', ({ message_id, new_text }: any) => {
-      setMessages(prev => prev.map(m => {
-        if (m._id === message_id) {
-          return { ...m, text: new_text, is_edited: true };
-        }
-        return m;
-      }));
-    });
-
-    socket.on('message_deleted', ({ message_id }: any) => {
-      setMessages(prev => prev.map(m => {
-        if (m._id === message_id) {
-          return { ...m, text: 'This message was deleted', is_deleted: true };
-        }
-        return m;
-      }));
-    });
-
-    // Auto-scroll messages and manage keyboard state
-    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-
-    const showSub = Keyboard.addListener(showEvent, () => {
-      setIsKeyboardVisible(true);
-      scheduleScrollToBottom();
-    });
-
-    const hideSub = Keyboard.addListener(hideEvent, () => {
-      setIsKeyboardVisible(false);
-    });
-
-    // Real-time user typing listener
-    socket.on('user_typing', ({ groupId: tGid, userName, isTyping }: any) => {
-      const gId = (tGid || '').toString().trim();
-      if (cleanGroupId && gId && gId !== cleanGroupId) return;
-      if (!userName) return;
-
-      const myName = (currentUserRef.current?.name || currentUser?.name || '').trim();
-      if (myName && userName.trim() === myName) return;
-
-      setTypingUsers(prev => {
-        if (isTyping) {
-          // Continuous typing: refresh safety timeout on every heartbeat
-          if (typingTimersRef.current[userName]) {
-            clearTimeout(typingTimersRef.current[userName]);
-          }
-          typingTimersRef.current[userName] = setTimeout(() => {
-            setTypingUsers(curr => curr.filter(u => u !== userName));
-            delete typingTimersRef.current[userName];
-          }, 3000);
-
-          if (!prev.includes(userName)) {
-            setTimeout(() => {
-              flatListRef.current?.scrollToEnd({ animated: true });
-            }, 80);
-            return [...prev, userName];
-          }
-          return prev;
-        } else {
-          // User stopped typing - immediately remove
-          if (typingTimersRef.current[userName]) {
-            clearTimeout(typingTimersRef.current[userName]);
-            delete typingTimersRef.current[userName];
-          }
-          return prev.filter(u => u !== userName);
-        }
-      });
-    });
-
-    // 2-second real-time silent sync polling fallback for bulletproof message delivery
-    const syncInterval = setInterval(() => {
-      syncMessagesSilently();
-    }, 2000);
-
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-      clearInterval(syncInterval);
-      if (isTypingRef.current) {
-        isTypingRef.current = false;
-        lastTypingHeartbeatRef.current = 0;
-        socket.emit('typing_stop', {
-          groupId: cleanGroupId,
-          userName: currentUser?.name || 'Member'
-        });
-      }
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      Object.values(typingTimersRef.current).forEach(t => clearTimeout(t));
-      socket.emit('leave_chat_group', cleanGroupId);
-      socket.disconnect();
-    };
-  }, [cleanGroupId, currentUser?.name]);
-
-  const syncMessagesSilently = async () => {
-    if (!cleanGroupId) return;
+  // Only what changed since the last sync: new messages plus edits and deletes
+  const syncChanges = useCallback(async () => {
+    if (!cleanGroupId || syncingRef.current) return;
+    if (!lastSyncRef.current) return;
+    syncingRef.current = true;
     try {
-      const token = await SecureStore.getItemAsync('userToken');
-      if (!token) return;
-      const res = await axios.get(`${API_URL}/chat/groups/${cleanGroupId}/messages`, {
-        headers: { 'x-auth-token': token }
-      });
-      if (res.data?.messages && Array.isArray(res.data.messages)) {
-        const incoming: ChatMessageItem[] = res.data.messages;
-        setMessages(prev => {
-          const pendingOptimistic = prev.filter(p => p._id.startsWith('temp_') || (p as any).is_optimistic);
-
-          if (pendingOptimistic.length === 0) {
-            if (incoming.length !== prev.length || 
-                (incoming.length > 0 && prev.length > 0 && incoming[incoming.length - 1]._id !== prev[prev.length - 1]._id)) {
-              setTimeout(() => {
-                flatListRef.current?.scrollToEnd({ animated: true });
-              }, 60);
-              return incoming;
-            }
-            const hasEditsOrDeletes = incoming.some((m, idx) => {
-              const p = prev[idx];
-              return !p || p.text !== m.text || p.is_deleted !== m.is_deleted || p.is_edited !== m.is_edited;
-            });
-            if (hasEditsOrDeletes) {
-              return incoming;
-            }
-            return prev;
-          }
-
-          // Preserve pending optimistic messages that the server hasn't committed yet so they never hide
-          const unacknowledged = pendingOptimistic.filter(opt => {
-            const inIncoming = incoming.some(inc => 
-              inc._id === opt._id || 
-              (inc.text.trim() === opt.text.trim() && (
-                inc.sender_name === opt.sender_name ||
-                ((inc.sender as any)?._id || inc.sender) === ((opt.sender as any)?._id || opt.sender)
-              ))
-            );
-            return !inIncoming;
-          });
-
-          return [...incoming, ...unacknowledged];
-        });
+      const data = await fetchPage({ since: lastSyncRef.current, limit: 100 });
+      const list: ChatMessageItem[] = Array.isArray(data.messages) ? data.messages : [];
+      if (data.has_more) {
+        // Too much happened while away: start again from the newest page
+        await loadLatest();
+      } else {
+        if (data.server_time) lastSyncRef.current = data.server_time;
+        if (list.length) {
+          const before = messagesRef.current.length;
+          setMessages((prev) => mergeMessages(prev, list));
+          const newOnes = list.filter((m) => !messagesRef.current.some((p) => p._id === m._id)).length;
+          if (newOnes && before && !atBottomRef.current) setUnseenCount((c) => c + newOnes);
+        }
       }
     } catch {
-      // silent background check
+      // offline: the next trigger will retry
+    } finally {
+      syncingRef.current = false;
+    }
+  }, [cleanGroupId]);
+
+  const loadOlder = async () => {
+    if (loadingOlderRef.current || !hasMore || loading) return;
+    const oldest = messagesRef.current.find((m) => !isTemp(m));
+    if (!oldest) return;
+    loadingOlderRef.current = true;
+    setLoadingOlder(true);
+    try {
+      const data = await fetchPage({ before_id: oldest._id, limit: PAGE_SIZE });
+      const list: ChatMessageItem[] = Array.isArray(data.messages) ? data.messages : [];
+      setHasMore(data.has_more ?? list.length >= PAGE_SIZE);
+      setMessages((prev) => mergeMessages(prev, list));
+    } catch {
+      // keep hasMore so scrolling up again retries
+    } finally {
+      loadingOlderRef.current = false;
+      setLoadingOlder(false);
     }
   };
 
-  const loadUserAndMessages = async () => {
-    try {
-      const stored = await SecureStore.getItemAsync('userData');
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        setCurrentUser(parsed);
-        currentUserRef.current = parsed;
-      }
+  // Initial load: cache first, then the server, all in parallel
+  useEffect(() => {
+    if (!cleanGroupId) return;
+    let cancelled = false;
 
-      const token = await SecureStore.getItemAsync('userToken');
-      if (token) {
+    (async () => {
+      const [storedUser, token, cacheUserId] = await Promise.all([
+        SecureStore.getItemAsync('userData').catch(() => null),
+        getToken(),
+        getChatCacheUserId(),
+      ]);
+      cacheKeyRef.current = chatRoomCacheKey(cacheUserId, cleanGroupId);
+      const cachedRaw = await AsyncStorage.getItem(cacheKeyRef.current).catch(() => null);
+      if (cancelled) return;
+
+      if (storedUser) {
         try {
-          const userRes = await axios.get(`${API_URL}/users/me`, {
-            headers: { 'x-auth-token': token }
-          });
-          if (userRes.data) {
-            const fresh = userRes.data;
-            setCurrentUser(fresh);
-            currentUserRef.current = fresh;
-            await SecureStore.setItemAsync('userData', JSON.stringify(fresh));
-          }
-        } catch (uErr) {
-          console.log('Error refreshing user profile in chat room:', uErr);
-        }
+          const parsed = JSON.parse(storedUser);
+          setCurrentUser(parsed);
+          currentUserRef.current = parsed;
+        } catch {}
       }
 
-      // Fetch group details to display participant real names in header
-      if (token && cleanGroupId) {
+      let hadCache = false;
+      if (cachedRaw) {
         try {
-          const groupRes = await axios.get(`${API_URL}/chat/groups/${cleanGroupId}`, {
-            headers: { 'x-auth-token': token }
-          });
-          if (groupRes.data) {
-            setGroupDetails(groupRes.data);
+          const cached = JSON.parse(cachedRaw);
+          if (Array.isArray(cached?.messages) && cached.messages.length) {
+            hadCache = true;
+            lastSyncRef.current = cached.lastSync || null;
+            setMessages(cached.messages);
+            setHasMore(true);
+            setLoading(false);
           }
-        } catch (gErr) {
-          console.log('Error fetching group details in chat room:', gErr);
-        }
+        } catch {}
       }
 
-      const res = await axios.get(`${API_URL}/chat/groups/${cleanGroupId}/messages`, {
-        headers: { 'x-auth-token': token }
-      });
-      if (res.data?.messages) {
-        setMessages(res.data.messages);
+      const headers = { 'x-auth-token': token };
+      // Profile and group details refresh in the background; they never block messages
+      axios.get(`${API_URL}/users/me`, { headers })
+        .then((r) => {
+          if (cancelled || !r.data) return;
+          setCurrentUser(r.data);
+          currentUserRef.current = r.data;
+          SecureStore.setItemAsync('userData', JSON.stringify(r.data)).catch(() => {});
+        })
+        .catch(() => {});
+      axios.get(`${API_URL}/chat/groups/${cleanGroupId}`, { headers })
+        .then((r) => { if (!cancelled && r.data) setGroupDetails(r.data); })
+        .catch(() => {});
+
+      try {
+        if (hadCache && lastSyncRef.current) await syncChanges();
+        else await loadLatest();
+      } catch (e) {
+        console.log('Error loading messages:', e);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-    } catch (e) {
-      console.log('Error loading messages:', e);
-    } finally {
-      setLoading(false);
-      scheduleScrollToBottom();
-    }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cleanGroupId]);
+
+  // ---------- realtime ----------
+
+  useEffect(() => {
+    if (!cleanGroupId) return;
+    const socket = io(SOCKET_URL, {
+      ...socketAuth,
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+    });
+    socketRef.current = socket;
+
+    let connectedOnce = false;
+    socket.on('connect', () => {
+      socket.emit('join_chat_group', cleanGroupId);
+      // Anything sent while the socket was down is fetched as a small delta
+      if (connectedOnce) syncChanges();
+      connectedOnce = true;
+    });
+
+    socket.on('new_message', (newMsg: ChatMessageItem) => {
+      if (!newMsg) return;
+      if (idOf(newMsg.group_id) !== cleanGroupId) return;
+      const exists = messagesRef.current.some((m) => m._id === newMsg._id);
+      setMessages((prev) => mergeMessages(prev, [newMsg]));
+      if (newMsg.sender_name) setTypingUsers((prev) => prev.filter((u) => u !== newMsg.sender_name));
+      const mine = idOf(newMsg.sender) === idOf(currentUserRef.current);
+      if (!exists && !mine && !atBottomRef.current) setUnseenCount((c) => c + 1);
+    });
+
+    socket.on('message_edited', ({ message_id, group_id, new_text }: any) => {
+      if (group_id && idOf(group_id) !== cleanGroupId) return;
+      setMessages((prev) => prev.map((m) => (m._id === message_id ? { ...m, text: new_text, is_edited: true } : m)));
+    });
+
+    socket.on('message_deleted', ({ message_id, group_id }: any) => {
+      if (group_id && idOf(group_id) !== cleanGroupId) return;
+      setMessages((prev) => prev.map((m) => (m._id === message_id ? { ...m, text: 'This message was deleted', is_deleted: true } : m)));
+    });
+
+    socket.on('user_typing', ({ groupId: tGid, userName, isTyping }: any) => {
+      if (!userName) return;
+      if (tGid && idOf(tGid) !== cleanGroupId) return;
+      const me = currentUserRef.current;
+      if ([me?.member_id, me?.name].filter(Boolean).map((s: string) => s.trim()).includes(userName.trim())) return;
+
+      if (typingTimersRef.current[userName]) clearTimeout(typingTimersRef.current[userName]);
+      if (isTyping) {
+        typingTimersRef.current[userName] = setTimeout(() => {
+          setTypingUsers((curr) => curr.filter((u) => u !== userName));
+          delete typingTimersRef.current[userName];
+        }, 3500);
+        setTypingUsers((prev) => (prev.includes(userName) ? prev : [...prev, userName]));
+      } else {
+        delete typingTimersRef.current[userName];
+        setTypingUsers((prev) => prev.filter((u) => u !== userName));
+      }
+    });
+
+    // Back in the foreground: catch up on what changed
+    const appSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') syncChanges();
+    });
+
+    // Cheap safety net (an empty delta most of the time) in case an event was missed
+    const safety = setInterval(syncChanges, SAFETY_SYNC_MS);
+
+    return () => {
+      appSub.remove();
+      clearInterval(safety);
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        const me = currentUserRef.current;
+        socket.emit('typing_stop', { groupId: cleanGroupId, userName: me?.member_id || me?.name || 'Member' });
+      }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      Object.values(typingTimersRef.current).forEach((t) => clearTimeout(t));
+      socket.emit('leave_chat_group', cleanGroupId);
+      socket.disconnect();
+    };
+  }, [cleanGroupId, syncChanges]);
+
+  // ---------- typing ----------
+
+  const myIdentifier = () => {
+    const me = currentUserRef.current;
+    return me?.member_id || me?.name || 'Member';
+  };
+
+  const stopTyping = () => {
+    if (!isTypingRef.current) return;
+    isTypingRef.current = false;
+    lastTypingHeartbeatRef.current = 0;
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    socketRef.current?.emit('typing_stop', { groupId: cleanGroupId, userName: myIdentifier() });
   };
 
   const handleTextChange = (text: string) => {
     setInputText(text);
-
     if (!socketRef.current || !cleanGroupId) return;
-    const myIdentifier = currentUser?.member_id || currentUser?.name || 'Member';
+    if (!text.trim()) { stopTyping(); return; }
 
-    if (text.trim().length > 0) {
-      const now = Date.now();
-      // Continuous typing: send typing_start on first character OR every 1.5s as long as typing continues
-      if (!isTypingRef.current || (now - lastTypingHeartbeatRef.current > 1500)) {
-        isTypingRef.current = true;
-        lastTypingHeartbeatRef.current = now;
-        socketRef.current.emit('typing_start', {
-          groupId: cleanGroupId,
-          userName: myIdentifier
-        });
-      }
+    const now = Date.now();
+    if (!isTypingRef.current || now - lastTypingHeartbeatRef.current > 1500) {
+      isTypingRef.current = true;
+      lastTypingHeartbeatRef.current = now;
+      socketRef.current.emit('typing_start', { groupId: cleanGroupId, userName: myIdentifier() });
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(stopTyping, 2000);
+  };
 
-      // Reset inactivity timer: if user stops typing for 2 seconds, emit typing_stop
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
+  // ---------- send / edit / delete ----------
 
-      typingTimeoutRef.current = setTimeout(() => {
-        isTypingRef.current = false;
-        lastTypingHeartbeatRef.current = 0;
-        socketRef.current?.emit('typing_stop', {
-          groupId: cleanGroupId,
-          userName: myIdentifier
-        });
-      }, 2000);
-    } else {
-      // Input was cleared: immediately stop typing
-      if (isTypingRef.current) {
-        isTypingRef.current = false;
-        lastTypingHeartbeatRef.current = 0;
-        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-        socketRef.current.emit('typing_stop', {
-          groupId: cleanGroupId,
-          userName: myIdentifier
-        });
+  const scrollToLatest = (animated = true) => {
+    flatListRef.current?.scrollToOffset({ offset: 0, animated });
+    setUnseenCount(0);
+  };
+
+  const postMessage = async (tempId: string, text: string, replyId?: string) => {
+    try {
+      const token = await getToken();
+      const res = await axios.post(
+        `${API_URL}/chat/groups/${cleanGroupId}/messages`,
+        replyId ? { text, reply_to_message_id: replyId } : { text },
+        { headers: { 'x-auth-token': token } },
+      );
+      const sent: ChatMessageItem | undefined = res.data?.message;
+      if (sent) {
+        setMessages((prev) => mergeMessages(prev.filter((m) => m._id !== tempId), [sent]));
       }
+    } catch (err: any) {
+      // Keep the message on screen, marked as failed, so it can be retried
+      setMessages((prev) => prev.map((m) => (m._id === tempId ? { ...m, failed: true } : m)));
+      const msg = err?.response?.data?.msg;
+      if (msg && err?.response?.status === 403) Alert.alert('Not sent', msg);
     }
   };
 
   const handleSendOrUpdate = async () => {
-    if (!inputText.trim() || sending) return;
+    const text = inputText.trim();
+    if (!text) return;
+    stopTyping();
 
-    // Immediately stop typing indicator on send
-    if (isTypingRef.current) {
-      isTypingRef.current = false;
-      lastTypingHeartbeatRef.current = 0;
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      const myIdentifier = currentUser?.member_id || currentUser?.name || 'Member';
-      socketRef.current?.emit('typing_stop', {
-        groupId: cleanGroupId,
-        userName: myIdentifier
-      });
-    }
-
-    const token = await SecureStore.getItemAsync('userToken');
-
-    // Case 1: Editing existing message
     if (editingMessage) {
-      setSending(true);
-      const updatedText = inputText.trim();
       const editingId = editingMessage._id;
-
-      // Immediately reflect edit on screen
-      setMessages(prev => prev.map(m => {
-        if (m._id === editingId) {
-          return { ...m, text: updatedText, is_edited: true };
-        }
-        return m;
-      }));
+      const previousText = editingMessage.text;
+      setMessages((prev) => prev.map((m) => (m._id === editingId ? { ...m, text, is_edited: true } : m)));
       setEditingMessage(null);
       setInputText('');
-
       try {
-        await axios.put(
-          `${API_URL}/chat/messages/${editingId}`,
-          { new_text: updatedText },
-          { headers: { 'x-auth-token': token } }
-        );
+        const token = await getToken();
+        await axios.put(`${API_URL}/chat/messages/${editingId}`, { new_text: text }, { headers: { 'x-auth-token': token } });
       } catch (err: any) {
-        Alert.alert('Error', err.response?.data?.msg || 'Could not edit message');
-      } finally {
-        setSending(false);
+        setMessages((prev) => prev.map((m) => (m._id === editingId ? { ...m, text: previousText } : m)));
+        Alert.alert('Error', err?.response?.data?.msg || 'Could not edit message');
       }
       return;
     }
 
-    // Case 2: Sending a new message (or quoted reply) - WhatsApp-style instant send
-    const textToSend = inputText.trim();
-    const currentReplyingTo = replyingTo;
-    const tempId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-
-    // Create optimistic message object
-    const optimisticMsg: any = {
+    const me = currentUserRef.current;
+    const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const reply = replyingTo;
+    const optimistic: ChatMessageItem = {
       _id: tempId,
       group_id: cleanGroupId,
-      sender: currentUser?._id || currentUser?.id,
-      sender_name: currentUser?.member_id || currentUser?.name || 'You',
-      sender_role: currentUser?.role || 'Member',
-      sender_designation: currentUser?.designation || '',
-      text: textToSend,
-      reply_to_message_id: currentReplyingTo ? currentReplyingTo : null,
+      sender: idOf(me),
+      sender_name: me?.member_id || me?.name || 'You',
+      sender_role: me?.role || 'Member',
+      sender_designation: me?.designation || '',
+      text,
+      reply_to: reply ? { message_id: reply._id, sender_name: displayNameFor(reply), text: reply.text } : undefined,
+      reply_to_message_id: reply?._id,
       createdAt: new Date().toISOString(),
-      is_optimistic: true
+      is_optimistic: true,
     };
 
-    // Immediately render message on screen and clear input with 0ms delay
-    setMessages(prev => [...prev, optimisticMsg]);
+    setMessages((prev) => [...prev, optimistic]);
     setInputText('');
     setReplyingTo(null);
-    scheduleScrollToBottom();
-
-    // Background HTTP dispatch
-    const payload: any = {
-      text: textToSend,
-    };
-    if (currentReplyingTo) {
-      payload.reply_to_message_id = currentReplyingTo._id;
-    }
-
-    try {
-      const res = await axios.post(
-        `${API_URL}/chat/groups/${cleanGroupId}/messages`,
-        payload,
-        { headers: { 'x-auth-token': token } }
-      );
-
-      // Reconcile optimistic message with server-saved message
-      if (res.data?.message) {
-        const sentMsg = res.data.message;
-        setMessages(prev => {
-          if (prev.some(m => m._id === sentMsg._id)) {
-            return prev.filter(m => m._id !== tempId);
-          }
-          const hasTemp = prev.some(m => m._id === tempId);
-          if (hasTemp) {
-            return prev.map(m => m._id === tempId ? sentMsg : m);
-          }
-          return [...prev, sentMsg];
-        });
-      }
-    } catch (err: any) {
-      // Revert optimistic message if network fails
-      setMessages(prev => prev.filter(m => m._id !== tempId));
-      Alert.alert('Error', err.response?.data?.msg || 'Failed to send message');
-    }
+    scrollToLatest();
+    postMessage(tempId, text, reply?._id);
   };
 
-  const handleMessageLongPress = (item: ChatMessageItem) => {
-    if (item.is_deleted) return;
+  const retrySend = (m: ChatMessageItem) => {
+    setMessages((prev) => prev.map((x) => (x._id === m._id ? { ...x, failed: false } : x)));
+    postMessage(m._id, m.text, m.reply_to_message_id);
+  };
 
-    const myId = (currentUser?._id || currentUser?.id || '').toString().trim();
-    const senderId = ((item.sender as any)?._id || item.sender || '').toString().trim();
-    const isMyMessage = Boolean(myId && senderId && myId === senderId);
-
-    const roleLower = (currentUser?.role || '').toLowerCase();
-    const isAdmin = roleLower === 'admin' || roleLower === 'subadmin';
-    const canDelete = isMyMessage || isAdmin;
-    const canEdit = isMyMessage;
-
-    const options: any[] = [];
-
-    // Any member with write access can reply
-    if (isWriteAllowed) {
-      options.push({ text: 'Reply', onPress: () => setReplyingTo(item) });
-    }
-
-    // Only the original author can edit their message
-    if (canEdit) {
-      options.push({
-        text: 'Edit',
-        onPress: () => {
-          setEditingMessage(item);
-          setInputText(item.text);
-          setReplyingTo(null);
-        }
-      });
-    }
-
-    // Members can ONLY delete their own messages. Admins can delete any message.
-    if (canDelete) {
-      options.push({
+  const deleteMessage = (msgId: string) => {
+    Alert.alert('Delete message?', 'This message will be deleted for everyone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => confirmDeleteMessage(item._id)
-      });
-    }
-
-    if (options.length === 0) return;
-
-    options.push({ text: 'Cancel', style: 'cancel' });
-
-    Alert.alert('Message Options', item.text, options);
+        onPress: async () => {
+          setMessages((prev) => prev.map((m) => (m._id === msgId ? { ...m, text: 'This message was deleted', is_deleted: true } : m)));
+          try {
+            const token = await getToken();
+            await axios.delete(`${API_URL}/chat/messages/${msgId}`, { headers: { 'x-auth-token': token } });
+          } catch (err: any) {
+            Alert.alert('Error', err?.response?.data?.msg || 'Could not delete message');
+            syncChanges();
+          }
+        },
+      },
+    ]);
   };
 
-  const confirmDeleteMessage = async (msgId: string) => {
-    // Immediately show "This message was deleted" on screen
-    setMessages(prev => prev.map(m => {
-      if (m._id === msgId) {
-        return { ...m, text: 'This message was deleted', is_deleted: true };
+  // ---------- display ----------
+
+  const memberById = useMemo(() => {
+    const map = new Map<string, any>();
+    (groupDetails?.members || []).forEach((m: any) => map.set(idOf(m), m));
+    return map;
+  }, [groupDetails]);
+
+  const senderInfo = (item: ChatMessageItem) => {
+    const senderId = idOf(item.sender);
+    const senderObj = typeof item.sender === 'object' && item.sender ? item.sender : null;
+    const matched = memberById.get(senderId);
+    const role = (item.sender_role || senderObj?.role || matched?.role || '').toLowerCase();
+    const isAdmin = role === 'admin' || role === 'subadmin' || role === 'superadmin';
+    const memberId = senderObj?.member_id || matched?.member_id
+      || (item.sender_name && item.sender_name !== senderObj?.name ? item.sender_name : null);
+
+    let label: string;
+    if (isAdmin) label = role === 'subadmin' ? 'Admin' : 'Super Admin';
+    else label = memberId || senderObj?.name?.trim() || item.sender_name || 'Member';
+
+    const rawDesignation = senderObj?.designation || matched?.designation || item.sender_designation;
+    const designation = rawDesignation && rawDesignation.trim().toLowerCase() !== 'member' ? rawDesignation.trim() : null;
+    const fullName = isAdmin ? label : (senderObj?.name || matched?.name || item.sender_name || label);
+
+    return { senderId, isAdmin, label, designation, fullName, color: colorForName(fullName, isAdmin) };
+  };
+
+  function displayNameFor(item: ChatMessageItem) {
+    return senderInfo(item).label;
+  }
+
+  // Newest-first rows for the inverted list, with date separators and grouping
+  const rows = useMemo<ListRow[]>(() => {
+    const out: ListRow[] = [];
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      const prev = messages[i - 1];
+      const next = messages[i + 1];
+      const d = new Date(m.createdAt);
+      const sameSender = (a?: ChatMessageItem, b?: ChatMessageItem) =>
+        !!a && !!b && idOf(a.sender) === idOf(b.sender)
+        && new Date(a.createdAt).toDateString() === new Date(b.createdAt).toDateString()
+        && Math.abs(new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) < GROUP_GAP_MS;
+
+      out.push({
+        kind: 'msg',
+        key: m._id,
+        msg: m,
+        firstOfGroup: !sameSender(prev, m),
+        lastOfGroup: !sameSender(m, next),
+      });
+      if (!prev || new Date(prev.createdAt).toDateString() !== d.toDateString()) {
+        out.push({ kind: 'date', key: `date_${d.toDateString()}`, label: dayLabel(d) });
       }
-      return m;
-    }));
-
-    try {
-      const token = await SecureStore.getItemAsync('userToken');
-      await axios.delete(`${API_URL}/chat/messages/${msgId}`, {
-        headers: { 'x-auth-token': token }
-      });
-    } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.msg || 'Could not delete message');
-      syncMessagesSilently();
     }
+    return out;
+  }, [messages]);
+
+  const onScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y; // inverted: 0 is the newest message
+    const atBottom = y < 120;
+    atBottomRef.current = atBottom;
+    if (atBottom && unseenCount) setUnseenCount(0);
+    const show = y > 400;
+    if (show !== showJump) setShowJump(show);
   };
 
-  const formatMessageTime = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return '';
-    }
-  };
-
-  const renderMessageBubble = ({ item }: { item: ChatMessageItem }) => {
-    const myId = (currentUser?._id || currentUser?.id || '').toString().trim();
-    const senderId = ((item.sender as any)?._id || item.sender || '').toString().trim();
-    const isMe = Boolean(myId && senderId && myId === senderId);
-
-    const senderObj = typeof item.sender === 'object' && item.sender !== null ? (item.sender as any) : null;
-    const matchedMember = (groupDetails?.members || []).find((m: any) => (m._id || '').toString() === senderId);
-    const memberId = senderObj?.member_id || matchedMember?.member_id || (item.sender_name && item.sender_name !== senderObj?.name ? item.sender_name : null);
-    const roleLower = (item.sender_role || senderObj?.role || matchedMember?.role || '').toLowerCase();
-    const isAdmin = roleLower === 'admin' || roleLower === 'subadmin';
-
-    let displayIdentifier = '';
-    if (isAdmin) {
-      displayIdentifier = item.sender_role === 'Admin' ? 'Super Admin' : 'Admin';
-    } else if (memberId) {
-      displayIdentifier = memberId;
-    } else if (senderObj?.name) {
-      displayIdentifier = senderObj.name.trim();
-    } else {
-      displayIdentifier = item.sender_name || 'Member';
+  const renderRow = ({ item }: { item: ListRow }) => {
+    if (item.kind === 'date') {
+      return (
+        <View style={styles.dateWrap}>
+          <Text style={styles.datePill}>{item.label}</Text>
+        </View>
+      );
     }
 
-    const rawDesignation = senderObj?.designation || matchedMember?.designation || item.sender_designation;
-    const designation = (rawDesignation && rawDesignation.trim().toLowerCase() !== 'member') ? rawDesignation.trim() : null;
-    const actualSenderName = isAdmin 
-      ? (item.sender_role === 'Admin' ? 'Super Admin' : 'Admin')
-      : (senderObj?.name || matchedMember?.name || item.sender_name || memberId || 'Member');
-    const initials = getSenderInitials(actualSenderName);
-    const avatarColor = getAvatarColor(actualSenderName, isAdmin);
+    const m = item.msg;
+    const info = senderInfo(m);
+    const isMe = Boolean(myId && info.senderId === myId);
+    const showHeader = !isMe && item.firstOfGroup;
+    const pending = isTemp(m) && !m.failed;
 
     return (
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={Keyboard.dismiss}
-        onLongPress={() => handleMessageLongPress(item)}
-        style={[
-          styles.messageRow,
-          isMe ? styles.messageRowMe : styles.messageRowOther
-        ]}
-      >
+      <View style={[styles.msgRow, isMe ? styles.msgRowMe : styles.msgRowOther, item.lastOfGroup ? styles.msgRowGroupEnd : null]}>
         {!isMe && (
-          <View style={[styles.msgAvatarCircle, { backgroundColor: avatarColor.bg }]}>
-            <Text style={[styles.msgAvatarText, { color: avatarColor.text }]}>{initials}</Text>
+          <View style={styles.avatarSlot}>
+            {item.firstOfGroup && (
+              <View style={[styles.avatar, { backgroundColor: info.color }]}>
+                <Text style={[styles.avatarText, info.isAdmin && { color: '#FBBF24' }]}>{getSenderInitials(info.fullName)}</Text>
+              </View>
+            )}
           </View>
         )}
 
-        <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
-          {/* Sender Info - Prioritizes Member ID */}
-          {isMe ? (
-            <View style={styles.senderHeaderMe}>
-              <Text style={styles.senderNameMe}>You ({currentUser?.member_id || 'Member'})</Text>
+        <Pressable
+          onPress={() => (m.failed ? retrySend(m) : Keyboard.dismiss())}
+          onLongPress={() => { if (!m.is_deleted && !isTemp(m)) { Keyboard.dismiss(); setActionMessage(m); } }}
+          delayLongPress={280}
+          style={({ pressed }) => [
+            styles.bubble,
+            isMe ? styles.bubbleMe : styles.bubbleOther,
+            item.firstOfGroup && (isMe ? styles.bubbleMeFirst : styles.bubbleOtherFirst),
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          {showHeader && (
+            <View style={styles.senderHeader}>
+              <Text style={[styles.senderName, { color: info.color === '#0F172A' ? '#B45309' : info.color }]} numberOfLines={1}>
+                {info.label}
+              </Text>
+              {info.designation ? <Text style={styles.senderDesignation} numberOfLines={1}>{info.designation}</Text> : null}
+            </View>
+          )}
+
+          {m.reply_to?.text ? (
+            <View style={[styles.quote, isMe ? styles.quoteMe : styles.quoteOther]}>
+              <Text style={[styles.quoteSender, isMe && { color: '#DBEAFE' }]} numberOfLines={1}>{m.reply_to.sender_name}</Text>
+              <Text style={[styles.quoteText, isMe && { color: '#EFF6FF' }]} numberOfLines={2}>{m.reply_to.text}</Text>
+            </View>
+          ) : null}
+
+          {m.is_deleted ? (
+            <View style={styles.deletedRow}>
+              <Ionicons name="ban-outline" size={14} color={isMe ? 'rgba(255,255,255,0.75)' : '#94A3B8'} />
+              <Text style={[styles.deletedText, isMe && { color: 'rgba(255,255,255,0.8)' }]}>This message was deleted</Text>
             </View>
           ) : (
-            <View style={styles.senderHeader}>
-              <Text style={styles.senderName}>{displayIdentifier}</Text>
-              {designation && designation !== 'Member' ? (
-                <Text style={styles.senderDesignation}>• {designation}</Text>
-              ) : null}
-            </View>
-          )}
-
-          {/* WhatsApp-like Quoted Reply Preview */}
-          {item.reply_to && (
-            <View style={[styles.quoteBox, isMe ? styles.quoteBoxMe : styles.quoteBoxOther]}>
-              <Text style={[styles.quoteSender, isMe ? styles.quoteSenderMe : styles.quoteSenderOther]}>
-                {item.reply_to.sender_name}
-              </Text>
-              <Text style={[styles.quoteText, isMe ? styles.quoteTextMe : styles.quoteTextOther]} numberOfLines={2}>
-                {item.reply_to.text}
-              </Text>
-            </View>
-          )}
-
-          {/* Message Text */}
-          <Text style={[styles.messageText, isMe ? styles.messageTextMe : styles.messageTextOther, item.is_deleted ? styles.deletedText : null]}>
-            {item.is_deleted ? '🚫 This message was deleted' : item.text}
-          </Text>
-
-          {/* Time, Edited Badge & Quick Reply Button */}
-          <View style={styles.metaRow}>
-            {item.is_edited && !item.is_deleted && (
-              <Text style={[styles.metaText, isMe ? styles.metaTextMe : styles.metaTextOther]}>edited • </Text>
-            )}
-            <Text style={[styles.metaText, isMe ? styles.metaTextMe : styles.metaTextOther]}>
-              {formatMessageTime(item.createdAt)}
+            <Text style={[styles.msgText, isMe ? styles.msgTextMe : styles.msgTextOther]}>
+              {m.text}
+              {/* spacer so the last line never runs under the time */}
+              <Text style={styles.timeSpacer}>{'      '}{m.is_edited ? '          ' : ''}{isMe ? '    ' : ''}</Text>
             </Text>
+          )}
 
-            {/* Quick Reply Icon on the bubble */}
-            {!item.is_deleted && isWriteAllowed && (
-              <TouchableOpacity
-                onPress={() => setReplyingTo({ ...item, sender_name: displayIdentifier })}
-                style={{ marginLeft: 8, padding: 2 }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <Ionicons 
-                  name="return-down-back-outline" 
-                  size={15} 
-                  color={isMe ? '#FFFFFF' : '#2563EB'} 
-                />
-              </TouchableOpacity>
+          <View style={styles.meta}>
+            {m.is_edited && !m.is_deleted && <Text style={[styles.metaText, isMe && styles.metaTextMe]}>edited</Text>}
+            <Text style={[styles.metaText, isMe && styles.metaTextMe]}>{formatTime(m.createdAt)}</Text>
+            {isMe && !m.is_deleted && (
+              m.failed
+                ? <Ionicons name="alert-circle" size={13} color="#FCA5A5" />
+                : <Ionicons name={pending ? 'time-outline' : 'checkmark-done'} size={13} color="rgba(255,255,255,0.85)" />
             )}
           </View>
-        </View>
+        </Pressable>
 
-        {isMe && (
-          <View style={[styles.msgAvatarCircle, { backgroundColor: avatarColor.bg }]}>
-            <Text style={[styles.msgAvatarText, { color: avatarColor.text }]}>{initials}</Text>
-          </View>
+        {m.failed && (
+          <TouchableOpacity onPress={() => retrySend(m)} style={styles.retryBtn} hitSlop={8}>
+            <Ionicons name="refresh" size={16} color="#DC2626" />
+          </TouchableOpacity>
         )}
-      </TouchableOpacity>
+      </View>
     );
   };
 
-  const isAnyoneTyping = typingUsers.length > 0;
-  const typingHeaderLabel = typingUsers.length === 1 
-    ? `${typingUsers[0]} typing...` 
-    : `${typingUsers.join(', ')} typing...`;
+  // ---------- header ----------
 
-  const participantNames = (groupDetails?.members || [])
-    .map((m: any) => m.member_id || m.name || '')
-    .filter(Boolean);
-  const participantSubtitle = participantNames.length > 0
-    ? participantNames.join(', ')
-    : (groupType ? `${groupType} Committee • ${isWriteAllowed ? 'You can chat' : 'View Only Mode'}` : (isWriteAllowed ? 'You can chat' : 'View Only Mode'));
+  const participantNames = (groupDetails?.members || []).map((m: any) => m.member_id || m.name || '').filter(Boolean);
+  const subtitle = typingUsers.length
+    ? (typingUsers.length === 1 ? `${typingUsers[0]} is typing…` : `${typingUsers.length} people are typing…`)
+    : participantNames.length
+      ? participantNames.join(', ')
+      : `${groupType ? `${groupType} • ` : ''}${isWriteAllowed ? 'Tap a message to reply' : 'View only'}`;
+
+  // ---------- action sheet ----------
+
+  const actionIsMine = actionMessage ? idOf(actionMessage.sender) === myId : false;
+  const actions = actionMessage ? [
+    isWriteAllowed && { key: 'reply', icon: 'arrow-undo-outline', label: 'Reply', onPress: () => setReplyingTo(actionMessage) },
+    actionIsMine && { key: 'edit', icon: 'create-outline', label: 'Edit', onPress: () => { setEditingMessage(actionMessage); setReplyingTo(null); setInputText(actionMessage.text); } },
+    (actionIsMine || iAmAdmin) && { key: 'delete', icon: 'trash-outline', label: 'Delete', danger: true, onPress: () => deleteMessage(actionMessage._id) },
+  ].filter(Boolean) as { key: string; icon: any; label: string; danger?: boolean; onPress: () => void }[] : [];
+
+  // ---------- render ----------
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar barStyle="dark-content" />
 
-      {/* Screen Header - Touch header to auto-close keyboard */}
-      <TouchableOpacity activeOpacity={1} onPress={Keyboard.dismiss} style={styles.header}>
-        <TouchableOpacity onPress={handleBackToChats} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#0F172A" />
+      <View style={styles.header} onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
+        <TouchableOpacity onPress={handleBackToChats} style={styles.backButton} hitSlop={8}>
+          <Ionicons name="chevron-back" size={26} color="#0F172A" />
         </TouchableOpacity>
-
-        <View style={{ flex: 1, marginRight: 8 }}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {groupName || 'Committee Chat'}
-          </Text>
-          {isAnyoneTyping ? (
-            <Text style={styles.headerSubtitleTyping} numberOfLines={1}>
-              {typingHeaderLabel}
-            </Text>
-          ) : (
-            <Text style={styles.headerSubtitle} numberOfLines={1}>
-              {participantSubtitle}
-            </Text>
-          )}
+        <View style={[styles.groupAvatar, !isWriteAllowed && { backgroundColor: '#FEF3C7' }]}>
+          <Ionicons name={isWriteAllowed ? 'people' : 'megaphone-outline'} size={20} color={isWriteAllowed ? '#2563EB' : '#D97706'} />
         </View>
-
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
+          <Text style={[styles.headerSubtitle, typingUsers.length > 0 && styles.headerSubtitleTyping]} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        </View>
         {!isWriteAllowed && (
-          <View style={styles.viewOnlyHeaderBadge}>
-            <Ionicons name="eye" size={14} color="#B45309" />
-            <Text style={styles.viewOnlyHeaderText}>Spectator</Text>
+          <View style={styles.viewOnlyBadge}>
+            <Ionicons name="eye-outline" size={13} color="#B45309" />
+            <Text style={styles.viewOnlyBadgeText}>View only</Text>
           </View>
         )}
-      </TouchableOpacity>
+      </View>
 
-      {/* WhatsApp-style KeyboardAvoiding wrapper around messages + input bar */}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + headerHeight : 0}
       >
-        {/* Messages List - Touch outside input auto-closes keyboard */}
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={{ flex: 1 }}>
-            {loading ? (
-              <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color="#2563EB" />
+        <View style={styles.chatArea}>
+          {loading && messages.length === 0 ? (
+            <View style={styles.center}>
+              <ActivityIndicator size="large" color="#2563EB" />
+            </View>
+          ) : messages.length === 0 ? (
+            // Rendered outside the inverted list so it is never drawn upside down
+            <Pressable style={styles.empty} onPress={Keyboard.dismiss}>
+              <View style={styles.emptyIcon}>
+                <Ionicons name="chatbubbles-outline" size={34} color="#2563EB" />
               </View>
-            ) : (
-              <FlatList
-                ref={flatListRef}
-                data={messages}
-                keyExtractor={(item) => item._id}
-                renderItem={renderMessageBubble}
-                contentContainerStyle={styles.messagesList}
-                keyboardShouldPersistTaps="handled"
-                keyboardDismissMode="on-drag"
-                onScrollBeginDrag={Keyboard.dismiss}
-                onLayout={() => {
-                  scrollToBottom(false);
-                }}
-                onContentSizeChange={() => {
-                  scrollToBottom(true);
-                }}
-                showsVerticalScrollIndicator={false}
-                ListFooterComponent={<TypingIndicator typingUsers={typingUsers} />}
-                ListEmptyComponent={
-                  <TouchableOpacity activeOpacity={1} onPress={Keyboard.dismiss} style={styles.emptyContainer}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={48} color="#CBD5E1" />
-                    <Text style={styles.emptyText}>No messages yet in this group.</Text>
-                    <Text style={styles.emptySubText}>
-                      {isWriteAllowed ? 'Say hello and start the discussion!' : 'Discussions will appear here once active.'}
-                    </Text>
-                  </TouchableOpacity>
-                }
-              />
-            )}
-          </View>
-        </TouchableWithoutFeedback>
+              <Text style={styles.emptyTitle}>No messages yet</Text>
+              <Text style={styles.emptySub}>
+                {isWriteAllowed ? 'Say hello and start the discussion.' : 'Messages will appear here once the discussion starts.'}
+              </Text>
+            </Pressable>
+          ) : (
+            <FlatList
+              ref={flatListRef}
+              data={rows}
+              inverted
+              keyExtractor={(r) => r.key}
+              renderItem={renderRow}
+              contentContainerStyle={styles.listContent}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="interactive"
+              onScroll={onScroll}
+              scrollEventThrottle={64}
+              onEndReached={loadOlder}
+              onEndReachedThreshold={0.4}
+              initialNumToRender={20}
+              maxToRenderPerBatch={15}
+              windowSize={11}
+              removeClippedSubviews={Platform.OS === 'android'}
+              maintainVisibleContentPosition={{ minIndexForVisible: 1, autoscrollToTopThreshold: 120 }}
+              showsVerticalScrollIndicator={false}
+              ListHeaderComponent={<TypingIndicator typingUsers={typingUsers} />}
+              ListFooterComponent={
+                loadingOlder ? (
+                  <View style={styles.olderLoader}><ActivityIndicator size="small" color="#64748B" /></View>
+                ) : !hasMore && messages.length > 0 ? (
+                  <View style={styles.dateWrap}><Text style={styles.startPill}>Start of the conversation</Text></View>
+                ) : undefined
+              }
+            />
+          )}
 
-        {/* Bottom Bar: Input OR View-Only Banner */}
+          {showJump && (
+            <TouchableOpacity style={styles.jumpBtn} onPress={() => scrollToLatest()} activeOpacity={0.85}>
+              <Ionicons name="chevron-down" size={22} color="#334155" />
+              {unseenCount > 0 && (
+                <View style={styles.jumpBadge}><Text style={styles.jumpBadgeText}>{unseenCount > 99 ? '99+' : unseenCount}</Text></View>
+              )}
+            </TouchableOpacity>
+          )}
+        </View>
+
         {isWriteAllowed ? (
-          <View style={styles.inputContainer}>
-            {/* WhatsApp Quote / Reply Bar Preview */}
-            {replyingTo && (
-              <View style={styles.activeQuoteBar}>
+          <View style={styles.composer}>
+            {(replyingTo || editingMessage) && (
+              <View style={[styles.contextBar, editingMessage && styles.contextBarEdit]}>
+                <Ionicons
+                  name={editingMessage ? 'create-outline' : 'arrow-undo'}
+                  size={16}
+                  color={editingMessage ? '#B45309' : '#2563EB'}
+                  style={{ marginRight: 8 }}
+                />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.activeQuoteSender}>Replying to {replyingTo.sender_name}</Text>
-                  <Text style={styles.activeQuoteText} numberOfLines={1}>{replyingTo.text}</Text>
+                  <Text style={[styles.contextTitle, editingMessage && { color: '#B45309' }]} numberOfLines={1}>
+                    {editingMessage ? 'Edit message' : `Replying to ${displayNameFor(replyingTo!)}`}
+                  </Text>
+                  <Text style={styles.contextText} numberOfLines={1}>{(editingMessage || replyingTo)!.text}</Text>
                 </View>
-                <TouchableOpacity onPress={() => setReplyingTo(null)}>
-                  <Ionicons name="close" size={18} color="#64748B" />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* Editing Bar Preview */}
-            {editingMessage && (
-              <View style={styles.activeEditBar}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.activeEditTitle}>Editing message</Text>
-                </View>
-                <TouchableOpacity onPress={() => { setEditingMessage(null); setInputText(''); }}>
-                  <Ionicons name="close" size={18} color="#64748B" />
+                <TouchableOpacity
+                  hitSlop={10}
+                  onPress={() => {
+                    if (editingMessage) { setEditingMessage(null); setInputText(''); } else setReplyingTo(null);
+                  }}
+                >
+                  <Ionicons name="close-circle" size={20} color="#94A3B8" />
                 </TouchableOpacity>
               </View>
             )}
 
             <View style={styles.inputRow}>
               <TextInput
-                style={styles.textInput}
-                placeholder={editingMessage ? "Edit message..." : "Type a message..."}
+                style={styles.input}
+                placeholder="Message"
                 placeholderTextColor="#94A3B8"
                 value={inputText}
                 onChangeText={handleTextChange}
                 multiline
                 maxLength={1000}
-                onFocus={() => {
-                  scheduleScrollToBottom();
-                }}
               />
               <TouchableOpacity
-                style={[styles.sendButton, !inputText.trim() ? styles.sendButtonDisabled : null]}
+                style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
                 onPress={handleSendOrUpdate}
                 disabled={!inputText.trim()}
+                activeOpacity={0.8}
               >
-                <Ionicons 
-                  name={editingMessage ? "checkmark" : "send"} 
-                  size={18} 
-                  color="#FFFFFF" 
-                />
+                <Ionicons name={editingMessage ? 'checkmark' : 'send'} size={18} color="#FFFFFF" style={!editingMessage && { marginLeft: 2 }} />
               </TouchableOpacity>
             </View>
           </View>
         ) : (
           <View style={styles.viewOnlyFooter}>
-            <Ionicons name="lock-closed" size={16} color="#B45309" />
-            <Text style={styles.viewOnlyFooterText}>
-              You have View-Only access to this group. You can read discussions but cannot send messages.
-            </Text>
+            <Ionicons name="lock-closed-outline" size={15} color="#92400E" />
+            <Text style={styles.viewOnlyFooterText}>Only committee members can send messages in this group.</Text>
           </View>
         )}
       </KeyboardAvoidingView>
+
+      {/* Long-press actions */}
+      <Modal visible={!!actionMessage} transparent animationType="fade" onRequestClose={() => setActionMessage(null)}>
+        <Pressable style={styles.sheetBackdrop} onPress={() => setActionMessage(null)}>
+          <Pressable style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) }]} onPress={() => {}}>
+            <View style={styles.sheetHandle} />
+            {actionMessage && (
+              <View style={styles.sheetPreview}>
+                <Text style={styles.sheetPreviewName} numberOfLines={1}>{displayNameFor(actionMessage)}</Text>
+                <Text style={styles.sheetPreviewText} numberOfLines={3}>{actionMessage.text}</Text>
+              </View>
+            )}
+            {actions.length === 0 ? (
+              <Text style={styles.sheetEmpty}>No actions available for this message.</Text>
+            ) : actions.map((a) => (
+              <TouchableOpacity
+                key={a.key}
+                style={styles.sheetItem}
+                onPress={() => { setActionMessage(null); a.onPress(); }}
+              >
+                <Ionicons name={a.icon} size={20} color={a.danger ? '#DC2626' : '#334155'} />
+                <Text style={[styles.sheetItemText, a.danger && { color: '#DC2626' }]}>{a.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F1F5F9',
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+
+  // header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingLeft: 6,
+    paddingRight: 14,
+    paddingVertical: 8,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#E2E8F0',
   },
-  backButton: {
-    padding: 6,
-    marginRight: 8,
+  backButton: { padding: 4, marginRight: 2 },
+  groupAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#0F172A',
-  },
-  headerSubtitle: {
-    fontSize: 11,
-    color: '#64748B',
-    marginTop: 2,
-  },
-  headerSubtitleTyping: {
-    fontSize: 11,
-    color: '#2563EB',
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  viewOnlyHeaderBadge: {
+  headerTitle: { fontSize: 16, fontWeight: '700', color: '#0F172A' },
+  headerSubtitle: { fontSize: 12, color: '#64748B', marginTop: 1 },
+  headerSubtitleTyping: { color: '#16A34A', fontWeight: '600' },
+  viewOnlyBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
     backgroundColor: '#FEF3C7',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 999,
   },
-  viewOnlyHeaderText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#B45309',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  messagesList: {
-    padding: 16,
-    paddingBottom: 20,
-    gap: 8,
-  },
-  messageRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-    marginVertical: 4,
-  },
-  messageRowMe: {
-    justifyContent: 'flex-end',
-  },
-  messageRowOther: {
-    justifyContent: 'flex-start',
-  },
-  msgAvatarCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.15,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  msgAvatarText: {
-    fontSize: 11,
-    fontWeight: '700',
-    textAlign: 'center',
-    includeFontPadding: false,
-  },
-  bubble: {
-    maxWidth: '78%',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 16,
-  },
-  bubbleMe: {
-    backgroundColor: '#2563EB',
-    borderBottomRightRadius: 4,
-  },
-  bubbleOther: {
-    backgroundColor: '#FFFFFF',
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  senderHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  senderHeaderMe: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 4,
-  },
-  senderName: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  senderNameMe: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#BFDBFE',
-  },
-  senderDesignation: {
-    fontSize: 10,
-    color: '#64748B',
-  },
-  quoteBox: {
-    borderLeftWidth: 3.5,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    marginBottom: 6,
-    borderRadius: 6,
-  },
-  quoteBoxMe: {
-    borderLeftColor: '#FFFFFF',
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
-  },
-  quoteBoxOther: {
-    borderLeftColor: '#2563EB',
-    backgroundColor: '#F8FAFC',
-  },
-  quoteSender: {
-    fontSize: 11,
-    fontWeight: '700',
-    marginBottom: 2,
-  },
-  quoteSenderMe: {
-    color: '#FFFFFF',
-  },
-  quoteSenderOther: {
-    color: '#2563EB',
-  },
-  quoteText: {
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  quoteTextMe: {
-    color: '#F8FAFC',
-  },
-  quoteTextOther: {
+  viewOnlyBadgeText: { fontSize: 11, fontWeight: '700', color: '#B45309' },
+
+  // chat area
+  chatArea: { flex: 1, backgroundColor: '#EEF2F7' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  listContent: { paddingHorizontal: 10, paddingVertical: 10, flexGrow: 1 },
+  olderLoader: { paddingVertical: 14 },
+
+  dateWrap: { alignItems: 'center', marginVertical: 10 },
+  datePill: {
+    fontSize: 11.5,
+    fontWeight: '600',
     color: '#475569',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    overflow: 'hidden',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
   },
-  typingRow: {
+  startPill: {
+    fontSize: 11.5,
+    color: '#64748B',
+    backgroundColor: '#E2E8F0',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+
+  // message rows
+  msgRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 2 },
+  msgRowGroupEnd: { marginBottom: 6 },
+  msgRowMe: { justifyContent: 'flex-end', paddingLeft: 48 },
+  msgRowOther: { justifyContent: 'flex-start', paddingRight: 48 },
+  avatarSlot: { width: 32, marginRight: 6, alignSelf: 'flex-start' },
+  avatar: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  avatarText: { color: '#FFFFFF', fontSize: 11, fontWeight: '700', includeFontPadding: false },
+
+  bubble: {
+    maxWidth: '100%',
+    minWidth: 76,
+    paddingHorizontal: 11,
+    paddingTop: 7,
+    paddingBottom: 6,
+    borderRadius: 16,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.06,
+    shadowRadius: 1.5,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  bubbleMe: { backgroundColor: '#2563EB' },
+  bubbleOther: { backgroundColor: '#FFFFFF' },
+  bubbleMeFirst: { borderTopRightRadius: 4 },
+  bubbleOtherFirst: { borderTopLeftRadius: 4 },
+
+  senderHeader: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginBottom: 2 },
+  senderName: { fontSize: 12.5, fontWeight: '700', flexShrink: 1 },
+  senderDesignation: { fontSize: 11, color: '#94A3B8', flexShrink: 1 },
+
+  quote: { borderLeftWidth: 3, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5, marginBottom: 5, marginTop: 2 },
+  quoteMe: { backgroundColor: 'rgba(255,255,255,0.16)', borderLeftColor: '#BFDBFE' },
+  quoteOther: { backgroundColor: '#F1F5F9', borderLeftColor: '#2563EB' },
+  quoteSender: { fontSize: 11.5, fontWeight: '700', color: '#2563EB', marginBottom: 1 },
+  quoteText: { fontSize: 12.5, color: '#475569', lineHeight: 17 },
+
+  msgText: { fontSize: 15, lineHeight: 21 },
+  msgTextMe: { color: '#FFFFFF' },
+  msgTextOther: { color: '#0F172A' },
+  timeSpacer: { fontSize: 11 },
+  deletedRow: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingRight: 52, paddingVertical: 1 },
+  deletedText: { fontSize: 14, fontStyle: 'italic', color: '#94A3B8' },
+
+  meta: {
+    position: 'absolute',
+    right: 9,
+    bottom: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 6,
-    marginBottom: 10,
-    paddingLeft: 4,
+    gap: 3,
   },
-  typingAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#2563EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    shadowColor: '#2563EB',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3,
-    elevation: 3,
-  },
-  typingAvatarText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '700',
-    textAlign: 'center',
-    includeFontPadding: false,
-  },
+  metaText: { fontSize: 10.5, color: '#94A3B8' },
+  metaTextMe: { color: 'rgba(255,255,255,0.78)' },
+  retryBtn: { marginLeft: 6, marginBottom: 6, padding: 4 },
+
+  // typing
+  typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 38, marginTop: 4, marginBottom: 4 },
   typingBubble: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 4,
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 10,
-    borderRadius: 18,
-    borderBottomLeftRadius: 4,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    gap: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
   },
-  typingDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#2563EB',
-  },
-  typingLabelText: {
-    fontSize: 12,
-    color: '#64748B',
-    fontWeight: '500',
-    fontStyle: 'italic',
-    maxWidth: 180,
-  },
-  messageText: {
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  messageTextMe: {
-    color: '#FFFFFF',
-  },
-  messageTextOther: {
-    color: '#0F172A',
-  },
-  deletedText: {
-    fontStyle: 'italic',
-    opacity: 0.8,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  metaText: {
-    fontSize: 10,
-  },
-  metaTextMe: {
-    color: 'rgba(255, 255, 255, 0.7)',
-  },
-  metaTextOther: {
-    color: '#94A3B8',
-  },
-  emptyContainer: {
-    padding: 40,
+  typingDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#64748B' },
+  typingLabel: { fontSize: 12, color: '#64748B', maxWidth: 200 },
+
+  // empty
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  emptyIcon: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#DBEAFE',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 14,
   },
-  emptyText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#64748B',
-    marginTop: 12,
-  },
-  emptySubText: {
-    fontSize: 12,
-    color: '#94A3B8',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  inputContainer: {
-    backgroundColor: '#FFFFFF',
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    padding: 10,
-  },
-  activeQuoteBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#EFF6FF',
-    borderLeftWidth: 3,
-    borderLeftColor: '#2563EB',
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  activeQuoteSender: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#2563EB',
-  },
-  activeQuoteText: {
-    fontSize: 11,
-    color: '#475569',
-  },
-  activeEditBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#FEF3C7',
-    borderLeftWidth: 3,
-    borderLeftColor: '#D97706',
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 8,
-  },
-  activeEditTitle: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#B45309',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 8,
-  },
-  textInput: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingTop: 10,
-    paddingBottom: 10,
-    fontSize: 14,
-    color: '#0F172A',
-    maxHeight: 100,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  sendButton: {
+  emptyTitle: { fontSize: 16, fontWeight: '700', color: '#334155' },
+  emptySub: { fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 4, lineHeight: 18 },
+
+  // jump to latest
+  jumpBtn: {
+    position: 'absolute',
+    right: 14,
+    bottom: 14,
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#2563EB',
-    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
   },
-  sendButtonDisabled: {
-    backgroundColor: '#94A3B8',
+  jumpBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -4,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  jumpBadgeText: { color: '#FFFFFF', fontSize: 10.5, fontWeight: '700' },
+
+  // composer
+  composer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 10,
+    paddingTop: 8,
+    paddingBottom: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E2E8F0',
+  },
+  contextBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    borderLeftWidth: 3,
+    borderLeftColor: '#2563EB',
+    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+  },
+  contextBarEdit: { backgroundColor: '#FFFBEB', borderLeftColor: '#D97706' },
+  contextTitle: { fontSize: 12, fontWeight: '700', color: '#2563EB' },
+  contextText: { fontSize: 12.5, color: '#475569', marginTop: 1 },
+  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  input: {
+    flex: 1,
+    minHeight: 42,
+    maxHeight: 120,
+    backgroundColor: '#F1F5F9',
+    borderRadius: 21,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'ios' ? 11 : 9,
+    paddingBottom: Platform.OS === 'ios' ? 11 : 9,
+    fontSize: 15,
+    color: '#0F172A',
+  },
+  sendBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#2563EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnDisabled: { backgroundColor: '#CBD5E1' },
+
   viewOnlyFooter: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FEF3C7',
-    padding: 14,
-    borderTopWidth: 1,
+    backgroundColor: '#FFFBEB',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#FDE68A',
   },
-  viewOnlyFooterText: {
-    fontSize: 12,
-    color: '#92400E',
-    fontWeight: '500',
-    flex: 1,
-    lineHeight: 16,
+  viewOnlyFooterText: { fontSize: 12.5, color: '#92400E', fontWeight: '500', flexShrink: 1, textAlign: 'center' },
+
+  // action sheet
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(15,23,42,0.35)', justifyContent: 'flex-end' },
+  sheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
+  sheetHandle: { alignSelf: 'center', width: 38, height: 4, borderRadius: 2, backgroundColor: '#CBD5E1', marginBottom: 10 },
+  sheetPreview: { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, marginBottom: 6 },
+  sheetPreviewName: { fontSize: 12, fontWeight: '700', color: '#2563EB', marginBottom: 2 },
+  sheetPreviewText: { fontSize: 14, color: '#334155', lineHeight: 19 },
+  sheetEmpty: { fontSize: 13, color: '#64748B', textAlign: 'center', paddingVertical: 16 },
+  sheetItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 4 },
+  sheetItemText: { fontSize: 15.5, color: '#0F172A', fontWeight: '500' },
 });

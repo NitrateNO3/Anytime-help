@@ -74,6 +74,9 @@ const chatMessageSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 chatMessageSchema.index({ group_id: 1, createdAt: 1 });
+// Paging by _id and catch-up sync by updatedAt
+chatMessageSchema.index({ group_id: 1, _id: -1 });
+chatMessageSchema.index({ group_id: 1, updatedAt: 1 });
 
 chatMessageSchema.plugin(require('./plugins/areaScope'));
 

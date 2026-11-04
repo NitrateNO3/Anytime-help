@@ -155,17 +155,29 @@ router.get('/groups', auth, async (req, res) => {
       return res.json([]);
     }
 
-    const groups = await ChatGroup.find(query)
-      .populate('members', 'name phone_number designation member_id role')
-      .populate('view_only_members', 'name phone_number designation member_id role')
+    // ?lite=1 (mobile chat list): skip the member arrays, which the list never
+    // shows and which grow with every member. Older clients get the full shape.
+    const lite = req.query.lite === '1';
+    let groupsQuery = ChatGroup.find(query)
       .populate('created_by', 'name role')
       .sort({ 'last_message.timestamp': -1, updatedAt: -1 });
+    if (!lite) {
+      groupsQuery = groupsQuery
+        .populate('members', 'name phone_number designation member_id role')
+        .populate('view_only_members', 'name phone_number designation member_id role');
+    }
+    const groups = await groupsQuery;
 
     // Attach permission flag to each group for frontend ease and ensure real names in last_message
     const formatted = groups.map(g => {
       const perms = getGroupPermissions(g, user);
       const gObj = g.toObject();
-      if (gObj.last_message && gObj.last_message.sender_id) {
+      if (lite) {
+        // Permissions are already computed; drop the raw id arrays from the payload
+        delete gObj.members;
+        delete gObj.view_only_members;
+      }
+      if (!lite && gObj.last_message && gObj.last_message.sender_id) {
         const sid = gObj.last_message.sender_id.toString();
         const found = (g.members || []).find(m => m._id.toString() === sid) ||
                       (g.view_only_members || []).find(m => m._id.toString() === sid) ||
@@ -327,23 +339,44 @@ router.get('/groups/:id/messages', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Access denied: You do not have permission to view messages' });
     }
 
-    const limit = parseInt(req.query.limit, 10) || 50;
-    const before = req.query.before; // For infinite scrolling / pagination
+    // Paging, WhatsApp-style: the app opens a chat with the newest page and
+    // fetches older pages only as the user scrolls up.
+    //   ?limit=30              newest 30 messages
+    //   ?before_id=<msgId>     the page just older than that message
+    //   ?since=<ISO date>      everything created OR edited/deleted after that
+    //                          time (catch-up after reconnect / app resume)
+    //   ?before=<ISO date>     legacy date cursor, still accepted
+    const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
+    const { before, before_id, since } = req.query;
 
     const msgQuery = { group_id: group._id };
-    if (before) {
+    let sortNewestFirst = true;
+    if (since) {
+      const sinceDate = new Date(since);
+      if (!isNaN(sinceDate.getTime())) {
+        msgQuery.updatedAt = { $gt: sinceDate };
+        sortNewestFirst = false;
+      }
+    } else if (before_id && /^[a-f0-9]{24}$/i.test(before_id)) {
+      msgQuery._id = { $lt: before_id };
+    } else if (before) {
       msgQuery.createdAt = { $lt: new Date(before) };
     }
 
-    const messages = await ChatMessage.find(msgQuery)
+    // reply_to already stores the quoted sender and text, so it needs no populate
+    const fetched = await ChatMessage.find(msgQuery)
+      .select('-edit_history -read_by')
       .populate('sender', 'name designation role member_id')
-      .populate('reply_to.message_id', 'text sender_name is_deleted')
-      .sort({ createdAt: -1 })
-      .limit(limit);
+      .sort(sortNewestFirst ? { _id: -1 } : { updatedAt: 1 })
+      .limit(limit + 1)
+      .lean();
 
-    // Return in chronological order and prioritize Member ID for committee members
-    const formattedMessages = messages.reverse().map(m => {
-      const obj = m.toObject();
+    const has_more = fetched.length > limit;
+    const page = has_more ? fetched.slice(0, limit) : fetched;
+    if (sortNewestFirst) page.reverse();
+
+    // Chronological order; Member ID first for committee members
+    const formattedMessages = page.map(obj => {
       if (obj.sender && typeof obj.sender === 'object') {
         const isAdmin = obj.sender.role === 'Admin' || obj.sender.role === 'SubAdmin' || obj.sender.role === 'SuperAdmin';
         if (isAdmin) {
@@ -359,6 +392,8 @@ router.get('/groups/:id/messages', auth, async (req, res) => {
 
     res.json({
       messages: formattedMessages,
+      has_more,
+      server_time: new Date().toISOString(),
       user_access: perms
     });
   } catch (err) {

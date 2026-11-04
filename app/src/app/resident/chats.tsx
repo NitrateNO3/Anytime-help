@@ -8,6 +8,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getChatCacheUserId, chatGroupsCacheKey } from '../../utils/chatCache';
 import { io } from 'socket.io-client';
 import { socketAuth } from '../../utils/socketAuth';
 
@@ -104,14 +106,29 @@ export default function ResidentChatsScreen() {
   }, []);
 
   const fetchGroups = async (showLoading = true) => {
-    if (showLoading) setLoading(true);
+    const GROUPS_CACHE_KEY = chatGroupsCacheKey(await getChatCacheUserId(), 'resident');
+    // Show the last list saved on the phone at once, then refresh from the server
+    if (showLoading) {
+      const cached = await AsyncStorage.getItem(GROUPS_CACHE_KEY).catch(() => null);
+      let shown = false;
+      if (cached) {
+        try {
+          const list = JSON.parse(cached);
+          if (Array.isArray(list) && list.length) { setGroups(list); setLoading(false); shown = true; }
+        } catch {}
+      }
+      if (!shown) setLoading(true);
+    }
     try {
       const token = await SecureStore.getItemAsync('userToken');
+      // lite=1: the list needs no member arrays, which keeps the response small
       const res = await axios.get(`${API_URL}/chat/groups`, {
-        headers: { 'x-auth-token': token }
+        headers: { 'x-auth-token': token },
+        params: { lite: 1 }
       });
       if (Array.isArray(res.data)) {
         setGroups(res.data);
+        AsyncStorage.setItem(GROUPS_CACHE_KEY, JSON.stringify(res.data)).catch(() => {});
       }
     } catch (e) {
       console.log('Error fetching resident chat groups:', e);
