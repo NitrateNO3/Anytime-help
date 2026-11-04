@@ -493,7 +493,9 @@ router.post('/residents', auth, async (req, res) => {
       phone_number = `+91${phone_number}`;
     }
 
-    let user = await User.findOne({ phone_number });
+    // Never reuse the SuperAdmin (admin panel) account: the same number gets
+    // its own app account instead of turning the SuperAdmin into this role
+    let user = await User.findOne({ phone_number, role: { $ne: 'SuperAdmin' } });
     if (user) {
       return res.status(400).json({ msg: 'User already exists' });
     }
@@ -574,7 +576,9 @@ router.post('/members', auth, async (req, res) => {
       else if (address.includes('Sushant Lok 2')) phase = 'Sushant Lok 2';
     }
 
-    let user = await User.findOne({ phone_number });
+    // Never reuse the SuperAdmin (admin panel) account: the same number gets
+    // its own app account instead of turning the SuperAdmin into this role
+    let user = await User.findOne({ phone_number, role: { $ne: 'SuperAdmin' } });
     if (!user) {
       let existingActiveUser = await User.findOne({ phone_number, has_logged_in: true });
       let hasLoggedIn = !!existingActiveUser;
