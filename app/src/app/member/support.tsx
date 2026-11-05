@@ -27,8 +27,11 @@ export default function HelpSupport() {
     }, [])
   );
 
-  const handleCall = () => {
-    Linking.openURL('tel:+918882004800');
+  const handleWhatsApp = () => {
+    const msg = encodeURIComponent('Hello Anytime Help Support, I need some assistance. Could you please help me?');
+    Linking.openURL(`whatsapp://send?phone=918882004800&text=${msg}`).catch(() => {
+      Linking.openURL(`https://wa.me/918882004800?text=${msg}`).catch(() => {});
+    });
   };
 
   const handleEmail = () => {
@@ -62,12 +65,12 @@ export default function HelpSupport() {
         </View>
 
         {/* Contact Cards */}
-        <TouchableOpacity style={styles.contactCard} onPress={handleCall} activeOpacity={0.7}>
-          <View style={[styles.iconCircle, { backgroundColor: '#ECFDF5' }]}>
-            <Ionicons name="call" size={24} color="#10B981" />
+        <TouchableOpacity style={styles.contactCard} onPress={handleWhatsApp} activeOpacity={0.7}>
+          <View style={[styles.iconCircle, { backgroundColor: '#E7F8EE' }]}>
+            <Ionicons name="logo-whatsapp" size={26} color="#25D366" />
           </View>
           <View style={styles.cardContent}>
-            <Text style={styles.cardTitle}>Phone Support</Text>
+            <Text style={styles.cardTitle}>WhatsApp Support</Text>
             <Text style={styles.cardSub}>+91 88820 04800</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
