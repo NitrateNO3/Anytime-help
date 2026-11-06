@@ -1,8 +1,9 @@
 import React, { useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, BackHandler } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, StatusBar, BackHandler } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
+import AboutContent from '../components/AboutContent';
 
 export default function StaffAbout() {
   const router = useRouter();
@@ -40,10 +41,10 @@ export default function StaffAbout() {
         <Text style={styles.headerTitle}>About Us</Text>
         <View style={{ width: 36 }} />
       </View>
-      <View style={styles.content}>
-        <Text style={styles.text}>Anytime Help Staff Application.</Text>
-        <Text style={styles.text}>Version 1.0.0</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <AboutContent />
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -62,6 +63,5 @@ const styles = StyleSheet.create({
   },
   backButton: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF', textAlign: 'center', flex: 1 },
-  content: { padding: 20 },
-  text: { fontSize: 16, color: '#374151', marginBottom: 10 }
+  content: { padding: 16 },
 });

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView, Linking, BackHandler, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView, BackHandler, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -472,24 +472,12 @@ export default function SettingsScreen() {
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.settingRow} onPress={() => router.push('/member/support' as any)}>
+            <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={() => router.push('/member/support' as any)}>
               <View style={styles.settingRowLeft}>
                 <View style={[styles.iconContainer, { backgroundColor: '#FEF3C7' }]}>
                   <Ionicons name="help-buoy-outline" size={20} color="#D97706" />
                 </View>
                 <Text style={styles.settingText}>{t('settings.helpSupport', { defaultValue: 'Help & Support' })}</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.settingRow, { borderBottomWidth: 0 }]} onPress={() => Linking.openURL('https://www.slerwa.in')}>
-              <View style={styles.settingRowLeft}>
-                <View style={[styles.iconContainer, { backgroundColor: '#DBEAFE' }]}>
-                  <Ionicons name="globe-outline" size={20} color="#2563EB" />
-                </View>
-                <Text style={[styles.settingText, { flexShrink: 1 }]} numberOfLines={2}>
-                  {t('settings.knowRwa', { defaultValue: 'Know more about RWA (www.slerwa.in)' })}
-                </Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
             </TouchableOpacity>
