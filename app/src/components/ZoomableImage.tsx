@@ -6,7 +6,6 @@ import {
   usePanGesture,
   usePinchGesture,
   useSimultaneousGestures,
-  useExclusiveGestures,
   useTapGesture,
 } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -62,27 +61,72 @@ export default function ZoomableImage({ uri, style }: Props) {
     savedTy.value = ny;
   };
 
+  // Pinch and pan run together. Pinch owns the transform while it is active
+  // (zooming around the point between the fingers, plus any finger drag);
+  // pan alone moves the zoomed image with one finger.
+  const pinching = useSharedValue(false);
+  const focalX = useSharedValue(0);
+  const focalY = useSharedValue(0);
+  const panX = useSharedValue(0);
+  const panY = useSharedValue(0);
+
   const pinch = usePinchGesture({
+    onActivate: (e) => {
+      'worklet';
+      pinching.value = true;
+      // Commit any in-progress one-finger pan so pinch starts from the current spot.
+      savedTx.value = tx.value;
+      savedTy.value = ty.value;
+      savedScale.value = scale.value;
+      panX.value = 0;
+      panY.value = 0;
+      focalX.value = e.focalX - width.value / 2;
+      focalY.value = e.focalY - height.value / 2;
+    },
     onUpdate: (e) => {
       'worklet';
-      scale.value = Math.min(Math.max(savedScale.value * e.scale, 0.8), MAX_SCALE * 1.2);
+      const s = Math.min(Math.max(savedScale.value * e.scale, 0.8), MAX_SCALE * 1.2);
+      const k = s / savedScale.value;
+      scale.value = s;
+      tx.value = focalX.value - k * (focalX.value - savedTx.value) + panX.value;
+      ty.value = focalY.value - k * (focalY.value - savedTy.value) + panY.value;
     },
-    onDeactivate: () => {
+    onFinalize: () => {
       'worklet';
+      if (!pinching.value) return;
+      pinching.value = false;
       clampAndSettle();
     },
   });
 
+  const panStartX = useSharedValue(0);
+  const panStartY = useSharedValue(0);
+
   const pan = usePanGesture({
+    maxPointers: 2,
+    onActivate: (e) => {
+      'worklet';
+      panStartX.value = e.translationX;
+      panStartY.value = e.translationY;
+      savedTx.value = tx.value;
+      savedTy.value = ty.value;
+    },
     onUpdate: (e) => {
       'worklet';
-      if (savedScale.value <= 1 && scale.value <= 1) return;
-      tx.value = savedTx.value + e.translationX;
-      ty.value = savedTy.value + e.translationY;
+      const dx = e.translationX - panStartX.value;
+      const dy = e.translationY - panStartY.value;
+      if (pinching.value) {
+        panX.value = dx;
+        panY.value = dy;
+        return;
+      }
+      if (scale.value <= 1) return; // nothing to drag when not zoomed
+      tx.value = savedTx.value + dx;
+      ty.value = savedTy.value + dy;
     },
-    onDeactivate: () => {
+    onFinalize: () => {
       'worklet';
-      clampAndSettle();
+      if (!pinching.value) clampAndSettle();
     },
   });
 
@@ -115,7 +159,9 @@ export default function ZoomableImage({ uri, style }: Props) {
     },
   });
 
-  const gesture = useExclusiveGestures(doubleTap, useSimultaneousGestures(pinch, pan));
+  // All three can recognise at once, so pinch/drag start immediately instead of
+  // waiting for the double-tap to fail (which made two-finger zoom feel dead).
+  const gesture = useSimultaneousGestures(pinch, pan, doubleTap);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: tx.value }, { translateY: ty.value }, { scale: scale.value }],

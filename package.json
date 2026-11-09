@@ -1,5 +1,8 @@
 {
   "name": "anytime-help",
   "version": "1.0.0",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "expo-updates": "~58.0.21"
+  }
 }
