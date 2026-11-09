@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar as RNStatusBar, BackHandler, Platform, RefreshControl, Image, FlatList, Dimensions, Linking, Modal } from 'react-native';
+import ZoomableImage from '../../components/ZoomableImage';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -908,11 +909,7 @@ export default function MemberHome() {
             {/* Main Center Image */}
             <View style={styles.imageModalImageContainer}>
               {previewImage?.url ? (
-                <Image
-                  source={{ uri: previewImage.url }}
-                  style={styles.imageModalFullImage}
-                  resizeMode="contain"
-                />
+                <ZoomableImage uri={previewImage.url} style={styles.imageModalFullImage} />
               ) : null}
             </View>
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler, Modal, Image } from 'react-native';
+import ZoomableImage from '../../components/ZoomableImage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
@@ -170,7 +171,7 @@ export default function Announcements() {
           <TouchableOpacity style={styles.closeImageBtn} onPress={() => setFullScreenImage(null)}>
             <Ionicons name="close" size={28} color="#FFFFFF" />
           </TouchableOpacity>
-          {fullScreenImage && <Image source={{ uri: fullScreenImage }} style={styles.fullScreenImage} resizeMode="contain" />}
+          {fullScreenImage && <ZoomableImage uri={fullScreenImage} />}
         </View>
       </Modal>
     </SafeAreaView>

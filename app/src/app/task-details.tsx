@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, Modal, Platform, Linking, TextInput, Share } from 'react-native';
+import ZoomableImage from '../components/ZoomableImage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useGlobalSearchParams } from 'expo-router';
 import axios from 'axios';
@@ -1146,7 +1147,7 @@ export default function TaskDetailsScreen() {
           <TouchableOpacity style={styles.closeImageBtn} onPress={() => setFullScreenImage(null)}>
             <Ionicons name="close" size={28} color="#FFFFFF" />
           </TouchableOpacity>
-          {fullScreenImage && <Image source={{ uri: fullScreenImage }} style={styles.fullScreenImage} resizeMode="contain" />}
+          {fullScreenImage && <ZoomableImage uri={fullScreenImage} />}
         </View>
       </Modal>
 
