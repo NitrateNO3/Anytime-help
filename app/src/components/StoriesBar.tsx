@@ -13,6 +13,7 @@ import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
 import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import VerifiedBadge from './VerifiedBadge';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -209,7 +210,7 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
             </View>
             <View style={styles.itemTitleRow}>
               <Text style={[styles.itemTitle, { marginTop: 0, flexShrink: 1 }]} numberOfLines={1}>{catLabel(g)}</Text>
-              {g.kind === 'official' && g.verified && <Ionicons name="checkmark-circle" size={12} color="#2563EB" style={{ marginLeft: 2 }} />}
+              {g.kind === 'official' && g.verified && <VerifiedBadge size={12} style={{ marginLeft: 2 }} />}
             </View>
             <Text style={styles.itemSub} numberOfLines={1}>{timeAgo(g.stories[g.stories.length - 1].createdAt)}</Text>
           </TouchableOpacity>

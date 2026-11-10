@@ -265,6 +265,12 @@ export default function Communities() {
       }
     });
 
+    socket.on('community_message_deleted', ({ message_id, section_id }: any) => {
+      if (activeSectionRef.current?._id === String(section_id)) {
+        setMessages(prev => prev.filter(m => m._id !== String(message_id)));
+      }
+    });
+
     socket.on('community_user_typing', ({ sectionId, userName, isTyping }: any) => {
       if (userName === 'Admin') return;
       const currentActiveId = activeSectionRef.current?._id;
@@ -641,21 +647,38 @@ export default function Communities() {
       const res = await axios.post(`${API_URL}/community/sections/${activeSection._id}/messages`, {
         text: textToSend
       }, getHeaders());
-      if (res.data) {
+      // API returns { success, message }
+      const saved: MessageItem | undefined = res.data?.message || (res.data?._id ? res.data : undefined);
+      if (saved) {
         setMessages(prev => {
-          if (prev.some(m => m._id === res.data._id)) {
+          if (prev.some(m => m._id === saved._id)) {
             return prev.filter(m => m._id !== tempId);
           }
           const hasTemp = prev.some(m => m._id === tempId);
           if (hasTemp) {
-            return prev.map(m => m._id === tempId ? res.data : m);
+            return prev.map(m => m._id === tempId ? saved : m);
           }
-          return [...prev, res.data];
+          return [...prev, saved];
         });
       }
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m._id !== tempId));
       toast.error(err.response?.data?.msg || 'Failed to post update');
+    }
+  };
+
+  // Delete a message (admins can delete any message in the channel)
+  const handleDeleteMessage = async (msg: MessageItem) => {
+    if (!activeSection || msg._id.startsWith('temp_')) return;
+    if (!window.confirm('Delete this message for everyone?')) return;
+    const before = messages;
+    setMessages(prev => prev.filter(m => m._id !== msg._id));
+    try {
+      await axios.delete(`${API_URL}/community/sections/${activeSection._id}/messages/${msg._id}`, getHeaders());
+      toast.success('Message deleted');
+    } catch (err: any) {
+      setMessages(before);
+      toast.error(err.response?.data?.msg || 'Failed to delete message');
     }
   };
 
@@ -1548,11 +1571,23 @@ export default function Communities() {
                           {msg.sender_name} {msg.sender_role ? `(${msg.sender_role})` : ''}
                         </div>
 
-                        <div className={`msg-bubble ${isMine ? 'mine' : 'theirs'}`}>
-                          {msg.text}
-                          <div className="msg-time">
-                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        <div className={`msg-bubble-line ${isMine ? 'mine' : 'theirs'}`}>
+                          <div className={`msg-bubble ${isMine ? 'mine' : 'theirs'}`}>
+                            {msg.text}
+                            <div className="msg-time">
+                              {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
                           </div>
+                          {!msg._id.startsWith('temp_') && (
+                            <button
+                              type="button"
+                              className="msg-delete-btn"
+                              title="Delete message"
+                              onClick={() => handleDeleteMessage(msg)}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          )}
                         </div>
                       </div>
 

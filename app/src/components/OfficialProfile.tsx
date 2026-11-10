@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
+import VerifiedBadge from './VerifiedBadge';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -416,7 +417,7 @@ export default function OfficialProfile({
         <View style={{ flex: 1, marginHorizontal: 10 }}>
           <View style={styles.nameRow}>
             <Text style={styles.name} numberOfLines={1}>{official.name}</Text>
-            {official.verified && <Ionicons name="checkmark-circle" size={16} color="#2563EB" style={{ marginLeft: 4 }} />}
+            {official.verified && <VerifiedBadge size={16} style={{ marginLeft: 4 }} />}
           </View>
           <Text style={styles.meta} numberOfLines={1}>{metaText}</Text>
         </View>

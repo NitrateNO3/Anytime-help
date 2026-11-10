@@ -15,6 +15,7 @@ import { socketAuth } from '../utils/socketAuth';
 import StoriesBar, { refreshStoriesBar } from './StoriesBar';
 import OfficialProfile from './OfficialProfile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import VerifiedBadge from './VerifiedBadge';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -476,6 +477,12 @@ export default function CommunityScreenContent({
       }
     });
 
+    socket.on('community_message_deleted', ({ message_id, section_id }: any) => {
+      if (activeSectionRef.current?._id === String(section_id)) {
+        setMessages(prev => prev.filter(m => m._id !== String(message_id)));
+      }
+    });
+
     socket.on('community_user_typing', ({ sectionId, userName, userId, isTyping }: any) => {
       const myId = (currentUser?._id || currentUser?.id || '').toString();
       if (userId && myId && userId === myId) return;
@@ -721,22 +728,59 @@ export default function CommunityScreenContent({
       }, {
         headers: { 'x-auth-token': token }
       });
-      if (res.data) {
+      // API returns { success, message }
+      const saved: CommunityMessageItem | undefined = res.data?.message || (res.data?._id ? res.data : undefined);
+      if (saved) {
         setMessages(prev => {
-          if (prev.some(m => m._id === res.data._id)) {
+          if (prev.some(m => m._id === saved._id)) {
             return prev.filter(m => m._id !== tempId);
           }
           const hasTemp = prev.some(m => m._id === tempId);
           if (hasTemp) {
-            return prev.map(m => m._id === tempId ? res.data : m);
+            return prev.map(m => m._id === tempId ? saved : m);
           }
-          return [...prev, res.data];
+          return [...prev, saved];
         });
       }
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m._id !== tempId));
       Alert.alert('Notice', err.response?.data?.msg || 'Could not send message');
     }
+  };
+
+  // Admins can delete any message; everyone else only their own
+  const canDeleteMessage = (item: CommunityMessageItem) => {
+    if (!item?._id || item._id.startsWith('temp_')) return false;
+    const access = userAccess || activeSection?.user_access;
+    if (access?.is_admin) return true;
+    const myId = String(currentUser?._id || currentUser?.id || '');
+    const senderId = String(item.sender?._id || item.sender || '');
+    return !!myId && senderId === myId;
+  };
+
+  const confirmDeleteMessage = (item: CommunityMessageItem) => {
+    if (!activeSection || !canDeleteMessage(item)) return;
+    const sectionId = activeSection._id;
+    Alert.alert('Delete message?', 'This message will be removed for everyone.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          let removed: CommunityMessageItem[] = [];
+          setMessages(prev => { removed = prev; return prev.filter(m => m._id !== item._id); });
+          try {
+            const token = await SecureStore.getItemAsync('userToken');
+            await axios.delete(`${API_URL}/community/sections/${sectionId}/messages/${item._id}`, {
+              headers: { 'x-auth-token': token }
+            });
+          } catch (err: any) {
+            if (removed.length) setMessages(removed);
+            Alert.alert('Error', err.response?.data?.msg || 'Could not delete message');
+          }
+        }
+      }
+    ]);
   };
 
   const getSectionIconName = (icon: string) => {
@@ -911,7 +955,7 @@ export default function CommunityScreenContent({
                     <View style={{ flex: 1, marginLeft: 12 }}>
                       <View style={styles.nameRow}>
                         <Text style={styles.chName} numberOfLines={2}>{sec.name}</Text>
-                        {(sec.verified ?? sec.section_type === 'announcement') && <Ionicons name="checkmark-circle" size={15} color="#2563EB" style={{ marginLeft: 4 }} />}
+                        {(sec.verified ?? sec.section_type === 'announcement') && <VerifiedBadge size={15} style={{ marginLeft: 4 }} />}
                       </View>
                       <Text style={styles.chPreview} numberOfLines={1}>
                         {!isFollowing
@@ -953,7 +997,7 @@ export default function CommunityScreenContent({
                         <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
                           <View style={styles.nameRow}>
                             <Text style={styles.ofName} numberOfLines={1}>{o.name}</Text>
-                            {o.verified && <Ionicons name="checkmark-circle" size={15} color="#2563EB" style={{ marginLeft: 4 }} />}
+                            {o.verified && <VerifiedBadge size={15} style={{ marginLeft: 4 }} />}
                             {o.is_mine && (
                               <View style={styles.yourPageBadge}><Text style={styles.yourPageText}>Your page</Text></View>
                             )}
@@ -1072,8 +1116,16 @@ export default function CommunityScreenContent({
                 const initials = getSenderInitials(senderName);
                 const avatarColor = getAvatarColor(senderName, isAdmin);
 
+                const deletable = canDeleteMessage(item);
+
                 return (
-                  <View style={styles.messageCard}>
+                  <TouchableOpacity
+                    style={styles.messageCard}
+                    activeOpacity={deletable ? 0.8 : 1}
+                    disabled={!deletable}
+                    onLongPress={() => confirmDeleteMessage(item)}
+                    delayLongPress={350}
+                  >
                     <View style={styles.messageHeaderRow}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                         <View style={[styles.msgAvatarCircle, { backgroundColor: avatarColor.bg }]}>
@@ -1093,10 +1145,20 @@ export default function CommunityScreenContent({
                         </View>
                       </View>
                       <Text style={styles.messageTimeText}>{formatMessageTime(item.createdAt)}</Text>
+                      {deletable && (
+                        <TouchableOpacity
+                          onPress={() => confirmDeleteMessage(item)}
+                          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                          style={{ marginLeft: 8 }}
+                          accessibilityLabel="Delete message"
+                        >
+                          <Ionicons name="trash-outline" size={16} color="#94A3B8" />
+                        </TouchableOpacity>
+                      )}
                     </View>
 
                     <Text style={styles.messageBodyText}>{item.text}</Text>
-                  </View>
+                  </TouchableOpacity>
                 );
               }}
             />

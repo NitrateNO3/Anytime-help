@@ -754,20 +754,36 @@ router.post('/sections/:sectionId/messages', auth, async (req, res) => {
 });
 
 // @route   DELETE api/community/sections/:sectionId/messages/:messageId
-// @desc    Admin deletes a message in community section
-// @access  Private (Admin only)
+// @desc    Delete a message: Admins can delete any message, others only their own
+// @access  Private
 router.delete('/sections/:sectionId/messages/:messageId', auth, async (req, res) => {
   try {
-    if (req.user.role !== 'Admin' && req.user.role !== 'SubAdmin') {
-      return res.status(403).json({ msg: 'Only Admins can delete community messages' });
+    const msg = await CommunityMessage.findById(req.params.messageId);
+    if (!msg || msg.is_deleted || String(msg.section_id) !== String(req.params.sectionId)) {
+      return res.status(404).json({ msg: 'Message not found' });
     }
 
-    const msg = await CommunityMessage.findById(req.params.messageId);
-    if (!msg) return res.status(404).json({ msg: 'Message not found' });
+    const isAdmin = req.user.role === 'Admin' || req.user.role === 'SubAdmin' || req.user.role === 'SuperAdmin';
+    const isOwn = String(msg.sender) === String(req.user._id);
+    if (!isAdmin && !isOwn) {
+      return res.status(403).json({ msg: 'You can delete only your own messages' });
+    }
 
     msg.is_deleted = true;
     msg.deleted_at = new Date();
     await msg.save();
+
+    // Keep the channel preview in sync: point last_message at the newest remaining message
+    const section = await CommunitySection.findById(msg.section_id);
+    let lastMessageChanged = false;
+    if (section) {
+      const latest = await CommunityMessage.findOne({ section_id: section._id, is_deleted: false }).sort({ createdAt: -1 });
+      section.last_message = latest
+        ? { text: latest.text || 'Shared an attachment', sender_id: latest.sender, sender_name: latest.sender_name, sender_role: latest.sender_role, timestamp: latest.createdAt }
+        : { text: '', sender_name: '', sender_role: '' };
+      await section.save();
+      lastMessageChanged = true;
+    }
 
     const io = req.app.get('io');
     if (io) {
@@ -775,6 +791,13 @@ router.delete('/sections/:sectionId/messages/:messageId', auth, async (req, res)
         message_id: msg._id,
         section_id: req.params.sectionId
       });
+      if (lastMessageChanged) {
+        io.emit('community_section_last_message', {
+          section_id: section._id,
+          community_id: section.community_id,
+          last_message: section.last_message
+        });
+      }
     }
 
     res.json({ success: true, msg: 'Message removed' });
