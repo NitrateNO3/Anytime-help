@@ -160,6 +160,13 @@ export default function RootLayout() {
                 returnTo: isResident ? '/resident/chats' : '/member/chats',
               },
             });
+          } else if (type === 'official_post' && data.officialId) {
+            // Open the official's page inside the Community tab
+            if (userRole === 'Member') {
+              router.push({ pathname: '/member/community' as any, params: { officialId: String(data.officialId) } });
+            } else if (userRole === 'Resident') {
+              router.push({ pathname: '/resident/community' as any, params: { officialId: String(data.officialId) } });
+            }
           } else if (type === 'announcement') {
             if (userRole === 'Member') {
               router.push('/member-announcements' as any);

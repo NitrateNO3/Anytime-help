@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
-import { Plus, Edit, Trash2, X, BadgeCheck } from 'lucide-react';
+import { Plus, Edit, Trash2, X, BadgeCheck, ImagePlus, Newspaper } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { socketAuth, isPlatformSuperAdmin } from '../lib/area';
 import '../index.css';
@@ -14,6 +14,7 @@ interface Official {
   name: string;
   designation: string;
   ward: string;
+  bio?: string;
   phone: string;
   verified: boolean;
   is_active: boolean;
@@ -21,7 +22,111 @@ interface Official {
   followers_count: number;
 }
 
-const EMPTY = { name: '', designation: 'Parshad', ward: '', phone: '', order: 100, verified: true, is_active: true };
+interface OfficialPost {
+  _id: string;
+  text: string;
+  image_url: string;
+  createdAt: string;
+  counts: { like: number; love: number; celebrate: number };
+}
+
+const EMPTY = { name: '', designation: 'Parshad', ward: '', bio: '', phone: '', order: 100, verified: true, is_active: true };
+
+// Super Admin: post / delete updates on one official's page
+function PostsModal({ official, onClose }: { official: Official; onClose: () => void }) {
+  const [posts, setPosts] = useState<OfficialPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [posting, setPosting] = useState(false);
+  const headers = () => ({ 'x-auth-token': localStorage.getItem('adminToken') || '' });
+
+  const load = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/officials/${official._id}/posts?limit=50`, { headers: headers() });
+      setPosts(res.data?.posts || []);
+    } catch {
+      toast.error('Failed to load updates');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [official._id]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!text.trim() && !file) return toast.error('Add some text or a photo');
+    setPosting(true);
+    const t = toast.loading('Posting update...');
+    try {
+      const fd = new FormData();
+      fd.append('text', text.trim());
+      if (file) fd.append('image', file);
+      await axios.post(`${API_URL}/officials/${official._id}/posts`, fd, { headers: headers() });
+      toast.success('Update posted. Followers will be notified.', { id: t });
+      setText('');
+      setFile(null);
+      load();
+    } catch (err: any) {
+      toast.error(err.response?.data?.msg || 'Failed to post', { id: t });
+    } finally {
+      setPosting(false);
+    }
+  };
+
+  const remove = async (id: string) => {
+    if (!window.confirm('Delete this update? It will be removed from the app.')) return;
+    try {
+      await axios.delete(`${API_URL}/officials/posts/${id}`, { headers: headers() });
+      setPosts(p => p.filter(x => x._id !== id));
+      toast.success('Update deleted');
+    } catch {
+      toast.error('Failed to delete');
+    }
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: 620 }}>
+        <div className="modal-header">
+          <h2 className="modal-title">Updates · {official.name}</h2>
+          <button className="btn-icon" onClick={onClose}><X size={20} /></button>
+        </div>
+        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          <form onSubmit={submit} style={{ marginBottom: 20 }}>
+            <div className="form-group">
+              <label className="form-label">New update</label>
+              <textarea className="form-control" rows={3} maxLength={3000} value={text} onChange={e => setText(e.target.value)} placeholder="e.g., Inspected road resurfacing on the Sushant Lok 2 main road today..." />
+            </div>
+            <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <label className="btn btn-outline" style={{ cursor: 'pointer', margin: 0 }}>
+                <ImagePlus size={16} /> {file ? 'Change photo' : 'Add photo'}
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => setFile(e.target.files?.[0] || null)} />
+              </label>
+              {file && <span style={{ fontSize: 13, color: '#6B7280' }}>{file.name} <button type="button" className="btn-icon" onClick={() => setFile(null)}><X size={14} /></button></span>}
+              <button type="submit" className="btn btn-primary" style={{ marginLeft: 'auto' }} disabled={posting}>Post Update</button>
+            </div>
+          </form>
+
+          {loading ? <p>Loading...</p> : posts.length === 0 ? (
+            <p style={{ color: '#6B7280', textAlign: 'center' }}>No updates posted yet.</p>
+          ) : posts.map(p => (
+            <div key={p._id} style={{ border: '1px solid var(--border-color)', borderRadius: 12, padding: 12, marginBottom: 12 }}>
+              {p.image_url && <img src={p.image_url} alt="" style={{ width: '100%', maxHeight: 240, objectFit: 'cover', borderRadius: 8, marginBottom: 8 }} />}
+              {p.text && <p style={{ margin: '0 0 8px', whiteSpace: 'pre-wrap' }}>{p.text}</p>}
+              <div style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#6B7280', gap: 12 }}>
+                <span>{new Date(p.createdAt).toLocaleString('en-IN')}</span>
+                <span>👍 {p.counts.like} · ❤️ {p.counts.love} · ✨ {p.counts.celebrate}</span>
+                <button className="btn-icon btn-icon-danger" style={{ marginLeft: 'auto' }} onClick={() => remove(p._id)} title="Delete"><Trash2 size={15} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Officials() {
   const [list, setList] = useState<Official[]>([]);
@@ -30,6 +135,7 @@ export default function Officials() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
+  const [postsFor, setPostsFor] = useState<Official | null>(null);
 
   // Officials are managed only by the platform Super Admin
   const canManage = isPlatformSuperAdmin();
@@ -59,7 +165,7 @@ export default function Officials() {
   const openAdd = () => { setEditingId(null); setForm({ ...EMPTY }); setIsModalOpen(true); };
   const openEdit = (o: Official) => {
     setEditingId(o._id);
-    setForm({ name: o.name, designation: o.designation, ward: o.ward, phone: o.phone, order: o.order, verified: o.verified, is_active: o.is_active });
+    setForm({ name: o.name, designation: o.designation, ward: o.ward, bio: o.bio || '', phone: o.phone, order: o.order, verified: o.verified, is_active: o.is_active });
     setIsModalOpen(true);
   };
 
@@ -149,6 +255,7 @@ export default function Officials() {
                 {canManage && (
                   <td>
                     <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn-icon" onClick={() => setPostsFor(o)} title="Updates"><Newspaper size={16} /></button>
                       <button className="btn-icon" onClick={() => openEdit(o)} title="Edit"><Edit size={16} /></button>
                       <button className="btn-icon btn-icon-danger" onClick={() => setDeleteId(o._id)} title="Delete"><Trash2 size={16} /></button>
                     </div>
@@ -181,8 +288,15 @@ export default function Officials() {
                 <input className="form-control" value={form.ward} onChange={e => set('ward', e.target.value)} placeholder="e.g., 21" />
               </div>
               <div className="form-group">
-                <label className="form-label">Phone (Optional)</label>
-                <input className="form-control" value={form.phone} onChange={e => set('phone', e.target.value)} />
+                <label className="form-label">About (shown on top of their page)</label>
+                <textarea className="form-control" rows={2} maxLength={300} value={form.bio} onChange={e => set('bio', e.target.value)} placeholder="e.g., Updates from your ward councillor on ward works, camps and public meetings." />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Official's App Login Mobile (Optional)</label>
+                <input className="form-control" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="e.g., 9876543210" />
+                <small style={{ color: '#6B7280', fontSize: 12, display: 'block', marginTop: 4 }}>
+                  When the official logs into the app with this number, they can post updates on their own page. Kept private — not shown to residents.
+                </small>
               </div>
               <div className="form-group">
                 <label className="form-label">Display Order (lower shows first)</label>
@@ -204,6 +318,8 @@ export default function Officials() {
           </div>
         </div>
       )}
+
+      {postsFor && <PostsModal official={postsFor} onClose={() => setPostsFor(null)} />}
 
       {deleteId && (
         <div className="modal-overlay">

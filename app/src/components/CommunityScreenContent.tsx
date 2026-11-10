@@ -7,12 +7,13 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
 import StoriesBar from './StoriesBar';
+import OfficialProfile from './OfficialProfile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -130,9 +131,11 @@ interface OfficialItem {
   name: string;
   designation: string;
   ward: string;
+  bio?: string;
   verified: boolean;
   followers_count: number;
   is_following: boolean;
+  is_mine?: boolean; // the logged-in user is this official (can post on the page)
 }
 
 const OFFICIAL_PASTELS = [
@@ -151,6 +154,11 @@ const formatCount = (n: number) => {
   if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K`;
   return String(n || 0);
 };
+
+const officialPalette = (name: string) => OFFICIAL_PASTELS[Math.abs(hashStr(name)) % OFFICIAL_PASTELS.length];
+
+const officialMeta = (o: OfficialItem) =>
+  [o.designation, o.ward ? `Ward ${o.ward}` : '', `${formatCount(o.followers_count)} followers`].filter(Boolean).join(' · ');
 
 const LAST_SEEN_KEY = 'community_section_last_seen';
 
@@ -309,6 +317,22 @@ export default function CommunityScreenContent({
   const [officialActionId, setOfficialActionId] = useState<string | null>(null);
   const [lastSeen, setLastSeen] = useState<Record<string, number>>({});
 
+  // Official's page (opened from the Officials list)
+  const [activeOfficialId, setActiveOfficialId] = useState<string | null>(null);
+  const [officialPostTick, setOfficialPostTick] = useState(0);
+  const activeOfficialRef = useRef<string | null>(null);
+  const activeOfficial = officials.find(o => o._id === activeOfficialId) || null;
+  useEffect(() => { activeOfficialRef.current = activeOfficialId; }, [activeOfficialId]);
+
+  // Opened from an "official post" push notification: /resident/community?officialId=...
+  const { officialId: officialIdParam } = useLocalSearchParams<{ officialId?: string }>();
+  useEffect(() => {
+    if (officialIdParam) {
+      setActiveSection(null);
+      setActiveOfficialId(String(officialIdParam));
+    }
+  }, [officialIdParam]);
+
   const fetchOfficials = async () => {
     try {
       const res = await axios.get(`${API_URL}/officials`);
@@ -363,6 +387,10 @@ export default function CommunityScreenContent({
       fetchOfficials();
 
       const onBackPress = () => {
+        if (activeOfficialRef.current) {
+          setActiveOfficialId(null);
+          return true;
+        }
         if (activeSectionRef.current) {
           setActiveSection(null);
           return true;
@@ -394,6 +422,9 @@ export default function CommunityScreenContent({
     socket.on('community_section_updated', () => fetchCommunities(false));
     socket.on('community_section_deleted', () => fetchCommunities(false));
     socket.on('officials_updated', () => fetchOfficials());
+    socket.on('official_post_changed', ({ officialId }: { officialId: string }) => {
+      if (officialId && officialId === activeOfficialRef.current) setOfficialPostTick(n => n + 1);
+    });
 
     socket.on('new_community_message', (newMsg: CommunityMessageItem) => {
       const currentActiveId = activeSectionRef.current?._id;
@@ -755,8 +786,20 @@ export default function CommunityScreenContent({
       </View>
       )}
 
-      {/* VIEW 1: STATUS, CHANNELS & OFFICIALS */}
-      {!activeSection ? (
+      {/* VIEW 1: STATUS, CHANNELS & OFFICIALS (or an official's page) */}
+      {activeOfficial && !activeSection ? (
+        <OfficialProfile
+          official={activeOfficial}
+          initials={getSenderInitials(activeOfficial.name, 'O')}
+          avatarBg={officialPalette(activeOfficial.name).bg}
+          avatarFg={officialPalette(activeOfficial.name).fg}
+          metaText={officialMeta(activeOfficial)}
+          followLoading={officialActionId === activeOfficial._id}
+          refreshTick={officialPostTick}
+          onBack={() => setActiveOfficialId(null)}
+          onToggleFollow={() => toggleFollowOfficial(activeOfficial)}
+        />
+      ) : !activeSection ? (
         <ScrollView
           style={{ backgroundColor: '#F4F6FA' }}
           contentContainerStyle={styles.listContent}
@@ -861,20 +904,25 @@ export default function CommunityScreenContent({
               </View>
               <View style={styles.lvCard}>
                 {filteredOfficials.map((o, idx) => {
-                  const pal = OFFICIAL_PASTELS[Math.abs(hashStr(o.name)) % OFFICIAL_PASTELS.length];
-                  const meta = [o.designation, o.ward ? `Ward ${o.ward}` : '', `${formatCount(o.followers_count)} followers`].filter(Boolean).join(' · ');
+                  const pal = officialPalette(o.name);
+                  const meta = officialMeta(o);
                   return (
                     <View key={o._id} style={[styles.ofRow, idx > 0 && styles.rowDivider]}>
-                      <View style={[styles.ofAvatar, { backgroundColor: pal.bg }]}>
-                        <Text style={[styles.ofAvatarText, { color: pal.fg }]}>{getSenderInitials(o.name, 'O')}</Text>
-                      </View>
-                      <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
-                        <View style={styles.nameRow}>
-                          <Text style={styles.ofName} numberOfLines={1}>{o.name}</Text>
-                          {o.verified && <Ionicons name="checkmark-circle" size={15} color="#2563EB" style={{ marginLeft: 4 }} />}
+                      <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }} activeOpacity={0.7} onPress={() => setActiveOfficialId(o._id)}>
+                        <View style={[styles.ofAvatar, { backgroundColor: pal.bg }]}>
+                          <Text style={[styles.ofAvatarText, { color: pal.fg }]}>{getSenderInitials(o.name, 'O')}</Text>
                         </View>
-                        <Text style={styles.ofMeta} numberOfLines={1}>{meta}</Text>
-                      </View>
+                        <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
+                          <View style={styles.nameRow}>
+                            <Text style={styles.ofName} numberOfLines={1}>{o.name}</Text>
+                            {o.verified && <Ionicons name="checkmark-circle" size={15} color="#2563EB" style={{ marginLeft: 4 }} />}
+                            {o.is_mine && (
+                              <View style={styles.yourPageBadge}><Text style={styles.yourPageText}>Your page</Text></View>
+                            )}
+                          </View>
+                          <Text style={styles.ofMeta} numberOfLines={1}>{meta}</Text>
+                        </View>
+                      </TouchableOpacity>
                       <TouchableOpacity
                         style={[styles.ofBtn, o.is_following ? styles.ofBtnFollowing : styles.ofBtnFollow]}
                         activeOpacity={0.7}
@@ -1133,6 +1181,8 @@ const styles = StyleSheet.create({
   ofAvatarText: { fontWeight: '800', fontSize: 14 },
   ofName: { fontSize: 14.5, fontWeight: '700', color: '#0F172A', flexShrink: 1 },
   ofMeta: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  yourPageBadge: { marginLeft: 6, backgroundColor: '#DCFCE7', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 1 },
+  yourPageText: { fontSize: 10, fontWeight: '800', color: '#15803D' },
   ofBtn: { minWidth: 86, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
   ofBtnFollow: { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' },
   ofBtnFollowing: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },

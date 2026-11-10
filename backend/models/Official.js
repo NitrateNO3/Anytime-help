@@ -7,6 +7,7 @@ const officialSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   designation: { type: String, default: '', trim: true }, // e.g. 'Parshad', 'MLA'
   ward: { type: String, default: '', trim: true },        // e.g. '21'
+  bio: { type: String, default: '', trim: true, maxlength: 300 }, // shown on top of the official's page
   phone: { type: String, default: '', trim: true },
   photo: { type: String, default: '' },
   verified: { type: Boolean, default: true },
