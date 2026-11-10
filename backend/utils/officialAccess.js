@@ -17,21 +17,21 @@ const isOwnOfficial = (req, o) => {
 
 const canPostAs = (req, o) => isSuperAdmin(req) || isOwnOfficial(req, o);
 
-// Officials visible in the caller's area: marked for all areas, or this area is listed.
-// The Super Admin sees every official; the official themself always sees their own page.
-const visibilityFilter = (req) => {
-  if (isSuperAdmin(req)) return {};
-  const or = [{ all_areas: { $ne: false } }];
-  if (req.areaId) or.push({ areas: req.areaId });
-  return { $or: or };
-};
-
+// Officials are listed in EVERY area (anyone can find, follow and read them once
+// following). Hidden (inactive) officials are visible only to the Super Admin and
+// the official themself.
 const isVisibleTo = (req, o) => {
   if (!o) return false;
   if (isSuperAdmin(req) || isOwnOfficial(req, o)) return true;
-  if (!o.is_active) return false;
+  return !!o.is_active;
+};
+
+// An official's STATUS is shown only in the areas the official was created for
+// (all_areas, or the caller's area is in `areas`).
+const isInStatusArea = (req, o) => {
+  if (!o) return false;
   if (o.all_areas !== false) return true;
   return !!req.areaId && (o.areas || []).some(a => String(a._id || a) === String(req.areaId));
 };
 
-module.exports = { isSuperAdmin, normalizePhone, isOwnOfficial, canPostAs, visibilityFilter, isVisibleTo };
+module.exports = { isSuperAdmin, normalizePhone, isOwnOfficial, canPostAs, isVisibleTo, isInStatusArea };

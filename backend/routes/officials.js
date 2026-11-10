@@ -4,7 +4,7 @@ const auth = require('../middleware/auth');
 const Official = require('../models/Official');
 require('../models/Area'); // registered for populate('areas'), whatever order routes load in
 
-const { isSuperAdmin, isOwnOfficial, canPostAs, visibilityFilter, isVisibleTo, normalizePhone } = require('../utils/officialAccess');
+const { isSuperAdmin, isOwnOfficial, canPostAs, isVisibleTo, normalizePhone } = require('../utils/officialAccess');
 
 // The official's app login mobile is mandatory: a valid 10-digit Indian number,
 // not already used by another official. Returns an error message or null.
@@ -64,7 +64,7 @@ const emitChange = (req) => {
 // @route GET /api/officials  (Super Admin gets hidden ones too with ?all=true)
 router.get('/', auth, async (req, res) => {
   try {
-    const query = (req.query.all === 'true' && isSuperAdmin(req)) ? {} : { is_active: true, ...visibilityFilter(req) };
+    const query = (req.query.all === 'true' && isSuperAdmin(req)) ? {} : { is_active: true } // listed in every area;
     let q = Official.find(query).sort({ order: 1, createdAt: 1 });
     if (isSuperAdmin(req)) q = q.populate({ path: 'areas', select: 'name' });
     const list = await q.lean();

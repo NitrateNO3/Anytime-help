@@ -145,7 +145,7 @@ export default function AdminLayout() {
           {(isSuperAdmin || hasAccess('Community') || hasAccess('Communities')) && (
             <Link to="/communities" className={`nav-link ${location.pathname.startsWith('/communities') || location.pathname.startsWith('/community') ? 'active' : ''}`}>
               <Building2 size={20} />
-              Communities
+              Channels
             </Link>
           )}
           

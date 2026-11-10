@@ -362,7 +362,7 @@ export default function Communities() {
       }
     } catch (err) {
       console.error('Error fetching sections:', err);
-      toast.error('Failed to load community sections');
+      toast.error('Failed to load channels');
     } finally {
       if (showLoading) setLoadingSections(false);
     }
@@ -411,7 +411,7 @@ export default function Communities() {
 
   // Delete Community
   const handleDeleteCommunity = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete community "${name}" and all its sections?`)) {
+    if (!window.confirm(`Are you sure you want to delete community "${name}" and all its channels?`)) {
       return;
     }
     try {
@@ -449,7 +449,7 @@ export default function Communities() {
   const handleSaveSection = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!secName.trim() || !selectedCommunity) {
-      toast.error('Please enter section name');
+      toast.error('Please enter channel name');
       return;
     }
 
@@ -464,10 +464,10 @@ export default function Communities() {
 
       if (editingSection) {
         await axios.put(`${API_URL}/community/sections/${editingSection._id}`, payload, getHeaders());
-        toast.success('Section updated successfully');
+        toast.success('Channel updated successfully');
       } else {
         await axios.post(`${API_URL}/community/${selectedCommunity._id}/sections`, payload, getHeaders());
-        toast.success('New community section created');
+        toast.success('New channel created');
       }
 
       setIsSectionModalOpen(false);
@@ -475,7 +475,7 @@ export default function Communities() {
       fetchSections(selectedCommunity._id, false);
       fetchCommunities(false);
     } catch (err: any) {
-      toast.error(err.response?.data?.msg || 'Error saving section');
+      toast.error(err.response?.data?.msg || 'Error saving channel');
     } finally {
       setIsSavingSection(false);
     }
@@ -483,16 +483,16 @@ export default function Communities() {
 
   // Delete Section
   const handleDeleteSection = async (secId: string, name: string) => {
-    if (!window.confirm(`Delete section "${name}"?`)) return;
+    if (!window.confirm(`Delete channel "${name}"?`)) return;
     try {
       await axios.delete(`${API_URL}/community/sections/${secId}`, getHeaders());
-      toast.success('Section deleted');
+      toast.success('Channel deleted');
       if (selectedCommunity) {
         fetchSections(selectedCommunity._id, false);
       }
       fetchCommunities(false);
     } catch (err: any) {
-      toast.error(err.response?.data?.msg || 'Failed to delete section');
+      toast.error(err.response?.data?.msg || 'Failed to delete channel');
     }
   };
 
@@ -510,7 +510,7 @@ export default function Communities() {
       await axios.put(`${API_URL}/community/sections/${assigningSection._id}`, {
         assigned_members: selectedMemberIds
       }, getHeaders());
-      toast.success('Section members updated successfully');
+      toast.success('Channel members updated successfully');
       setAssigningSection(null);
       if (selectedCommunity) {
         fetchSections(selectedCommunity._id, false);
@@ -892,7 +892,7 @@ export default function Communities() {
           {/* Sections List */}
           <div style={{ marginBottom: 16 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: '0 0 4px 0' }}>
-              Channels & Sections
+              Channels
             </h3>
             <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
               Members follow channels for read-only access. Assigned members have posting permissions.
@@ -902,18 +902,18 @@ export default function Communities() {
           {loadingSections ? (
             <div style={{ textAlign: 'center', padding: '50px 0', color: '#64748b' }}>
               <RefreshCw className="spin" size={28} style={{ margin: '0 auto 10px' }} />
-              <p>Loading community sections...</p>
+              <p>Loading channels...</p>
             </div>
           ) : sections.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: 16, border: '1px solid #e2e8f0' }}>
               <Megaphone size={32} color="#94A3B8" style={{ margin: '0 auto 12px' }} />
               <h4 style={{ fontSize: 16, fontWeight: 600, color: '#0f172a', margin: '0 0 6px 0' }}>No Channels In This Community Yet</h4>
               <p style={{ fontSize: 13, color: '#64748b', maxWidth: 440, margin: '0 auto 16px' }}>
-                Add your first section (e.g. "DHBVN Power Outage Alerts" or "DG Set Status") to broadcast updates to residents and members.
+                Add your first channel (e.g. "DHBVN Power Outage Alerts" or "DG Set Status") to broadcast updates to residents and members.
               </p>
               <button className="btn btn-primary" onClick={openCreateSectionModal}>
                 <Plus size={16} />
-                Create Section Now
+                Create Channel Now
               </button>
             </div>
           ) : (
@@ -985,7 +985,7 @@ export default function Communities() {
                     <button 
                       className="btn btn-secondary"
                       style={{ padding: '8px 10px', fontSize: 13 }}
-                      title="Edit Section"
+                      title="Edit Channel"
                       onClick={() => openEditSectionModal(sec)}
                     >
                       <Edit2 size={15} />
@@ -994,7 +994,7 @@ export default function Communities() {
                     <button 
                       className="btn btn-secondary"
                       style={{ padding: '8px 10px', fontSize: 13, color: '#EF4444' }}
-                      title="Delete Section"
+                      title="Delete Channel"
                       onClick={() => handleDeleteSection(sec._id, sec.name)}
                     >
                       <Trash2 size={15} />
@@ -1126,7 +1126,7 @@ export default function Communities() {
           <div className="comm-modal-box">
             <div className="comm-modal-header">
               <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
-                {editingSection ? 'Edit Channel / Section' : `New Channel for "${selectedCommunity?.name}"`}
+                {editingSection ? 'Edit Channel' : `New Channel for "${selectedCommunity?.name}"`}
               </h3>
               <button 
                 onClick={() => setIsSectionModalOpen(false)}
@@ -1183,7 +1183,7 @@ export default function Communities() {
                   className="btn btn-primary"
                   disabled={isSavingSection}
                 >
-                  {isSavingSection ? 'Saving...' : (editingSection ? 'Update Section' : 'Create Section')}
+                  {isSavingSection ? 'Saving...' : (editingSection ? 'Update Channel' : 'Create Channel')}
                 </button>
               </div>
             </form>

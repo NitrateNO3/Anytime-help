@@ -64,7 +64,7 @@ const canPostIn = (perm, category) =>
 
 const Official = require('../models/Official');
 const { runUnscoped } = require('../utils/areaContext');
-const { isSuperAdmin, isOwnOfficial, isVisibleTo } = require('../utils/officialAccess');
+const { isSuperAdmin, isOwnOfficial, isInStatusArea } = require('../utils/officialAccess');
 
 // NOTE: run area-unscoped queries with .exec() INSIDE runUnscoped. Returning the bare
 // query would execute it later, outside the unscoped context, still area-filtered.
@@ -139,11 +139,12 @@ router.get('/', auth, async (req, res) => {
       groups.get(key).stories.push(shapeStory(s, me));
     }
 
-    // Official stories: only officials this user follows (and visible in their
-    // area), plus the user's own official page. These cross areas, so read unscoped.
+    // Official stories: only officials this user follows whose status areas include
+    // the user's area, plus the user's own official page. These cross areas, so read unscoped.
     const followed = await Official.find({ is_active: true, followers: req.user._id }).select('name verified all_areas areas is_active phone').lean();
     const officialMap = new Map();
-    for (const o of followed) if (isVisibleTo(req, o)) officialMap.set(String(o._id), o);
+    // Status only in the areas the official was created for
+    for (const o of followed) if (isInStatusArea(req, o)) officialMap.set(String(o._id), o);
     for (const o of ownOfficials) officialMap.set(String(o._id), o);
     if (officialMap.size) {
       const offStories = await runUnscoped(async () => Story.find({

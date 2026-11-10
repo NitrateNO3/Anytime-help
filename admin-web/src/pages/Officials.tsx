@@ -253,7 +253,7 @@ export default function Officials() {
       <header className="page-header">
         <div>
           <h1 className="page-title">Officials</h1>
-          <p className="page-subtitle">Create officials and choose which areas see them on the Community screen ({list.length})</p>
+          <p className="page-subtitle">Officials are listed in every area; their status shows only in their own areas ({list.length})</p>
         </div>
         {canManage && (
           <button className="btn btn-primary" onClick={openAdd}><Plus size={18} /> Add Official</button>
@@ -267,7 +267,7 @@ export default function Officials() {
               <th>Name</th>
               <th>Designation</th>
               <th>Ward</th>
-              <th>Areas</th>
+              <th>Status Areas</th>
               <th>Followers</th>
               <th>Status</th>
               {canManage && <th>Actions</th>}
@@ -357,7 +357,10 @@ export default function Officials() {
                 </small>
               </div>
               <div className="form-group">
-                <label className="form-label">Show in Areas</label>
+                <label className="form-label">Official's Areas (for Status)</label>
+                <small style={{ color: '#6B7280', fontSize: 12, display: 'block', marginBottom: 8 }}>
+                  The official is listed in every area. Their status is shown only to followers in these areas.
+                </small>
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, marginBottom: 8 }}>
                   <input type="checkbox" style={{ width: 'auto' }} checked={form.all_areas} onChange={e => set('all_areas', e.target.checked)} />
                   All areas (current and future)
