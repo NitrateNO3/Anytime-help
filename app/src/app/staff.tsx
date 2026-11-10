@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput, Platform, BackHandler, KeyboardAvoidingView, Keyboard, FlatList, Dimensions } from 'react-native';
 import ZoomableImage from '../components/ZoomableImage';
+import StoriesBar from '../components/StoriesBar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
@@ -550,7 +551,10 @@ export default function StaffScreen() {
         <View style={styles.titleArea}>
           <Text style={styles.title}>{t('staff.portal')}</Text>
           <Text style={styles.subtitle}>{t('resident.hello', { defaultValue: 'Welcome,' })} {user?.name?.split(' ')[0] || 'Staff'}</Text>
-          
+
+          {/* Category stories: staff can post in their own category, and see everyone's */}
+          <StoriesBar title={t('community.status', { defaultValue: 'Status' })} />
+
           {/* Dynamic Staff Banner */}
           <View 
             style={{ marginBottom: 16 }}

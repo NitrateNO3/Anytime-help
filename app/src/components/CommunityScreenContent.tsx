@@ -12,6 +12,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
+import StoriesBar from './StoriesBar';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -681,6 +682,9 @@ export default function CommunityScreenContent({
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[headerThemeColor]} />}
         >
+          {/* WhatsApp-style category stories (posted by staff) */}
+          <StoriesBar title={t('community.status', { defaultValue: 'Status' })} />
+
           {/* Search Bar */}
           <View style={styles.searchBarWrap}>
             <Ionicons name="search" size={18} color="#94A3B8" style={{ marginRight: 8 }} />
