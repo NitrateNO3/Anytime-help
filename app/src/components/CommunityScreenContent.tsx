@@ -26,6 +26,7 @@ interface CommunitySectionItem {
   description: string;
   icon: string;
   section_type: 'announcement' | 'discussion';
+  verified?: boolean;
   followers_count?: number;
   assigned_count?: number;
   last_message?: {
@@ -910,7 +911,7 @@ export default function CommunityScreenContent({
                     <View style={{ flex: 1, marginLeft: 12 }}>
                       <View style={styles.nameRow}>
                         <Text style={styles.chName} numberOfLines={2}>{sec.name}</Text>
-                        {sec.section_type === 'announcement' && <Ionicons name="checkmark-circle" size={15} color="#2563EB" style={{ marginLeft: 4 }} />}
+                        {(sec.verified ?? sec.section_type === 'announcement') && <Ionicons name="checkmark-circle" size={15} color="#2563EB" style={{ marginLeft: 4 }} />}
                       </View>
                       <Text style={styles.chPreview} numberOfLines={1}>
                         {!isFollowing
@@ -1212,7 +1213,7 @@ const styles = StyleSheet.create({
   rowDivider: { borderTopWidth: 1, borderTopColor: '#EEF2F7' },
   nameRow: { flexDirection: 'row', alignItems: 'center' },
   chRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
-  chAvatar: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  chAvatar: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   chAvatarText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
   chName: { fontSize: 15, fontWeight: '800', color: '#0F172A', flexShrink: 1 },
   chPreview: { fontSize: 12.5, color: '#64748B', marginTop: 3 },

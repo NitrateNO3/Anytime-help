@@ -322,7 +322,7 @@ router.post('/:id/sections', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Community not found' });
     }
 
-    const { name, description, icon, section_type, assigned_members, followers_can_post } = req.body;
+    const { name, description, icon, section_type, assigned_members, followers_can_post, verified } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ msg: 'Section name is required' });
     }
@@ -341,6 +341,7 @@ router.post('/:id/sections', auth, async (req, res) => {
       icon: icon || (section_type === 'discussion' ? 'chatbubbles' : 'megaphone'),
       section_type: section_type || 'announcement',
       followers_can_post: followers_can_post === true || followers_can_post === 'true',
+      verified: verified === undefined ? true : (verified === true || verified === 'true'),
       assigned_members: validatedMemberIds,
       followers: [] // Empty initial followers, members follow for read access
     });
@@ -431,7 +432,7 @@ router.put('/sections/:sectionId', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Access denied: Only Admins can modify community sections' });
     }
 
-    const { name, description, icon, section_type, assigned_members, is_active, followers_can_post } = req.body;
+    const { name, description, icon, section_type, assigned_members, is_active, followers_can_post, verified } = req.body;
     const section = await CommunitySection.findById(req.params.sectionId);
     if (!section) return res.status(404).json({ msg: 'Section not found' });
 
@@ -441,6 +442,7 @@ router.put('/sections/:sectionId', auth, async (req, res) => {
     if (section_type !== undefined) section.section_type = section_type;
     if (is_active !== undefined) section.is_active = !!is_active;
     if (followers_can_post !== undefined) section.followers_can_post = followers_can_post === true || followers_can_post === 'true';
+    if (verified !== undefined) section.verified = verified === true || verified === 'true';
 
     if (Array.isArray(assigned_members)) {
       const validUsers = await User.find({ _id: { $in: assigned_members } }).select('_id');

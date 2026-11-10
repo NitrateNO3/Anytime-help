@@ -5,7 +5,7 @@ import {
   Plus, Edit2, Trash2, Search, X, Eye, 
   Send, Users, RefreshCw, Check, ArrowLeft,
   Megaphone, Zap, Shield, Droplets, Home,
-  MessageCircle, Building2, Layers, CheckCircle2
+  MessageCircle, Building2, Layers, CheckCircle2, BadgeCheck
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../lib/area';
@@ -36,6 +36,7 @@ interface CommunitySectionItem {
   icon: string;
   section_type: 'announcement' | 'discussion';
   followers_can_post?: boolean;
+  verified?: boolean;
   assigned_members: UserItem[];
   followers: string[];
   followers_count?: number;
@@ -62,6 +63,10 @@ interface CommunityItem {
   createdAt: string;
   is_active: boolean;
 }
+
+// Older channels have no `verified` field: they showed the tick when they were announcement channels.
+const isSectionVerified = (sec: CommunitySectionItem) =>
+  sec.verified !== undefined && sec.verified !== null ? !!sec.verified : sec.section_type === 'announcement';
 
 interface MessageItem {
   _id: string;
@@ -189,6 +194,7 @@ export default function Communities() {
   // Discussion mode: followers can post too (off = only admins + assigned people)
   const [secFollowersCanPost, setSecFollowersCanPost] = useState(false);
   const [secIcon, setSecIcon] = useState('megaphone');
+  const [secVerified, setSecVerified] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -448,6 +454,7 @@ export default function Communities() {
     setSecName('');
     setSecDesc('');
     setSecFollowersCanPost(false);
+    setSecVerified(true);
     setSecIcon('megaphone');
     setIsSectionModalOpen(true);
   };
@@ -457,6 +464,7 @@ export default function Communities() {
     setSecName(sec.name);
     setSecDesc(sec.description);
     setSecFollowersCanPost(!!sec.followers_can_post);
+    setSecVerified(isSectionVerified(sec));
     setSecIcon(sec.icon || 'megaphone');
     setIsSectionModalOpen(true);
   };
@@ -476,6 +484,7 @@ export default function Communities() {
         description: secDesc.trim(),
         section_type: secFollowersCanPost ? 'discussion' : 'announcement',
         followers_can_post: secFollowersCanPost,
+        verified: secVerified,
         icon: secIcon
       };
 
@@ -945,6 +954,7 @@ export default function Communities() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <h4 className="section-name" style={{ margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           {sec.name}
+                          {isSectionVerified(sec) && <BadgeCheck size={16} color="#2563EB" />}
                           <span style={{
                             fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
                             background: sec.followers_can_post ? '#DCFCE7' : '#EFF6FF',
@@ -1222,6 +1232,11 @@ export default function Communities() {
                     </label>
                   ))}
                 </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: '8px 0 4px', fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
+                  <input type="checkbox" style={{ width: 'auto' }} checked={secVerified} onChange={e => setSecVerified(e.target.checked)} />
+                  <BadgeCheck size={16} color="#2563EB" /> Verified badge (blue tick)
+                </label>
 
                 <div style={{ marginTop: 8, padding: '12px 16px', background: '#EFF6FF', borderRadius: 8, fontSize: 12, color: '#1E40AF', border: '1px solid #DBEAFE' }}>
                   <strong>How it works:</strong> Residents follow the channel to read it. After creating it, use <strong>Assign Posters</strong> on the channel card to let committee members or staff post. They can post only in this channel.

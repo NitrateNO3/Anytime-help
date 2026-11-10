@@ -33,6 +33,12 @@ const communitySectionSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Blue tick (verified badge) shown next to the channel name in the app.
+  // No default on purpose: older channels without this field fall back to the
+  // previous rule (announcement channels showed the tick).
+  verified: {
+    type: Boolean
+  },
   // Assigned members who have specific posting/moderator rights in THIS section ONLY.
   // Adding a user here does NOT give them access to other sections in the community.
   assigned_members: [{ 
