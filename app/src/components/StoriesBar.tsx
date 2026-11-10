@@ -12,6 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
 import * as SecureStore from 'expo-secure-store';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -308,6 +309,7 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
 
   // "Viewed by" sheet (author only); counts refreshed from the sheet's fetch
   const [viewersFor, setViewersFor] = useState<string | null>(null);
+  const insets = useSafeAreaInsets();
   const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
 
   const pause = () => {
@@ -345,7 +347,14 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
   const { width } = Dimensions.get('window');
 
   return (
-    <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+    <Modal
+      visible
+      animationType="fade"
+      // Back closes the "Viewed by" sheet first, then the story
+      onRequestClose={() => { if (viewersFor) { setViewersFor(null); resume(); } else onClose(); }}
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
       <StatusBar barStyle="light-content" />
       <View style={[styles.viewer, story.media_type === 'text' && { backgroundColor: story.bg_color || '#2563EB' }]}>
         {story.media_type === 'image' ? (
@@ -403,7 +412,7 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
         </View>
 
         {/* Bottom: caption (photo stories) + "Viewed by" (own stories) */}
-        <View style={styles.viewerBottom} pointerEvents="box-none">
+        <View style={[styles.viewerBottom, { paddingBottom: 36 + insets.bottom }]} pointerEvents="box-none">
           {story.media_type === 'image' && !!story.caption && (
             <Text pointerEvents="none" style={[styles.caption, { maxWidth: width - 32 }]}>{story.caption}</Text>
           )}
@@ -458,6 +467,31 @@ function ViewersSheet({ storyId, onCount, onClose }: {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Drawn inside the story viewer (not a second Modal): the dim backdrop fades in on
+  // its own while only the white sheet slides up, so no black block slides with it.
+  const screenH = Dimensions.get('window').height;
+  const insets = useSafeAreaInsets();
+  const backdrop = useRef(new Animated.Value(0)).current;
+  const slide = useRef(new Animated.Value(screenH)).current;
+  const closing = useRef(false);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(backdrop, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.spring(slide, { toValue: 0, friction: 9, tension: 70, useNativeDriver: true }),
+    ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const close = () => {
+    if (closing.current) return;
+    closing.current = true;
+    Animated.parallel([
+      Animated.timing(backdrop, { toValue: 0, duration: 180, useNativeDriver: true }),
+      Animated.timing(slide, { toValue: screenH, duration: 220, useNativeDriver: true }),
+    ]).start(() => onClose());
+  };
+
   useEffect(() => {
     let alive = true;
     axios.get(`${API_URL}/stories/${storyId}/viewers`)
@@ -474,15 +508,17 @@ function ViewersSheet({ storyId, onCount, onClose }: {
   }, [storyId]);
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={styles.sheetBackdrop} onPress={onClose} />
-      <View style={styles.sheet}>
+    <View style={styles.sheetLayer}>
+      <Animated.View style={[styles.sheetBackdrop, { opacity: backdrop }]}>
+        <Pressable style={{ flex: 1 }} onPress={close} />
+      </Animated.View>
+      <Animated.View style={[styles.sheet, { paddingBottom: 20 + insets.bottom, transform: [{ translateY: slide }] }]}>
         <View style={styles.sheetHandle} />
         <View style={styles.sheetHeader}>
           <Text style={styles.sheetTitle}>
             {loading ? 'Viewed by' : `Viewed by ${rows.length}`}
           </Text>
-          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <TouchableOpacity onPress={close} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
             <Ionicons name="close" size={22} color="#334155" />
           </TouchableOpacity>
         </View>
@@ -517,8 +553,8 @@ function ViewersSheet({ storyId, onCount, onClose }: {
             })}
           </ScrollView>
         )}
-      </View>
-    </Modal>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -709,8 +745,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF', fontSize: 16, textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.45)',
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, overflow: 'hidden',
   },
-  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
-  sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 18, paddingBottom: 12 },
+  sheetLayer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'flex-end' },
+  sheetBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.25)' },
+  // Bottom padding (safe-area inset added inline) keeps the sheet white down to the screen edge
+  sheet: {
+    backgroundColor: '#FFFFFF', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 18,
+    minHeight: 180,
+  },
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#CBD5E1', marginTop: 8, marginBottom: 6 },
   sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
   sheetTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
