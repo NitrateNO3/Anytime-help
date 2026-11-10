@@ -13,6 +13,7 @@ import PaidServices from './pages/PaidServices';
 import PaidStaff from './pages/PaidStaff';
 import ServiceBookings from './pages/ServiceBookings';
 import Directory from './pages/Directory';
+import Officials from './pages/Officials';
 import Members from './pages/Members';
 import SubAdmins from './pages/SubAdmins';
 import StaffBanners from './pages/StaffBanners';
@@ -92,6 +93,7 @@ function App() {
             <Route path="paid-staff" element={<PaidStaff />} />
             <Route path="service-bookings" element={<ServiceBookings />} />
             <Route path="directory" element={<Directory />} />
+            <Route path="officials" element={<Officials />} />
             <Route path="members" element={<Members />} />
             <Route path="chat-groups" element={<ChatGroups />} />
             <Route path="communities" element={<Communities />} />

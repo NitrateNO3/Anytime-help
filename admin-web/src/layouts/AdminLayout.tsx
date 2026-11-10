@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, Sliders, MapPin } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, Sliders, MapPin, BadgeCheck } from 'lucide-react';
 import { API_URL, getSelectedArea, setSelectedArea } from '../lib/area';
 import logoImg from '../assets/logo.png';
 
@@ -179,6 +179,13 @@ export default function AdminLayout() {
             <Link to="/directory" className={`nav-link ${location.pathname === '/directory' ? 'active' : ''}`}>
               <BookOpen size={20} />
               Directory
+            </Link>
+          )}
+
+          {isPlatformAdmin && (
+            <Link to="/officials" className={`nav-link ${location.pathname === '/officials' ? 'active' : ''}`}>
+              <BadgeCheck size={20} />
+              Officials
             </Link>
           )}
         </nav>

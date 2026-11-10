@@ -169,7 +169,8 @@
     "readOnlyNotice": "You are following this channel with read-only access",
     "followToRead": "Follow this channel to view live updates and messages",
     "channels": "Channels",
-    "status": "Status"
+    "status": "Status",
+    "officials": "Officials"
   },
   "register": {
     "title": "Create Account",

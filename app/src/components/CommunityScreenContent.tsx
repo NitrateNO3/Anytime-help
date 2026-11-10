@@ -13,6 +13,7 @@ import * as SecureStore from 'expo-secure-store';
 import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
 import StoriesBar from './StoriesBar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -123,6 +124,35 @@ const getAvatarColor = (name?: string, isAdmin = false) => {
   const idx = Math.abs(hash) % AVATAR_PALETTES.length;
   return AVATAR_PALETTES[idx];
 };
+
+interface OfficialItem {
+  _id: string;
+  name: string;
+  designation: string;
+  ward: string;
+  verified: boolean;
+  followers_count: number;
+  is_following: boolean;
+}
+
+const OFFICIAL_PASTELS = [
+  { bg: '#FEE2E2', fg: '#DC2626' }, { bg: '#FEF3C7', fg: '#B45309' }, { bg: '#DCFCE7', fg: '#15803D' },
+  { bg: '#E0E7FF', fg: '#4338CA' }, { bg: '#FCE7F3', fg: '#BE185D' }, { bg: '#CFFAFE', fg: '#0E7490' },
+];
+
+const hashStr = (s: string) => {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = s.charCodeAt(i) + ((h << 5) - h);
+  return h;
+};
+
+const formatCount = (n: number) => {
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}K`;
+  return String(n || 0);
+};
+
+const LAST_SEEN_KEY = 'community_section_last_seen';
 
 // WhatsApp-like Typing Indicator with 3 animated bouncing dots
 function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
@@ -272,6 +302,49 @@ export default function CommunityScreenContent({
   const flatListRef = useRef<FlatList>(null);
   const activeSectionRef = useRef<CommunitySectionItem | null>(null);
 
+  // List view: area name, search toggle, officials, per-channel last-seen (for unread dots)
+  const [areaName, setAreaName] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [officials, setOfficials] = useState<OfficialItem[]>([]);
+  const [officialActionId, setOfficialActionId] = useState<string | null>(null);
+  const [lastSeen, setLastSeen] = useState<Record<string, number>>({});
+
+  const fetchOfficials = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/officials`);
+      if (Array.isArray(res.data)) setOfficials(res.data);
+    } catch (err) {
+      console.log('Error fetching officials:', err);
+    }
+  };
+
+  useEffect(() => {
+    axios.get(`${API_URL}/areas/current`).then(res => setAreaName(res.data?.name || '')).catch(() => {});
+    AsyncStorage.getItem(LAST_SEEN_KEY).then(v => { if (v) setLastSeen(JSON.parse(v)); }).catch(() => {});
+  }, []);
+
+  const openSection = (sec: CommunitySectionItem, comm: CommunityItem) => {
+    setActiveParentComm(comm);
+    setActiveSection(sec);
+    setLastSeen(prev => {
+      const next = { ...prev, [sec._id]: Date.now() };
+      AsyncStorage.setItem(LAST_SEEN_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
+
+  const toggleFollowOfficial = async (o: OfficialItem) => {
+    setOfficialActionId(o._id);
+    try {
+      const res = await axios.post(`${API_URL}/officials/${o._id}/${o.is_following ? 'unfollow' : 'follow'}`);
+      setOfficials(prev => prev.map(x => (x._id === o._id ? { ...x, ...res.data } : x)));
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.msg || 'Failed to update follow status');
+    } finally {
+      setOfficialActionId(null);
+    }
+  };
+
   useEffect(() => {
     const loadUser = async () => {
       try {
@@ -287,6 +360,7 @@ export default function CommunityScreenContent({
   useFocusEffect(
     useCallback(() => {
       fetchCommunities();
+      fetchOfficials();
 
       const onBackPress = () => {
         if (activeSectionRef.current) {
@@ -319,6 +393,7 @@ export default function CommunityScreenContent({
     socket.on('community_section_created', () => fetchCommunities(false));
     socket.on('community_section_updated', () => fetchCommunities(false));
     socket.on('community_section_deleted', () => fetchCommunities(false));
+    socket.on('officials_updated', () => fetchOfficials());
 
     socket.on('new_community_message', (newMsg: CommunityMessageItem) => {
       const currentActiveId = activeSectionRef.current?._id;
@@ -634,26 +709,34 @@ export default function CommunityScreenContent({
     }
   };
 
-  const filteredCommunities = communities.filter(c => 
-    c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    c.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (c.sections || []).some(s => s.name.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // All channels across communities, most recent activity first
+  const q = searchQuery.trim().toLowerCase();
+  const channelRows = communities
+    .flatMap(comm => (comm.sections || []).map(sec => ({ sec, comm })))
+    .filter(({ sec, comm }) => !q
+      || sec.name.toLowerCase().includes(q)
+      || (sec.description || '').toLowerCase().includes(q)
+      || comm.name.toLowerCase().includes(q))
+    .sort((a, b) => {
+      const ta = a.sec.last_message?.timestamp ? new Date(a.sec.last_message.timestamp).getTime() : 0;
+      const tb = b.sec.last_message?.timestamp ? new Date(b.sec.last_message.timestamp).getTime() : 0;
+      return tb - ta;
+    });
+
+  const filteredOfficials = officials.filter(o => !q
+    || o.name.toLowerCase().includes(q)
+    || (o.designation || '').toLowerCase().includes(q)
+    || (o.ward || '').toLowerCase().includes(q));
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" />
+    <SafeAreaView style={[styles.safeArea, !activeSection && { backgroundColor: '#F4F6FA' }]}>
+      <StatusBar barStyle={activeSection ? 'light-content' : 'dark-content'} />
 
-      {/* HEADER */}
+      {/* HEADER (only inside a channel; the list view has its own light header) */}
+      {activeSection && (
       <View style={[styles.headerBar, { backgroundColor: headerThemeColor }]}>
-        <TouchableOpacity 
-          onPress={() => {
-            if (activeSection) {
-              setActiveSection(null);
-            } else {
-              router.replace(backRoute as any);
-            }
-          }} 
+        <TouchableOpacity
+          onPress={() => setActiveSection(null)}
           style={styles.backButton}
           activeOpacity={0.7}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -662,164 +745,157 @@ export default function CommunityScreenContent({
         </TouchableOpacity>
 
         <View style={styles.headerTitleWrap}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {activeSection ? activeSection.name : (t('community.title') || 'Community')}
-          </Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{activeSection.name}</Text>
           <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {activeSection 
-              ? `${activeParentComm?.name || 'Community'} • ${activeSection.followers_count || 0} followers` 
-              : (t('community.subtitle') || 'Official channels & updates')}
+            {`${activeParentComm?.name || 'Community'} • ${activeSection.followers_count || 0} followers`}
           </Text>
         </View>
 
         <View style={{ width: 36 }} />
       </View>
+      )}
 
-      {/* VIEW 1: COMMUNITIES & SECTIONS LIST */}
+      {/* VIEW 1: STATUS, CHANNELS & OFFICIALS */}
       {!activeSection ? (
-        <ScrollView 
-          contentContainerStyle={styles.contentContainer}
+        <ScrollView
+          style={{ backgroundColor: '#F4F6FA' }}
+          contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[headerThemeColor]} />}
         >
-          {/* WhatsApp-style category stories (posted by staff) */}
-          <StoriesBar title={t('community.status', { defaultValue: 'Status' })} />
+          {/* Title header */}
+          <View style={styles.lvHeader}>
+            <View style={{ flex: 1 }}>
+              {!!areaName && <Text style={styles.lvArea} numberOfLines={1}>{areaName}</Text>}
+              <Text style={styles.lvTitle}>{t('community.title', { defaultValue: 'Community' })}</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.lvSearchBtn}
+              activeOpacity={0.7}
+              onPress={() => { if (showSearch) setSearchQuery(''); setShowSearch(!showSearch); }}
+            >
+              <Ionicons name={showSearch ? 'close' : 'search'} size={20} color="#0F172A" />
+            </TouchableOpacity>
+          </View>
 
-          {/* Search Bar */}
-          <View style={styles.searchBarWrap}>
-            <Ionicons name="search" size={18} color="#94A3B8" style={{ marginRight: 8 }} />
-            <TextInput 
-              style={styles.searchInput}
-              placeholder="Search community channels..."
-              placeholderTextColor="#94A3B8"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color="#94A3B8" />
-              </TouchableOpacity>
+          {showSearch && (
+            <View style={styles.searchBarWrap}>
+              <Ionicons name="search" size={18} color="#94A3B8" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search channels & officials..."
+                placeholderTextColor="#94A3B8"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+            </View>
+          )}
+
+          {/* WhatsApp-style category stories (posted by staff) */}
+          {!searchQuery && <StoriesBar title={t('community.status', { defaultValue: 'Status' })} />}
+
+          {/* CHANNELS */}
+          <View style={styles.lvSectionHead}>
+            <Text style={styles.lvSectionTitle}>{t('community.channels', { defaultValue: 'Channels' })}</Text>
+            {channelRows.length > 0 && (
+              <Text style={styles.lvSectionHint}>{channelRows.filter(r => r.sec.user_access?.is_following).length} following</Text>
             )}
           </View>
 
-          {/* Quick Info Banner */}
-          <View style={styles.infoBanner}>
-            <Ionicons name="information-circle" size={20} color="#2563EB" style={{ marginRight: 8, marginTop: 1 }} />
-            <Text style={styles.infoBannerText}>
-              Follow channels (e.g. Electricity) for live updates. Followers get visible read-only access.
-            </Text>
-          </View>
-
           {loading ? (
-            <ActivityIndicator size="large" color={headerThemeColor} style={{ marginTop: 40 }} />
-          ) : filteredCommunities.length === 0 ? (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIconCircle}>
-                <Ionicons name="people-outline" size={40} color="#94A3B8" />
-              </View>
-              <Text style={styles.emptyTitle}>No Communities Found</Text>
-              <Text style={styles.emptyText}>
-                {t('community.noNotifications') || 'No community channels are available at this time.'}
-              </Text>
+            <ActivityIndicator size="large" color={headerThemeColor} style={{ marginVertical: 30 }} />
+          ) : channelRows.length === 0 ? (
+            <View style={styles.lvCard}>
+              <Text style={styles.lvEmpty}>{searchQuery ? 'No matching channels' : (t('community.noNotifications') || 'No community channels are available at this time.')}</Text>
             </View>
           ) : (
-            filteredCommunities.map(comm => (
-              <View key={comm._id} style={styles.communityCard}>
-                {/* Community Top Banner */}
-                <View style={styles.communityBannerHeader}>
-                  <View style={[styles.commIconBadge, { backgroundColor: `${comm.color || '#F59E0B'}22` }]}>
-                    <Ionicons 
-                      name={getSectionIconName(comm.icon) as any} 
-                      size={22} 
-                      color={comm.color || '#F59E0B'} 
-                    />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.commTitle}>{comm.name}</Text>
-                    <Text style={styles.commDesc} numberOfLines={2}>{comm.description || 'Official community'}</Text>
-                  </View>
-                </View>
-
-                {/* Sections List under this community */}
-                <View style={styles.sectionsListWrap}>
-                  {(!comm.sections || comm.sections.length === 0) ? (
-                    <Text style={styles.noSectionsText}>No channels added yet.</Text>
-                  ) : (
-                    comm.sections.map(sec => {
-                      const isFollowing = !!sec.user_access?.is_following;
-                      const isAssigned = !!sec.user_access?.is_assigned;
-                      const isActionLoading = followingActionId === sec._id;
-
-                      return (
-                        <TouchableOpacity 
-                          key={sec._id}
-                          style={styles.sectionItem}
-                          activeOpacity={0.7}
-                          onPress={() => {
-                            setActiveParentComm(comm);
-                            setActiveSection(sec);
-                          }}
-                        >
-                          {/* Channel Icon */}
-                          <View style={[styles.sectionIconBadge, { backgroundColor: sec.section_type === 'discussion' ? '#EFF6FF' : '#FEF3C7' }]}>
-                            <Ionicons 
-                              name={getSectionIconName(sec.icon) as any} 
-                              size={20} 
-                              color={sec.section_type === 'discussion' ? '#2563EB' : '#D97706'} 
-                            />
-                          </View>
-
-                          {/* Channel Details */}
-                          <View style={styles.sectionDetails}>
-                            <View style={styles.sectionNameRow}>
-                              <Text style={styles.sectionName} numberOfLines={1}>{sec.name}</Text>
-                              <Text style={styles.followerBadgeText}>
-                                {sec.followers_count || 0} followers
-                              </Text>
-                            </View>
-
-                            <Text style={styles.sectionDesc} numberOfLines={1}>
-                              {sec.last_message?.text 
-                                ? `${sec.last_message.sender_name}: ${sec.last_message.text}` 
-                                : (sec.description || 'Tap to view channel updates')}
-                            </Text>
-                          </View>
-
-                          {/* Follow Button */}
-                          <TouchableOpacity
-                            style={[
-                              styles.followBtn,
-                              isFollowing ? styles.followingBtn : styles.notFollowingBtn
-                            ]}
-                            activeOpacity={0.7}
-                            disabled={isActionLoading}
-                            onPress={() => handleToggleFollow(sec, comm)}
-                          >
-                            {isActionLoading ? (
-                              <ActivityIndicator size="small" color={isFollowing ? '#16A34A' : '#2563EB'} />
-                            ) : (
-                              <>
-                                <Ionicons 
-                                  name={isFollowing ? "checkmark-circle" : "add-circle-outline"} 
-                                  size={14} 
-                                  color={isFollowing ? "#16A34A" : "#2563EB"} 
-                                  style={{ marginRight: 3 }}
-                                />
-                                <Text style={[styles.followBtnText, { color: isFollowing ? '#16A34A' : '#2563EB' }]}>
-                                  {isFollowing ? (t('community.following') || 'Following') : (t('community.follow') || 'Follow')}
-                                </Text>
-                              </>
-                            )}
-                          </TouchableOpacity>
-                        </TouchableOpacity>
-                      );
-                    })
-                  )}
-                </View>
-              </View>
-            ))
+            <View style={styles.lvCard}>
+              {channelRows.map(({ sec, comm }, idx) => {
+                const isFollowing = !!sec.user_access?.is_following;
+                const ts = sec.last_message?.timestamp;
+                const unread = isFollowing && !!ts && new Date(ts).getTime() > (lastSeen[sec._id] || 0);
+                const tint = comm.color || '#2563EB';
+                return (
+                  <TouchableOpacity
+                    key={sec._id}
+                    style={[styles.chRow, idx > 0 && styles.rowDivider]}
+                    activeOpacity={0.7}
+                    onPress={() => openSection(sec, comm)}
+                  >
+                    <View style={[styles.chAvatar, { backgroundColor: tint }]}>
+                      <Text style={styles.chAvatarText}>{getSenderInitials(sec.name, 'C')}</Text>
+                    </View>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
+                      <View style={styles.nameRow}>
+                        <Text style={styles.chName} numberOfLines={2}>{sec.name}</Text>
+                        {sec.section_type === 'announcement' && <Ionicons name="checkmark-circle" size={15} color="#2563EB" style={{ marginLeft: 4 }} />}
+                      </View>
+                      <Text style={styles.chPreview} numberOfLines={1}>
+                        {!isFollowing
+                          ? 'Tap to follow this channel'
+                          : sec.last_message?.text
+                            ? `${sec.last_message.sender_name ? sec.last_message.sender_name + ': ' : ''}${sec.last_message.text}`
+                            : (sec.description || comm.name)}
+                      </Text>
+                    </View>
+                    <View style={styles.chMeta}>
+                      {!!ts && <Text style={[styles.chTime, unread && { color: '#2563EB', fontWeight: '700' }]}>{formatMessageTime(ts)}</Text>}
+                      {unread ? <View style={styles.unreadDot} /> : !isFollowing ? <Ionicons name="add-circle-outline" size={18} color="#94A3B8" /> : null}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           )}
-          <View style={{ height: 60 }} />
+
+          {/* OFFICIALS */}
+          {filteredOfficials.length > 0 && (
+            <>
+              <View style={styles.lvSectionHead}>
+                <Text style={styles.lvSectionTitle}>{t('community.officials', { defaultValue: 'Officials' })}</Text>
+                <Text style={styles.lvSectionHint}>
+                  Following {officials.filter(o => o.is_following).length} of {officials.length}
+                </Text>
+              </View>
+              <View style={styles.lvCard}>
+                {filteredOfficials.map((o, idx) => {
+                  const pal = OFFICIAL_PASTELS[Math.abs(hashStr(o.name)) % OFFICIAL_PASTELS.length];
+                  const meta = [o.designation, o.ward ? `Ward ${o.ward}` : '', `${formatCount(o.followers_count)} followers`].filter(Boolean).join(' · ');
+                  return (
+                    <View key={o._id} style={[styles.ofRow, idx > 0 && styles.rowDivider]}>
+                      <View style={[styles.ofAvatar, { backgroundColor: pal.bg }]}>
+                        <Text style={[styles.ofAvatarText, { color: pal.fg }]}>{getSenderInitials(o.name, 'O')}</Text>
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12, marginRight: 8 }}>
+                        <View style={styles.nameRow}>
+                          <Text style={styles.ofName} numberOfLines={1}>{o.name}</Text>
+                          {o.verified && <Ionicons name="checkmark-circle" size={15} color="#2563EB" style={{ marginLeft: 4 }} />}
+                        </View>
+                        <Text style={styles.ofMeta} numberOfLines={1}>{meta}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.ofBtn, o.is_following ? styles.ofBtnFollowing : styles.ofBtnFollow]}
+                        activeOpacity={0.7}
+                        disabled={officialActionId === o._id}
+                        onPress={() => toggleFollowOfficial(o)}
+                      >
+                        {officialActionId === o._id ? (
+                          <ActivityIndicator size="small" color="#2563EB" />
+                        ) : (
+                          <Text style={[styles.ofBtnText, { color: o.is_following ? '#0F172A' : '#2563EB' }]}>
+                            {o.is_following ? (t('community.following') || 'Following') : `+ ${t('community.follow') || 'Follow'}`}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })}
+              </View>
+            </>
+          )}
+          <View style={{ height: 110 }} />
         </ScrollView>
       ) : (
         /* VIEW 2: ACTIVE CHANNEL / SECTION MESSAGES STREAM */
@@ -1017,10 +1093,50 @@ const styles = StyleSheet.create({
     textAlign: 'center'
   },
 
-  contentContainer: { 
-    padding: 16, 
-    paddingTop: 12 
+  contentContainer: {
+    padding: 16,
+    paddingTop: 12
   },
+
+  // ---- List view (Status / Channels / Officials) ----
+  listContent: {
+    paddingHorizontal: 18,
+    paddingTop: Platform.OS === 'android' ? 14 : 8,
+  },
+  lvHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  lvArea: { fontSize: 13, color: '#475569', fontWeight: '600', marginBottom: 2 },
+  lvTitle: { fontSize: 30, fontWeight: '800', color: '#0F172A', letterSpacing: -0.5 },
+  lvSearchBtn: {
+    width: 42, height: 42, borderRadius: 21, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#0F172A', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
+  },
+  lvSectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, marginBottom: 10 },
+  lvSectionTitle: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
+  lvSectionHint: { fontSize: 12, color: '#64748B', fontWeight: '600' },
+  lvCard: {
+    backgroundColor: '#FFFFFF', borderRadius: 18, paddingHorizontal: 14, marginBottom: 18,
+    shadowColor: '#0F172A', shadowOpacity: 0.05, shadowRadius: 8, shadowOffset: { width: 0, height: 2 }, elevation: 1,
+  },
+  lvEmpty: { paddingVertical: 22, textAlign: 'center', color: '#64748B', fontSize: 13 },
+  rowDivider: { borderTopWidth: 1, borderTopColor: '#EEF2F7' },
+  nameRow: { flexDirection: 'row', alignItems: 'center' },
+  chRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
+  chAvatar: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  chAvatarText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15 },
+  chName: { fontSize: 15, fontWeight: '800', color: '#0F172A', flexShrink: 1 },
+  chPreview: { fontSize: 12.5, color: '#64748B', marginTop: 3 },
+  chMeta: { alignItems: 'flex-end', justifyContent: 'center', marginLeft: 8, minWidth: 54, gap: 6 },
+  chTime: { fontSize: 11, color: '#94A3B8' },
+  unreadDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#2563EB' },
+  ofRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 13 },
+  ofAvatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  ofAvatarText: { fontWeight: '800', fontSize: 14 },
+  ofName: { fontSize: 14.5, fontWeight: '700', color: '#0F172A', flexShrink: 1 },
+  ofMeta: { fontSize: 12, color: '#64748B', marginTop: 2 },
+  ofBtn: { minWidth: 86, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
+  ofBtnFollow: { backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE' },
+  ofBtnFollowing: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
+  ofBtnText: { fontSize: 13, fontWeight: '700' },
 
   searchBarWrap: {
     flexDirection: 'row',

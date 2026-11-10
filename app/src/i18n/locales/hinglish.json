@@ -122,7 +122,8 @@
     "readOnlyNotice": "Aap read-only access ke saath is channel ko follow kar rahe hain",
     "followToRead": "Updates aur messages dekhne ke liye follow karein",
     "channels": "Channels",
-    "status": "Status"
+    "status": "Status",
+    "officials": "Officials"
   },
   "register": {
     "title": "Account Banayein",
