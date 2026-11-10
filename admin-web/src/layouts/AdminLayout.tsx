@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, Sliders, MapPin, BadgeCheck } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, Sliders, MapPin, BadgeCheck, Wrench } from 'lucide-react';
 import { API_URL, getSelectedArea, setSelectedArea } from '../lib/area';
 import logoImg from '../assets/logo.png';
 
@@ -32,7 +32,7 @@ export default function AdminLayout() {
 
   // Area-specific screens need an area picked first (see the prompt below)
   // (Areas and Officials are Super Admin screens and work without an area.)
-  const needsArea = isPlatformAdmin && !selectedArea && !['/areas', '/officials'].includes(location.pathname);
+  const needsArea = isPlatformAdmin && !selectedArea && !['/areas', '/officials', '/maintenance'].includes(location.pathname);
 
   const switchArea = (id: string) => {
     setSelectedArea(id || null);
@@ -99,6 +99,14 @@ export default function AdminLayout() {
             <Link to="/officials" className={`nav-link ${location.pathname === '/officials' ? 'active' : ''}`}>
               <BadgeCheck size={20} />
               Officials
+            </Link>
+          )}
+
+          {/* Maintenance mode is platform-wide: Super Admin view only */}
+          {isPlatformAdmin && !selectedArea && (
+            <Link to="/maintenance" className={`nav-link ${location.pathname === '/maintenance' ? 'active' : ''}`}>
+              <Wrench size={20} />
+              Maintenance
             </Link>
           )}
 
