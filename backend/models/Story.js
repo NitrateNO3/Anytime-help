@@ -4,6 +4,9 @@ const mongoose = require('mongoose');
 // categories, visible to everyone in the area, auto-deleted after 24 hours.
 const storySchema = new mongoose.Schema({
   category: { type: String, required: true, trim: true },
+  // Set when an Official posts the story (category then holds the official's name).
+  // Official stories cross areas: they are shown in every area the official is visible in.
+  official: { type: mongoose.Schema.Types.ObjectId, ref: 'Official', default: null, index: true },
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   author_name: { type: String, default: '' },
   // 'image' = photo (+ optional caption), 'text' = text on coloured background

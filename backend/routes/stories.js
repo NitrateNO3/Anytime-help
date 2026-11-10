@@ -62,22 +62,64 @@ const getPostableCategories = async (user) => {
 const canPostIn = (perm, category) =>
   perm.all || perm.cats.some(c => c.toLowerCase() === String(category).toLowerCase());
 
-const emitChange = (req, payload) => {
+const Official = require('../models/Official');
+const { runUnscoped } = require('../utils/areaContext');
+const { isSuperAdmin, isOwnOfficial, isVisibleTo } = require('../utils/officialAccess');
+
+// NOTE: run area-unscoped queries with .exec() INSIDE runUnscoped. Returning the bare
+// query would execute it later, outside the unscoped context, still area-filtered.
+
+const emitChange = (req, payload, global = false) => {
   const io = req.app.get('io');
-  if (io) io.emit('story_changed', payload);
+  if (!io) return;
+  // Official stories reach several areas, so broadcast those to everyone
+  if (global && io.sockets) io.sockets.emit('story_changed', payload);
+  else io.emit('story_changed', payload);
+};
+
+// Officials the caller may post stories as (their login number matches the official's phone)
+const getOwnOfficials = async (req) => {
+  const list = await Official.find({ phone: { $nin: ['', null] } }).select('name phone verified').lean();
+  return list.filter(o => isOwnOfficial(req, o));
+};
+
+const shapeStory = (s, me) => {
+  const viewers = (s.viewers || []).map(String);
+  const mine = String(s.author) === me;
+  return {
+    _id: s._id,
+    category: s.category,
+    official: s.official || null,
+    author: s.author,
+    author_name: s.author_name,
+    media_type: s.media_type,
+    media_url: s.media_url,
+    caption: s.caption,
+    bg_color: s.bg_color,
+    createdAt: s.createdAt,
+    expiresAt: s.expiresAt,
+    seen: viewers.includes(me),
+    is_mine: mine,
+    // Only the author sees how many people viewed
+    ...(mine ? { view_count: viewers.length } : {}),
+  };
 };
 
 // @route GET /api/stories
-// @desc  Active stories grouped by category, plus categories the caller may post in
+// @desc  Active stories grouped by category (staff) and by official (followed
+//        officials only), plus what the caller may post in
 router.get('/', auth, async (req, res) => {
   try {
     const me = String(req.user._id);
-    const [stories, categories, perm] = await Promise.all([
-      Story.find({ expiresAt: { $gt: new Date() } }).sort({ createdAt: 1 }).lean(),
+    const now = new Date();
+    const [stories, categories, perm, ownOfficials] = await Promise.all([
+      Story.find({ expiresAt: { $gt: now }, official: null }).sort({ createdAt: 1 }).lean(),
       Category.find().sort({ order: 1 }).select('title title_hi title_hinglish image order').lean(),
       getPostableCategories(req.user),
+      getOwnOfficials(req),
     ]);
 
+    // Category (staff) stories, area-scoped
     const catMeta = new Map(categories.map(c => [c.title.toLowerCase(), c]));
     const groups = new Map();
     for (const s of stories) {
@@ -85,31 +127,37 @@ router.get('/', auth, async (req, res) => {
       if (!groups.has(key)) {
         const meta = catMeta.get(key);
         groups.set(key, {
+          key,
+          kind: 'category',
           category: meta ? meta.title : s.category,
           title_hi: meta?.title_hi || '',
           title_hinglish: meta?.title_hinglish || '',
           image: meta?.image || '',
-          order: meta?.order ?? 9999,
           stories: [],
         });
       }
-      const viewers = (s.viewers || []).map(String);
-      groups.get(key).stories.push({
-        _id: s._id,
-        category: s.category,
-        author: s.author,
-        author_name: s.author_name,
-        media_type: s.media_type,
-        media_url: s.media_url,
-        caption: s.caption,
-        bg_color: s.bg_color,
-        createdAt: s.createdAt,
-        expiresAt: s.expiresAt,
-        seen: viewers.includes(me),
-        is_mine: String(s.author) === me,
-        // Only the author sees how many people viewed
-        ...(String(s.author) === me ? { view_count: viewers.length } : {}),
-      });
+      groups.get(key).stories.push(shapeStory(s, me));
+    }
+
+    // Official stories: only officials this user follows (and visible in their
+    // area), plus the user's own official page. These cross areas, so read unscoped.
+    const followed = await Official.find({ is_active: true, followers: req.user._id }).select('name verified all_areas areas is_active phone').lean();
+    const officialMap = new Map();
+    for (const o of followed) if (isVisibleTo(req, o)) officialMap.set(String(o._id), o);
+    for (const o of ownOfficials) officialMap.set(String(o._id), o);
+    if (officialMap.size) {
+      const offStories = await runUnscoped(async () => Story.find({
+        expiresAt: { $gt: now },
+        official: { $in: [...officialMap.keys()] },
+      }).sort({ createdAt: 1 }).lean().exec());
+      for (const s of offStories) {
+        const o = officialMap.get(String(s.official));
+        const key = `official:${s.official}`;
+        if (!groups.has(key)) {
+          groups.set(key, { key, kind: 'official', official_id: String(s.official), category: o.name, verified: o.verified !== false, image: '', stories: [] });
+        }
+        groups.get(key).stories.push(shapeStory(s, me));
+      }
     }
 
     const result = [...groups.values()]
@@ -122,7 +170,13 @@ router.get('/', auth, async (req, res) => {
       .sort((a, b) => (Number(b.has_unseen) - Number(a.has_unseen)) || (new Date(b.latest_at) - new Date(a.latest_at)));
 
     const postable = perm.all ? categories.map(c => c.title) : perm.cats;
-    res.json({ groups: result, can_post: postable.length > 0, postable_categories: postable });
+    const postableOfficials = ownOfficials.map(o => ({ _id: o._id, name: o.name }));
+    res.json({
+      groups: result,
+      can_post: postable.length > 0 || postableOfficials.length > 0,
+      postable_categories: postable,
+      postable_officials: postableOfficials,
+    });
   } catch (err) {
     console.error('Error fetching stories:', err);
     res.status(500).json({ msg: 'Server Error' });
@@ -130,23 +184,37 @@ router.get('/', auth, async (req, res) => {
 });
 
 // @route POST /api/stories
-// @desc  Staff posts a story in one of their own categories
+// @desc  Staff posts in one of their own categories, or an official posts as themself
 router.post('/', auth, upload.single('image'), async (req, res) => {
   try {
-    if (req.user.role !== 'Staff') {
-      return res.status(403).json({ msg: 'Only staff can post stories' });
-    }
-    const category = String(req.body.category || '').trim();
-    if (!category) return res.status(400).json({ msg: 'Category is required' });
+    let category;
+    let officialId = null;
 
-    const perm = await getPostableCategories(req.user);
-    if (!canPostIn(perm, category)) {
-      return res.status(403).json({ msg: 'You can only post stories in your own category' });
+    if (req.body.official) {
+      // Posting as an official: the login number must match that official
+      const official = await Official.findById(req.body.official).select('name phone').lean();
+      if (!official) return res.status(404).json({ msg: 'Official not found' });
+      if (!isOwnOfficial(req, official) && !isSuperAdmin(req)) {
+        return res.status(403).json({ msg: 'You can only post stories as your own official page' });
+      }
+      category = official.name;
+      officialId = official._id;
+    } else {
+      if (req.user.role !== 'Staff') {
+        return res.status(403).json({ msg: 'Only staff can post stories' });
+      }
+      category = String(req.body.category || '').trim();
+      if (!category) return res.status(400).json({ msg: 'Category is required' });
+      const perm = await getPostableCategories(req.user);
+      if (!canPostIn(perm, category)) {
+        return res.status(403).json({ msg: 'You can only post stories in your own category' });
+      }
     }
 
     const caption = String(req.body.caption || '').trim().slice(0, 700);
     const story = new Story({
       category,
+      official: officialId,
       author: req.user._id,
       author_name: req.user.name || '',
       caption,
@@ -170,7 +238,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
     }
 
     const saved = await story.save();
-    emitChange(req, { action: 'create', category, id: saved._id });
+    emitChange(req, { action: 'create', category, id: saved._id }, !!officialId);
     res.json(saved);
   } catch (err) {
     console.error('Error posting story:', err);
@@ -179,9 +247,10 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 });
 
 // @route POST /api/stories/:id/view
+// (unscoped so an official's story can be marked seen from any area)
 router.post('/:id/view', auth, async (req, res) => {
   try {
-    await Story.updateOne({ _id: req.params.id }, { $addToSet: { viewers: req.user._id } });
+    await runUnscoped(async () => Story.updateOne({ _id: req.params.id }, { $addToSet: { viewers: req.user._id } }).exec());
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ msg: 'Server Error' });
@@ -189,24 +258,27 @@ router.post('/:id/view', auth, async (req, res) => {
 });
 
 // @route DELETE /api/stories/:id
-// @desc  Author or admin deletes a story
+// @desc  Author, Super Admin, or (for staff stories) an admin of that area
 router.delete('/:id', auth, async (req, res) => {
   try {
-    const story = await Story.findById(req.params.id);
+    const story = await runUnscoped(async () => Story.findById(req.params.id).exec());
     if (!story) return res.status(404).json({ msg: 'Story not found' });
     const isAuthor = String(story.author) === String(req.user._id);
-    const isAdmin = ['Admin', 'SubAdmin'].includes(req.user.role);
-    if (!isAuthor && !isAdmin) return res.status(403).json({ msg: 'Not allowed' });
+    const isAreaAdmin = ['Admin', 'SubAdmin'].includes(req.user.role)
+      && !story.official
+      && !!req.areaId && String(story.area) === String(req.areaId);
+    if (!isAuthor && !isSuperAdmin(req) && !isAreaAdmin) return res.status(403).json({ msg: 'Not allowed' });
 
     if (story.public_id) {
       cloudinary.uploader.destroy(story.public_id).catch(() => {});
     }
-    await Story.deleteOne({ _id: story._id });
-    emitChange(req, { action: 'delete', category: story.category, id: story._id });
+    await runUnscoped(async () => Story.deleteOne({ _id: story._id }).exec());
+    emitChange(req, { action: 'delete', category: story.category, id: story._id }, !!story.official);
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ msg: 'Server Error' });
   }
 });
+
 
 module.exports = router;

@@ -19,7 +19,15 @@ const SOCKET_URL = 'https://anytime-help.onrender.com';
 const STORY_DURATION_MS = 5000;
 
 // Shared across every StoriesBar instance and remount (per signed-in token)
-let storiesCache: { token: string; groups: StoryGroup[]; postable: string[] } | null = null;
+// Where the signed-in user may post: their staff categories and/or their own official page
+export interface PostTarget { kind: 'category' | 'official'; id: string; label: string }
+
+let storiesCache: { token: string; groups: StoryGroup[]; postable: PostTarget[] } | null = null;
+
+// Lets other screens ask every mounted StoriesBar to refetch (e.g. after following
+// an official, whose status is shown to followers only)
+const refreshListeners = new Set<() => void>();
+export const refreshStoriesBar = () => refreshListeners.forEach(fn => fn());
 const TEXT_BG_COLORS = ['#2563EB', '#16A34A', '#DC2626', '#9333EA', '#EA580C', '#0F172A', '#DB2777', '#0891B2'];
 const CAT_PALETTE = [
   { bg: '#ECFDF5', fg: '#059669' }, { bg: '#EFF6FF', fg: '#2563EB' }, { bg: '#FEF3C7', fg: '#D97706' },
@@ -41,6 +49,10 @@ export interface StoryItem {
 }
 
 export interface StoryGroup {
+  key?: string;
+  kind?: 'category' | 'official';
+  official_id?: string;
+  verified?: boolean;
   category: string;
   title_hi?: string;
   title_hinglish?: string;
@@ -85,7 +97,7 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
   // Start from the last fetched stories so the row never flashes a loader when a
   // screen is re-entered; fresh data is fetched silently in the background.
   const [groups, setGroups] = useState<StoryGroup[]>(() => storiesCache?.groups || []);
-  const [postable, setPostable] = useState<string[]>(() => storiesCache?.postable || []);
+  const [postable, setPostable] = useState<PostTarget[]>(() => storiesCache?.postable || []);
   const [loaded, setLoaded] = useState(!!storiesCache);
   const [viewerStart, setViewerStart] = useState<number | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -108,7 +120,12 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
       }
       const res = await axios.get(`${API_URL}/stories`);
       const nextGroups = Array.isArray(res.data?.groups) ? res.data.groups : [];
-      const nextPostable = Array.isArray(res.data?.postable_categories) ? res.data.postable_categories : [];
+      const nextPostable: PostTarget[] = [
+        ...(Array.isArray(res.data?.postable_officials) ? res.data.postable_officials : [])
+          .map((o: any) => ({ kind: 'official' as const, id: String(o._id), label: o.name })),
+        ...(Array.isArray(res.data?.postable_categories) ? res.data.postable_categories : [])
+          .map((c: string) => ({ kind: 'category' as const, id: c, label: c })),
+      ];
       storiesCache = { token, groups: nextGroups, postable: nextPostable };
       setGroups(nextGroups);
       setPostable(nextPostable);
@@ -120,6 +137,11 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
   }, []);
 
   useFocusEffect(useCallback(() => { fetchStories(); }, [fetchStories]));
+
+  useEffect(() => {
+    refreshListeners.add(fetchStories);
+    return () => { refreshListeners.delete(fetchStories); };
+  }, [fetchStories]);
 
   // Keep the cache in step with local changes (e.g. stories marked as seen)
   useEffect(() => {
@@ -175,7 +197,7 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
         {!loaded && <ActivityIndicator style={{ marginLeft: 12 }} color="#2563EB" />}
 
         {groups.map((g, idx) => (
-          <TouchableOpacity key={g.category} style={styles.item} activeOpacity={0.8} onPress={() => setViewerStart(idx)}>
+          <TouchableOpacity key={g.key || g.category} style={styles.item} activeOpacity={0.8} onPress={() => setViewerStart(idx)}>
             <View style={[styles.ring, { borderColor: g.has_unseen ? '#2563EB' : '#CBD5E1' }]}>
               <CategoryAvatar group={g} size={56} />
               {g.has_unseen && (
@@ -184,7 +206,10 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
                 </View>
               )}
             </View>
-            <Text style={styles.itemTitle} numberOfLines={1}>{catLabel(g)}</Text>
+            <View style={styles.itemTitleRow}>
+              <Text style={[styles.itemTitle, { marginTop: 0, flexShrink: 1 }]} numberOfLines={1}>{catLabel(g)}</Text>
+              {g.kind === 'official' && g.verified && <Ionicons name="checkmark-circle" size={12} color="#2563EB" style={{ marginLeft: 2 }} />}
+            </View>
             <Text style={styles.itemSub} numberOfLines={1}>{timeAgo(g.stories[g.stories.length - 1].createdAt)}</Text>
           </TouchableOpacity>
         ))}
@@ -203,7 +228,7 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
 
       {composerOpen && (
         <StoryComposer
-          categories={postable}
+          targets={postable}
           onClose={() => setComposerOpen(false)}
           onPosted={() => { setComposerOpen(false); fetchStories(); }}
         />
@@ -392,12 +417,13 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
 
 /* ------------------------------ Composer (Staff) ------------------------------ */
 
-function StoryComposer({ categories, onClose, onPosted }: {
-  categories: string[];
+function StoryComposer({ targets, onClose, onPosted }: {
+  targets: PostTarget[];
   onClose: () => void;
   onPosted: () => void;
 }) {
-  const [category, setCategory] = useState(categories[0] || '');
+  const [targetIdx, setTargetIdx] = useState(0);
+  const target = targets[targetIdx];
   const [mode, setMode] = useState<'image' | 'text'>('image');
   const [image, setImage] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
@@ -420,14 +446,14 @@ function StoryComposer({ categories, onClose, onPosted }: {
     }
   };
 
-  const canSubmit = !!category && (mode === 'image' ? !!image : caption.trim().length > 0);
+  const canSubmit = !!target && (mode === 'image' ? !!image : caption.trim().length > 0);
 
   const submit = async () => {
     if (!canSubmit || posting) return;
     setPosting(true);
     try {
       await axios.post(`${API_URL}/stories`, {
-        category,
+        ...(target.kind === 'official' ? { official: target.id } : { category: target.id }),
         caption: caption.trim(),
         ...(mode === 'image' ? { image } : { bg_color: bg }),
       });
@@ -456,13 +482,15 @@ function StoryComposer({ categories, onClose, onPosted }: {
           </View>
         </View>
 
-        {/* Category: only the staff member's own categories */}
+        {/* Only the user's own staff categories / own official page */}
         <View style={styles.catPickerWrap}>
           <Text style={styles.catPickerLabel}>Post in</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
-            {categories.map(c => (
-              <TouchableOpacity key={c} onPress={() => setCategory(c)} style={[styles.catChip, category === c && styles.catChipActive]}>
-                <Text style={[styles.catChipText, category === c && styles.catChipTextActive]}>{c}</Text>
+            {targets.map((tg, i) => (
+              <TouchableOpacity key={tg.kind + tg.id} onPress={() => setTargetIdx(i)} style={[styles.catChip, targetIdx === i && styles.catChipActive]}>
+                <Text style={[styles.catChipText, targetIdx === i && styles.catChipTextActive]}>
+                  {tg.kind === 'official' ? `As ${tg.label}` : tg.label}
+                </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
@@ -553,6 +581,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: '#FFFFFF', paddingHorizontal: 4,
   },
   countText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  itemTitleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 6, maxWidth: 72 },
   itemTitle: { marginTop: 6, fontSize: 12, fontWeight: '700', color: '#0F172A', maxWidth: 72 },
   itemSub: { fontSize: 10, color: '#64748B', maxWidth: 72 },
 

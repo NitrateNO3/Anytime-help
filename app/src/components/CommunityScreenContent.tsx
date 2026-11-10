@@ -12,7 +12,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
-import StoriesBar from './StoriesBar';
+import StoriesBar, { refreshStoriesBar } from './StoriesBar';
 import OfficialProfile from './OfficialProfile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -364,6 +364,8 @@ export default function CommunityScreenContent({
     try {
       const res = await axios.post(`${API_URL}/officials/${o._id}/${o.is_following ? 'unfollow' : 'follow'}`);
       setOfficials(prev => prev.map(x => (x._id === o._id ? { ...x, ...res.data } : x)));
+      // Official status is shown to followers only
+      refreshStoriesBar();
     } catch (err: any) {
       Alert.alert('Error', err.response?.data?.msg || 'Failed to update follow status');
     } finally {

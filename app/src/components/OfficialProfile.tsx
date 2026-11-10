@@ -151,6 +151,7 @@ export default function OfficialProfile({
 
   // Composer: only for the official themself (login number matches) or Super Admin
   const [canPost, setCanPost] = useState(false);
+  const [requiresFollow, setRequiresFollow] = useState(false);
   const [draft, setDraft] = useState('');
   const [draftImage, setDraftImage] = useState<string | null>(null);
   const [posting, setPosting] = useState(false);
@@ -174,6 +175,7 @@ export default function OfficialProfile({
         : mergeFromServer(list, prev)));
       setHasMore(!!res.data?.has_more);
       setCanPost(!!res.data?.can_post);
+      setRequiresFollow(!!res.data?.requires_follow);
     } catch (err) {
       console.log('Error loading official posts:', err);
     } finally {
@@ -193,6 +195,15 @@ export default function OfficialProfile({
     if (refreshTick > 0) load('refresh');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTick]);
+
+  // Follow / unfollow changes what this user may see: reload the feed
+  const followedRef = useRef(official.is_following);
+  useEffect(() => {
+    if (followedRef.current === official.is_following) return;
+    followedRef.current = official.is_following;
+    load('refresh');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [official.is_following]);
 
   /* ---------- Reactions, X / WhatsApp style ----------
    * - A tap flips the button on screen instantly; the network is never waited on.
@@ -438,11 +449,32 @@ export default function OfficialProfile({
             official.bio ? <Text style={styles.bio}>{official.bio}</Text> : <View style={{ height: 8 }} />
           }
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Ionicons name="newspaper-outline" size={40} color="#CBD5E1" />
-              <Text style={styles.emptyTitle}>No updates yet</Text>
-              <Text style={styles.emptyText}>Updates from {official.name} will appear here.</Text>
-            </View>
+            requiresFollow ? (
+              /* Updates are for followers only */
+              <View style={styles.empty}>
+                <View style={styles.lockCircle}>
+                  <Ionicons name="lock-closed" size={30} color="#2563EB" />
+                </View>
+                <Text style={styles.emptyTitle}>Follow to see updates</Text>
+                <Text style={styles.emptyText}>
+                  Updates and status from {official.name} are visible only to followers.
+                </Text>
+                <TouchableOpacity style={styles.gateFollowBtn} onPress={onToggleFollow} disabled={followLoading} activeOpacity={0.8}>
+                  {followLoading ? <ActivityIndicator size="small" color="#FFFFFF" /> : (
+                    <>
+                      <Ionicons name="add" size={18} color="#FFFFFF" />
+                      <Text style={styles.gateFollowText}>Follow {official.name.split(' ')[0]}</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.empty}>
+                <Ionicons name="newspaper-outline" size={40} color="#CBD5E1" />
+                <Text style={styles.emptyTitle}>No updates yet</Text>
+                <Text style={styles.emptyText}>Updates from {official.name} will appear here.</Text>
+              </View>
+            )
           }
           ListFooterComponent={loadingMore ? <ActivityIndicator color="#2563EB" style={{ marginVertical: 16 }} /> : <View style={{ height: canPost ? 20 : 110 }} />}
         />
@@ -537,6 +569,12 @@ const styles = StyleSheet.create({
   draftImage: { width: 90, height: 90, borderRadius: 12, backgroundColor: '#E2E8F0' },
   draftImageRemove: { position: 'absolute', top: -8, right: -8, backgroundColor: '#FFFFFF', borderRadius: 11 },
   empty: { alignItems: 'center', marginTop: 50, paddingHorizontal: 30 },
+  lockCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' },
+  gateFollowBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, backgroundColor: '#2563EB',
+    paddingHorizontal: 22, height: 44, borderRadius: 22, minWidth: 140, justifyContent: 'center',
+  },
+  gateFollowText: { color: '#FFFFFF', fontWeight: '700', fontSize: 15 },
   emptyTitle: { fontSize: 16, fontWeight: '700', color: '#334155', marginTop: 10 },
   emptyText: { fontSize: 13, color: '#64748B', textAlign: 'center', marginTop: 4 },
 });

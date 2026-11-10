@@ -3,39 +3,11 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Official = require('../models/Official');
 
-// Only the platform Super Admin may manage officials (area admins / sub-admins may not)
-const isSuperAdmin = (req) => !!req.isSuperAdmin;
+const { isSuperAdmin, isOwnOfficial, canPostAs, visibilityFilter, isVisibleTo } = require('../utils/officialAccess');
 
-// Compare phone numbers on their last 10 digits (ignores +91, spaces, dashes)
-const normalizePhone = (v) => String(v || '').replace(/\D/g, '').slice(-10);
-
-// The logged-in user IS this official: their login number matches the phone the
-// Super Admin saved on the official. Such a user may post on that official's page.
-const isOwnOfficial = (req, o) => {
-  const target = normalizePhone(o && o.phone);
-  if (target.length < 10 || !req.user) return false;
-  const mine = [req.user.phone_number, ...(req.user.login_phones || [])].map(normalizePhone);
-  return mine.includes(target);
-};
-
-const canPostAs = (req, o) => isSuperAdmin(req) || isOwnOfficial(req, o);
-
-// Officials visible in the caller's area: marked for all areas, or this area is listed.
-// The Super Admin sees every official; the official themself always sees their own page.
-const visibilityFilter = (req) => {
-  if (isSuperAdmin(req)) return {};
-  const or = [{ all_areas: { $ne: false } }];
-  if (req.areaId) or.push({ areas: req.areaId });
-  return { $or: or };
-};
-
-const isVisibleTo = (req, o) => {
-  if (!o) return false;
-  if (isSuperAdmin(req) || isOwnOfficial(req, o)) return true;
-  if (!o.is_active) return false;
-  if (o.all_areas !== false) return true;
-  return !!req.areaId && (o.areas || []).some(a => String(a._id || a) === String(req.areaId));
-};
+// An official's updates are visible only to their followers, themself, and the Super Admin
+const canReadPosts = (req, o) =>
+  canPostAs(req, o) || (o.followers || []).some(f => String(f) === String(req.user._id));
 
 const toIdList = (v) => {
   let arr = v;
@@ -216,6 +188,12 @@ router.get('/:id/posts', auth, async (req, res) => {
   try {
     const official = await Official.findById(req.params.id).lean();
     if (!isVisibleTo(req, official)) return res.status(404).json({ msg: 'Official not found' });
+
+    // Updates are for followers only (the official themself and the Super Admin always see them)
+    if (!canReadPosts(req, official)) {
+      return res.json({ official: toPublic(official, req), can_post: false, requires_follow: true, posts: [], has_more: false });
+    }
+
     const limit = Math.min(50, Number(req.query.limit) || 30);
     const query = { official: official._id };
     if (req.query.before) query.createdAt = { $lt: new Date(req.query.before) };
@@ -294,6 +272,12 @@ router.post('/posts/:postId/react', auth, async (req, res) => {
   try {
     const type = String(req.body.type || '');
     if (!REACTIONS.includes(type)) return res.status(400).json({ msg: 'Invalid reaction' });
+    const target = await OfficialPost.findById(req.params.postId).select('official').lean();
+    if (!target) return res.status(404).json({ msg: 'Post not found' });
+    const owner = await Official.findById(target.official).lean();
+    if (!isVisibleTo(req, owner) || !canReadPosts(req, owner)) {
+      return res.status(403).json({ msg: 'Follow this official to react to their updates' });
+    }
     const field = `reactions.${type}`;
     // Preferred: the app sends the final state (`on: true|false`), which is idempotent,
     // so retries and out-of-order requests can never flip a reaction the wrong way.
