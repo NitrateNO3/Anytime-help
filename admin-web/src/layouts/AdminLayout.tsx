@@ -31,7 +31,8 @@ export default function AdminLayout() {
   }, [isPlatformAdmin]);
 
   // Area-specific screens need an area picked first (see the prompt below)
-  const needsArea = isPlatformAdmin && !selectedArea && location.pathname !== '/areas';
+  // (Areas and Officials are Super Admin screens and work without an area.)
+  const needsArea = isPlatformAdmin && !selectedArea && !['/areas', '/officials'].includes(location.pathname);
 
   const switchArea = (id: string) => {
     setSelectedArea(id || null);
@@ -90,6 +91,14 @@ export default function AdminLayout() {
             <Link to="/areas" className={`nav-link ${location.pathname === '/areas' ? 'active' : ''}`}>
               <MapPin size={20} />
               Areas
+            </Link>
+          )}
+
+          {/* Officials are platform-wide: only in the Super Admin view, never inside an area */}
+          {isPlatformAdmin && !selectedArea && (
+            <Link to="/officials" className={`nav-link ${location.pathname === '/officials' ? 'active' : ''}`}>
+              <BadgeCheck size={20} />
+              Officials
             </Link>
           )}
 
@@ -179,13 +188,6 @@ export default function AdminLayout() {
             <Link to="/directory" className={`nav-link ${location.pathname === '/directory' ? 'active' : ''}`}>
               <BookOpen size={20} />
               Directory
-            </Link>
-          )}
-
-          {isPlatformAdmin && (
-            <Link to="/officials" className={`nav-link ${location.pathname === '/officials' ? 'active' : ''}`}>
-              <BadgeCheck size={20} />
-              Officials
             </Link>
           )}
         </nav>

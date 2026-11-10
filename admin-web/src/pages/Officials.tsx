@@ -3,7 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { Plus, Edit, Trash2, X, BadgeCheck, ImagePlus, Newspaper } from 'lucide-react';
 import { io } from 'socket.io-client';
-import { socketAuth, isPlatformSuperAdmin } from '../lib/area';
+import { socketAuth, isPlatformSuperAdmin, getSelectedArea, setSelectedArea } from '../lib/area';
 import '../index.css';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
@@ -145,6 +145,7 @@ export default function Officials() {
 
   // Officials are managed only by the platform Super Admin
   const canManage = isPlatformSuperAdmin();
+  const inAreaView = !!getSelectedArea();
   const config = () => ({ headers: { 'x-auth-token': localStorage.getItem('adminToken') } });
 
   const fetchList = async (showLoading = true) => {
@@ -161,7 +162,7 @@ export default function Officials() {
   };
 
   useEffect(() => {
-    if (!canManage) return;
+    if (!canManage || inAreaView) return;
     fetchList();
     axios.get(`${API_URL}/areas`, config())
       .then(res => setAllAreas(Array.isArray(res.data) ? res.data.map((a: any) => ({ _id: a._id, name: a.name, city: a.city })) : []))
@@ -220,6 +221,24 @@ export default function Officials() {
       <div className="page-container fade-in">
         <h1 className="page-title">Officials</h1>
         <p className="page-subtitle">Only the Super Admin can manage officials.</p>
+      </div>
+    );
+  }
+
+  // Officials are platform-wide: managed only from the Super Admin view, not inside an area
+  if (inAreaView) {
+    return (
+      <div className="page-container fade-in">
+        <h1 className="page-title">Officials</h1>
+        <p className="page-subtitle" style={{ marginBottom: 16 }}>
+          Officials are managed from the Super Admin view, not inside an area.
+        </p>
+        <button
+          className="btn btn-primary"
+          onClick={() => { setSelectedArea(null); window.location.href = '/officials'; }}
+        >
+          Switch to Super Admin view
+        </button>
       </div>
     );
   }
