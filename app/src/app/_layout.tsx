@@ -1,7 +1,7 @@
 import 'react-native-gesture-handler';
 import 'react-native-reanimated';
 import { useEffect, useState, useRef } from 'react';
-import { Modal, View, Text, TouchableOpacity, Linking, StyleSheet, Animated, PanResponder, Dimensions, Platform } from 'react-native';
+import { Modal, View, Text, TouchableOpacity, Linking, StyleSheet, Animated, PanResponder, Dimensions, Platform, AppState } from 'react-native';
 import { Stack, useRouter, Redirect } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import * as SecureStore from 'expo-secure-store';
@@ -17,6 +17,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { requireOptionalNativeModule } from 'expo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
+import MaintenanceScreen, { MaintenanceState } from '../components/MaintenanceScreen';
+
+const MAINTENANCE_CACHE_KEY = 'maintenanceState';
 
 // Catch any errors thrown by the Layout component or its children.
 // This guarantees the app won't crash/close abruptly if there's an unexpected rendering error.
@@ -41,11 +44,32 @@ export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   
   const [playStoreUrl, setPlayStoreUrl] = useState('');
+  const [maintenance, setMaintenance] = useState<MaintenanceState | null>(null);
+
+  // Maintenance Mode (turned on from the admin panel). The last known state is cached
+  // so the screen still shows if the server can't be reached during maintenance.
+  const applyMaintenance = (m: any) => {
+    const next: MaintenanceState = { enabled: !!m?.enabled, message: m?.message || '', ends_at: m?.ends_at || null };
+    setMaintenance(next.enabled ? next : null);
+    SecureStore.setItemAsync(MAINTENANCE_CACHE_KEY, JSON.stringify(next)).catch(() => {});
+  };
+
+  const applyCachedMaintenance = async () => {
+    try {
+      const raw = await SecureStore.getItemAsync(MAINTENANCE_CACHE_KEY);
+      if (!raw) return;
+      const cached: MaintenanceState = JSON.parse(raw);
+      // Ignore a stale cache more than an hour past its expected end time
+      const endsAt = cached.ends_at ? new Date(cached.ends_at).getTime() : NaN;
+      if (cached.enabled && !(endsAt && Date.now() > endsAt + 60 * 60 * 1000)) setMaintenance(cached);
+    } catch (_) {}
+  };
 
   const checkVersion = async () => {
     try {
       const res = await axios.get(`${API_URL}/api/config`);
-      const { min_version, play_store_url, app_store_url } = res.data || {};
+      const { min_version, play_store_url, app_store_url, maintenance: maintenanceData } = res.data || {};
+      applyMaintenance(maintenanceData);
       
       // Guard: only perform check if valid min_version string exists
       if (!min_version || typeof min_version !== 'string') {
@@ -66,8 +90,24 @@ export default function RootLayout() {
       }
     } catch (e) {
       console.error('Error checking version:', e);
+      await applyCachedMaintenance();
     }
   };
+
+  // While maintenance is on, re-check every minute so the app opens by itself when it ends
+  useEffect(() => {
+    if (!maintenance?.enabled) return;
+    const timer = setInterval(checkVersion, 60 * 1000);
+    return () => clearInterval(timer);
+  }, [maintenance?.enabled]);
+
+  // Re-check whenever the app comes back to the foreground
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') checkVersion();
+    });
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (__DEV__) {
@@ -81,6 +121,7 @@ export default function RootLayout() {
       }
     }
 
+    applyCachedMaintenance();
     checkVersion();
     
     // Check and auto-apply EAS OTA updates in production
@@ -220,6 +261,9 @@ export default function RootLayout() {
       console.log('Socket connection error:', error);
     });
 
+    // Admin turned Maintenance Mode on/off: update open apps instantly
+    socket.on('maintenance_updated', (m: any) => applyMaintenance(m));
+
     socket.on('user_deleted', async (data: { id: string }) => {
       console.log('Received user_deleted event for ID:', data.id);
       try {
@@ -321,6 +365,9 @@ export default function RootLayout() {
             </View>
           </View>
         </Modal>
+
+        {/* Maintenance Mode: blocks the whole app while the admin has it on */}
+        <MaintenanceScreen state={maintenance} onRetry={checkVersion} />
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );
