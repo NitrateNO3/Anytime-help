@@ -912,7 +912,7 @@ export default function Communities() {
               Channels
             </h3>
             <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-              Members follow channels for read-only access. Assigned members have posting permissions.
+              Announcement: only admins and assigned posters can post. Discussion: every follower can post too.
             </p>
           </div>
 
@@ -943,7 +943,16 @@ export default function Communities() {
                         <Megaphone size={20} color="#2563EB" />
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <h4 className="section-name" style={{ margin: '0 0 4px 0' }}>{sec.name}</h4>
+                        <h4 className="section-name" style={{ margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          {sec.name}
+                          <span style={{
+                            fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
+                            background: sec.followers_can_post ? '#DCFCE7' : '#EFF6FF',
+                            color: sec.followers_can_post ? '#15803D' : '#1D4ED8',
+                          }}>
+                            {sec.followers_can_post ? 'DISCUSSION' : 'ANNOUNCEMENT'}
+                          </span>
+                        </h4>
                         <p className="section-desc">{sec.description || 'No description'}</p>
                       </div>
                     </div>
@@ -952,12 +961,12 @@ export default function Communities() {
                     <div className="section-stats-bar">
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Eye size={14} color="#16A34A" />
-                        <span><strong>{sec.followers_count || 0}</strong> Followers (Read-Only)</span>
+                        <span><strong>{sec.followers_count || 0}</strong> Followers {sec.followers_can_post ? '(Can Post)' : '(Read-Only)'}</span>
                       </div>
                       <div style={{ width: 4, height: 4, borderRadius: 2, background: '#cbd5e1' }} />
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Users size={14} color="#2563EB" />
-                        <span><strong>{sec.assigned_count || 0}</strong> Assigned Members</span>
+                        <span><strong>{sec.assigned_count || 0}</strong> Assigned Posters</span>
                       </div>
                     </div>
 
@@ -1262,6 +1271,15 @@ export default function Communities() {
             </div>
 
             <div className="comm-modal-body">
+              {assigningSection.followers_can_post ? (
+                <div style={{ marginBottom: 14, padding: '10px 12px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, fontSize: 12.5, color: '#166534' }}>
+                  <strong>This is a Discussion channel.</strong> Every resident who follows it can already post, so you don't need to assign them. Assign here only committee members or staff you want to post even without following.
+                </div>
+              ) : (
+                <div style={{ marginBottom: 14, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #DBEAFE', borderRadius: 8, fontSize: 12.5, color: '#1E40AF' }}>
+                  <strong>Announcement channel.</strong> Only admins and the posters you select below can post. To let every follower post, edit the channel and choose <strong>Discussion</strong>.
+                </div>
+              )}
               {/* Search */}
               <div style={{ position: 'relative', marginBottom: 14 }}>
                 <Search size={16} style={{ position: 'absolute', left: 12, top: 12, color: '#94a3b8' }} />
@@ -1276,7 +1294,7 @@ export default function Communities() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: '#64748b', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
-                <span>Selected: <strong>{selectedMemberIds.length}</strong> members</span>
+                <span>Selected: <strong>{selectedMemberIds.length}</strong></span>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button 
                     type="button" 
@@ -1381,7 +1399,7 @@ export default function Communities() {
                 className="btn btn-primary"
                 onClick={handleSaveAssignedMembers}
               >
-                Save Assigned Members ({selectedMemberIds.length})
+                Save Posters ({selectedMemberIds.length})
               </button>
             </div>
           </div>
