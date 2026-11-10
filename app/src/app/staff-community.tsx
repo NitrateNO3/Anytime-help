@@ -8,6 +8,7 @@ export default function StaffCommunityScreen() {
     <CommunityScreenContent
       backRoute="/staff"
       headerThemeColor="#1D4ED8"
+      hasTabBar={false}
     />
   );
 }

@@ -41,6 +41,7 @@ interface Props {
   avatarFg: string;
   metaText: string;
   followLoading: boolean;
+  hasTabBar?: boolean; // false on the staff screen (no floating tab bar)
   refreshTick: number; // bumped by the parent when a live post change arrives
   liveReaction: { postId: string; counts: Partial<Record<ReactionType, number>>; at: number } | null;
   onBack: () => void;
@@ -141,7 +142,7 @@ function PostCard({ post, onDoubleTap }: { post: OfficialPost; onDoubleTap: () =
 }
 
 export default function OfficialProfile({
-  official, initials, avatarBg, avatarFg, metaText, followLoading, refreshTick, liveReaction, onBack, onToggleFollow,
+  official, initials, avatarBg, avatarFg, metaText, followLoading, refreshTick, liveReaction, onBack, onToggleFollow, hasTabBar = true,
 }: Props) {
   const [posts, setPosts] = useState<OfficialPost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -476,13 +477,13 @@ export default function OfficialProfile({
               </View>
             )
           }
-          ListFooterComponent={loadingMore ? <ActivityIndicator color="#2563EB" style={{ marginVertical: 16 }} /> : <View style={{ height: canPost ? 20 : 110 }} />}
+          ListFooterComponent={loadingMore ? <ActivityIndicator color="#2563EB" style={{ marginVertical: 16 }} /> : <View style={{ height: canPost || !hasTabBar ? 20 : 110 }} />}
         />
       )}
 
       {/* Composer: only the official themself (or Super Admin) sees this */}
       {canPost && (
-        <View style={[styles.composer, { marginBottom: keyboardOpen ? 0 : TAB_BAR_SPACE }]}>
+        <View style={[styles.composer, { marginBottom: keyboardOpen || !hasTabBar ? 12 : TAB_BAR_SPACE }]}>
           {!!draftImage && (
             <View style={styles.draftImageWrap}>
               <Image source={{ uri: draftImage }} style={styles.draftImage} />

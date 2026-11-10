@@ -3,7 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { 
   View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, 
   StatusBar, TouchableOpacity, RefreshControl, BackHandler, TextInput,
-  FlatList, Alert, KeyboardAvoidingView, Animated, Easing
+  FlatList, Alert, KeyboardAvoidingView, Animated, Easing, Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
@@ -71,7 +71,12 @@ interface CommunityMessageItem {
 interface CommunityScreenContentProps {
   backRoute: string;
   headerThemeColor?: string;
+  // Resident/Member screens sit under a floating tab bar; staff's screen has none
+  hasTabBar?: boolean;
 }
+
+// Height kept free at the bottom for the app's floating tab bar
+const TAB_BAR_SPACE = 92;
 
 // Avatar Initials & Color Helpers
 const AVATAR_PALETTES = [
@@ -276,10 +281,19 @@ function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
 
 export default function CommunityScreenContent({ 
   backRoute, 
-  headerThemeColor = '#0F172A' 
+  headerThemeColor = '#0F172A',
+  hasTabBar = true,
 }: CommunityScreenContentProps) {
   const router = useRouter();
   const { t } = useTranslation();
+
+  // The floating tab bar hides while the keyboard is open (tabBarHideOnKeyboard)
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardOpen(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const [communities, setCommunities] = useState<CommunityItem[]>([]);
   const communitiesLoadedRef = useRef(false);
@@ -808,6 +822,7 @@ export default function CommunityScreenContent({
           avatarFg={officialPalette(activeOfficial.name).fg}
           metaText={officialMeta(activeOfficial)}
           followLoading={officialActionId === activeOfficial._id}
+          hasTabBar={hasTabBar}
           refreshTick={officialPostTick}
           liveReaction={liveReaction}
           onBack={() => setActiveOfficialId(null)}
@@ -1086,7 +1101,10 @@ export default function CommunityScreenContent({
             />
           )}
 
-          {/* Bottom Bar: Read-only Notice OR Post Input */}
+          {/* Bottom Bar: Read-only Notice OR Post Input.
+              Lifted above the floating tab bar; the tab bar hides while typing, so
+              the extra space goes away when the keyboard is open. */}
+          <View style={{ marginBottom: hasTabBar && !keyboardOpen ? TAB_BAR_SPACE : 0 }}>
           {(userAccess?.can_send ?? activeSection.user_access?.can_send) ? (
             /* Message Input for Assigned Members / Admin */
             <View style={styles.inputContainer}>
@@ -1115,6 +1133,7 @@ export default function CommunityScreenContent({
               </Text>
             </View>
           )}
+          </View>
         </KeyboardAvoidingView>
       )}
     </SafeAreaView>
