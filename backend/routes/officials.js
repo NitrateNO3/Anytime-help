@@ -2,8 +2,21 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const Official = require('../models/Official');
+require('../models/Area'); // registered for populate('areas'), whatever order routes load in
 
-const { isSuperAdmin, isOwnOfficial, canPostAs, visibilityFilter, isVisibleTo } = require('../utils/officialAccess');
+const { isSuperAdmin, isOwnOfficial, canPostAs, visibilityFilter, isVisibleTo, normalizePhone } = require('../utils/officialAccess');
+
+// The official's app login mobile is mandatory: a valid 10-digit Indian number,
+// not already used by another official. Returns an error message or null.
+const checkPhone = async (phone, exceptId) => {
+  const digits = normalizePhone(phone);
+  if (!/^[6-9]\d{9}$/.test(digits) || String(phone || '').replace(/\D/g, '').length > 12) {
+    return 'Enter a valid 10-digit mobile number for the official';
+  }
+  const others = await Official.find(exceptId ? { _id: { $ne: exceptId } } : {}).select('phone name').lean();
+  const clash = others.find(o => normalizePhone(o.phone) === digits);
+  return clash ? `This number is already used by ${clash.name}` : null;
+};
 
 // An official's updates are visible only to their followers, themself, and the Super Admin
 const canReadPosts = (req, o) =>
@@ -81,6 +94,9 @@ router.post('/', auth, async (req, res) => {
   try {
     const fields = pickFields(req.body);
     if (!fields.name) return res.status(400).json({ msg: 'Name is required' });
+    const phoneErr = await checkPhone(fields.phone);
+    if (phoneErr) return res.status(400).json({ msg: phoneErr });
+    fields.phone = normalizePhone(fields.phone);
     if (fields.all_areas === false && !(fields.areas || []).length) return res.status(400).json({ msg: 'Select at least one area, or choose All areas' });
     const saved = await new Official(fields).save();
     emitChange(req);
@@ -96,6 +112,11 @@ router.put('/:id', auth, async (req, res) => {
   if (!isSuperAdmin(req)) return res.status(403).json({ msg: 'Only Super Admin can manage officials' });
   try {
     const fields = pickFields(req.body);
+    if (fields.phone !== undefined) {
+      const phoneErr = await checkPhone(fields.phone, req.params.id);
+      if (phoneErr) return res.status(400).json({ msg: phoneErr });
+      fields.phone = normalizePhone(fields.phone);
+    }
     if (fields.all_areas === false && fields.areas !== undefined && !fields.areas.length) return res.status(400).json({ msg: 'Select at least one area, or choose All areas' });
     const updated = await Official.findOneAndUpdate({ _id: req.params.id }, { $set: fields }, { returnDocument: 'after' }).lean();
     if (!updated) return res.status(404).json({ msg: 'Official not found' });

@@ -186,6 +186,11 @@ export default function Officials() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const t = toast.loading(editingId ? 'Updating...' : 'Adding...');
+    const digits = form.phone.replace(/\D/g, '').slice(-10);
+    if (!/^[6-9]\d{9}$/.test(digits)) {
+      toast.error('Enter a valid 10-digit mobile number for the official', { id: t });
+      return;
+    }
     if (!form.all_areas && form.areas.length === 0) {
       toast.error('Select at least one area, or choose All areas', { id: t });
       return;
@@ -334,8 +339,19 @@ export default function Officials() {
                 <textarea className="form-control" rows={2} maxLength={300} value={form.bio} onChange={e => set('bio', e.target.value)} placeholder="e.g., Updates from your ward councillor on ward works, camps and public meetings." />
               </div>
               <div className="form-group">
-                <label className="form-label">Official's App Login Mobile (Optional)</label>
-                <input className="form-control" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="e.g., 9876543210" />
+                <label className="form-label">Official's App Login Mobile <span style={{ color: 'var(--danger)' }}>*</span></label>
+                <input
+                  className="form-control"
+                  type="tel"
+                  inputMode="numeric"
+                  required
+                  maxLength={13}
+                  pattern="(\+91)?[6-9][0-9]{9}"
+                  title="Enter a valid 10-digit mobile number"
+                  value={form.phone}
+                  onChange={e => set('phone', e.target.value.replace(/[^0-9+]/g, ''))}
+                  placeholder="e.g., 9876543210"
+                />
                 <small style={{ color: '#6B7280', fontSize: 12, display: 'block', marginTop: 4 }}>
                   When the official logs into the app with this number, they can post updates on their own page. Kept private — not shown to residents.
                 </small>
