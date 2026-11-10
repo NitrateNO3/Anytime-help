@@ -16,6 +16,13 @@ const storySchema = new mongoose.Schema({
   caption: { type: String, default: '', trim: true, maxlength: 700 },
   bg_color: { type: String, default: '#2563EB' },
   viewers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+  // Who viewed and when (WhatsApp-style "Viewed by" list). `viewers` stays the
+  // fast lookup for seen/unseen; older views have no entry here.
+  views: [{
+    _id: false,
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    at: { type: Date, default: Date.now },
+  }],
   expiresAt: {
     type: Date,
     default: () => new Date(Date.now() + 24 * 60 * 60 * 1000),

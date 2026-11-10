@@ -306,6 +306,10 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mediaReady, gi, si]);
 
+  // "Viewed by" sheet (author only); counts refreshed from the sheet's fetch
+  const [viewersFor, setViewersFor] = useState<string | null>(null);
+  const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
+
   const pause = () => {
     isPaused.current = true;
     anim.current?.stop();
@@ -398,18 +402,121 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
           </View>
         </View>
 
-        {/* Bottom: caption (photo stories) + views (own stories) */}
-        <View style={styles.viewerBottom} pointerEvents="none">
+        {/* Bottom: caption (photo stories) + "Viewed by" (own stories) */}
+        <View style={styles.viewerBottom} pointerEvents="box-none">
           {story.media_type === 'image' && !!story.caption && (
-            <Text style={[styles.caption, { maxWidth: width - 32 }]}>{story.caption}</Text>
+            <Text pointerEvents="none" style={[styles.caption, { maxWidth: width - 32 }]}>{story.caption}</Text>
           )}
           {story.is_mine && (
-            <View style={styles.viewsPill}>
+            <TouchableOpacity
+              style={styles.viewsPill}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              onPress={() => { pause(); setViewersFor(story._id); }}
+            >
+              <Ionicons name="chevron-up" size={16} color="#FFFFFF" />
               <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
-              <Text style={styles.viewsText}>{story.view_count ?? 0} views</Text>
-            </View>
+              <Text style={styles.viewsText}>{viewCounts[story._id] ?? story.view_count ?? 0}</Text>
+            </TouchableOpacity>
           )}
         </View>
+      </View>
+
+      {viewersFor && (
+        <ViewersSheet
+          storyId={viewersFor}
+          onCount={(n) => setViewCounts(prev => ({ ...prev, [viewersFor]: n }))}
+          onClose={() => { setViewersFor(null); resume(); }}
+        />
+      )}
+    </Modal>
+  );
+}
+
+/* ------------------------------ "Viewed by" sheet (author only) ------------------------------ */
+
+interface StoryViewerRow { _id: string; name: string; role: string; place: string; at: string | null }
+
+const formatViewTime = (iso: string | null) => {
+  if (!iso) return 'Earlier';
+  const d = new Date(iso);
+  const today = new Date();
+  const yest = new Date();
+  yest.setDate(today.getDate() - 1);
+  const time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+  if (d.toDateString() === today.toDateString()) return `Today, ${time}`;
+  if (d.toDateString() === yest.toDateString()) return `Yesterday, ${time}`;
+  return `${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, ${time}`;
+};
+
+function ViewersSheet({ storyId, onCount, onClose }: {
+  storyId: string;
+  onCount: (n: number) => void;
+  onClose: () => void;
+}) {
+  const [rows, setRows] = useState<StoryViewerRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${API_URL}/stories/${storyId}/viewers`)
+      .then(res => {
+        if (!alive) return;
+        const list: StoryViewerRow[] = res.data?.viewers || [];
+        setRows(list);
+        onCount(list.length);
+      })
+      .catch(err => { if (alive) setError(err.response?.data?.msg || 'Could not load viewers'); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storyId]);
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable style={styles.sheetBackdrop} onPress={onClose} />
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandle} />
+        <View style={styles.sheetHeader}>
+          <Text style={styles.sheetTitle}>
+            {loading ? 'Viewed by' : `Viewed by ${rows.length}`}
+          </Text>
+          <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+            <Ionicons name="close" size={22} color="#334155" />
+          </TouchableOpacity>
+        </View>
+
+        {loading ? (
+          <ActivityIndicator color="#2563EB" style={{ marginVertical: 30 }} />
+        ) : error ? (
+          <Text style={styles.sheetEmpty}>{error}</Text>
+        ) : rows.length === 0 ? (
+          <View style={{ alignItems: 'center', paddingVertical: 30 }}>
+            <Ionicons name="eye-off-outline" size={34} color="#CBD5E1" />
+            <Text style={styles.sheetEmpty}>No views yet</Text>
+          </View>
+        ) : (
+          <ScrollView style={{ maxHeight: Dimensions.get('window').height * 0.55 }} contentContainerStyle={{ paddingBottom: 24 }}>
+            {rows.map(r => {
+              const pal = paletteFor(r.name || '?');
+              const initials = (r.name || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+              return (
+                <View key={r._id} style={styles.viewerRow}>
+                  <View style={[styles.viewerAvatar, { backgroundColor: pal.bg }]}>
+                    <Text style={{ color: pal.fg, fontWeight: '800', fontSize: 14 }}>{initials || '?'}</Text>
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Text style={styles.viewerName} numberOfLines={1}>{r.name}</Text>
+                    <Text style={styles.viewerTime} numberOfLines={1}>
+                      {formatViewTime(r.at)}{r.place ? ` · ${r.place}` : ''}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
       </View>
     </Modal>
   );
@@ -602,6 +709,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF', fontSize: 16, textAlign: 'center', backgroundColor: 'rgba(0,0,0,0.45)',
     paddingHorizontal: 14, paddingVertical: 10, borderRadius: 12, overflow: 'hidden',
   },
+  sheetBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' },
+  sheet: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 18, paddingBottom: 12 },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: '#CBD5E1', marginTop: 8, marginBottom: 6 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 10 },
+  sheetTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A' },
+  sheetEmpty: { textAlign: 'center', color: '#64748B', marginTop: 8, marginBottom: 20, fontSize: 14 },
+  viewerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  viewerAvatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  viewerName: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
+  viewerTime: { fontSize: 12.5, color: '#64748B', marginTop: 2 },
   viewsPill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   viewsText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
 

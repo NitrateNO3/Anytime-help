@@ -250,9 +250,48 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
 // (unscoped so an official's story can be marked seen from any area)
 router.post('/:id/view', auth, async (req, res) => {
   try {
-    await runUnscoped(async () => Story.updateOne({ _id: req.params.id }, { $addToSet: { viewers: req.user._id } }).exec());
+    const me = req.user._id;
+    await runUnscoped(async () => {
+      // First view only: record the user and the time. The author's own views don't count.
+      await Story.updateOne(
+        { _id: req.params.id, author: { $ne: me }, viewers: { $ne: me } },
+        { $addToSet: { viewers: me }, $push: { views: { user: me, at: new Date() } } }
+      ).exec();
+    });
     res.json({ ok: true });
   } catch (err) {
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+// @route GET /api/stories/:id/viewers
+// @desc  WhatsApp-style "Viewed by" list: newest first. Author (or Super Admin) only.
+router.get('/:id/viewers', auth, async (req, res) => {
+  try {
+    const result = await runUnscoped(async () => {
+      const story = await Story.findById(req.params.id).select('author viewers views').lean().exec();
+      if (!story) return { status: 404 };
+      if (String(story.author) !== String(req.user._id) && !isSuperAdmin(req)) return { status: 403 };
+
+      const atByUser = new Map((story.views || []).map(v => [String(v.user), v.at]));
+      const ids = (story.viewers || []).filter(id => String(id) !== String(story.author));
+      // Viewers can be from any area (official stories), so look users up unscoped
+      const users = await User.find({ _id: { $in: ids } }).select('name role house_no block phase').lean().exec();
+      const byId = new Map(users.map(u => [String(u._id), u]));
+      const list = ids.map(id => {
+        const u = byId.get(String(id));
+        const place = u ? [u.block ? `Block ${u.block}` : '', u.house_no || ''].filter(Boolean).join(', ') : '';
+        return { _id: id, name: u?.name || 'Resident', role: u?.role || '', place, at: atByUser.get(String(id)) || null };
+      });
+      // Newest first; views recorded before times were saved go last
+      list.sort((a, b) => (b.at ? new Date(b.at).getTime() : 0) - (a.at ? new Date(a.at).getTime() : 0));
+      return { status: 200, list };
+    });
+    if (result.status === 404) return res.status(404).json({ msg: 'Story not found' });
+    if (result.status === 403) return res.status(403).json({ msg: 'Only the author can see who viewed' });
+    res.json({ count: result.list.length, viewers: result.list });
+  } catch (err) {
+    console.error('Error fetching story viewers:', err);
     res.status(500).json({ msg: 'Server Error' });
   }
 });
