@@ -11,11 +11,15 @@ import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
+import * as SecureStore from 'expo-secure-store';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
 
 const STORY_DURATION_MS = 5000;
+
+// Shared across every StoriesBar instance and remount (per signed-in token)
+let storiesCache: { token: string; groups: StoryGroup[]; postable: string[] } | null = null;
 const TEXT_BG_COLORS = ['#2563EB', '#16A34A', '#DC2626', '#9333EA', '#EA580C', '#0F172A', '#DB2777', '#0891B2'];
 const CAT_PALETTE = [
   { bg: '#ECFDF5', fg: '#059669' }, { bg: '#EFF6FF', fg: '#2563EB' }, { bg: '#FEF3C7', fg: '#D97706' },
@@ -78,9 +82,11 @@ interface StoriesBarProps {
 
 export default function StoriesBar({ title = 'Status', style }: StoriesBarProps) {
   const { i18n } = useTranslation();
-  const [groups, setGroups] = useState<StoryGroup[]>([]);
-  const [postable, setPostable] = useState<string[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  // Start from the last fetched stories so the row never flashes a loader when a
+  // screen is re-entered; fresh data is fetched silently in the background.
+  const [groups, setGroups] = useState<StoryGroup[]>(() => storiesCache?.groups || []);
+  const [postable, setPostable] = useState<string[]>(() => storiesCache?.postable || []);
+  const [loaded, setLoaded] = useState(!!storiesCache);
   const [viewerStart, setViewerStart] = useState<number | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const socketRef = useRef<Socket | null>(null);
@@ -93,9 +99,19 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
 
   const fetchStories = useCallback(async () => {
     try {
+      const token = (await SecureStore.getItemAsync('userToken')) || '';
+      // Cache belongs to another account (logout / login): don't show it
+      if (storiesCache && storiesCache.token !== token) {
+        storiesCache = null;
+        setGroups([]);
+        setPostable([]);
+      }
       const res = await axios.get(`${API_URL}/stories`);
-      setGroups(Array.isArray(res.data?.groups) ? res.data.groups : []);
-      setPostable(Array.isArray(res.data?.postable_categories) ? res.data.postable_categories : []);
+      const nextGroups = Array.isArray(res.data?.groups) ? res.data.groups : [];
+      const nextPostable = Array.isArray(res.data?.postable_categories) ? res.data.postable_categories : [];
+      storiesCache = { token, groups: nextGroups, postable: nextPostable };
+      setGroups(nextGroups);
+      setPostable(nextPostable);
     } catch (err) {
       console.log('Error fetching stories:', err);
     } finally {
@@ -104,6 +120,11 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
   }, []);
 
   useFocusEffect(useCallback(() => { fetchStories(); }, [fetchStories]));
+
+  // Keep the cache in step with local changes (e.g. stories marked as seen)
+  useEffect(() => {
+    if (storiesCache) storiesCache = { ...storiesCache, groups, postable };
+  }, [groups, postable]);
 
   useEffect(() => {
     const socket = io(SOCKET_URL, { ...socketAuth, transports: ['websocket', 'polling'], reconnection: true });

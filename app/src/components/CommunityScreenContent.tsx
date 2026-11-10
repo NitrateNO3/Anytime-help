@@ -282,6 +282,7 @@ export default function CommunityScreenContent({
   const { t } = useTranslation();
 
   const [communities, setCommunities] = useState<CommunityItem[]>([]);
+  const communitiesLoadedRef = useRef(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -320,6 +321,7 @@ export default function CommunityScreenContent({
   // Official's page (opened from the Officials list)
   const [activeOfficialId, setActiveOfficialId] = useState<string | null>(null);
   const [officialPostTick, setOfficialPostTick] = useState(0);
+  const [liveReaction, setLiveReaction] = useState<{ postId: string; counts: any; at: number } | null>(null);
   const activeOfficialRef = useRef<string | null>(null);
   const activeOfficial = officials.find(o => o._id === activeOfficialId) || null;
   useEffect(() => { activeOfficialRef.current = activeOfficialId; }, [activeOfficialId]);
@@ -425,6 +427,11 @@ export default function CommunityScreenContent({
     socket.on('official_post_changed', ({ officialId }: { officialId: string }) => {
       if (officialId && officialId === activeOfficialRef.current) setOfficialPostTick(n => n + 1);
     });
+    socket.on('official_post_reacted', ({ officialId, postId, counts }: any) => {
+      if (officialId && officialId === activeOfficialRef.current && postId && counts) {
+        setLiveReaction({ postId, counts, at: Date.now() });
+      }
+    });
 
     socket.on('new_community_message', (newMsg: CommunityMessageItem) => {
       const currentActiveId = activeSectionRef.current?._id;
@@ -505,7 +512,9 @@ export default function CommunityScreenContent({
   }, [activeSection?._id]);
 
   const fetchCommunities = async (showLoading = true) => {
-    if (showLoading) setLoading(true);
+    // Spinner only on the very first load; afterwards refresh silently in the
+    // background and keep showing what is already on screen.
+    if (showLoading && !communitiesLoadedRef.current) setLoading(true);
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const res = await axios.get(`${API_URL}/community?include_sections=true`, {
@@ -513,6 +522,7 @@ export default function CommunityScreenContent({
       });
       if (Array.isArray(res.data)) {
         setCommunities(res.data);
+        communitiesLoadedRef.current = true;
       }
     } catch (err) {
       console.error('Error fetching communities:', err);
@@ -786,8 +796,8 @@ export default function CommunityScreenContent({
       </View>
       )}
 
-      {/* VIEW 1: STATUS, CHANNELS & OFFICIALS (or an official's page) */}
-      {activeOfficial && !activeSection ? (
+      {/* An official's page (opened on top of the list) */}
+      {activeOfficial && !activeSection && (
         <OfficialProfile
           official={activeOfficial}
           initials={getSenderInitials(activeOfficial.name, 'O')}
@@ -796,10 +806,16 @@ export default function CommunityScreenContent({
           metaText={officialMeta(activeOfficial)}
           followLoading={officialActionId === activeOfficial._id}
           refreshTick={officialPostTick}
+          liveReaction={liveReaction}
           onBack={() => setActiveOfficialId(null)}
           onToggleFollow={() => toggleFollowOfficial(activeOfficial)}
         />
-      ) : !activeSection ? (
+      )}
+
+      {/* VIEW 1: STATUS, CHANNELS & OFFICIALS
+          Stays mounted (just hidden) while a channel / official is open, like WhatsApp:
+          coming back keeps the scroll position and the Status row with no reload. */}
+      <View style={{ flex: 1, display: activeSection || activeOfficial ? 'none' : 'flex' }}>
         <ScrollView
           style={{ backgroundColor: '#F4F6FA' }}
           contentContainerStyle={styles.listContent}
@@ -837,7 +853,10 @@ export default function CommunityScreenContent({
           )}
 
           {/* WhatsApp-style category stories (posted by staff) */}
-          {!searchQuery && <StoriesBar title={t('community.status', { defaultValue: 'Status' })} />}
+          {/* Hidden (not unmounted) while searching, so it never reloads */}
+          <View style={{ display: searchQuery ? 'none' : 'flex' }}>
+            <StoriesBar title={t('community.status', { defaultValue: 'Status' })} />
+          </View>
 
           {/* CHANNELS */}
           <View style={styles.lvSectionHead}>
@@ -945,7 +964,9 @@ export default function CommunityScreenContent({
           )}
           <View style={{ height: 110 }} />
         </ScrollView>
-      ) : (
+      </View>
+
+      {activeSection && (
         /* VIEW 2: ACTIVE CHANNEL / SECTION MESSAGES STREAM */
         <KeyboardAvoidingView 
           style={{ flex: 1 }}

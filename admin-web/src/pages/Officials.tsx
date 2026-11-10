@@ -20,6 +20,8 @@ interface Official {
   is_active: boolean;
   order: number;
   followers_count: number;
+  all_areas?: boolean;
+  areas?: { _id: string; name?: string }[];
 }
 
 interface OfficialPost {
@@ -27,10 +29,13 @@ interface OfficialPost {
   text: string;
   image_url: string;
   createdAt: string;
-  counts: { like: number; love: number; celebrate: number };
+  counts: { like: number; love: number };
 }
 
-const EMPTY = { name: '', designation: 'Parshad', ward: '', bio: '', phone: '', order: 100, verified: true, is_active: true };
+const EMPTY = {
+  name: '', designation: 'Parshad', ward: '', bio: '', phone: '', order: 100, verified: true, is_active: true,
+  all_areas: true, areas: [] as string[],
+};
 
 // Super Admin: post / delete updates on one official's page
 function PostsModal({ official, onClose }: { official: Official; onClose: () => void }) {
@@ -117,7 +122,7 @@ function PostsModal({ official, onClose }: { official: Official; onClose: () => 
               {p.text && <p style={{ margin: '0 0 8px', whiteSpace: 'pre-wrap' }}>{p.text}</p>}
               <div style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#6B7280', gap: 12 }}>
                 <span>{new Date(p.createdAt).toLocaleString('en-IN')}</span>
-                <span>👍 {p.counts.like} · ❤️ {p.counts.love} · ✨ {p.counts.celebrate}</span>
+                <span>👍 {p.counts.like} · ❤️ {p.counts.love}</span>
                 <button className="btn-icon btn-icon-danger" style={{ marginLeft: 'auto' }} onClick={() => remove(p._id)} title="Delete"><Trash2 size={15} /></button>
               </div>
             </div>
@@ -136,6 +141,7 @@ export default function Officials() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY });
   const [postsFor, setPostsFor] = useState<Official | null>(null);
+  const [allAreas, setAllAreas] = useState<{ _id: string; name: string; city?: string }[]>([]);
 
   // Officials are managed only by the platform Super Admin
   const canManage = isPlatformSuperAdmin();
@@ -157,6 +163,9 @@ export default function Officials() {
   useEffect(() => {
     if (!canManage) return;
     fetchList();
+    axios.get(`${API_URL}/areas`, config())
+      .then(res => setAllAreas(Array.isArray(res.data) ? res.data.map((a: any) => ({ _id: a._id, name: a.name, city: a.city })) : []))
+      .catch(() => toast.error('Failed to load areas'));
     const socket = io(SOCKET_URL, { ...socketAuth(), transports: ['websocket', 'polling'] });
     socket.on('officials_updated', () => fetchList(false));
     return () => { socket.disconnect(); };
@@ -165,13 +174,21 @@ export default function Officials() {
   const openAdd = () => { setEditingId(null); setForm({ ...EMPTY }); setIsModalOpen(true); };
   const openEdit = (o: Official) => {
     setEditingId(o._id);
-    setForm({ name: o.name, designation: o.designation, ward: o.ward, bio: o.bio || '', phone: o.phone, order: o.order, verified: o.verified, is_active: o.is_active });
+    setForm({
+      name: o.name, designation: o.designation, ward: o.ward, bio: o.bio || '', phone: o.phone || '', order: o.order,
+      verified: o.verified, is_active: o.is_active,
+      all_areas: o.all_areas !== false, areas: (o.areas || []).map(a => a._id),
+    });
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const t = toast.loading(editingId ? 'Updating...' : 'Adding...');
+    if (!form.all_areas && form.areas.length === 0) {
+      toast.error('Select at least one area, or choose All areas', { id: t });
+      return;
+    }
     try {
       if (editingId) await axios.put(`${API_URL}/officials/${editingId}`, form, config());
       else await axios.post(`${API_URL}/officials`, form, config());
@@ -212,7 +229,7 @@ export default function Officials() {
       <header className="page-header">
         <div>
           <h1 className="page-title">Officials</h1>
-          <p className="page-subtitle">Shown to residents of every area on the Community screen ({list.length})</p>
+          <p className="page-subtitle">Create officials and choose which areas see them on the Community screen ({list.length})</p>
         </div>
         {canManage && (
           <button className="btn btn-primary" onClick={openAdd}><Plus size={18} /> Add Official</button>
@@ -226,6 +243,7 @@ export default function Officials() {
               <th>Name</th>
               <th>Designation</th>
               <th>Ward</th>
+              <th>Areas</th>
               <th>Followers</th>
               <th>Status</th>
               {canManage && <th>Actions</th>}
@@ -233,9 +251,9 @@ export default function Officials() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6}><div className="skeleton skeleton-row" style={{ width: '60%' }} /></td></tr>
+              <tr><td colSpan={7}><div className="skeleton skeleton-row" style={{ width: '60%' }} /></td></tr>
             ) : list.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: 30 }}>No officials yet. Add your ward Parshad!</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: 30 }}>No officials yet. Add your ward Parshad!</td></tr>
             ) : list.map(o => (
               <tr key={o._id}>
                 <td>
@@ -246,6 +264,11 @@ export default function Officials() {
                 </td>
                 <td>{o.designation || '-'}</td>
                 <td>{o.ward || '-'}</td>
+                <td style={{ maxWidth: 220, fontSize: 13 }}>
+                  {o.all_areas !== false
+                    ? <span style={{ fontWeight: 600, color: '#2563EB' }}>All areas</span>
+                    : (o.areas || []).map(a => a.name || '?').join(', ') || '-'}
+                </td>
                 <td>{o.followers_count}</td>
                 <td>
                   <span style={{ fontSize: 12, fontWeight: 600, padding: '3px 10px', borderRadius: 12, background: o.is_active ? '#ECFDF5' : '#F3F4F6', color: o.is_active ? '#059669' : '#6B7280' }}>
@@ -297,6 +320,39 @@ export default function Officials() {
                 <small style={{ color: '#6B7280', fontSize: 12, display: 'block', marginTop: 4 }}>
                   When the official logs into the app with this number, they can post updates on their own page. Kept private — not shown to residents.
                 </small>
+              </div>
+              <div className="form-group">
+                <label className="form-label">Show in Areas</label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, marginBottom: 8 }}>
+                  <input type="checkbox" style={{ width: 'auto' }} checked={form.all_areas} onChange={e => set('all_areas', e.target.checked)} />
+                  All areas (current and future)
+                </label>
+                {!form.all_areas && (
+                  <div style={{ border: '1px solid var(--border-color)', borderRadius: 8, padding: 10, maxHeight: 200, overflowY: 'auto' }}>
+                    {allAreas.length === 0 ? (
+                      <span style={{ fontSize: 13, color: '#6B7280' }}>No areas found.</span>
+                    ) : (
+                      <>
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 8, fontSize: 12 }}>
+                          <button type="button" className="btn-link" style={{ background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer', padding: 0 }} onClick={() => set('areas', allAreas.map(a => a._id))}>Select all</button>
+                          <button type="button" className="btn-link" style={{ background: 'none', border: 'none', color: '#2563EB', cursor: 'pointer', padding: 0 }} onClick={() => set('areas', [])}>Clear</button>
+                          <span style={{ marginLeft: 'auto', color: '#6B7280' }}>{form.areas.length} selected</span>
+                        </div>
+                        {allAreas.map(a => (
+                          <label key={a._id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '4px 0', fontWeight: 400 }}>
+                            <input
+                              type="checkbox"
+                              style={{ width: 'auto' }}
+                              checked={form.areas.includes(a._id)}
+                              onChange={e => set('areas', e.target.checked ? [...form.areas, a._id] : form.areas.filter(id => id !== a._id))}
+                            />
+                            <span style={{ fontSize: 14 }}>{a.name}{a.city ? <span style={{ color: '#6B7280' }}> · {a.city}</span> : null}</span>
+                          </label>
+                        ))}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Display Order (lower shows first)</label>

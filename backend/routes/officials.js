@@ -20,6 +20,30 @@ const isOwnOfficial = (req, o) => {
 
 const canPostAs = (req, o) => isSuperAdmin(req) || isOwnOfficial(req, o);
 
+// Officials visible in the caller's area: marked for all areas, or this area is listed.
+// The Super Admin sees every official; the official themself always sees their own page.
+const visibilityFilter = (req) => {
+  if (isSuperAdmin(req)) return {};
+  const or = [{ all_areas: { $ne: false } }];
+  if (req.areaId) or.push({ areas: req.areaId });
+  return { $or: or };
+};
+
+const isVisibleTo = (req, o) => {
+  if (!o) return false;
+  if (isSuperAdmin(req) || isOwnOfficial(req, o)) return true;
+  if (!o.is_active) return false;
+  if (o.all_areas !== false) return true;
+  return !!req.areaId && (o.areas || []).some(a => String(a._id || a) === String(req.areaId));
+};
+
+const toIdList = (v) => {
+  let arr = v;
+  if (typeof v === 'string') { try { arr = JSON.parse(v); } catch { arr = v.split(','); } }
+  if (!Array.isArray(arr)) return [];
+  return [...new Set(arr.map(x => String(x && (x._id || x)).trim()).filter(x => /^[a-f0-9]{24}$/i.test(x)))];
+};
+
 const toPublic = (o, req) => {
   const me = req.user && req.user._id;
   const followers = (o.followers || []).map(String);
@@ -38,6 +62,11 @@ const toPublic = (o, req) => {
     followers_count: followers.length,
     is_following: me ? followers.includes(String(me)) : false,
     is_mine: isOwnOfficial(req, o),
+    // Area targeting is admin-only detail
+    ...(isSuperAdmin(req) ? {
+      all_areas: o.all_areas !== false,
+      areas: (o.areas || []).map(a => (a && a.name ? { _id: a._id, name: a.name } : { _id: a })),
+    } : {}),
   };
 };
 
@@ -50,8 +79,10 @@ const emitChange = (req) => {
 // @route GET /api/officials  (Super Admin gets hidden ones too with ?all=true)
 router.get('/', auth, async (req, res) => {
   try {
-    const query = (req.query.all === 'true' && isSuperAdmin(req)) ? {} : { is_active: true };
-    const list = await Official.find(query).sort({ order: 1, createdAt: 1 }).lean();
+    const query = (req.query.all === 'true' && isSuperAdmin(req)) ? {} : { is_active: true, ...visibilityFilter(req) };
+    let q = Official.find(query).sort({ order: 1, createdAt: 1 });
+    if (isSuperAdmin(req)) q = q.populate({ path: 'areas', select: 'name' });
+    const list = await q.lean();
     res.json(list.map(o => toPublic(o, req)));
   } catch (err) {
     console.error('Error fetching officials:', err);
@@ -67,6 +98,8 @@ const pickFields = (body) => {
   if (body.order !== undefined) out.order = Number(body.order) || 0;
   if (body.verified !== undefined) out.verified = body.verified === true || body.verified === 'true';
   if (body.is_active !== undefined) out.is_active = body.is_active === true || body.is_active === 'true';
+  if (body.all_areas !== undefined) out.all_areas = body.all_areas === true || body.all_areas === 'true';
+  if (body.areas !== undefined) out.areas = toIdList(body.areas);
   return out;
 };
 
@@ -76,6 +109,7 @@ router.post('/', auth, async (req, res) => {
   try {
     const fields = pickFields(req.body);
     if (!fields.name) return res.status(400).json({ msg: 'Name is required' });
+    if (fields.all_areas === false && !(fields.areas || []).length) return res.status(400).json({ msg: 'Select at least one area, or choose All areas' });
     const saved = await new Official(fields).save();
     emitChange(req);
     res.json(toPublic(saved.toObject(), req));
@@ -89,7 +123,9 @@ router.post('/', auth, async (req, res) => {
 router.put('/:id', auth, async (req, res) => {
   if (!isSuperAdmin(req)) return res.status(403).json({ msg: 'Only Super Admin can manage officials' });
   try {
-    const updated = await Official.findOneAndUpdate({ _id: req.params.id }, { $set: pickFields(req.body) }, { new: true }).lean();
+    const fields = pickFields(req.body);
+    if (fields.all_areas === false && fields.areas !== undefined && !fields.areas.length) return res.status(400).json({ msg: 'Select at least one area, or choose All areas' });
+    const updated = await Official.findOneAndUpdate({ _id: req.params.id }, { $set: fields }, { returnDocument: 'after' }).lean();
     if (!updated) return res.status(404).json({ msg: 'Official not found' });
     emitChange(req);
     res.json(toPublic(updated, req));
@@ -114,8 +150,10 @@ router.delete('/:id', auth, async (req, res) => {
 // @route POST /api/officials/:id/follow | /unfollow
 const setFollow = (follow) => async (req, res) => {
   try {
+    const existing = await Official.findById(req.params.id).lean();
+    if (!isVisibleTo(req, existing)) return res.status(404).json({ msg: 'Official not found' });
     const update = follow ? { $addToSet: { followers: req.user._id } } : { $pull: { followers: req.user._id } };
-    const updated = await Official.findOneAndUpdate({ _id: req.params.id, is_active: true }, update, { new: true }).lean();
+    const updated = await Official.findOneAndUpdate({ _id: req.params.id, is_active: true }, update, { returnDocument: 'after' }).lean();
     if (!updated) return res.status(404).json({ msg: 'Official not found' });
     res.json(toPublic(updated, req));
   } catch (err) {
@@ -155,7 +193,7 @@ const uploadImage = (req) => {
   return dataUri ? cloudinary.uploader.upload(dataUri, CLOUD_OPTS) : Promise.resolve(null);
 };
 
-const REACTIONS = ['like', 'love', 'celebrate'];
+const REACTIONS = ['like', 'love'];
 
 const postToPublic = (p, me) => {
   const counts = {};
@@ -177,7 +215,7 @@ const emitPostChange = (req, officialId) => {
 router.get('/:id/posts', auth, async (req, res) => {
   try {
     const official = await Official.findById(req.params.id).lean();
-    if (!official || (!official.is_active && !isSuperAdmin(req))) return res.status(404).json({ msg: 'Official not found' });
+    if (!isVisibleTo(req, official)) return res.status(404).json({ msg: 'Official not found' });
     const limit = Math.min(50, Number(req.query.limit) || 30);
     const query = { official: official._id };
     if (req.query.before) query.createdAt = { $lt: new Date(req.query.before) };
@@ -251,17 +289,30 @@ router.delete('/posts/:postId', auth, async (req, res) => {
   }
 });
 
-// @route POST /api/officials/posts/:postId/react  { type: 'like' | 'love' | 'celebrate' }  (toggle)
+// @route POST /api/officials/posts/:postId/react  { type: 'like' | 'love' }  (toggle)
 router.post('/posts/:postId/react', auth, async (req, res) => {
   try {
     const type = String(req.body.type || '');
     if (!REACTIONS.includes(type)) return res.status(400).json({ msg: 'Invalid reaction' });
     const field = `reactions.${type}`;
-    const existing = await OfficialPost.findOne({ _id: req.params.postId, [field]: req.user._id }).select('_id').lean();
-    const update = existing ? { $pull: { [field]: req.user._id } } : { $addToSet: { [field]: req.user._id } };
-    const post = await OfficialPost.findOneAndUpdate({ _id: req.params.postId }, update, { new: true }).lean();
+    // Preferred: the app sends the final state (`on: true|false`), which is idempotent,
+    // so retries and out-of-order requests can never flip a reaction the wrong way.
+    // Without `on` (older app builds) it falls back to toggling.
+    let on;
+    if (typeof req.body.on === 'boolean') on = req.body.on;
+    else if (req.body.on === 'true' || req.body.on === 'false') on = req.body.on === 'true';
+    else {
+      const existing = await OfficialPost.findOne({ _id: req.params.postId, [field]: req.user._id }).select('_id').lean();
+      on = !existing;
+    }
+    const update = on ? { $addToSet: { [field]: req.user._id } } : { $pull: { [field]: req.user._id } };
+    const post = await OfficialPost.findOneAndUpdate({ _id: req.params.postId }, update, { returnDocument: 'after' }).lean();
     if (!post) return res.status(404).json({ msg: 'Post not found' });
-    res.json(postToPublic(post, req.user._id));
+    const out = postToPublic(post, req.user._id);
+    // Live counts for everyone else viewing this official's page
+    const io = req.app.get('io');
+    if (io && io.sockets) io.sockets.emit('official_post_reacted', { officialId: String(post.official), postId: String(post._id), counts: out.counts });
+    res.json(out);
   } catch (err) {
     res.status(500).json({ msg: 'Server Error' });
   }

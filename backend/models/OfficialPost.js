@@ -10,7 +10,6 @@ const officialPostSchema = new mongoose.Schema({
   reactions: {
     like: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     love: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    celebrate: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   },
   created_by: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
