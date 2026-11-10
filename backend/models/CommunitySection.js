@@ -27,6 +27,12 @@ const communitySectionSchema = new mongoose.Schema({
     enum: ['announcement', 'discussion'], 
     default: 'announcement' 
   },
+  // Discussion mode: when true, every follower can post too. Off by default so
+  // existing channels stay read-only for followers (admins + assigned only post).
+  followers_can_post: {
+    type: Boolean,
+    default: false
+  },
   // Assigned members who have specific posting/moderator rights in THIS section ONLY.
   // Adding a user here does NOT give them access to other sections in the community.
   assigned_members: [{ 

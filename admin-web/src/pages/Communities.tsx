@@ -35,6 +35,7 @@ interface CommunitySectionItem {
   description: string;
   icon: string;
   section_type: 'announcement' | 'discussion';
+  followers_can_post?: boolean;
   assigned_members: UserItem[];
   followers: string[];
   followers_count?: number;
@@ -185,7 +186,8 @@ export default function Communities() {
   // Form states - Section
   const [secName, setSecName] = useState('');
   const [secDesc, setSecDesc] = useState('');
-  const [secType, setSecType] = useState<'announcement' | 'discussion'>('announcement');
+  // Discussion mode: followers can post too (off = only admins + assigned people)
+  const [secFollowersCanPost, setSecFollowersCanPost] = useState(false);
   const [secIcon, setSecIcon] = useState('megaphone');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -332,8 +334,22 @@ export default function Communities() {
           throw err;
         }
       }
-      const data = res.data.members || (Array.isArray(res.data) ? res.data : []);
-      setAllUsers(data);
+      const members: UserItem[] = (res.data.members || (Array.isArray(res.data) ? res.data : []))
+        .map((u: any) => ({ ...u, role: u.role || 'Member' }));
+      // Staff can be assigned to post in a channel too (e.g. Electricity staff)
+      let staff: UserItem[] = [];
+      try {
+        const sRes = await axios.get(`${API_URL}/users/staff?all=true`, getHeaders());
+        const list = Array.isArray(sRes.data) ? sRes.data : (sRes.data.staff || []);
+        staff = list.map((u: any) => ({
+          ...u,
+          role: 'Staff',
+          designation: u.designation || u.assigned_category || (u.assigned_categories || []).join(', ') || 'Staff',
+        }));
+      } catch (e) {
+        console.error('Error fetching staff for channel assignment:', e);
+      }
+      setAllUsers([...members, ...staff]);
     } catch (err) {
       console.error('Error fetching members:', err);
     }
@@ -431,7 +447,7 @@ export default function Communities() {
     setEditingSection(null);
     setSecName('');
     setSecDesc('');
-    setSecType('discussion');
+    setSecFollowersCanPost(false);
     setSecIcon('megaphone');
     setIsSectionModalOpen(true);
   };
@@ -440,7 +456,7 @@ export default function Communities() {
     setEditingSection(sec);
     setSecName(sec.name);
     setSecDesc(sec.description);
-    setSecType(sec.section_type);
+    setSecFollowersCanPost(!!sec.followers_can_post);
     setSecIcon(sec.icon || 'megaphone');
     setIsSectionModalOpen(true);
   };
@@ -458,7 +474,8 @@ export default function Communities() {
       const payload = {
         name: secName.trim(),
         description: secDesc.trim(),
-        section_type: secType,
+        section_type: secFollowersCanPost ? 'discussion' : 'announcement',
+        followers_can_post: secFollowersCanPost,
         icon: secIcon
       };
 
@@ -967,10 +984,11 @@ export default function Communities() {
                     <button 
                       className="btn btn-secondary"
                       style={{ padding: '8px 10px', fontSize: 13 }}
-                      title="Manage Assigned Members"
+                      title="Assign Posters (members or staff who can post here)"
                       onClick={() => openAssignMembersModal(sec)}
                     >
                       <Users size={15} />
+                      Assign Posters
                     </button>
 
                     <button 
@@ -1165,8 +1183,39 @@ export default function Communities() {
                   />
                 </div>
 
-                <div style={{ marginTop: 16, padding: '12px 16px', background: '#EFF6FF', borderRadius: 8, fontSize: 12, color: '#1E40AF', border: '1px solid #DBEAFE' }}>
-                  <strong>How it works:</strong> Anyone who follows this channel gets <strong>visible read-only access</strong>. You can assign specific members to this channel afterwards who can post updates. Assigned members are strictly scoped to this channel only and cannot access other channels.
+                <div style={{ marginBottom: 8 }}>
+                  <label className="form-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, display: 'block' }}>
+                    Who can post?
+                  </label>
+                  {[
+                    { value: false, title: 'Announcement', desc: 'Only admins and the people you assign can post. Followers can only read.' },
+                    { value: true, title: 'Discussion', desc: 'Everyone who follows this channel can also post and reply.' },
+                  ].map(opt => (
+                    <label
+                      key={String(opt.value)}
+                      style={{
+                        display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', padding: '10px 12px', marginBottom: 8,
+                        borderRadius: 8, border: secFollowersCanPost === opt.value ? '1.5px solid #2563EB' : '1px solid #E2E8F0',
+                        background: secFollowersCanPost === opt.value ? '#EFF6FF' : '#FFFFFF',
+                      }}
+                    >
+                      <input
+                        type="radio"
+                        name="followers_can_post"
+                        style={{ width: 'auto', marginTop: 3 }}
+                        checked={secFollowersCanPost === opt.value}
+                        onChange={() => setSecFollowersCanPost(opt.value)}
+                      />
+                      <span>
+                        <strong style={{ fontSize: 13, color: '#0F172A' }}>{opt.title}</strong>
+                        <span style={{ display: 'block', fontSize: 12, color: '#64748B', marginTop: 2 }}>{opt.desc}</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+
+                <div style={{ marginTop: 8, padding: '12px 16px', background: '#EFF6FF', borderRadius: 8, fontSize: 12, color: '#1E40AF', border: '1px solid #DBEAFE' }}>
+                  <strong>How it works:</strong> Residents follow the channel to read it. After creating it, use <strong>Assign Posters</strong> on the channel card to let committee members or staff post. They can post only in this channel.
                 </div>
               </div>
 
@@ -1198,10 +1247,10 @@ export default function Communities() {
             <div className="comm-modal-header">
               <div>
                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
-                  Assign Members to "{assigningSection.name}"
+                  Assign Posters to "{assigningSection.name}"
                 </h3>
                 <small style={{ color: '#64748b' }}>
-                  Assigned members are scoped strictly to THIS section only.
+                  Committee members and staff you select can post in THIS channel only.
                 </small>
               </div>
               <button 
@@ -1219,7 +1268,7 @@ export default function Communities() {
                 <input 
                   type="text" 
                   className="form-input" 
-                  placeholder="Search members by name, phone, or ID..."
+                  placeholder="Search members or staff by name, phone, or ID..."
                   value={memberSearch}
                   onChange={e => setMemberSearch(e.target.value)}
                   style={{ paddingLeft: 36, fontSize: 13 }}
@@ -1294,6 +1343,13 @@ export default function Communities() {
                           <div style={{ fontWeight: 600, fontSize: 13, color: '#0F172A' }}>
                             {user.name || 'Unnamed'}
                             {user.designation && <span style={{ color: '#2563EB', marginLeft: 6, fontWeight: 500 }}>({user.designation})</span>}
+                            <span style={{
+                              marginLeft: 8, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10,
+                              background: user.role === 'Staff' ? '#FEF3C7' : '#E0E7FF',
+                              color: user.role === 'Staff' ? '#B45309' : '#4338CA',
+                            }}>
+                              {user.role === 'Staff' ? 'STAFF' : 'MEMBER'}
+                            </span>
                           </div>
                           <div style={{ fontSize: 11, color: '#64748b' }}>
                             {user.phone_number} {user.member_id ? `• ID: ${user.member_id}` : ''}
@@ -1398,7 +1454,7 @@ export default function Communities() {
                     {activeSection.name}
                   </h3>
                   <small style={{ color: '#94A3B8' }}>
-                    {activeSection.section_type === 'announcement' ? 'Broadcast Channel' : 'Discussion Section'} • {activeSection.followers_count || 0} Followers
+                    {activeSection.followers_can_post ? 'Discussion Channel' : 'Announcement Channel'} • {activeSection.followers_count || 0} Followers
                   </small>
                 </div>
               </div>

@@ -755,6 +755,24 @@ export default function StaffScreen() {
               <Ionicons name="chevron-forward" size={18} color="#2563EB" />
             </View>
           </TouchableOpacity>
+
+          {/* Community channels: staff assigned by the admin can post updates here */}
+          <TouchableOpacity
+            style={[styles.raiseGrievanceBanner, { marginTop: 12 }]}
+            onPress={() => router.push('/staff-community' as any)}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.raiseGrievanceIconWrapper, { backgroundColor: '#0EA5E9' }]}>
+              <Ionicons name="chatbubbles" size={22} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.raiseGrievanceTitle}>{t('staff.channels', { defaultValue: 'Community Channels' })}</Text>
+              <Text style={styles.raiseGrievanceSubtitle}>{t('staff.channelsSub', { defaultValue: 'Read updates, and post in channels assigned to you' })}</Text>
+            </View>
+            <View style={styles.raiseGrievanceArrow}>
+              <Ionicons name="chevron-forward" size={18} color="#2563EB" />
+            </View>
+          </TouchableOpacity>
         </View>
 
         {/* Filters */}

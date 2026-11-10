@@ -502,6 +502,7 @@ export default function CommunityScreenContent({
   useEffect(() => {
     setCommunityTypingUsers([]);
     setMsgText('');
+    setUserAccess(null); // don't show the previous channel's permissions
     if (activeSection && socketRef.current) {
       socketRef.current.emit('join_community_section', activeSection._id);
       loadSectionMessages(activeSection._id);
@@ -1086,7 +1087,7 @@ export default function CommunityScreenContent({
           )}
 
           {/* Bottom Bar: Read-only Notice OR Post Input */}
-          {activeSection.user_access?.can_send ? (
+          {(userAccess?.can_send ?? activeSection.user_access?.can_send) ? (
             /* Message Input for Assigned Members / Admin */
             <View style={styles.inputContainer}>
               <TextInput 

@@ -5,6 +5,7 @@ const Community = require('../models/Community');
 const CommunitySection = require('../models/CommunitySection');
 const CommunityMessage = require('../models/CommunityMessage');
 const User = require('../models/User');
+const Area = require('../models/Area');
 
 /**
  * Check if a user can access/view a community based on role
@@ -56,10 +57,10 @@ const getSectionUserAccess = (section, user) => {
   }
 
   if (isFollowing) {
-    // Followers have visible read-only access only
+    // Followers read only, unless the admin turned on discussion (followers_can_post).
     return {
       can_view: true,
-      can_send: false,
+      can_send: !!section.followers_can_post,
       is_assigned: false,
       is_following: true,
       is_admin: false
@@ -90,10 +91,13 @@ router.get('/', auth, async (req, res) => {
 
     let query = { is_active: true };
     if (user.role !== 'Admin' && user.role !== 'SubAdmin') {
+      // People assigned to post in a channel (members or staff) always see its community
+      const assignedCommunityIds = await CommunitySection.distinct('community_id', { assigned_members: user._id, is_active: true });
       query.$or = [
         { target_roles: 'All' },
         { target_roles: user.role },
-        { target_roles: { $size: 0 } }
+        { target_roles: { $size: 0 } },
+        { _id: { $in: assignedCommunityIds } }
       ];
     }
 
@@ -318,7 +322,7 @@ router.post('/:id/sections', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Community not found' });
     }
 
-    const { name, description, icon, section_type, assigned_members } = req.body;
+    const { name, description, icon, section_type, assigned_members, followers_can_post } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ msg: 'Section name is required' });
     }
@@ -336,6 +340,7 @@ router.post('/:id/sections', auth, async (req, res) => {
       description: (description || '').trim(),
       icon: icon || (section_type === 'discussion' ? 'chatbubbles' : 'megaphone'),
       section_type: section_type || 'announcement',
+      followers_can_post: followers_can_post === true || followers_can_post === 'true',
       assigned_members: validatedMemberIds,
       followers: [] // Empty initial followers, members follow for read access
     });
@@ -426,7 +431,7 @@ router.put('/sections/:sectionId', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Access denied: Only Admins can modify community sections' });
     }
 
-    const { name, description, icon, section_type, assigned_members, is_active } = req.body;
+    const { name, description, icon, section_type, assigned_members, is_active, followers_can_post } = req.body;
     const section = await CommunitySection.findById(req.params.sectionId);
     if (!section) return res.status(404).json({ msg: 'Section not found' });
 
@@ -435,6 +440,7 @@ router.put('/sections/:sectionId', auth, async (req, res) => {
     if (icon !== undefined) section.icon = icon;
     if (section_type !== undefined) section.section_type = section_type;
     if (is_active !== undefined) section.is_active = !!is_active;
+    if (followers_can_post !== undefined) section.followers_can_post = followers_can_post === true || followers_can_post === 'true';
 
     if (Array.isArray(assigned_members)) {
       const validUsers = await User.find({ _id: { $in: assigned_members } }).select('_id');
@@ -661,7 +667,7 @@ router.post('/sections/:sectionId/messages', auth, async (req, res) => {
 
     if (!access.can_send) {
       return res.status(403).json({
-        msg: 'Read-only access: Followers are only permitted to view updates. Only Admins or assigned section members can post updates.'
+        msg: 'Read-only access: Followers are only permitted to view updates. Only Admins or members assigned to this channel can post updates.'
       });
     }
 
@@ -684,9 +690,21 @@ router.post('/sections/:sectionId/messages', auth, async (req, res) => {
 
     const senderRole = req.user.role;
     let senderDisplayName = req.user.name || 'Admin';
-    if (senderRole === 'Admin') senderDisplayName = 'Super Admin';
-    else if (senderRole === 'SubAdmin') senderDisplayName = 'Admin';
-    else if (req.user.member_id && req.user.member_id.trim()) senderDisplayName = req.user.member_id.trim();
+    let senderDesignation = req.user.designation || '';
+    if (senderRole === 'Admin' || senderRole === 'SubAdmin') {
+      // Admin posts appear as the area (e.g. 'Sushant Lok 2 & 3 RWA'), not 'Super Admin'
+      const area = req.areaId ? await Area.findById(req.areaId).select('name').lean() : null;
+      if (req.isSuperAdmin) {
+        senderDisplayName = area?.name || 'Anytime Help';
+        senderDesignation = 'Anytime Help';
+      } else {
+        senderDisplayName = area?.name || req.user.name || 'Admin';
+        senderDesignation = senderRole === 'SubAdmin' ? (req.user.name || 'Admin') : 'Admin';
+      }
+    } else if (senderRole === 'Staff') {
+      senderDisplayName = req.user.name || 'Staff';
+      senderDesignation = senderDesignation || req.user.assigned_category || 'Staff';
+    } else if (req.user.member_id && req.user.member_id.trim()) senderDisplayName = req.user.member_id.trim();
 
     const newMsg = new CommunityMessage({
       community_id: section.community_id,
@@ -694,7 +712,7 @@ router.post('/sections/:sectionId/messages', auth, async (req, res) => {
       sender: req.user._id,
       sender_name: senderDisplayName,
       sender_role: senderRole,
-      sender_designation: req.user.designation || '',
+      sender_designation: senderDesignation,
       text: (text || '').trim(),
       attachments: attachments || [],
       reply_to: replyPayload,
