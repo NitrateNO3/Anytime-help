@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Image, Animated, BackHandler } from 'react-native';
+import { AppAlert } from '../components/AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -152,7 +153,7 @@ export default function StaffRaiseComplaint() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      alert('Permission Denied: Camera access is required to take a photo.');
+      AppAlert.alert('Permission Denied', 'Camera access is required to take a photo.');
       return;
     }
     setCameraLoading(true);
@@ -176,7 +177,7 @@ export default function StaffRaiseComplaint() {
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      alert('Permission Denied: Photo library access is required.');
+      AppAlert.alert('Permission Denied', 'Photo library access is required.');
       return;
     }
     setGalleryLoading(true);

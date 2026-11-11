@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Modal, Platform, StatusBar, Animated, Linking, TextInput, KeyboardAvoidingView, Share, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Modal, Platform, StatusBar, Animated, Linking, TextInput, KeyboardAvoidingView, Share, RefreshControl } from 'react-native';
+import { AppAlert } from '../../components/AppAlert';
 import ZoomableImage from '../../components/ZoomableImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -65,7 +66,7 @@ export default function ComplaintDetails() {
   const handleEscalate = async () => {
     if (!complaint) return;
     if (complaint.is_escalated) {
-      Alert.alert(
+      AppAlert.alert(
         'Already Escalated',
         `This complaint was already escalated by ${complaint.escalated_by_name || complaint.escalated_by?.name || 'a member'}. Do you want to de-escalate it?`,
         [
@@ -94,7 +95,7 @@ export default function ComplaintDetails() {
       return;
     }
 
-    Alert.alert(
+    AppAlert.alert(
       'Escalate Complaint',
       'Are you sure you want to escalate this complaint? It will be highlighted in red, pinned to the top of task lists, and notify all staff and admins with your name.',
       [
@@ -257,7 +258,7 @@ export default function ComplaintDetails() {
   };
 
   const handleDelete = async () => {
-    Alert.alert(
+    AppAlert.alert(
       t('resident.deleteComplaint', 'Delete Complaint'),
       t('resident.deleteConfirm', 'Are you sure you want to delete this complaint?'),
       [
@@ -290,7 +291,7 @@ export default function ComplaintDetails() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Camera permission is required to capture photos.');
+        AppAlert.alert('Permission Denied', 'Camera permission is required to capture photos.');
         return;
       }
       setIsPhotoLoading(true);
@@ -315,7 +316,7 @@ export default function ComplaintDetails() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Gallery permission is required to select photos.');
+        AppAlert.alert('Permission Denied', 'Gallery permission is required to select photos.');
         return;
       }
       setIsPhotoLoading(true);
@@ -498,18 +499,18 @@ export default function ComplaintDetails() {
 
   const callUserPhone = (phoneNumber?: string) => {
     if (!phoneNumber) {
-      Alert.alert('Phone Unavailable', 'Phone number is not provided.');
+      AppAlert.alert('Phone Unavailable', 'Phone number is not provided.');
       return;
     }
     const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
     Linking.openURL(`tel:${cleanPhone}`).catch(() => {
-      Alert.alert('Error', 'Unable to initiate call on this device.');
+      AppAlert.alert('Error', 'Unable to initiate call on this device.');
     });
   };
 
   const whatsappUserPhone = (phoneNumber?: string, userName?: string) => {
     if (!phoneNumber) {
-      Alert.alert('Phone Unavailable', 'Phone number is not provided.');
+      AppAlert.alert('Phone Unavailable', 'Phone number is not provided.');
       return;
     }
     const cleanPhone = phoneNumber.replace(/\D/g, '');
@@ -518,7 +519,7 @@ export default function ComplaintDetails() {
     const message = `Hello ${userName || 'Resident'}, this is regarding your complaint "${complaint?.title || ''}" (${compId})...`;
     const whatsappUrl = `whatsapp://send?phone=${finalPhone}&text=${encodeURIComponent(message)}`;
     Linking.openURL(whatsappUrl).catch(() => {
-      Alert.alert('Error', 'WhatsApp is not installed on this device.');
+      AppAlert.alert('Error', 'WhatsApp is not installed on this device.');
     });
   };
 
@@ -964,7 +965,7 @@ export default function ComplaintDetails() {
                     if (url) {
                       Linking.openURL(url).catch(() => {
                         Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${resolutionData.location.latitude},${resolutionData.location.longitude}`).catch(() => {
-                          Alert.alert('Notice', 'Could not open map navigation application.');
+                          AppAlert.alert('Notice', 'Could not open map navigation application.');
                         });
                       });
                     }

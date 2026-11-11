@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, Modal, Platform, StatusBar, Animated, Linking, TextInput, KeyboardAvoidingView, Share, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Modal, Platform, StatusBar, Animated, Linking, TextInput, KeyboardAvoidingView, Share, RefreshControl } from 'react-native';
+import { AppAlert } from '../../components/AppAlert';
 import ZoomableImage from '../../components/ZoomableImage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -111,7 +112,7 @@ export default function ComplaintDetails() {
   };
 
   const handleDelete = async () => {
-    Alert.alert(
+    AppAlert.alert(
       t('resident.deleteComplaint', 'Delete Complaint'),
       t('resident.deleteConfirm', 'Are you sure you want to delete this complaint?'),
       [
@@ -144,7 +145,7 @@ export default function ComplaintDetails() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Camera permission is required to capture photos.');
+        AppAlert.alert('Permission Denied', 'Camera permission is required to capture photos.');
         return;
       }
       setIsPhotoLoading(true);
@@ -169,7 +170,7 @@ export default function ComplaintDetails() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Gallery permission is required to select photos.');
+        AppAlert.alert('Permission Denied', 'Gallery permission is required to select photos.');
         return;
       }
       setIsPhotoLoading(true);
@@ -504,7 +505,7 @@ export default function ComplaintDetails() {
                     if (url) {
                       Linking.openURL(url).catch(() => {
                         Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${resolutionData.location.latitude},${resolutionData.location.longitude}`).catch(() => {
-                          Alert.alert('Notice', 'Could not open map navigation application.');
+                          AppAlert.alert('Notice', 'Could not open map navigation application.');
                         });
                       });
                     }

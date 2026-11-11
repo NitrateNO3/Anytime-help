@@ -5,6 +5,7 @@ import { Plus, Edit, Trash2, X, BadgeCheck, ImagePlus, Newspaper } from 'lucide-
 import { io } from 'socket.io-client';
 import { socketAuth, isPlatformSuperAdmin, getSelectedArea, setSelectedArea } from '../lib/area';
 import '../index.css';
+import { confirmDialog } from '../components/ConfirmDialog';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -81,7 +82,7 @@ function PostsModal({ official, onClose }: { official: Official; onClose: () => 
   };
 
   const remove = async (id: string) => {
-    if (!window.confirm('Delete this update? It will be removed from the app.')) return;
+    if (!(await confirmDialog({ title: 'Delete this update?', message: 'It will be removed from the app.', confirmText: 'Delete', danger: true }))) return;
     try {
       await axios.delete(`${API_URL}/officials/posts/${id}`, { headers: headers() });
       setPosts(p => p.filter(x => x._id !== id));

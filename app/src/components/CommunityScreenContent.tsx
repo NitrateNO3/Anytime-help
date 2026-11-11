@@ -1,10 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { 
-  View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, 
-  StatusBar, TouchableOpacity, RefreshControl, BackHandler, TextInput,
-  FlatList, Alert, KeyboardAvoidingView, Animated, Easing, Keyboard
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, StatusBar, TouchableOpacity, RefreshControl, BackHandler, TextInput, FlatList, KeyboardAvoidingView, Animated, Easing, Keyboard } from 'react-native';
+import { AppAlert } from './AppAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useRouter, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -383,7 +380,7 @@ export default function CommunityScreenContent({
       // Official status is shown to followers only
       refreshStoriesBar();
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.msg || 'Failed to update follow status');
+      AppAlert.alert('Error', err.response?.data?.msg || 'Failed to update follow status');
     } finally {
       setOfficialActionId(null);
     }
@@ -630,7 +627,7 @@ export default function CommunityScreenContent({
         }
       }
     } catch (err: any) {
-      Alert.alert('Error', err.response?.data?.msg || 'Failed to update follow status');
+      AppAlert.alert('Error', err.response?.data?.msg || 'Failed to update follow status');
     } finally {
       setFollowingActionId(null);
     }
@@ -744,7 +741,7 @@ export default function CommunityScreenContent({
       }
     } catch (err: any) {
       setMessages(prev => prev.filter(m => m._id !== tempId));
-      Alert.alert('Notice', err.response?.data?.msg || 'Could not send message');
+      AppAlert.alert('Notice', err.response?.data?.msg || 'Could not send message');
     }
   };
 
@@ -761,7 +758,7 @@ export default function CommunityScreenContent({
   const confirmDeleteMessage = (item: CommunityMessageItem) => {
     if (!activeSection || !canDeleteMessage(item)) return;
     const sectionId = activeSection._id;
-    Alert.alert('Delete message?', 'This message will be removed for everyone.', [
+    AppAlert.alert('Delete message?', 'This message will be removed for everyone.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -776,7 +773,7 @@ export default function CommunityScreenContent({
             });
           } catch (err: any) {
             if (removed.length) setMessages(removed);
-            Alert.alert('Error', err.response?.data?.msg || 'Could not delete message');
+            AppAlert.alert('Error', err.response?.data?.msg || 'Could not delete message');
           }
         }
       }

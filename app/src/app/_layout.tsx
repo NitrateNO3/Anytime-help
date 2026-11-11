@@ -18,6 +18,7 @@ import { requireOptionalNativeModule } from 'expo';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Updates from 'expo-updates';
 import MaintenanceScreen, { MaintenanceState } from '../components/MaintenanceScreen';
+import { AppAlertHost } from '../components/AppAlert';
 
 const MAINTENANCE_CACHE_KEY = 'maintenanceState';
 
@@ -368,6 +369,9 @@ export default function RootLayout() {
 
         {/* Maintenance Mode: blocks the whole app while the admin has it on */}
         <MaintenanceScreen state={maintenance} onRetry={checkVersion} />
+
+        {/* App-styled dialogs (replaces the system Alert everywhere) */}
+        <AppAlertHost />
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

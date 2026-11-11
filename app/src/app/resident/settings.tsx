@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView, BackHandler, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Platform, StatusBar, ScrollView, BackHandler, TextInput, ActivityIndicator } from 'react-native';
+import { AppAlert } from '../../components/AppAlert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -232,7 +233,7 @@ export default function SettingsScreen() {
   };
 
   const confirmRemoveFamilyMember = (member: any) => {
-    Alert.alert(
+    AppAlert.alert(
       'Remove Family Member',
       `Are you sure you want to remove ${member.name}? They will no longer be able to log in to this household account.`,
       [

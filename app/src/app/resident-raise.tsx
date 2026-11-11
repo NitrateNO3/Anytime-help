@@ -1,6 +1,7 @@
 import { SafeAreaView } from 'react-native-safe-area-context';
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, Modal, ActivityIndicator, Image, Animated, BackHandler, Linking, StatusBar as RNStatusBar } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Modal, ActivityIndicator, Image, Animated, BackHandler, Linking, StatusBar as RNStatusBar } from 'react-native';
+import { AppAlert } from '../components/AppAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -169,7 +170,7 @@ export default function ResidentRaiseComplaint() {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Sorry, we need camera permissions to make this work!');
+      AppAlert.alert('Permission Denied', 'Sorry, we need camera permissions to make this work!');
       return;
     }
     setCameraLoading(true);
@@ -193,7 +194,7 @@ export default function ResidentRaiseComplaint() {
   const pickFromGallery = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Denied', 'Sorry, we need gallery permissions to make this work!');
+      AppAlert.alert('Permission Denied', 'Sorry, we need gallery permissions to make this work!');
       return;
     }
     setGalleryLoading(true);

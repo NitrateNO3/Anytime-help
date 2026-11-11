@@ -3,6 +3,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { Wrench, Power, Clock } from 'lucide-react';
 import { API_URL, isPlatformSuperAdmin } from '../lib/area';
+import { confirmDialog } from '../components/ConfirmDialog';
 
 type MaintenanceState = { enabled: boolean; message: string; ends_at: string | null; updated_at?: string };
 
@@ -43,7 +44,7 @@ export default function Maintenance() {
   useEffect(() => { load(); }, []);
 
   const save = async (enabled: boolean) => {
-    if (enabled && !current?.enabled && !window.confirm('Turn ON maintenance mode? The app will be blocked for ALL users in ALL areas until you turn it off.')) return;
+    if (enabled && !current?.enabled && !(await confirmDialog({ title: 'Turn ON maintenance mode?', message: 'The app will be blocked for ALL users in ALL areas until you turn it off.', confirmText: 'Turn ON', danger: true }))) return;
     setSaving(true);
     const t = toast.loading(enabled ? 'Turning on...' : 'Saving...');
     try {

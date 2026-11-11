@@ -23,6 +23,7 @@ import Communities from './pages/Communities';
 import BottomBanners from './pages/BottomBanners';
 import Areas from './pages/Areas';
 import { areaHeaders } from './lib/area';
+import { ConfirmHost } from './components/ConfirmDialog';
 
 // Multi-area: a platform Super Admin's requests are scoped to the area picked
 // in the sidebar switcher. Area admins are always scoped to their own area
@@ -76,6 +77,7 @@ function App() {
   return (
     <>
       <Toaster position="top-center" />
+      <ConfirmHost />
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />

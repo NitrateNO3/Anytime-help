@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, Modal, Platform, Linking, TextInput, Share } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Modal, Platform, Linking, TextInput, Share } from 'react-native';
+import { AppAlert } from '../components/AppAlert';
 import ZoomableImage from '../components/ZoomableImage';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useGlobalSearchParams } from 'expo-router';
@@ -115,7 +116,7 @@ export default function TaskDetailsScreen() {
         if (!staffLocationAddress.trim()) {
           setStaffLocationAddress(searchQuery.trim());
         }
-        Alert.alert(
+        AppAlert.alert(
           'Location Not Found on Map',
           'Could not find this place on the map. You can type your exact address manually in the "Resolution Address" field below.',
           [
@@ -134,7 +135,7 @@ export default function TaskDetailsScreen() {
       if (!staffLocationAddress.trim()) {
         setStaffLocationAddress(searchQuery.trim());
       }
-      Alert.alert(
+      AppAlert.alert(
         'Search Notice',
         'Could not search location. You can enter your address manually in the field below.'
       );
@@ -148,7 +149,7 @@ export default function TaskDetailsScreen() {
       setIsLocatingUser(true);
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Please allow location permission in phone settings to fetch your GPS position.');
+        AppAlert.alert('Permission Denied', 'Please allow location permission in phone settings to fetch your GPS position.');
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -161,7 +162,7 @@ export default function TaskDetailsScreen() {
       Toast.show({ type: 'success', text1: 'GPS Located', text2: 'Location updated to current position.' });
     } catch (err) {
       console.log('Error getting current location:', err);
-      Alert.alert('GPS Notice', 'Could not get current GPS location. You can enter your address manually below.');
+      AppAlert.alert('GPS Notice', 'Could not get current GPS location. You can enter your address manually below.');
     } finally {
       setIsLocatingUser(false);
     }
@@ -340,7 +341,7 @@ export default function TaskDetailsScreen() {
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Camera permission is required to capture photos.');
+        AppAlert.alert('Permission Denied', 'Camera permission is required to capture photos.');
         return;
       }
       setIsPhotoLoading(true);
@@ -365,7 +366,7 @@ export default function TaskDetailsScreen() {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Gallery permission is required to select photos.');
+        AppAlert.alert('Permission Denied', 'Gallery permission is required to select photos.');
         return;
       }
       setIsPhotoLoading(true);
@@ -412,7 +413,7 @@ export default function TaskDetailsScreen() {
 
   const handleTakePhoto = async () => {
     if (!staffLocationObj && !staffLocationAddress.trim()) {
-       Alert.alert('Location Required', 'Please select a location on map or enter your address manually.');
+       AppAlert.alert('Location Required', 'Please select a location on map or enter your address manually.');
        return;
     }
 
@@ -420,7 +421,7 @@ export default function TaskDetailsScreen() {
       const { status: cameraStatus } = await ImagePicker.requestCameraPermissionsAsync();
       
       if (cameraStatus !== 'granted') {
-        Alert.alert('Permission needed', 'Sorry, we need camera permissions to make this work!');
+        AppAlert.alert('Permission needed', 'Sorry, we need camera permissions to make this work!');
         return;
       }
 
@@ -641,7 +642,7 @@ export default function TaskDetailsScreen() {
                      if (url) {
                        Linking.openURL(url).catch(() => {
                          Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${searchQ}`).catch(() => {
-                           Alert.alert('Notice', 'Could not open map navigation application.');
+                           AppAlert.alert('Notice', 'Could not open map navigation application.');
                          });
                        });
                      }
@@ -697,7 +698,7 @@ export default function TaskDetailsScreen() {
                     style={{ backgroundColor: '#DBEAFE', padding: 8, borderRadius: 8 }}
                     onPress={() => {
                       Linking.openURL(`tel:${complaint.user.phone_number}`).catch(() => {
-                        Alert.alert('Notice', 'Could not initiate call on this device.');
+                        AppAlert.alert('Notice', 'Could not initiate call on this device.');
                       });
                     }}
                   >
@@ -710,7 +711,7 @@ export default function TaskDetailsScreen() {
                        const finalPhone = phone.length === 10 ? `91${phone}` : phone;
                        const compId = complaint.complaint_id || (complaint._id ? `#AH-${complaint._id.slice(-5).toUpperCase()}` : '');
                        Linking.openURL(`whatsapp://send?phone=${finalPhone}&text=Hello, this is regarding task "${complaint.title}" (${compId})...`).catch(() => {
-                          Alert.alert('Error', 'WhatsApp is not installed on this device.');
+                          AppAlert.alert('Error', 'WhatsApp is not installed on this device.');
                        });
                     }}
                   >

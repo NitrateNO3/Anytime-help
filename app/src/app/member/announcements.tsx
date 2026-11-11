@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler, Modal, TextInput, Alert, KeyboardAvoidingView, Image, Keyboard } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar, RefreshControl, Platform, ActivityIndicator, BackHandler, Modal, TextInput, KeyboardAvoidingView, Image, Keyboard } from 'react-native';
+import { AppAlert } from '../../components/AppAlert';
 import ZoomableImage from '../../components/ZoomableImage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
@@ -156,7 +157,7 @@ export default function Announcements() {
 
   const handleCreateAnnouncement = async () => {
     if (!newTitle.trim() || !newDesc.trim()) {
-      Alert.alert('Validation Error', 'Title and description are required.');
+      AppAlert.alert('Validation Error', 'Title and description are required.');
       return;
     }
 
@@ -173,7 +174,7 @@ export default function Announcements() {
         headers: { 'x-auth-token': token }
       });
       
-      Alert.alert('Success', 'Announcement posted successfully');
+      AppAlert.alert('Success', 'Announcement posted successfully');
       setCreateModalVisible(false);
       setNewTitle('');
       setNewDesc('');
@@ -181,7 +182,7 @@ export default function Announcements() {
       fetchAnnouncements();
     } catch (err: any) {
       console.log('Error creating announcement:', err);
-      Alert.alert('Error', err.response?.data?.msg || 'Failed to create announcement');
+      AppAlert.alert('Error', err.response?.data?.msg || 'Failed to create announcement');
     } finally {
       setIsCreating(false);
     }

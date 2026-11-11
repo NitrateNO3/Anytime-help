@@ -4,6 +4,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { MapPin, Plus, Pencil, Trash2, UserPlus, X, ArrowRight, Users } from 'lucide-react';
 import { API_URL, isPlatformSuperAdmin, getSelectedArea, setSelectedArea } from '../lib/area';
+import { confirmDialog } from '../components/ConfirmDialog';
 
 type Phase = { name: string; blocks: string[] };
 type AreaType = 'sector' | 'village';
@@ -160,7 +161,7 @@ export default function Areas() {
 
   const toggleActive = async (area: Area) => {
     const next = !area.is_active;
-    if (!next && !window.confirm(`Hide "${area.name}" from the app registration screen? Existing users keep working.`)) return;
+    if (!next && !(await confirmDialog({ title: `Hide "${area.name}"?`, message: 'It will be hidden from the app registration screen. Existing users keep working.', confirmText: 'Hide' }))) return;
     try {
       await axios.put(`${API_URL}/areas/${area._id}`, { is_active: next }, authHeaders());
       toast.success(next ? 'Area is now visible on registration' : 'Area hidden from registration');
@@ -171,7 +172,7 @@ export default function Areas() {
   };
 
   const deleteArea = async (area: Area) => {
-    if (!window.confirm(`Delete "${area.name}" permanently? Only an empty area (no residents, staff, admins or complaints) can be deleted. Its categories and other setup are deleted too.`)) return;
+    if (!(await confirmDialog({ title: `Delete "${area.name}" permanently?`, message: 'Only an empty area (no residents, staff, admins or complaints) can be deleted. Its categories and other setup are deleted too.', confirmText: 'Delete', danger: true }))) return;
     try {
       await axios.delete(`${API_URL}/areas/${area._id}`, authHeaders());
       if (getSelectedArea() === area._id) setSelectedArea(null);
@@ -210,7 +211,7 @@ export default function Areas() {
   };
 
   const removeAdmin = async (area: Area, admin: AreaAdmin) => {
-    if (!window.confirm(`Remove ${admin.name || admin.phone_number || admin.email} as admin of ${area.name}?`)) return;
+    if (!(await confirmDialog({ title: 'Remove admin?', message: `${admin.name || admin.phone_number || admin.email} will no longer be an admin of ${area.name}.`, confirmText: 'Remove', danger: true }))) return;
     try {
       await axios.delete(`${API_URL}/areas/${area._id}/admins/${admin._id}`, authHeaders());
       toast.success('Admin removed');

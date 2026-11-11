@@ -8,12 +8,8 @@
 //      or when the app comes back to the foreground, only what changed since
 //      the last sync is fetched (`?since=`), instead of re-downloading the chat.
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Pressable,
-  KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Alert,
-  Keyboard, Animated, Easing, BackHandler, AppState, Modal, LayoutAnimation, Linking, PanResponder,
-  NativeScrollEvent, NativeSyntheticEvent,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TextInput, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform, ActivityIndicator, StatusBar, Keyboard, Animated, Easing, BackHandler, AppState, Modal, LayoutAnimation, Linking, PanResponder, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
+import { AppAlert } from '../../components/AppAlert';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -183,7 +179,7 @@ const openLink = (raw: string) => {
   if (/@/.test(url) && !/^https?:/i.test(url)) url = `mailto:${url}`;
   else if (/^[+\d]/.test(url) && !/^https?:/i.test(url)) url = `tel:${url.replace(/[\s-]/g, '')}`;
   else if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-  Linking.openURL(url).catch(() => Alert.alert('Cannot open', raw));
+  Linking.openURL(url).catch(() => AppAlert.alert('Cannot open', raw));
 };
 
 function LinkedText({ text, style, linkStyle, onLongPress }: { text: string; style: any; linkStyle: any; onLongPress?: () => void }) {
@@ -483,7 +479,7 @@ export default function MemberChatRoomScreen() {
         }
       }
       if (!messagesRef.current.some((m) => m._id === messageId)) {
-        Alert.alert('Message not found', 'The original message may have been removed.');
+        AppAlert.alert('Message not found', 'The original message may have been removed.');
         return;
       }
     }
@@ -718,7 +714,7 @@ export default function MemberChatRoomScreen() {
       // Keep the message on screen, marked as failed, so it can be retried
       setMessages((prev) => prev.map((m) => (m._id === tempId ? { ...m, failed: true } : m)));
       const msg = err?.response?.data?.msg;
-      if (msg && err?.response?.status === 403) Alert.alert('Not sent', msg);
+      if (msg && err?.response?.status === 403) AppAlert.alert('Not sent', msg);
     }
   };
 
@@ -738,7 +734,7 @@ export default function MemberChatRoomScreen() {
         await axios.put(`${API_URL}/chat/messages/${editingId}`, { new_text: text }, { headers: { 'x-auth-token': token } });
       } catch (err: any) {
         setMessages((prev) => prev.map((m) => (m._id === editingId ? { ...m, text: previousText } : m)));
-        Alert.alert('Error', err?.response?.data?.msg || 'Could not edit message');
+        AppAlert.alert('Error', err?.response?.data?.msg || 'Could not edit message');
       }
       return;
     }
@@ -773,7 +769,7 @@ export default function MemberChatRoomScreen() {
   };
 
   const deleteMessage = (msgId: string) => {
-    Alert.alert('Delete message?', 'This message will be deleted for everyone.', [
+    AppAlert.alert('Delete message?', 'This message will be deleted for everyone.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -784,7 +780,7 @@ export default function MemberChatRoomScreen() {
             const token = await getToken();
             await axios.delete(`${API_URL}/chat/messages/${msgId}`, { headers: { 'x-auth-token': token } });
           } catch (err: any) {
-            Alert.alert('Error', err?.response?.data?.msg || 'Could not delete message');
+            AppAlert.alert('Error', err?.response?.data?.msg || 'Could not delete message');
             syncChanges();
           }
         },

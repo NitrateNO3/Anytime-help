@@ -1,9 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Animated,
-  Dimensions, TextInput, ActivityIndicator, Alert, Platform, KeyboardAvoidingView,
-  Pressable, StatusBar, TouchableWithoutFeedback,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Animated, Dimensions, TextInput, ActivityIndicator, Platform, KeyboardAvoidingView, Pressable, StatusBar, TouchableWithoutFeedback } from 'react-native';
+import { AppAlert } from './AppAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -327,7 +324,7 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
 
   const confirmDelete = () => {
     pause();
-    Alert.alert('Delete story?', 'This story will be removed for everyone.', [
+    AppAlert.alert('Delete story?', 'This story will be removed for everyone.', [
       { text: 'Cancel', style: 'cancel', onPress: resume },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
@@ -336,7 +333,7 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
             onDeleted();
             onClose();
           } catch (err: any) {
-            Alert.alert('Error', err.response?.data?.msg || 'Could not delete story');
+            AppAlert.alert('Error', err.response?.data?.msg || 'Could not delete story');
             resume();
           }
         },
@@ -579,7 +576,7 @@ function StoryComposer({ targets, onClose, onPosted }: {
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== 'granted') {
-      Alert.alert('Permission needed', fromCamera ? 'Camera access is required.' : 'Photo library access is required.');
+      AppAlert.alert('Permission needed', fromCamera ? 'Camera access is required.' : 'Photo library access is required.');
       return;
     }
     const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.6, base64: true, allowsEditing: true };
@@ -603,7 +600,7 @@ function StoryComposer({ targets, onClose, onPosted }: {
       });
       onPosted();
     } catch (err: any) {
-      Alert.alert('Could not post', err.response?.data?.msg || 'Please try again.');
+      AppAlert.alert('Could not post', err.response?.data?.msg || 'Please try again.');
     } finally {
       setPosting(false);
     }

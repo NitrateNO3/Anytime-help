@@ -11,6 +11,7 @@ import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../lib/area';
 import '../index.css';
 import './Communities.css';
+import { confirmDialog } from '../components/ConfirmDialog';
 
 const getInitialApiUrl = () => {
   return import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://anytime-help.onrender.com/api');
@@ -439,7 +440,7 @@ export default function Communities() {
 
   // Delete Community
   const handleDeleteCommunity = async (id: string, name: string) => {
-    if (!window.confirm(`Are you sure you want to delete community "${name}" and all its channels?`)) {
+    if (!(await confirmDialog({ title: `Delete community "${name}"?`, message: 'All its channels and messages will be deleted too.', confirmText: 'Delete', danger: true }))) {
       return;
     }
     try {
@@ -515,7 +516,7 @@ export default function Communities() {
 
   // Delete Section
   const handleDeleteSection = async (secId: string, name: string) => {
-    if (!window.confirm(`Delete channel "${name}"?`)) return;
+    if (!(await confirmDialog({ title: `Delete channel "${name}"?`, message: 'All messages in this channel will be removed.', confirmText: 'Delete', danger: true }))) return;
     try {
       await axios.delete(`${API_URL}/community/sections/${secId}`, getHeaders());
       toast.success('Channel deleted');
@@ -670,7 +671,7 @@ export default function Communities() {
   // Delete a message (admins can delete any message in the channel)
   const handleDeleteMessage = async (msg: MessageItem) => {
     if (!activeSection || msg._id.startsWith('temp_')) return;
-    if (!window.confirm('Delete this message for everyone?')) return;
+    if (!(await confirmDialog({ title: 'Delete this message?', message: 'It will be deleted for everyone.', confirmText: 'Delete', danger: true }))) return;
     const before = messages;
     setMessages(prev => prev.filter(m => m._id !== msg._id));
     try {

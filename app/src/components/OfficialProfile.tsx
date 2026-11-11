@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Share, Platform, RefreshControl,
-  TextInput, Alert, KeyboardAvoidingView, Keyboard, Animated, Pressable,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, ActivityIndicator, Share, Platform, RefreshControl, TextInput, KeyboardAvoidingView, Keyboard, Animated, Pressable } from 'react-native';
+import { AppAlert } from './AppAlert';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
@@ -303,7 +301,7 @@ export default function OfficialProfile({
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== 'granted') {
-      Alert.alert('Permission needed', fromCamera ? 'Camera access is required.' : 'Photo library access is required.');
+      AppAlert.alert('Permission needed', fromCamera ? 'Camera access is required.' : 'Photo library access is required.');
       return;
     }
     const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 0.6, base64: true };
@@ -314,7 +312,7 @@ export default function OfficialProfile({
   };
 
   const choosePhoto = () => {
-    Alert.alert('Add photo', undefined, [
+    AppAlert.alert('Add photo', undefined, [
       { text: 'Camera', onPress: () => pickImage(true) },
       { text: 'Gallery', onPress: () => pickImage(false) },
       { text: 'Cancel', style: 'cancel' },
@@ -333,14 +331,14 @@ export default function OfficialProfile({
       setDraft('');
       setDraftImage(null);
     } catch (err: any) {
-      Alert.alert('Could not post', err.response?.data?.msg || 'Please try again.');
+      AppAlert.alert('Could not post', err.response?.data?.msg || 'Please try again.');
     } finally {
       setPosting(false);
     }
   };
 
   const deletePost = (post: OfficialPost) => {
-    Alert.alert('Delete update?', 'It will be removed for everyone.', [
+    AppAlert.alert('Delete update?', 'It will be removed for everyone.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
@@ -348,7 +346,7 @@ export default function OfficialProfile({
             await axios.delete(`${API_URL}/officials/posts/${post._id}`);
             setPosts(prev => prev.filter(p => p._id !== post._id));
           } catch (err: any) {
-            Alert.alert('Error', err.response?.data?.msg || 'Could not delete');
+            AppAlert.alert('Error', err.response?.data?.msg || 'Could not delete');
           }
         },
       },
@@ -362,7 +360,7 @@ export default function OfficialProfile({
     try {
       await Share.share({ message, title: who });
     } catch {
-      Alert.alert('Could not share', 'Please try again.');
+      AppAlert.alert('Could not share', 'Please try again.');
     }
   };
 
