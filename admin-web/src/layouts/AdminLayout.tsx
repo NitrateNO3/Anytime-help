@@ -5,6 +5,9 @@ import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, Bo
 import { API_URL, getSelectedArea, setSelectedArea } from '../lib/area';
 import logoImg from '../assets/logo.png';
 
+// Platform-wide pages: only in the Super Admin view, never inside an area
+const SUPER_ADMIN_ONLY = ['/officials', '/maintenance'];
+
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,12 +35,20 @@ export default function AdminLayout() {
 
   // Area-specific screens need an area picked first (see the prompt below)
   // (Areas and Officials are Super Admin screens and work without an area.)
-  const needsArea = isPlatformAdmin && !selectedArea && !['/areas', '/officials', '/maintenance'].includes(location.pathname);
+  const needsArea = isPlatformAdmin && !selectedArea && !['/areas', ...SUPER_ADMIN_ONLY].includes(location.pathname);
+
+  // Platform-wide pages never open inside an area (e.g. via a bookmarked URL)
+  const onSuperAdminOnlyPage = SUPER_ADMIN_ONLY.includes(location.pathname);
+  useEffect(() => {
+    if (selectedArea && onSuperAdminOnlyPage) navigate('/dashboard', { replace: true });
+  }, [selectedArea, onSuperAdminOnlyPage, navigate]);
 
   const switchArea = (id: string) => {
     setSelectedArea(id || null);
-    // Full reload so every screen and socket reconnects inside the new area
-    window.location.href = id ? (location.pathname === '/areas' ? '/dashboard' : location.pathname) : '/areas';
+    // Full reload so every screen and socket reconnects inside the new area.
+    // Areas and the Super-Admin-only pages don't exist inside an area: go to the dashboard.
+    const stay = location.pathname !== '/areas' && !SUPER_ADMIN_ONLY.includes(location.pathname);
+    window.location.href = id ? (stay ? location.pathname : '/dashboard') : '/areas';
   };
   
   const hasAccess = (section: string) => {
@@ -229,7 +240,7 @@ export default function AdminLayout() {
               <Link to="/areas" className="btn btn-primary" style={{ display: 'inline-flex' }}>Go to Areas</Link>
             )}
           </div>
-        ) : (
+        ) : (selectedArea && onSuperAdminOnlyPage) ? null : (
           <Outlet />
         )}
       </main>
