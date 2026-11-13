@@ -170,7 +170,10 @@
     "followToRead": "Follow this channel to view live updates and messages",
     "channels": "Channels",
     "status": "Status",
-    "officials": "Officials"
+    "officials": "Officials",
+    "followStatusHint": "Follow an official to see their Status (stories) on your Home screen.",
+    "followedTitle": "Following {{name}}",
+    "followedMsg": "You will now see {{name}}'s Status (stories) and updates on your Home screen."
   },
   "register": {
     "title": "Create Account",

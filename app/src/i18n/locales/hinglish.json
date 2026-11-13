@@ -123,7 +123,10 @@
     "followToRead": "Updates aur messages dekhne ke liye follow karein",
     "channels": "Channels",
     "status": "Status",
-    "officials": "Officials"
+    "officials": "Officials",
+    "followStatusHint": "Kisi official ko follow karein, tabhi unka Status aapki Home screen par dikhega.",
+    "followedTitle": "{{name}} ko follow kiya",
+    "followedMsg": "Ab {{name}} ka Status aur updates aapki Home screen par dikhenge."
   },
   "register": {
     "title": "Account Banayein",

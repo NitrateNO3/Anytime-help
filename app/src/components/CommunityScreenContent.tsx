@@ -379,6 +379,13 @@ export default function CommunityScreenContent({
       setOfficials(prev => prev.map(x => (x._id === o._id ? { ...x, ...res.data } : x)));
       // Official status is shown to followers only
       refreshStoriesBar();
+      // Tell the user where the official's status will now appear
+      if (!o.is_following && !o.is_mine) {
+        AppAlert.alert(
+          t('community.followedTitle', { name: o.name, defaultValue: `Following ${o.name}` }),
+          t('community.followedMsg', { name: o.name, defaultValue: `You will now see ${o.name}'s Status (stories) and updates on your Home screen.` }),
+        );
+      }
     } catch (err: any) {
       AppAlert.alert('Error', err.response?.data?.msg || 'Failed to update follow status');
     } finally {
@@ -981,6 +988,15 @@ export default function CommunityScreenContent({
                   Following {officials.filter(o => o.is_following).length} of {officials.length}
                 </Text>
               </View>
+              {/* Officials' status reaches followers only, so say so up front */}
+              {officials.some(o => !o.is_following && !o.is_mine) && (
+                <View style={styles.ofHint}>
+                  <Ionicons name="information-circle" size={18} color="#2563EB" />
+                  <Text style={styles.ofHintText}>
+                    {t('community.followStatusHint', { defaultValue: 'Follow an official to see their Status (stories) on your Home screen.' })}
+                  </Text>
+                </View>
+              )}
               <View style={styles.lvCard}>
                 {filteredOfficials.map((o, idx) => {
                   const pal = officialPalette(o.name);
@@ -1261,6 +1277,11 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 21, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center',
     shadowColor: '#0F172A', shadowOpacity: 0.08, shadowRadius: 6, shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
+  ofHint: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#EFF6FF', borderWidth: 1, borderColor: '#BFDBFE',
+    borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 10,
+  },
+  ofHintText: { flex: 1, fontSize: 13, color: '#1E3A8A', fontWeight: '600', lineHeight: 18 },
   lvSectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6, marginBottom: 10 },
   lvSectionTitle: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
   lvSectionHint: { fontSize: 12, color: '#64748B', fontWeight: '600' },
