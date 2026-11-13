@@ -14,6 +14,15 @@ import { socketAuth } from '../../utils/socketAuth';
 
 import Toast from 'react-native-toast-message';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
+import {
+  PartnerPromoCard, PartnerHospitals, PartnerSpotlight, WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter,
+} from '../../components/home/ResidentHomeExtras';
+
+const comingSoon = () =>
+  Toast.show({ type: 'info', text1: 'Coming soon', text2: 'This feature will be live shortly.', position: 'bottom', visibilityTime: 2000 });
+
+// Featured updates: cards peek so the next one is visible
+const FEATURED_GAP = 12;
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -40,6 +49,8 @@ export default function MemberHome() {
   const bottomBannerFlatListRef = useRef<FlatList>(null);
   const bottomBannerIndexRef = useRef(0);
   const [bottomBannerCardWidth, setBottomBannerCardWidth] = useState(Dimensions.get('window').width - 32);
+  // One banner fills the row; several peek (~85% wide)
+  const featuredCardWidth = bottomBanners.length > 1 ? Math.round(bottomBannerCardWidth * 0.86) : bottomBannerCardWidth;
 
   // Fullscreen Banner Image Preview Modal State
   const [previewImage, setPreviewImage] = useState<{ url: string; title?: string; link?: string } | null>(null);
@@ -164,7 +175,7 @@ export default function MemberHome() {
         setBottomBannerIndex(nextIndex);
         if (bottomBannerCardWidth > 0 && bottomBannerFlatListRef.current) {
           bottomBannerFlatListRef.current.scrollToOffset({
-            offset: nextIndex * bottomBannerCardWidth,
+            offset: nextIndex * (featuredCardWidth + FEATURED_GAP),
             animated: true,
           });
         }
@@ -344,48 +355,44 @@ export default function MemberHome() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
-      {/* Modern Compact Branded Header */}
-      <View style={styles.headerWrapper}>
-        <LinearGradient
-          colors={['#0F172A', '#1E1B4B', '#1E293B']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.headerGradient}
+      {/* Header: logo · search · avatar */}
+      <View style={styles.headerBar}>
+        <Image
+          source={require('../../../assets/images/logo.png')}
+          style={styles.headerLogo}
+          resizeMode="contain"
+        />
+        <TouchableOpacity style={styles.searchPill} activeOpacity={0.8} onPress={comingSoon}>
+          <Ionicons name="search" size={18} color="#475569" />
+          <Text style={styles.searchPlaceholder} numberOfLines={1}>Search 'doctor', 'grocery'…</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.avatarContainer}
+          onPress={() => router.navigate('/member/settings')}
+          activeOpacity={0.8}
         >
-          {/* Top Row: App Branding + Profile Settings */}
-          <View style={styles.headerTopRow}>
-            <View style={styles.brandContainer}>
-              <View style={styles.brandLogoCircle}>
-                <Image 
-                  source={require('../../../assets/images/logo.png')} 
-                  style={{ width: '100%', height: '100%' }} 
-                  resizeMode="contain" 
-                />
-              </View>
-              <View style={styles.brandTextGroup}>
-                <Text style={styles.brandName}>ANYTIME HELP</Text>
-                <View style={styles.portalPill}>
-                  <Text style={styles.portalPillText}>MEMBER PORTAL</Text>
-                </View>
-              </View>
-            </View>
+          <Text style={styles.avatarInitials}>
+            {(user?.name || 'M').split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-            <TouchableOpacity 
-              style={styles.avatarContainer} 
-              onPress={() => router.navigate('/member/settings')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="person" size={20} color="#1E1B4B" />
-            </TouchableOpacity>
-          </View>
-
-          {/* User Welcome Row with Member ID */}
-          <View style={styles.userWelcomeRow}>
+      {/* Main Content Body */}
+      <ScrollView
+        style={styles.bodyScroll}
+        contentContainerStyle={styles.scrollContentContainer}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1D4ED8']} />
+        }
+      >
+          {/* Greeting with Member ID */}
+          <View style={styles.greetRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.greetingText} numberOfLines={1}>
-                {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Member'}
+                {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Member'} 👋
               </Text>
 
               <View style={styles.badgeRow}>
@@ -413,18 +420,7 @@ export default function MemberHome() {
               </View>
             </View>
           </View>
-        </LinearGradient>
-      </View>
 
-      {/* Main Content Body */}
-      <ScrollView 
-        style={styles.bodyScroll}
-        contentContainerStyle={styles.scrollContentContainer}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0F172A']} />
-        }
-      >
         {/* Profile incomplete warning */}
         {(!user?.address || user?.address.trim() === '') && (
           <TouchableOpacity 
@@ -555,10 +551,6 @@ export default function MemberHome() {
 
         {/* 6 Circular Quick Actions (2 Rows of 3) */}
         <View style={styles.quickActionsContainer}>
-          <View style={styles.sectionHeaderRow}>
-            <Text style={styles.sectionTitle}>Quick Services</Text>
-          </View>
-
           <View style={styles.sixGridWrapper}>
             {/* 1: Raise Complaint */}
             <View style={styles.gridItemColumn}>
@@ -570,7 +562,7 @@ export default function MemberHome() {
                     activeOpacity={0.75}
                   >
                     <View style={[styles.circleIcon, { backgroundColor: '#DBEAFE', borderColor: '#BFDBFE' }]}>
-                      <Ionicons name="add-circle" size={25} color="#2563EB" />
+                      <Ionicons name="add-circle-outline" size={28} color="#2563EB" />
                     </View>
                     <Text style={styles.actionLabel} numberOfLines={2}>
                       {t('member.raiseComplaint', { defaultValue: 'Raise Issue' })}
@@ -590,7 +582,7 @@ export default function MemberHome() {
                     activeOpacity={0.75}
                   >
                     <View style={[styles.circleIcon, { backgroundColor: '#D1FAE5', borderColor: '#A7F3D0' }]}>
-                      <Ionicons name="list" size={24} color="#059669" />
+                      <Ionicons name="document-text-outline" size={26} color="#059669" />
                     </View>
                     <Text style={styles.actionLabel} numberOfLines={2}>
                       {user?.permissions?.includes('All Complaints') 
@@ -612,7 +604,7 @@ export default function MemberHome() {
                     activeOpacity={0.75}
                   >
                     <View style={[styles.circleIcon, { backgroundColor: '#EDE9FE', borderColor: '#DDD6FE' }]}>
-                      <Ionicons name="notifications" size={24} color="#7C3AED" />
+                      <Ionicons name="notifications-outline" size={26} color="#7C3AED" />
                       {unreadCount > 0 && (
                         <View style={styles.badgeContainer}>
                           <Text style={styles.badgeText}>{unreadCount}</Text>
@@ -638,7 +630,7 @@ export default function MemberHome() {
                     activeOpacity={0.75}
                   >
                     <View style={[styles.circleIcon, { backgroundColor: '#FCE7F3', borderColor: '#FBCFE8' }]}>
-                      <Ionicons name="people" size={24} color="#DB2777" />
+                      <Ionicons name="people-outline" size={26} color="#DB2777" />
                     </View>
                     <Text style={styles.actionLabel} numberOfLines={2}>
                       {t('member.residents', { defaultValue: 'Residents' })}
@@ -659,7 +651,7 @@ export default function MemberHome() {
                     activeOpacity={0.75}
                   >
                     <View style={[styles.circleIcon, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
-                      <Ionicons name="call" size={24} color="#D97706" />
+                      <Ionicons name="call-outline" size={26} color="#D97706" />
                     </View>
                     <Text style={styles.actionLabel} numberOfLines={2}>
                       {t('resident.directory', 'Directory')}
@@ -674,38 +666,39 @@ export default function MemberHome() {
         {/* Status Tracker: Pending | Progress | Done */}
         <View style={styles.trackerContainer}>
           <View style={styles.trackerHeader}>
-            <View style={styles.trackerTitleGroup}>
-              <Ionicons name="stats-chart" size={17} color="#1E293B" style={{ marginRight: 6 }} />
-              <Text style={styles.trackerTitle}>Complaints Overview</Text>
+            <View style={[styles.trackerTitleGroup, { flex: 1, marginRight: 8 }]}>
+              <Text style={styles.trackerTitle}>Complaints overview</Text>
+              {!!user?.phase && <Text style={styles.trackerArea} numberOfLines={1}>{user.phase}</Text>}
+            </View>
+            {/* 30-day range needs backend support: static for now */}
+            <View style={styles.rangeSwitch}>
+              <TouchableOpacity style={styles.rangeBtn} activeOpacity={0.7} onPress={comingSoon}>
+                <Text style={styles.rangeText}>30 days</Text>
+              </TouchableOpacity>
+              <View style={[styles.rangeBtn, styles.rangeBtnOn]}>
+                <Text style={[styles.rangeText, styles.rangeTextOn]}>All time</Text>
+              </View>
             </View>
           </View>
 
           <View style={styles.trackerStatsRow}>
-            {/* Pending Stat */}
-            <View style={[styles.statBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
-              <View style={[styles.statIconBadge, { backgroundColor: '#FEF3C7' }]}>
-                <Ionicons name="time" size={14} color="#D97706" />
-              </View>
-              <Text style={[styles.statNumber, { color: '#B45309' }]}>{stats.pending}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+            <View style={styles.statCol}>
+              <Text style={[styles.statNumber, { color: '#0F172A' }]}>
+                {(stats.pending + stats.inProgress + stats.resolved).toLocaleString('en-IN')}
+              </Text>
+              <Text style={styles.statLabel}>Registered</Text>
             </View>
-
-            {/* In Progress Stat */}
-            <View style={[styles.statBox, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-              <View style={[styles.statIconBadge, { backgroundColor: '#DBEAFE' }]}>
-                <Ionicons name="sync" size={14} color="#2563EB" />
-              </View>
-              <Text style={[styles.statNumber, { color: '#1D4ED8' }]}>{stats.inProgress}</Text>
-              <Text style={styles.statLabel}>In Progress</Text>
-            </View>
-
-            {/* Done / Resolved Stat */}
-            <View style={[styles.statBox, { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}>
-              <View style={[styles.statIconBadge, { backgroundColor: '#D1FAE5' }]}>
-                <Ionicons name="checkmark-done" size={14} color="#059669" />
-              </View>
-              <Text style={[styles.statNumber, { color: '#047857' }]}>{stats.resolved}</Text>
+            <View style={styles.statDivider} />
+            <View style={styles.statCol}>
+              <Text style={[styles.statNumber, { color: '#15803D' }]}>{stats.resolved.toLocaleString('en-IN')}</Text>
               <Text style={styles.statLabel}>Resolved</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statCol}>
+              <Text style={[styles.statNumber, { color: '#A16207' }]}>
+                {(stats.pending + stats.inProgress).toLocaleString('en-IN')}
+              </Text>
+              <Text style={styles.statLabel}>Pending</Text>
             </View>
           </View>
         </View>
@@ -713,24 +706,16 @@ export default function MemberHome() {
         {/* Dynamic Bottom Banner Slider Section */}
         <View style={styles.announcementSection}>
           <View style={styles.sectionHeaderRow}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons 
-                name={bottomBanners.length > 0 ? "images-outline" : "megaphone-outline"} 
-                size={18} 
-                color="#1E293B" 
-                style={{ marginRight: 6 }} 
-              />
-              <Text style={styles.sectionTitle}>
-                {bottomBanners.length > 0 ? 'Featured Updates' : 'Latest Notice'}
-              </Text>
-            </View>
-            <TouchableOpacity 
+            <Text style={styles.sectionTitle}>
+              {bottomBanners.length > 0 ? 'Featured updates' : 'Latest notice'}
+            </Text>
+            <TouchableOpacity
               onPress={() => router.push('/member-announcements' as any)}
               style={styles.trackerSeeAllBtn}
               activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Text style={styles.trackerSeeAllText}>Notices</Text>
-              <Ionicons name="chevron-forward" size={14} color="#2563EB" />
+              <Text style={styles.trackerSeeAllText}>Announcements</Text>
             </TouchableOpacity>
           </View>
 
@@ -765,8 +750,7 @@ export default function MemberHome() {
                 </View>
               </TouchableOpacity>
             ) : (
-              <View 
-                style={styles.announcementCard}
+              <View
                 onLayout={(e) => {
                   const w = e.nativeEvent.layout.width;
                   if (w > 0) setBottomBannerCardWidth(w);
@@ -776,17 +760,21 @@ export default function MemberHome() {
                   ref={bottomBannerFlatListRef}
                   data={bottomBanners}
                   horizontal
-                  pagingEnabled
+                  // Peeking cards: snap one card (+gap) at a time
+                  snapToInterval={featuredCardWidth + FEATURED_GAP}
+                  decelerationRate="fast"
                   showsHorizontalScrollIndicator={false}
+                  style={{ overflow: 'visible' }}
+                  ItemSeparatorComponent={() => <View style={{ width: FEATURED_GAP }} />}
                   keyExtractor={(item, index) => item._id || `bottom-banner-${index}`}
                   getItemLayout={(_, index) => ({
-                    length: bottomBannerCardWidth,
-                    offset: bottomBannerCardWidth * index,
+                    length: featuredCardWidth + FEATURED_GAP,
+                    offset: (featuredCardWidth + FEATURED_GAP) * index,
                     index,
                   })}
                   onMomentumScrollEnd={(e: any) => {
-                    if (bottomBannerCardWidth > 0) {
-                      const idx = Math.round(e.nativeEvent.contentOffset.x / bottomBannerCardWidth);
+                    if (featuredCardWidth > 0) {
+                      const idx = Math.round(e.nativeEvent.contentOffset.x / (featuredCardWidth + FEATURED_GAP));
                       const safeIdx = Math.max(0, Math.min(idx, bottomBanners.length - 1));
                       bottomBannerIndexRef.current = safeIdx;
                       setBottomBannerIndex(safeIdx);
@@ -796,7 +784,7 @@ export default function MemberHome() {
                     <TouchableOpacity
                       activeOpacity={0.9}
                       onPress={() => setPreviewImage({ url: item.url, title: item.title, link: item.link })}
-                      style={{ width: bottomBannerCardWidth, height: 160, position: 'relative' }}
+                      style={[styles.featuredCard, { width: featuredCardWidth }]}
                     >
                       <Image 
                         source={{ uri: item.url }} 
@@ -821,19 +809,6 @@ export default function MemberHome() {
                     </TouchableOpacity>
                   )}
                 />
-
-                {/* Slider Pagination Dots */}
-                <View style={styles.bannerDotsContainer}>
-                  {bottomBanners.map((_, i) => (
-                    <View 
-                      key={i} 
-                      style={[
-                        styles.bannerDot, 
-                        bottomBannerIndex === i ? styles.bannerDotActive : styles.bannerDotInactive
-                      ]} 
-                    />
-                  ))}
-                </View>
               </View>
             )
           ) : latestAnnouncement ? (
@@ -871,8 +846,17 @@ export default function MemberHome() {
           )}
         </View>
 
-        {/* Bottom padding */}
-        <View style={{ height: 60 }} />
+        {/* New sections: static UI until their backend is ready */}
+        <PartnerPromoCard />
+        <PartnerHospitals />
+        <PartnerSpotlight />
+        <WhyResidentsLove />
+        <SponsoredAds />
+        <LocalBusinesses />
+        <HomeFooter />
+
+        {/* Room for the floating tab bar */}
+        <View style={{ height: 110 }} />
       </ScrollView>
 
       {/* Fullscreen Banner Image Preview Modal */}
@@ -955,7 +939,101 @@ export default function MemberHome() {
 const styles = StyleSheet.create({
   safeArea: { 
     flex: 1, 
-    backgroundColor: '#F8FAFC' 
+    backgroundColor: '#FFFFFF'
+  },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'android' ? (RNStatusBar.currentHeight ? RNStatusBar.currentHeight + 8 : 30) : 48,
+    paddingBottom: 10,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+  },
+  headerLogo: {
+    width: 38,
+    height: 38,
+  },
+  searchPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    paddingHorizontal: 14,
+  },
+  searchPlaceholder: {
+    flex: 1,
+    color: '#64748B',
+    fontSize: 14,
+  },
+  avatarInitials: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  greetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  trackerArea: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '600',
+    marginLeft: 6,
+    flexShrink: 1,
+  },
+  rangeSwitch: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 12,
+    padding: 3,
+  },
+  rangeBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9,
+  },
+  rangeBtnOn: {
+    backgroundColor: '#FFFFFF',
+    elevation: 1,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+  },
+  rangeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#64748B',
+  },
+  rangeTextOn: {
+    color: '#0F172A',
+  },
+  statCol: {
+    flex: 1,
+    paddingLeft: 4,
+  },
+  statDivider: {
+    width: 1,
+    alignSelf: 'stretch',
+    backgroundColor: '#E2E8F0',
+    marginHorizontal: 10,
+  },
+  featuredCard: {
+    height: 150,
+    borderRadius: 18,
+    overflow: 'hidden',
+    backgroundColor: '#F1F5F9',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
   },
   headerWrapper: {
     borderBottomLeftRadius: 28,
@@ -1015,27 +1093,22 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   avatarContainer: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: '#FFFFFF',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#1D4ED8',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
   },
   userWelcomeRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   greetingText: {
-    fontSize: 18,
-    color: '#FFFFFF',
-    fontWeight: '700',
-    letterSpacing: 0.2,
+    fontSize: 22,
+    color: '#0F172A',
+    fontWeight: '800',
+    letterSpacing: -0.3,
     marginBottom: 6,
   },
   badgeRow: {
@@ -1063,13 +1136,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   designationBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: '#EFF6FF',
     paddingHorizontal: 9,
     paddingVertical: 3.5,
     borderRadius: 12,
   },
   designationText: {
-    color: '#E2E8F0',
+    color: '#1E40AF',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -1210,18 +1283,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   quickActionsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingVertical: 16,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#F1F5F9',
-    elevation: 2,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    marginBottom: 18,
   },
   sectionHeaderRow: {
     flexDirection: 'row',
@@ -1231,10 +1293,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 19,
     fontWeight: '800',
-    color: '#1E293B',
-    letterSpacing: -0.2,
+    color: '#0F172A',
+    letterSpacing: -0.3,
   },
   sixGridWrapper: {
     flexDirection: 'row',
@@ -1244,34 +1306,30 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   gridItemColumn: {
-    width: '33.33%',
+    width: '25%',
     alignItems: 'center',
   },
   actionTouchable: {
     alignItems: 'center',
     width: '100%',
   },
+  // Rounded-square pastel tile
   circleIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 66,
+    height: 66,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 6,
-    borderWidth: 1.5,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
+    marginBottom: 8,
+    borderWidth: 1,
     position: 'relative',
   },
   actionLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#334155',
+    fontSize: 12.5,
+    fontWeight: '600',
+    color: '#0F172A',
     textAlign: 'center',
-    lineHeight: 15,
+    lineHeight: 16,
   },
   badgeContainer: {
     position: 'absolute',
@@ -1296,14 +1354,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 26,
     borderWidth: 1,
-    borderColor: '#F1F5F9',
-    elevation: 2,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    borderColor: '#EEF2F7',
   },
   trackerHeader: {
     flexDirection: 'row',
@@ -1332,8 +1385,7 @@ const styles = StyleSheet.create({
   },
   trackerStatsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    gap: 8,
+    alignItems: 'center',
   },
   statBox: {
     flex: 1,
@@ -1352,17 +1404,18 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   statNumber: {
-    fontSize: 18,
-    fontWeight: '900',
+    fontSize: 24,
+    fontWeight: '800',
+    letterSpacing: -0.5,
     marginBottom: 2,
   },
   statLabel: {
-    fontSize: 11,
-    fontWeight: '700',
+    fontSize: 12.5,
+    fontWeight: '500',
     color: '#64748B',
   },
   announcementSection: {
-    marginBottom: 16,
+    marginBottom: 26,
   },
   announcementCard: {
     backgroundColor: '#FFFFFF',
