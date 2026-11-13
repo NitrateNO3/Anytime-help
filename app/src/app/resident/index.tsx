@@ -357,7 +357,7 @@ export default function ResidentHome() {
         {/* Greeting */}
         <View style={styles.greetRow}>
           <Text style={styles.greetingText} numberOfLines={1}>
-            {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Resident'} 👋
+            {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Resident'}
           </Text>
           <View style={styles.unitLocationBadge}>
             <Ionicons name="location-sharp" size={13} color="#2563EB" style={{ marginRight: 4 }} />

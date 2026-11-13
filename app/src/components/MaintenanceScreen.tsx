@@ -62,7 +62,7 @@ export default function MaintenanceScreen({ state, onRetry }: Props) {
             ? <ActivityIndicator color="#FFFFFF" />
             : <Text style={styles.buttonText}>Check again</Text>}
         </TouchableOpacity>
-        <Text style={styles.footer}>Thank you for your patience 🙏</Text>
+        <Text style={styles.footer}>Thank you for your patience</Text>
       </View>
     </Modal>
   );

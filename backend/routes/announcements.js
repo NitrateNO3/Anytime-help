@@ -717,7 +717,7 @@ router.post('/', auth, async (req, res) => {
       
       if (tokenObjects.length > 0) {
         const { sendPushNotifications } = require('../utils/push');
-        sendPushNotifications(tokenObjects, '📢 ' + title, message, { type: 'announcement', id: announcement._id });
+        sendPushNotifications(tokenObjects, title, message, { type: 'announcement', id: announcement._id });
       }
     } catch (pushErr) {
       console.error('Push notification error:', pushErr.message);

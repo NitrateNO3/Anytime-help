@@ -392,7 +392,7 @@ export default function MemberHome() {
           <View style={styles.greetRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.greetingText} numberOfLines={1}>
-                {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Member'} 👋
+                {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Member'}
               </Text>
 
               <View style={styles.badgeRow}>

@@ -569,12 +569,12 @@ export default function TaskDetailsScreen() {
             <View style={{ marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: '#FCA5A5' }}>
               {complaint.escalated_at && (
                 <Text style={{ fontSize: 12, color: '#B91C1C', fontWeight: '500' }}>
-                  🕒 Escalated At: {new Date(complaint.escalated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                  Escalated At: {new Date(complaint.escalated_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                 </Text>
               )}
               {(complaint.escalated_by_phone || complaint.escalated_by?.phone_number || complaint.escalated_by?.phone) && (
                 <Text style={{ fontSize: 12, color: '#991B1B', fontWeight: '600', marginTop: 3 }}>
-                  📞 Member Phone: {complaint.escalated_by_phone || complaint.escalated_by?.phone_number || complaint.escalated_by?.phone}
+                  Member Phone: {complaint.escalated_by_phone || complaint.escalated_by?.phone_number || complaint.escalated_by?.phone}
                 </Text>
               )}
             </View>
@@ -890,7 +890,7 @@ export default function TaskDetailsScreen() {
                     Resolution Address / Location
                   </Text>
                   <Text style={{ fontSize: 11, color: '#2563EB', fontWeight: '600' }}>
-                    ✏️ Editable
+                    Editable
                   </Text>
                 </View>
                 

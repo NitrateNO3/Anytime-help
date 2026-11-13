@@ -355,7 +355,7 @@ export default function OfficialProfile({
 
   const sharePost = async (post: OfficialPost) => {
     const who = `${official.name}${official.designation ? ` (${official.designation}${official.ward ? `, Ward ${official.ward}` : ''})` : ''}`;
-    const message = [`📢 ${who}`, post.text, post.image_url ? `Photo: ${post.image_url}` : '', 'Shared via Anytime Help']
+    const message = [`${who}`, post.text, post.image_url ? `Photo: ${post.image_url}` : '', 'Shared via Anytime Help']
       .filter(Boolean).join('\n\n');
     try {
       await Share.share({ message, title: who });

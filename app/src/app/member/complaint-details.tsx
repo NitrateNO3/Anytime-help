@@ -447,20 +447,20 @@ export default function ComplaintDetails() {
       displayAddress = parts.join(' - ') || 'N/A';
     }
 
-    let text = `📢 SLERWA\n\n`;
-    text += `🆔  ${compId}\n`;
-    text += `📌  ${complaint.title || 'Complaint'}\n`;
-    text += `🏷️  ${complaint.category || 'General'}\n`;
-    if (createdDate) text += `📅 ${createdDate}\n`;
-    if (createdTime) text += `⏰ ${createdTime}\n`;
+    let text = `SLERWA\n\n`;
+    text += `Complaint ID: ${compId}\n`;
+    text += `Title: ${complaint.title || 'Complaint'}\n`;
+    text += `Category: ${complaint.category || 'General'}\n`;
+    if (createdDate) text += `Date: ${createdDate}\n`;
+    if (createdTime) text += `Time: ${createdTime}\n`;
     text += `\n`;
-    text += `👤 ${residentName}\n`;
+    text += `Name: ${residentName}\n`;
     if (residentPhone) {
-      text += `📞 ${residentPhone}\n`;
+      text += `Phone: ${residentPhone}\n`;
     }
-    text += `🏠 *${displayAddress}*\n\n`;
+    text += `Address: *${displayAddress}*\n\n`;
     if (complaint.description && complaint.description.trim()) {
-      text += `📝 ${complaint.description.trim()}\n\n`;
+      text += `Details: ${complaint.description.trim()}\n\n`;
     }
     text += `RWA (SL2 & 3)`;
 

@@ -197,7 +197,7 @@ router.post('/', auth, async (req, res) => {
         }));
 
         const { sendPushNotifications } = require('../utils/push');
-        sendPushNotifications(tokens, '🚨 New Complaint: ' + category, title || 'A new issue was reported.', { type: 'complaint', id: createdComplaint._id });
+        sendPushNotifications(tokens, 'New Complaint: ' + category, title || 'A new issue was reported.', { type: 'complaint', id: createdComplaint._id });
       }
     } catch (pushErr) {
       console.error('Push notification error:', pushErr.message);
@@ -954,7 +954,7 @@ router.post('/:id/escalate', auth, async (req, res) => {
           const { sendPushNotifications } = require('../utils/push');
           sendPushNotifications(
             tokens,
-            `🔥 ESCALATED: #${complaint.complaint_id || 'AH'} ${complaint.title}`,
+            `ESCALATED: #${complaint.complaint_id || 'AH'} ${complaint.title}`,
             `Escalated by Member: ${memberDisplayName}. Urgent attention requested!`,
             { type: 'complaint', id: complaint._id }
           );
@@ -1015,7 +1015,7 @@ router.post('/:id/reply', auth, async (req, res) => {
       const { sendPushNotifications } = require('../utils/push');
       const senderName = req.user.name || (role === 'Member' ? 'Member' : (role === 'Staff' ? 'Staff' : (role === 'Admin' ? 'Admin' : 'Resident')));
       const senderDesignation = req.user.designation ? ` (${req.user.designation})` : '';
-      const notificationBody = (req.body.text && req.body.text.trim()) ? req.body.text.trim() : '📷 Sent an image attachment';
+      const notificationBody = (req.body.text && req.body.text.trim()) ? req.body.text.trim() : 'Sent an image attachment';
       
       const userPhase = complaint.phase;
       const category = complaint.category;
@@ -1028,11 +1028,11 @@ router.post('/:id/reply', auth, async (req, res) => {
           await User.findByIdAndUpdate(complainant._id, { $inc: { unread_notifications: 1 } });
           const newBadge = (complainant.unread_notifications || 0) + 1;
           
-          let residentTitle = `💬 New Reply on ${complaint.title}`;
+          let residentTitle = `New Reply on ${complaint.title}`;
           if (role === 'Member') {
-            residentTitle = `💬 Member ${senderName}${senderDesignation} replied to your complaint`;
+            residentTitle = `Member ${senderName}${senderDesignation} replied to your complaint`;
           } else if (role === 'Staff' || role === 'Admin') {
-            residentTitle = `🛠️ Update on your complaint: ${complaint.title}`;
+            residentTitle = `Update on your complaint: ${complaint.title}`;
           }
           
           sendPushNotifications(

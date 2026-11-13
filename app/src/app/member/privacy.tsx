@@ -44,7 +44,7 @@ const privacyPolicyHTML = `
 </div>
 
 <div class="alert-box">
-  <h2>⚠️ 1. THIS IS NOT AN EMERGENCY SERVICE</h2>
+  <h2>1. THIS IS NOT AN EMERGENCY SERVICE</h2>
   <p><strong>Anytime Help is not a police, fire, ambulance, medical, rescue, disaster-response or security-monitoring service, and it is not a substitute for any of them.</strong></p>
   <p>Nobody is guaranteed to be watching the app at any given moment. Complaints are not monitored continuously and there is no guaranteed response time.</p>
   <p><strong>If there is a fire, a gas leak, a medical emergency, a crime in progress, a threat to anyone's safety, a structural collapse, an electrocution risk, a child or vulnerable person at risk, or any other situation needing immediate help — call the emergency services directly, first.</strong></p>

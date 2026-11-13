@@ -88,7 +88,7 @@ export function PartnerHospitals() {
             <View style={s.hospBody}>
               <View style={s.rowBetween}>
                 <Text style={s.hospName} numberOfLines={1}>{h.name}</Text>
-                <View style={s.rating}><Text style={s.ratingText}>{h.rating} ★</Text></View>
+                <View style={s.rating}><Text style={s.ratingText}>{h.rating}</Text><Ionicons name="star" size={10} color="#FFFFFF" /></View>
               </View>
               <Text style={s.hospTags} numberOfLines={2}>{h.tags}</Text>
               <View style={s.placeRow}>
@@ -241,7 +241,7 @@ export function LocalBusinesses() {
               <Text style={s.bizName} numberOfLines={1}>{b.name}</Text>
               <Text style={s.bizMeta} numberOfLines={1}>{b.meta}</Text>
             </View>
-            <View style={s.rating}><Text style={s.ratingText}>{b.rating} ★</Text></View>
+            <View style={s.rating}><Text style={s.ratingText}>{b.rating}</Text><Ionicons name="star" size={10} color="#FFFFFF" /></View>
           </View>
         </TouchableOpacity>
       ))}
@@ -300,7 +300,7 @@ const s = StyleSheet.create({
   hospTags: { fontSize: 12.5, color: '#64748B', marginTop: 6, lineHeight: 18 },
   placeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
   placeText: { fontSize: 12.5, color: '#334155', flex: 1 },
-  rating: { backgroundColor: '#16A34A', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 },
+  rating: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#16A34A', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 },
   ratingText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
   bookBtn: { marginTop: 12, backgroundColor: '#EEF2FF', borderRadius: 12, height: 40, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#DBEAFE' },
   bookBtnText: { color: '#1E3A8A', fontWeight: '800', fontSize: 13.5 },
