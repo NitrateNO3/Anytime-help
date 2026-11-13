@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { getLocalizedCategoryTitle, getLocalizedSubCategoryTitle } from '../utils/localization';
 import { io } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
+import ComplaintSuccess, { ComplaintSuccessData } from '../components/ComplaintSuccess';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -31,6 +32,8 @@ export default function ResidentRaiseComplaint() {
   const [image, setImage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [successModalVisible, setSuccessModalVisible] = useState(false);
+  // Animated full-screen success (replaces the old success modal)
+  const [successData, setSuccessData] = useState<ComplaintSuccessData | null>(null);
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [otherModalVisible, setOtherModalVisible] = useState(false);
@@ -240,7 +243,7 @@ export default function ResidentRaiseComplaint() {
       const token = await SecureStore.getItemAsync('userToken');
       const mockDepartmentId = '60d5ecb8b392d700153ee123';
 
-      await axios.post(
+      const res = await axios.post(
         `${API_URL}/complaints`,
         {
           title: category,
@@ -259,7 +262,13 @@ export default function ResidentRaiseComplaint() {
       if (category.toLowerCase() === 'other' || category.toLowerCase() === 'others' || subCategory.toLowerCase() === 'other' || subCategory.toLowerCase() === 'others') {
         setOtherModalVisible(true);
       } else {
-        setSuccessModalVisible(true);
+        setSuccessData({
+          _id: res.data?._id,
+          complaint_id: res.data?.complaint_id,
+          category,
+          subCategory,
+          address: address.trim(),
+        });
       }
     } catch (err: any) {
       console.log('Submission info:', err.message);
@@ -517,6 +526,22 @@ export default function ResidentRaiseComplaint() {
           </Animated.View>
         </View>
       </Modal>
+
+      <ComplaintSuccess
+        visible={!!successData}
+        data={successData}
+        bannerTarget="Resident"
+        onHome={() => {
+          setSuccessData(null);
+          router.replace('/resident' as any);
+        }}
+        onTrack={() => {
+          const id = successData?._id;
+          setSuccessData(null);
+          if (id) router.replace(`/resident-complaint-details?id=${id}` as any);
+          else router.replace({ pathname: '/resident-complaints', params: { view: 'mine' } } as any);
+        }}
+      />
 
       {/* Success Confirmation Modal */}
       <Modal animationType="fade" transparent={true} visible={successModalVisible}>
