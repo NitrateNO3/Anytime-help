@@ -18,9 +18,11 @@ import {
   PartnerPromoCard, PartnerHospitals, PartnerSpotlight, WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter,
 } from '../../components/home/ResidentHomeExtras';
 import HomeHeader, { CompactHomeHeader } from '../../components/home/HomeHeader';
+import useImageRatio from '../../utils/useImageRatio';
 
 // Scroll offset after which the compact white header replaces the blue one
 const COMPACT_AT = 260;
+const NOTICE_FALLBACK_IMAGE = 'https://res.cloudinary.com/dpajfmfl/image/upload/v1792147978/anytime_help/staff_banners/puhwnrswyjr1mrvqrobe.jpg';
 
 const comingSoon = () =>
   Toast.show({ type: 'info', text1: 'Coming soon', text2: 'This feature will be live shortly.', position: 'bottom', visibilityTime: 2000 });
@@ -334,6 +336,10 @@ export default function MemberHome() {
     }
   };
 
+  // Poster banners are sized to their real shape so they are never cut
+  const featuredRatio = useImageRatio(bottomBanners[0]?.url);
+  const noticeRatio = useImageRatio(latestAnnouncement?.image || NOTICE_FALLBACK_IMAGE);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
       <StatusBar style={compactVisible ? 'dark' : 'light'} />
@@ -591,11 +597,11 @@ export default function MemberHome() {
                 onPress={() => setPreviewImage({ url: bottomBanners[0].url, title: bottomBanners[0].title, link: bottomBanners[0].link })}
                 activeOpacity={0.88}
               >
-                <View style={styles.noticeBannerContainer}>
+                <View style={[styles.noticeBannerContainer, { height: Math.round(bottomBannerCardWidth / featuredRatio) }]}>
                   <Image 
                     source={{ uri: bottomBanners[0].url }} 
                     style={styles.noticeBannerImage} 
-                    resizeMode="cover"
+                    resizeMode="contain"
                   />
                   <LinearGradient
                     colors={['transparent', 'rgba(15, 23, 42, 0.65)']}
@@ -649,12 +655,12 @@ export default function MemberHome() {
                     <TouchableOpacity
                       activeOpacity={0.9}
                       onPress={() => setPreviewImage({ url: item.url, title: item.title, link: item.link })}
-                      style={[styles.featuredCard, { width: featuredCardWidth }]}
+                      style={[styles.featuredCard, { width: featuredCardWidth, height: Math.round(featuredCardWidth / featuredRatio) }]}
                     >
                       <Image 
                         source={{ uri: item.url }} 
                         style={styles.noticeBannerImage} 
-                        resizeMode="cover"
+                        resizeMode="contain"
                       />
                       <LinearGradient
                         colors={['transparent', 'rgba(15, 23, 42, 0.65)']}
@@ -680,17 +686,17 @@ export default function MemberHome() {
             <TouchableOpacity 
               style={styles.announcementCard}
               onPress={() => setPreviewImage({ 
-                url: latestAnnouncement.image || 'https://res.cloudinary.com/dpajfmfl/image/upload/v1792147978/anytime_help/staff_banners/puhwnrswyjr1mrvqrobe.jpg', 
+                url: latestAnnouncement.image || NOTICE_FALLBACK_IMAGE, 
                 title: latestAnnouncement.title,
                 link: '/member-announcements'
               })}
               activeOpacity={0.88}
             >
-              <View style={styles.noticeBannerContainer}>
+              <View style={[styles.noticeBannerContainer, { height: Math.round(bottomBannerCardWidth / noticeRatio) }]}>
                 <Image 
-                  source={{ uri: latestAnnouncement.image || 'https://res.cloudinary.com/dpajfmfl/image/upload/v1792147978/anytime_help/staff_banners/puhwnrswyjr1mrvqrobe.jpg' }} 
+                  source={{ uri: latestAnnouncement.image || NOTICE_FALLBACK_IMAGE }} 
                   style={styles.noticeBannerImage} 
-                  resizeMode="cover"
+                  resizeMode="contain"
                 />
                 <LinearGradient
                   colors={['transparent', 'rgba(15, 23, 42, 0.45)']}

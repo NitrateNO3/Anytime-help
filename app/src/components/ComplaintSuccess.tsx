@@ -9,6 +9,7 @@ import type { ScrollViewInstance } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
+import useImageRatio from '../utils/useImageRatio';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const AD_INTERVAL_MS = 3500;
@@ -46,6 +47,8 @@ export default function ComplaintSuccess({ visible, data, bannerTarget, onHome, 
   const [adIndex, setAdIndex] = useState(0);
   const adsRef = useRef<ScrollViewInstance>(null);
   const adW = screenW - 32;
+  // Ads keep their real shape (no cropping)
+  const adRatio = useImageRatio(ads[0]?.url);
 
   useEffect(() => {
     if (!visible) return;
@@ -129,8 +132,8 @@ export default function ComplaintSuccess({ visible, data, bannerTarget, onHome, 
                   style={{ borderRadius: 16 }}
                 >
                   {ads.map((a, i) => (
-                    <View key={a._id || i} style={[s.ad, { width: adW }]}>
-                      <Image source={{ uri: a.url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    <View key={a._id || i} style={[s.ad, { width: adW, height: Math.round(adW / adRatio) }]}>
+                      <Image source={{ uri: a.url }} style={StyleSheet.absoluteFill} resizeMode="contain" />
                       <View style={s.adTag}><Text style={s.adTagText}>AD</Text></View>
                     </View>
                   ))}

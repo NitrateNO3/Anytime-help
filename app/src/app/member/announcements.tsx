@@ -11,6 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { io } from 'socket.io-client';
 import { socketAuth } from '../../utils/socketAuth';
 import * as ImagePicker from 'expo-image-picker';
+import AnnouncementImage from '../../components/AnnouncementImage';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
@@ -232,7 +233,7 @@ export default function Announcements() {
               <Text style={styles.cardMessage}>{item.message}</Text>
               {item.image && (
                 <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.image)}>
-                  <Image source={{ uri: item.image }} style={{ width: '100%', height: 200, borderRadius: 12, marginTop: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
+                  <AnnouncementImage uri={item.image} />
                 </TouchableOpacity>
               )}
               
