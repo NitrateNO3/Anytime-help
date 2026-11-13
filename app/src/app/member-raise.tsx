@@ -34,6 +34,14 @@ export default function MemberRaiseComplaint() {
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   // Animated full-screen success (replaces the old success modal)
   const [successData, setSuccessData] = useState<ComplaintSuccessData | null>(null);
+  const pendingSuccessRef = useRef<ComplaintSuccessData | null>(null);
+  // After the "Other" info modal closes, play the success animation
+  const showPendingSuccess = () => {
+    const data = pendingSuccessRef.current;
+    pendingSuccessRef.current = null;
+    // Let the info modal finish fading out before opening the next one
+    if (data) setTimeout(() => setSuccessData(data), 300);
+  };
   const [errorModalVisible, setErrorModalVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [otherModalVisible, setOtherModalVisible] = useState(false);
@@ -259,16 +267,19 @@ export default function MemberRaiseComplaint() {
         { headers: { 'x-auth-token': token } }
       );
       
+      const filed: ComplaintSuccessData = {
+        _id: res.data?._id,
+        complaint_id: res.data?.complaint_id,
+        category,
+        subCategory,
+        address: address.trim(),
+      };
       if (category.toLowerCase() === 'other' || category.toLowerCase() === 'others' || subCategory.toLowerCase() === 'other' || subCategory.toLowerCase() === 'others') {
+        // The complaint is filed too: show the MCG/DHBVN note first, then the success animation
+        pendingSuccessRef.current = filed;
         setOtherModalVisible(true);
       } else {
-        setSuccessData({
-          _id: res.data?._id,
-          complaint_id: res.data?.complaint_id,
-          category,
-          subCategory,
-          address: address.trim(),
-        });
+        setSuccessData(filed);
       }
     } catch (err: any) {
       console.log('Submission info:', err.message);
@@ -610,6 +621,7 @@ export default function MemberRaiseComplaint() {
                 setDescription('');
                 setImage(null);
                 Linking.openURL(category?.toLowerCase().includes('electricity') ? 'https://www.dhbvn.org.in/web/portal/home' : 'https://www.slerwa.in/');
+                showPendingSuccess();
               }}
             >
               <Text style={styles.doneBtnText}>Proceed to {category?.toLowerCase().includes('electricity') ? 'DHBVN' : 'MCG'} Website</Text>
@@ -622,7 +634,7 @@ export default function MemberRaiseComplaint() {
                 setStep(1);
                 setDescription('');
                 setImage(null);
-                router.replace({ pathname: '/member-complaints', params: { view: 'mine' } } as any);
+                showPendingSuccess();
               }}
             >
               <Text style={[styles.doneBtnText, { color: '#4B5563' }]}>Close</Text>
