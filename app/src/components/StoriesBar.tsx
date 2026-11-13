@@ -44,7 +44,9 @@ export interface StoryItem {
   createdAt: string;
   seen: boolean;
   is_mine: boolean;
+  liked?: boolean;
   view_count?: number;
+  like_count?: number;
 }
 
 export interface StoryGroup {
@@ -168,6 +170,13 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
     }));
   };
 
+  const markLikedLocally = (storyId: string, liked: boolean) => {
+    setGroups(prev => prev.map(g => {
+      if (!g.stories.some(s => s._id === storyId)) return g;
+      return { ...g, stories: g.stories.map(s => (s._id === storyId ? { ...s, liked, seen: true } : s)) };
+    }));
+  };
+
   return (
     <View style={[styles.wrap, style]}>
       <View style={styles.headerRow}>
@@ -220,6 +229,7 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
           startGroup={viewerStart}
           catLabel={catLabel}
           onSeen={markSeenLocally}
+          onLiked={markLikedLocally}
           onDeleted={fetchStories}
           onClose={() => setViewerStart(null)}
         />
@@ -238,11 +248,12 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
 
 /* ------------------------------ Viewer ------------------------------ */
 
-function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose }: {
+function StoryViewer({ groups, startGroup, catLabel, onSeen, onLiked, onDeleted, onClose }: {
   groups: StoryGroup[];
   startGroup: number;
   catLabel: (g: StoryGroup) => string;
   onSeen: (id: string) => void;
+  onLiked: (id: string, liked: boolean) => void;
   onDeleted: () => void;
   onClose: () => void;
 }) {
@@ -309,6 +320,31 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
   const [viewersFor, setViewersFor] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
   const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
+  const [likeCounts, setLikeCounts] = useState<Record<string, number>>({});
+
+  // Like state per story, starting from what the server said (viewer works on a snapshot)
+  const [likedMap, setLikedMap] = useState<Record<string, boolean>>({});
+  const heartScale = useRef(new Animated.Value(1)).current;
+  const isLiked = (s: StoryItem) => likedMap[s._id] ?? !!s.liked;
+
+  const toggleLike = () => {
+    if (!story || story.is_mine) return;
+    const next = !isLiked(story);
+    const id = story._id;
+    setLikedMap(prev => ({ ...prev, [id]: next }));
+    onLiked(id, next);
+    if (next) {
+      Animated.sequence([
+        Animated.spring(heartScale, { toValue: 1.35, friction: 3, useNativeDriver: true }),
+        Animated.spring(heartScale, { toValue: 1, friction: 4, useNativeDriver: true }),
+      ]).start();
+    }
+    axios.post(`${API_URL}/stories/${id}/like`, { like: next }).catch(() => {
+      // Roll back if the server refused
+      setLikedMap(prev => ({ ...prev, [id]: !next }));
+      onLiked(id, !next);
+    });
+  };
 
   const pause = () => {
     isPaused.current = true;
@@ -424,15 +460,38 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
               <Ionicons name="chevron-up" size={16} color="#FFFFFF" />
               <Ionicons name="eye-outline" size={16} color="#FFFFFF" />
               <Text style={styles.viewsText}>{viewCounts[story._id] ?? story.view_count ?? 0}</Text>
+              <Ionicons name="heart" size={15} color="#F43F5E" style={{ marginLeft: 6 }} />
+              <Text style={styles.viewsText}>{likeCounts[story._id] ?? story.like_count ?? 0}</Text>
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Like (everyone except the author) */}
+        {!story.is_mine && (
+          <TouchableOpacity
+            style={[styles.likeBtn, { bottom: 32 + insets.bottom }]}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            onPress={toggleLike}
+          >
+            <Animated.View style={{ transform: [{ scale: heartScale }] }}>
+              <Ionicons
+                name={isLiked(story) ? 'heart' : 'heart-outline'}
+                size={30}
+                color={isLiked(story) ? '#F43F5E' : '#FFFFFF'}
+              />
+            </Animated.View>
+          </TouchableOpacity>
+        )}
       </View>
 
       {viewersFor && (
         <ViewersSheet
           storyId={viewersFor}
-          onCount={(n) => setViewCounts(prev => ({ ...prev, [viewersFor]: n }))}
+          onCount={(n, likes) => {
+            setViewCounts(prev => ({ ...prev, [viewersFor]: n }));
+            setLikeCounts(prev => ({ ...prev, [viewersFor]: likes }));
+          }}
           onClose={() => { setViewersFor(null); resume(); }}
         />
       )}
@@ -442,7 +501,7 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onDeleted, onClose 
 
 /* ------------------------------ "Viewed by" sheet (author only) ------------------------------ */
 
-interface StoryViewerRow { _id: string; name: string; role: string; place: string; at: string | null }
+interface StoryViewerRow { _id: string; name: string; role: string; place: string; at: string | null; liked?: boolean }
 
 const formatViewTime = (iso: string | null) => {
   if (!iso) return 'Earlier';
@@ -458,7 +517,7 @@ const formatViewTime = (iso: string | null) => {
 
 function ViewersSheet({ storyId, onCount, onClose }: {
   storyId: string;
-  onCount: (n: number) => void;
+  onCount: (views: number, likes: number) => void;
   onClose: () => void;
 }) {
   const [rows, setRows] = useState<StoryViewerRow[]>([]);
@@ -497,7 +556,7 @@ function ViewersSheet({ storyId, onCount, onClose }: {
         if (!alive) return;
         const list: StoryViewerRow[] = res.data?.viewers || [];
         setRows(list);
-        onCount(list.length);
+        onCount(list.length, list.filter(v => v.liked).length);
       })
       .catch(err => { if (alive) setError(err.response?.data?.msg || 'Could not load viewers'); })
       .finally(() => { if (alive) setLoading(false); });
@@ -546,6 +605,7 @@ function ViewersSheet({ storyId, onCount, onClose }: {
                       {formatViewTime(r.at)}{r.place ? ` · ${r.place}` : ''}
                     </Text>
                   </View>
+                  {r.liked && <Ionicons name="heart" size={20} color="#F43F5E" style={{ marginLeft: 8 }} />}
                 </View>
               );
             })}
@@ -760,6 +820,10 @@ const styles = StyleSheet.create({
   viewerTime: { fontSize: 12.5, color: '#64748B', marginTop: 2 },
   viewsPill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12, backgroundColor: 'rgba(0,0,0,0.45)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
   viewsText: { color: '#FFFFFF', fontWeight: '700', fontSize: 13 },
+  likeBtn: {
+    position: 'absolute', right: 18, width: 52, height: 52, borderRadius: 26,
+    backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center',
+  },
 
   composerHeader: {
     flexDirection: 'row', alignItems: 'center', paddingTop: (StatusBar.currentHeight || 40) + 10, paddingHorizontal: 16, paddingBottom: 12,

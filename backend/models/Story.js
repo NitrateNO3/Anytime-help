@@ -23,6 +23,8 @@ const storySchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     at: { type: Date, default: Date.now },
   }],
+  // Users who liked (hearted) the story. The author sees who liked in "Viewed by".
+  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   expiresAt: {
     type: Date,
     default: () => new Date(Date.now() + 24 * 60 * 60 * 1000),

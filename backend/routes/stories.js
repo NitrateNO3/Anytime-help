@@ -85,6 +85,7 @@ const getOwnOfficials = async (req) => {
 
 const shapeStory = (s, me) => {
   const viewers = (s.viewers || []).map(String);
+  const likes = (s.likes || []).map(String);
   const mine = String(s.author) === me;
   return {
     _id: s._id,
@@ -100,8 +101,9 @@ const shapeStory = (s, me) => {
     expiresAt: s.expiresAt,
     seen: viewers.includes(me),
     is_mine: mine,
-    // Only the author sees how many people viewed
-    ...(mine ? { view_count: viewers.length } : {}),
+    liked: likes.includes(me),
+    // Only the author sees how many people viewed / liked
+    ...(mine ? { view_count: viewers.length, like_count: likes.length } : {}),
   };
 };
 
@@ -265,16 +267,48 @@ router.post('/:id/view', auth, async (req, res) => {
   }
 });
 
+// @route POST /api/stories/:id/like
+// @desc  Like / unlike a story. Body { like: true | false }. Not on your own story.
+// (unscoped so an official's story can be liked from any area)
+router.post('/:id/like', auth, async (req, res) => {
+  try {
+    const me = req.user._id;
+    const like = req.body.like !== false;
+    const result = await runUnscoped(async () => {
+      const story = await Story.findOne({ _id: req.params.id, expiresAt: { $gt: new Date() } }).select('author').lean().exec();
+      if (!story) return 404;
+      if (String(story.author) === String(me)) return 400;
+      const update = like ? { $addToSet: { likes: me } } : { $pull: { likes: me } };
+      await Story.updateOne({ _id: story._id }, update).exec();
+      // Liking means the story was seen too
+      if (like) {
+        await Story.updateOne(
+          { _id: story._id, viewers: { $ne: me } },
+          { $addToSet: { viewers: me }, $push: { views: { user: me, at: new Date() } } }
+        ).exec();
+      }
+      return 200;
+    });
+    if (result === 404) return res.status(404).json({ msg: 'Story not found' });
+    if (result === 400) return res.status(400).json({ msg: 'You cannot like your own story' });
+    res.json({ ok: true, liked: like });
+  } catch (err) {
+    console.error('Error liking story:', err);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
 // @route GET /api/stories/:id/viewers
 // @desc  WhatsApp-style "Viewed by" list: newest first. Author (or Super Admin) only.
 router.get('/:id/viewers', auth, async (req, res) => {
   try {
     const result = await runUnscoped(async () => {
-      const story = await Story.findById(req.params.id).select('author viewers views').lean().exec();
+      const story = await Story.findById(req.params.id).select('author viewers views likes').lean().exec();
       if (!story) return { status: 404 };
       if (String(story.author) !== String(req.user._id) && !isSuperAdmin(req)) return { status: 403 };
 
       const atByUser = new Map((story.views || []).map(v => [String(v.user), v.at]));
+      const likedBy = new Set((story.likes || []).map(String));
       const ids = (story.viewers || []).filter(id => String(id) !== String(story.author));
       // Viewers can be from any area (official stories), so look users up unscoped
       const users = await User.find({ _id: { $in: ids } }).select('name role house_no block phase').lean().exec();
@@ -282,7 +316,7 @@ router.get('/:id/viewers', auth, async (req, res) => {
       const list = ids.map(id => {
         const u = byId.get(String(id));
         const place = u ? [u.block ? `Block ${u.block}` : '', u.house_no || ''].filter(Boolean).join(', ') : '';
-        return { _id: id, name: u?.name || 'Resident', role: u?.role || '', place, at: atByUser.get(String(id)) || null };
+        return { _id: id, name: u?.name || 'Resident', role: u?.role || '', place, at: atByUser.get(String(id)) || null, liked: likedBy.has(String(id)) };
       });
       // Newest first; views recorded before times were saved go last
       list.sort((a, b) => (b.at ? new Date(b.at).getTime() : 0) - (a.at ? new Date(a.at).getTime() : 0));
@@ -290,7 +324,7 @@ router.get('/:id/viewers', auth, async (req, res) => {
     });
     if (result.status === 404) return res.status(404).json({ msg: 'Story not found' });
     if (result.status === 403) return res.status(403).json({ msg: 'Only the author can see who viewed' });
-    res.json({ count: result.list.length, viewers: result.list });
+    res.json({ count: result.list.length, like_count: result.list.filter(v => v.liked).length, viewers: result.list });
   } catch (err) {
     console.error('Error fetching story viewers:', err);
     res.status(500).json({ msg: 'Server Error' });
