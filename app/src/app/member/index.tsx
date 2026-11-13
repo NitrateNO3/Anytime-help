@@ -373,27 +373,27 @@ export default function MemberHome() {
             onBell={() => router.push('/member-announcements' as any)}
             onAvatar={() => router.navigate('/member/settings')}
             onBannerPress={(b) => setPreviewImage({ url: b.url, title: b.title, link: b.link })}
+            extra={
+              <View style={styles.badgeRow}>
+                <LinearGradient
+                  colors={['#F59E0B', '#D97706']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.memberIdBadge}
+                >
+                  <Ionicons name="star" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.memberIdText}>
+                    MEMBER ID: {user?.member_id ? user.member_id : 'PENDING'}
+                  </Text>
+                </LinearGradient>
+                {user?.designation ? (
+                  <View style={styles.designationBadge}>
+                    <Text style={styles.designationText} numberOfLines={1}>{user.designation}</Text>
+                  </View>
+                ) : null}
+              </View>
+            }
           />
-        </View>
-
-        {/* Member ID + designation */}
-        <View style={[styles.badgeRow, { marginBottom: 16 }]}>
-          <LinearGradient
-            colors={['#F59E0B', '#D97706']}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.memberIdBadge}
-          >
-            <Ionicons name="star" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
-            <Text style={styles.memberIdText}>
-              MEMBER ID: {user?.member_id ? user.member_id : 'PENDING'}
-            </Text>
-          </LinearGradient>
-          {user?.designation ? (
-            <View style={styles.designationBadge}>
-              <Text style={styles.designationText} numberOfLines={1}>{user.designation}</Text>
-            </View>
-          ) : null}
         </View>
 
         {/* Profile incomplete warning */}
@@ -1001,13 +1001,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   designationBadge: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
     paddingHorizontal: 9,
     paddingVertical: 3.5,
     borderRadius: 12,
   },
   designationText: {
-    color: '#1E40AF',
+    color: '#FFFFFF',
     fontSize: 11,
     fontWeight: '600',
   },

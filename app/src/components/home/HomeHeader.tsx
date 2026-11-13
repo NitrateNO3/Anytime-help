@@ -11,7 +11,10 @@ import Toast from 'react-native-toast-message';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const BLUE = '#2347E0';
-const BANNER_H = 190;
+// Banner height follows the image shape so nothing gets cropped
+const DEFAULT_RATIO = 16 / 9;
+const MIN_RATIO = 1.2;   // never taller than this
+const MAX_RATIO = 3.5;   // never thinner than this
 const TOP_PAD = Platform.OS === 'android' ? (RNStatusBar.currentHeight || 24) + 8 : 48;
 
 const comingSoon = () =>
@@ -50,13 +53,29 @@ interface HeaderProps {
   onBannerPress: (b: Banner) => void;
   // Lets a screen wrap the avatar (e.g. in a tutorial step)
   wrapAvatar?: (node: React.ReactElement) => React.ReactElement;
+  // Extra content under the location line (e.g. Member ID badges)
+  extra?: React.ReactNode;
 }
 
-export default function HomeHeader({ user, portalLabel, unreadCount, banners, onBell, onAvatar, onBannerPress, wrapAvatar }: HeaderProps) {
+export default function HomeHeader({ user, portalLabel, unreadCount, banners, onBell, onAvatar, onBannerPress, wrapAvatar, extra }: HeaderProps) {
   const area = useAreaInfo();
   const width = Dimensions.get('window').width;
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList<Banner>>(null);
+  const [ratio, setRatio] = useState(DEFAULT_RATIO);
+
+  // Read the first banner's real size; all slides use that height and 'contain',
+  // so banners of a different shape are letterboxed instead of cut
+  const firstUrl = banners[0]?.url;
+  useEffect(() => {
+    if (!firstUrl) return;
+    let alive = true;
+    Image.getSize(firstUrl, (w, h) => {
+      if (alive && w > 0 && h > 0) setRatio(Math.min(MAX_RATIO, Math.max(MIN_RATIO, w / h)));
+    }, () => {});
+    return () => { alive = false; };
+  }, [firstUrl]);
+  const bannerH = Math.round(width / ratio);
 
   // Auto-advance using each banner's own duration (seconds, default 4)
   useEffect(() => {
@@ -109,6 +128,8 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
         </View>
       </View>
 
+      {!!extra && <View style={s.extra}>{extra}</View>}
+
       <TouchableOpacity style={s.search} activeOpacity={0.85} onPress={comingSoon}>
         <Ionicons name="search" size={20} color="rgba(255,255,255,0.85)" />
         <Text style={s.searchText} numberOfLines={1}>Search 'doctor', 'grocery', 'salon'…</Text>
@@ -126,8 +147,8 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
             getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
             onMomentumScrollEnd={e => setIndex(Math.max(0, Math.min(Math.round(e.nativeEvent.contentOffset.x / width), banners.length - 1)))}
             renderItem={({ item }) => (
-              <TouchableOpacity activeOpacity={0.92} onPress={() => onBannerPress(item)} style={{ width, height: BANNER_H }}>
-                <Image source={{ uri: item.url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+              <TouchableOpacity activeOpacity={0.92} onPress={() => onBannerPress(item)} style={{ width, height: bannerH }}>
+                <Image source={{ uri: item.url }} style={StyleSheet.absoluteFill} resizeMode="contain" />
                 <View style={s.adTag}><Text style={s.adTagText}>AD</Text></View>
               </TouchableOpacity>
             )}
@@ -183,6 +204,7 @@ const s = StyleSheet.create({
 
   locRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, marginTop: 16 },
   locTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
+  extra: { paddingHorizontal: 16, marginTop: 12 },
   locSub: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 2 },
 
   search: {
