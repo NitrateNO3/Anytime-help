@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar as RNStatusBar, BackHandler, Platform, RefreshControl, Image, FlatList, Dimensions, Linking, Modal } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, StatusBar as RNStatusBar, BackHandler, Platform, RefreshControl, Image, FlatList, Dimensions, Linking, Modal, Animated } from 'react-native';
 import ZoomableImage from '../../components/ZoomableImage';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +17,10 @@ import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 import {
   PartnerPromoCard, PartnerHospitals, PartnerSpotlight, WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter,
 } from '../../components/home/ResidentHomeExtras';
+import HomeHeader, { CompactHomeHeader } from '../../components/home/HomeHeader';
+
+// Scroll offset after which the compact white header replaces the blue one
+const COMPACT_AT = 260;
 
 const comingSoon = () =>
   Toast.show({ type: 'info', text1: 'Coming soon', text2: 'This feature will be live shortly.', position: 'bottom', visibilityTime: 2000 });
@@ -35,6 +39,9 @@ export default function MemberHome() {
   const [user, setUser] = useState<any>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [compactVisible, setCompactVisible] = useState(false);
+  const compactRef = useRef(false);
 
   // Member Banners State
   const [banners, setBanners] = useState<any[]>([]);
@@ -135,32 +142,6 @@ export default function MemberHome() {
       console.log('Error fetching announcements:', e);
     }
   };
-
-  useEffect(() => {
-    bannerIndexRef.current = bannerIndex;
-  }, [bannerIndex]);
-
-  useEffect(() => {
-    if (banners.length > 1) {
-      const currentBanner = banners[bannerIndex];
-      const durationSec = Number(currentBanner?.duration) > 0 ? Number(currentBanner.duration) : 4;
-      const durationMs = durationSec * 1000;
-
-      const timer = setTimeout(() => {
-        const nextIndex = bannerIndex >= banners.length - 1 ? 0 : bannerIndex + 1;
-        bannerIndexRef.current = nextIndex;
-        setBannerIndex(nextIndex);
-        if (bannerCardWidth > 0 && bannerFlatListRef.current) {
-          bannerFlatListRef.current.scrollToOffset({
-            offset: nextIndex * bannerCardWidth,
-            animated: true,
-          });
-        }
-      }, durationMs);
-
-      return () => clearTimeout(timer);
-    }
-  }, [banners, bannerIndex, bannerCardWidth]);
 
   // Bottom Banner auto-advance slider timer
   useEffect(() => {
@@ -355,71 +336,65 @@ export default function MemberHome() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
-      <StatusBar style="dark" />
+      <StatusBar style={compactVisible ? 'dark' : 'light'} />
 
-      {/* Header: logo · search · avatar */}
-      <View style={styles.headerBar}>
-        <Image
-          source={require('../../../assets/images/logo.png')}
-          style={styles.headerLogo}
-          resizeMode="contain"
-        />
-        <TouchableOpacity style={styles.searchPill} activeOpacity={0.8} onPress={comingSoon}>
-          <Ionicons name="search" size={18} color="#475569" />
-          <Text style={styles.searchPlaceholder} numberOfLines={1}>Search 'doctor', 'grocery'…</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.avatarContainer}
-          onPress={() => router.navigate('/member/settings')}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.avatarInitials}>
-            {(user?.name || 'M').split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()}
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* White bar that takes over once the blue header scrolls away */}
+      <CompactHomeHeader
+        user={user}
+        opacity={scrollY.interpolate({ inputRange: [COMPACT_AT - 60, COMPACT_AT], outputRange: [0, 1], extrapolate: 'clamp' })}
+        visible={compactVisible}
+        onAvatar={() => router.navigate('/member/settings')}
+      />
 
       {/* Main Content Body */}
-      <ScrollView
+      <Animated.ScrollView
         style={styles.bodyScroll}
         contentContainerStyle={styles.scrollContentContainer}
         showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], {
+          useNativeDriver: true,
+          listener: (e: any) => {
+            const show = e.nativeEvent.contentOffset.y > COMPACT_AT - 30;
+            if (show !== compactRef.current) { compactRef.current = show; setCompactVisible(show); }
+          },
+        })}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1D4ED8']} />
         }
       >
-          {/* Greeting with Member ID */}
-          <View style={styles.greetRow}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.greetingText} numberOfLines={1}>
-                {t('resident.hello').replace(',', '')} {user?.name ? user.name.split(' ')[0] : 'Member'}
-              </Text>
+        {/* Blue header: brand, bell, avatar, location, search, banner slider */}
+        <View style={styles.heroBleed}>
+          <HomeHeader
+            user={user}
+            portalLabel="MEMBER PORTAL"
+            unreadCount={unreadCount}
+            banners={banners}
+            onBell={() => router.push('/member-announcements' as any)}
+            onAvatar={() => router.navigate('/member/settings')}
+            onBannerPress={(b) => setPreviewImage({ url: b.url, title: b.title, link: b.link })}
+          />
+        </View>
 
-              <View style={styles.badgeRow}>
-                {/* Member ID Pill */}
-                <LinearGradient 
-                  colors={['#F59E0B', '#D97706']} 
-                  start={{ x: 0, y: 0 }} 
-                  end={{ x: 1, y: 1 }}
-                  style={styles.memberIdBadge}
-                >
-                  <Ionicons name="star" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
-                  <Text style={styles.memberIdText}>
-                    MEMBER ID: {user?.member_id ? user.member_id : 'PENDING'}
-                  </Text>
-                </LinearGradient>
-
-                {/* Optional Designation Badge */}
-                {user?.designation ? (
-                  <View style={styles.designationBadge}>
-                    <Text style={styles.designationText} numberOfLines={1}>
-                      {user.designation}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
+        {/* Member ID + designation */}
+        <View style={[styles.badgeRow, { marginBottom: 16 }]}>
+          <LinearGradient
+            colors={['#F59E0B', '#D97706']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.memberIdBadge}
+          >
+            <Ionicons name="star" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
+            <Text style={styles.memberIdText}>
+              MEMBER ID: {user?.member_id ? user.member_id : 'PENDING'}
+            </Text>
+          </LinearGradient>
+          {user?.designation ? (
+            <View style={styles.designationBadge}>
+              <Text style={styles.designationText} numberOfLines={1}>{user.designation}</Text>
             </View>
-          </View>
+          ) : null}
+        </View>
 
         {/* Profile incomplete warning */}
         {(!user?.address || user?.address.trim() === '') && (
@@ -438,116 +413,6 @@ export default function MemberHome() {
             <Ionicons name="chevron-forward" size={18} color="#EF4444" />
           </TouchableOpacity>
         )}
-
-        {/* Dynamic Member Banner Carousel */}
-        <View 
-          style={styles.bannerSection}
-          onLayout={(e) => setBannerCardWidth(e.nativeEvent.layout.width)}
-        >
-          {banners.length > 0 ? (
-            banners.length === 1 ? (
-              <TouchableOpacity 
-                style={styles.bannerCardWrapper}
-                activeOpacity={0.9}
-                onPress={() => setPreviewImage({ url: banners[0].url, title: banners[0].title, link: banners[0].link })}
-              >
-                <Image 
-                  source={{ uri: banners[0].url }} 
-                  style={styles.bannerImage}
-                  resizeMode="cover"
-                />
-                {banners[0].title ? (
-                  <LinearGradient
-                    colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
-                    style={styles.bannerTitleGradient}
-                  >
-                    <Text style={styles.bannerTitleText} numberOfLines={1}>
-                      {banners[0].title}
-                    </Text>
-                  </LinearGradient>
-                ) : null}
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.bannerCardWrapper}>
-                <FlatList
-                  ref={bannerFlatListRef}
-                  data={banners}
-                  horizontal
-                  pagingEnabled
-                  showsHorizontalScrollIndicator={false}
-                  keyExtractor={(item) => item._id}
-                  getItemLayout={(_, index) => ({
-                    length: bannerCardWidth,
-                    offset: bannerCardWidth * index,
-                    index,
-                  })}
-                  onMomentumScrollEnd={(e: any) => {
-                    if (bannerCardWidth > 0) {
-                      const idx = Math.round(e.nativeEvent.contentOffset.x / bannerCardWidth);
-                      const safeIdx = Math.max(0, Math.min(idx, banners.length - 1));
-                      bannerIndexRef.current = safeIdx;
-                      setBannerIndex(safeIdx);
-                    }
-                  }}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity 
-                      activeOpacity={0.9}
-                      onPress={() => setPreviewImage({ url: item.url, title: item.title, link: item.link })}
-                      style={{ width: bannerCardWidth, height: 145, position: 'relative' }}
-                    >
-                      <Image 
-                        source={{ uri: item.url }} 
-                        style={styles.bannerImage}
-                        resizeMode="cover"
-                      />
-                      {item.title ? (
-                        <LinearGradient
-                          colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
-                          style={styles.bannerTitleGradient}
-                        >
-                          <Text style={styles.bannerTitleText} numberOfLines={1}>
-                            {item.title}
-                          </Text>
-                        </LinearGradient>
-                      ) : null}
-                    </TouchableOpacity>
-                  )}
-                />
-                {/* Carousel Dots */}
-                <View style={styles.bannerDotsContainer}>
-                  {banners.map((_, i) => (
-                    <View 
-                      key={i} 
-                      style={[
-                        styles.bannerDot, 
-                        bannerIndex === i ? styles.bannerDotActive : styles.bannerDotInactive
-                      ]}
-                    />
-                  ))}
-                </View>
-              </View>
-            )
-          ) : (
-            /* Fallback sleek member notice card */
-            <LinearGradient
-              colors={['#1E1B4B', '#312E81']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.fallbackBanner}
-            >
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <View style={styles.fallbackTag}>
-                  <Text style={styles.fallbackTagText}>MANAGEMENT PORTAL</Text>
-                </View>
-                <Text style={styles.fallbackTitle}>Community Oversight</Text>
-                <Text style={styles.fallbackSub}>Manage complaints, notices, and resident queries.</Text>
-              </View>
-              <View style={styles.fallbackIconBox}>
-                <Ionicons name="shield-checkmark" size={28} color="#A5B4FC" />
-              </View>
-            </LinearGradient>
-          )}
-        </View>
 
         {/* 6 Circular Quick Actions (2 Rows of 3) */}
         <View style={styles.quickActionsContainer}>
@@ -857,7 +722,7 @@ export default function MemberHome() {
 
         {/* Room for the floating tab bar */}
         <View style={{ height: 110 }} />
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Fullscreen Banner Image Preview Modal */}
       <Modal
@@ -1148,6 +1013,12 @@ const styles = StyleSheet.create({
   },
   bodyScroll: {
     flex: 1,
+  },
+  // Hero spans the full width and touches the top edge
+  heroBleed: {
+    marginHorizontal: -16,
+    marginTop: -16,
+    marginBottom: 16,
   },
   scrollContentContainer: {
     paddingTop: 16,
