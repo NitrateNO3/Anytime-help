@@ -25,7 +25,9 @@ export default function StaffRaiseComplaint() {
   const [step, setStep] = useState(1); // 1 = Categories, 2 = Form Details
   const [selectedMainCategory, setSelectedMainCategory] = useState<any>(null);
   // Admin can turn the photo requirement off per category; default is mandatory
-  const imageRequired = selectedMainCategory?.imageRequired !== false;
+  // Read from the live list so an admin toggle applies even while the form is open
+  const liveSelectedCategory = categoriesData.find((c) => c._id === selectedMainCategory?._id) || selectedMainCategory;
+  const imageRequired = liveSelectedCategory?.imageRequired !== false;
 
   const [category, setCategory] = useState('');
   const [subCategory, setSubCategory] = useState('');
