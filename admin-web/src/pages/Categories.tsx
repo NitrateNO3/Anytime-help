@@ -20,7 +20,8 @@ export default function Categories() {
   const [formData, setFormData] = useState({
     title: '',
     image: '',
-    subCategories: [] as string[]
+    subCategories: [] as string[],
+    imageRequired: true
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [removeImageFlag, setRemoveImageFlag] = useState(false);
@@ -74,14 +75,16 @@ export default function Categories() {
       setFormData({
         title: category.title || '',
         image: category.image || '',
-        subCategories: category.subCategories || []
+        subCategories: category.subCategories || [],
+        imageRequired: category.imageRequired !== false
       });
     } else {
       setEditingId(null);
       setFormData({
         title: '',
         image: '',
-        subCategories: []
+        subCategories: [],
+        imageRequired: true
       });
     }
     setImageFile(null);
@@ -137,6 +140,7 @@ export default function Categories() {
     }
 
     payload.append('subCategories', JSON.stringify(finalSubCategories));
+    payload.append('imageRequired', String(formData.imageRequired));
 
     if (imageFile) {
       payload.append('image', imageFile);
@@ -169,6 +173,22 @@ export default function Categories() {
     } catch (error: any) {
       console.error(error);
       toast.error(error.response?.data?.msg || 'Failed to save category', { id: loadingToast });
+    }
+  };
+
+  const handleToggleImageRequired = async (cat: any) => {
+    const next = cat.imageRequired === false;
+    setCategories(prev => prev.map(c => (c._id === cat._id ? { ...c, imageRequired: next } : c)));
+    try {
+      const token = localStorage.getItem('adminToken');
+      await axios.put(`${API_URL}/categories/${cat._id}`, { imageRequired: next }, {
+        headers: { 'x-auth-token': token }
+      });
+      toast.success(next ? `Photo is now mandatory for ${cat.title}` : `Photo is now optional for ${cat.title}`);
+    } catch (error: any) {
+      console.error(error);
+      setCategories(prev => prev.map(c => (c._id === cat._id ? { ...c, imageRequired: !next } : c)));
+      toast.error(error.response?.data?.msg || 'Failed to update photo setting');
     }
   };
 
@@ -248,10 +268,22 @@ export default function Categories() {
                       <span style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px', display: 'inline-block' }}>
                         {cat.subCategories?.length || 0} Sub-categories
                       </span>
+                      <span style={{
+                        fontSize: '11px', fontWeight: 600, marginLeft: '8px', padding: '2px 8px', borderRadius: '999px',
+                        backgroundColor: cat.imageRequired !== false ? '#DBEAFE' : '#F1F5F9',
+                        color: cat.imageRequired !== false ? '#1D4ED8' : '#64748B'
+                      }}>
+                        {cat.imageRequired !== false ? 'Photo required' : 'Photo optional'}
+                      </span>
                     </div>
                   </div>
                   {!isSubAdmin && (
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <ImageRequiredSwitch
+                        checked={cat.imageRequired !== false}
+                        onChange={() => handleToggleImageRequired(cat)}
+                      />
+                      <div style={{ width: '1px', height: '24px', backgroundColor: '#E2E8F0', margin: '0 4px' }}></div>
                       <button 
                         className="btn btn-icon" 
                         onClick={() => handleReorder(index, index - 1)} 
@@ -360,6 +392,24 @@ export default function Categories() {
                 </div>
               </div>
 
+              <div className="form-group" style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px',
+                padding: '12px 14px', backgroundColor: '#F8FAFC', borderRadius: '8px', border: '1px solid #E2E8F0'
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '14px', color: '#1E293B' }}>Photo mandatory</div>
+                  <div style={{ fontSize: '12px', color: '#64748B', marginTop: '2px' }}>
+                    {formData.imageRequired
+                      ? 'Users must upload a photo to raise a complaint in this category.'
+                      : 'Users can raise a complaint without a photo.'}
+                  </div>
+                </div>
+                <ImageRequiredSwitch
+                  checked={formData.imageRequired}
+                  onChange={() => setFormData({ ...formData, imageRequired: !formData.imageRequired })}
+                />
+              </div>
+
               <div className="form-group">
                 <label className="form-label">Sub Categories</label>
                 <div style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
@@ -429,5 +479,28 @@ export default function Categories() {
         </div>
       )}
     </div>
+  );
+}
+
+function ImageRequiredSwitch({ checked, onChange }: { checked: boolean; onChange: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={onChange}
+      title={checked ? 'Photo mandatory (click to make optional)' : 'Photo optional (click to make mandatory)'}
+      style={{
+        position: 'relative', width: '40px', height: '22px', borderRadius: '999px', border: 'none',
+        padding: 0, cursor: 'pointer', flexShrink: 0, transition: 'background-color 0.2s',
+        backgroundColor: checked ? 'var(--primary, #2563EB)' : '#CBD5E1'
+      }}
+    >
+      <span style={{
+        position: 'absolute', top: '3px', left: checked ? '21px' : '3px', width: '16px', height: '16px',
+        borderRadius: '50%', backgroundColor: '#FFFFFF', transition: 'left 0.2s',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.2)'
+      }} />
+    </button>
   );
 }

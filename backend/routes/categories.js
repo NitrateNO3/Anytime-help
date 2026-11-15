@@ -158,6 +158,13 @@ const subCategoryHiMap = {
   'others': 'अन्य'
 };
 
+// Parse a boolean that may arrive as a multipart string
+const parseBool = (v) => {
+  if (v === undefined || v === null || v === '') return undefined;
+  if (typeof v === 'boolean') return v;
+  return String(v).toLowerCase() === 'true';
+};
+
 // @route   GET /api/categories
 // @desc    Get all categories (seeds default if empty and auto-fills translations)
 router.get('/', cache(300), async (req, res) => {
@@ -295,7 +302,8 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
       image: imageUrl,
       public_id: publicId,
       subCategories: subCategories || [],
-      subCategoriesDetails: subCategoriesDetails || []
+      subCategoriesDetails: subCategoriesDetails || [],
+      imageRequired: parseBool(req.body.imageRequired) !== false,
     });
 
     await category.save();
@@ -342,6 +350,8 @@ router.put('/:id', [auth, upload.single('image')], async (req, res) => {
       category.title_hi = categoryHiMap[title.trim().toLowerCase()];
     }
     if (title_hinglish !== undefined) category.title_hinglish = title_hinglish;
+    const imageRequired = parseBool(req.body.imageRequired);
+    if (imageRequired !== undefined) category.imageRequired = imageRequired;
     if (subCategoriesDetails !== undefined) {
       category.subCategoriesDetails = subCategoriesDetails;
     }

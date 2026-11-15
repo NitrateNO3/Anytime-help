@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const Complaint = require('../models/Complaint');
+const Category = require('../models/Category');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const cloudinary = require('cloudinary').v2;
@@ -19,7 +20,14 @@ router.post('/', auth, async (req, res) => {
     // If subCategory is provided, use it as the title so it displays on the card
     const finalTitle = subCategory || title;
     if (!before_image) {
-      return res.status(400).json({ msg: 'A photo of the issue is mandatory.' });
+      // Photo is mandatory unless the admin has turned it off for this category
+      const escCat = String(category || '').trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const catDoc = category
+        ? await Category.findOne({ title: new RegExp(`^\\s*${escCat}\\s*$`, 'i') }).select('imageRequired').lean()
+        : null;
+      if (!catDoc || catDoc.imageRequired !== false) {
+        return res.status(400).json({ msg: 'A photo of the issue is mandatory.' });
+      }
     }
 
     // Fetch user to get their phase

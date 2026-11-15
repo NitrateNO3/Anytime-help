@@ -24,6 +24,8 @@ export default function StaffRaiseComplaint() {
 
   const [step, setStep] = useState(1); // 1 = Categories, 2 = Form Details
   const [selectedMainCategory, setSelectedMainCategory] = useState<any>(null);
+  // Admin can turn the photo requirement off per category; default is mandatory
+  const imageRequired = selectedMainCategory?.imageRequired !== false;
 
   const [category, setCategory] = useState('');
   const [subCategory, setSubCategory] = useState('');
@@ -206,7 +208,7 @@ export default function StaffRaiseComplaint() {
       return;
     }
 
-    if (!image) {
+    if (imageRequired && !image) {
       setErrorMessage('Please provide a photo of the issue.');
       setErrorModalVisible(true);
       return;
@@ -401,7 +403,7 @@ export default function StaffRaiseComplaint() {
                 />
                 <Text style={styles.charCount}>{description.length}/250</Text>
 
-                <Text style={styles.label}>{t('raise.addPhotos')}</Text>
+                <Text style={styles.label}>{t('raise.addPhotos')}{!imageRequired && <Text style={{ color: '#94A3B8', fontWeight: '500' }}> ({t('raise.optional', { defaultValue: 'Optional' })})</Text>}</Text>
                 <View style={styles.photosContainer}>
                   {image ? (
                     <View style={styles.imagePreviewContainer}>
@@ -418,7 +420,7 @@ export default function StaffRaiseComplaint() {
                         ) : (
                           <>
                             <Ionicons name="camera" size={20} color="#3B82F6" style={{ marginRight: 6 }} />
-                            <Text style={styles.photoAddBtnText}>{t('raise.camera')} <Text style={{ color: '#EF4444' }}>*</Text></Text>
+                            <Text style={styles.photoAddBtnText}>{t('raise.camera')} {imageRequired && <Text style={{ color: '#EF4444' }}>*</Text>}</Text>
                           </>
                         )}
                       </TouchableOpacity>
@@ -428,7 +430,7 @@ export default function StaffRaiseComplaint() {
                         ) : (
                           <>
                             <Ionicons name="image" size={20} color="#3B82F6" style={{ marginRight: 6 }} />
-                            <Text style={styles.photoAddBtnText}>{t('raise.gallery')} <Text style={{ color: '#EF4444' }}>*</Text></Text>
+                            <Text style={styles.photoAddBtnText}>{t('raise.gallery')} {imageRequired && <Text style={{ color: '#EF4444' }}>*</Text>}</Text>
                           </>
                         )}
                       </TouchableOpacity>

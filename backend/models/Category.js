@@ -39,6 +39,11 @@ const categorySchema = new mongoose.Schema({
   order: {
     type: Number,
     default: 0,
+  },
+  // When true, a photo is mandatory while raising a complaint in this category
+  imageRequired: {
+    type: Boolean,
+    default: true,
   }
 }, { timestamps: true });
 
