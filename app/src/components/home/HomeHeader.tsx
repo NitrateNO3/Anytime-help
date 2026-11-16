@@ -55,9 +55,11 @@ interface HeaderProps {
   wrapAvatar?: (node: React.ReactElement) => React.ReactElement;
   // Extra content under the location line (e.g. Member ID badges)
   extra?: React.ReactNode;
+  // Member style: bare logo, yellow portal pill and "Hello, <name>" instead of the location line
+  greeting?: boolean;
 }
 
-export default function HomeHeader({ user, portalLabel, unreadCount, banners, onBell, onAvatar, onBannerPress, wrapAvatar, extra }: HeaderProps) {
+export default function HomeHeader({ user, portalLabel, unreadCount, banners, onBell, onAvatar, onBannerPress, wrapAvatar, extra, greeting }: HeaderProps) {
   const area = useAreaInfo();
   const width = Dimensions.get('window').width;
   const [index, setIndex] = useState(0);
@@ -106,12 +108,18 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
     <View style={s.hero}>
       <View style={s.glow} />
       <View style={s.topRow}>
-        <View style={s.logoBox}>
-          <Image source={require('../../../assets/images/logo.png')} style={{ width: 38, height: 38 }} resizeMode="contain" />
-        </View>
+        {greeting ? (
+          <Image source={require('../../../assets/images/logo.png')} style={{ width: 54, height: 54 }} resizeMode="contain" />
+        ) : (
+          <View style={s.logoBox}>
+            <Image source={require('../../../assets/images/logo.png')} style={{ width: 38, height: 38 }} resizeMode="contain" />
+          </View>
+        )}
         <View style={{ flex: 1, marginLeft: 12 }}>
           <Text style={s.brand}>ANYTIME HELP</Text>
-          <View style={s.portalPill}><Text style={s.portalText}>{portalLabel}</Text></View>
+          <View style={[s.portalPill, greeting && s.portalPillGold]}>
+            <Text style={[s.portalText, greeting && s.portalTextGold]}>{portalLabel}</Text>
+          </View>
         </View>
         <TouchableOpacity style={s.bell} onPress={onBell} activeOpacity={0.8}>
           <Ionicons name="notifications-outline" size={22} color="#FFFFFF" />
@@ -120,6 +128,9 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
         {wrapAvatar ? wrapAvatar(avatar) : avatar}
       </View>
 
+      {greeting ? (
+        <Text style={s.hello} numberOfLines={1}>Hello, {(user?.name || 'there').trim().split(/\s+/)[0]}</Text>
+      ) : (
       <View style={s.locRow}>
         <Ionicons name="location-sharp" size={20} color="#FFFFFF" style={{ marginTop: 1 }} />
         <View style={{ flex: 1, marginLeft: 8 }}>
@@ -127,6 +138,7 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
           {!!addressLine && <Text style={s.locSub} numberOfLines={1}>{addressLine}</Text>}
         </View>
       </View>
+      )}
 
       {!!extra && <View style={s.extra}>{extra}</View>}
 
@@ -194,6 +206,9 @@ const s = StyleSheet.create({
   brand: { color: '#FFFFFF', fontSize: 19, fontWeight: '900', letterSpacing: 0.6 },
   portalPill: { alignSelf: 'flex-start', marginTop: 3, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
   portalText: { color: '#FFFFFF', fontSize: 10.5, fontWeight: '800', letterSpacing: 1 },
+  portalPillGold: { backgroundColor: '#FCD34D', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3 },
+  portalTextGold: { color: '#78350F', fontSize: 11.5, fontWeight: '900' },
+  hello: { color: '#FFFFFF', fontSize: 26, fontWeight: '800', letterSpacing: -0.3, paddingHorizontal: 16, marginTop: 18 },
   bell: {
     width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
     alignItems: 'center', justifyContent: 'center', marginRight: 10,

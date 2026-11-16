@@ -379,19 +379,15 @@ export default function MemberHome() {
             onBell={() => router.push('/member-announcements' as any)}
             onAvatar={() => router.navigate('/member/settings')}
             onBannerPress={(b) => setPreviewImage({ url: b.url, title: b.title, link: b.link })}
+            greeting
             extra={
               <View style={styles.badgeRow}>
-                <LinearGradient
-                  colors={['#F59E0B', '#D97706']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.memberIdBadge}
-                >
-                  <Ionicons name="star" size={11} color="#FFFFFF" style={{ marginRight: 4 }} />
+                <View style={styles.memberIdBadge}>
+                  <Ionicons name="star" size={13} color="#FBBF24" style={{ marginRight: 6 }} />
                   <Text style={styles.memberIdText}>
-                    MEMBER ID: {user?.member_id ? user.member_id : 'PENDING'}
+                    Member ID · {user?.member_id ? user.member_id : 'Pending'}
                   </Text>
-                </LinearGradient>
+                </View>
                 {user?.designation ? (
                   <View style={styles.designationBadge}>
                     <Text style={styles.designationText} numberOfLines={1}>{user.designation}</Text>
@@ -991,31 +987,30 @@ const styles = StyleSheet.create({
   memberIdBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 14,
-    shadowColor: '#F59E0B',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 3,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   memberIdText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '800',
-    letterSpacing: 0.5,
+    fontSize: 13,
+    fontWeight: '700',
   },
   designationBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    paddingHorizontal: 9,
-    paddingVertical: 3.5,
-    borderRadius: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 18,
   },
   designationText: {
     color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
   },
   bodyScroll: {
     flex: 1,
