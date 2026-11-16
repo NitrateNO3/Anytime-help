@@ -757,7 +757,7 @@ function StoryComposer({ targets, onClose, onPosted }: {
               onChangeText={setCaption}
               maxLength={700}
             />
-          ) : <View style={{ flex: 1 }}><Text style={styles.footerNote}>{target?.kind === 'channel' ? 'Visible to channel followers for 24 hours' : 'Visible to everyone for 24 hours'}</Text></View>}
+          ) : <View style={{ flex: 1 }}><Text style={styles.footerNote}>{target?.kind === 'channel' ? 'Visible to everyone in your area for 24 hours' : 'Visible to everyone for 24 hours'}</Text></View>}
           <TouchableOpacity style={[styles.sendBtn, !canSubmit && { opacity: 0.4 }]} disabled={!canSubmit || posting} onPress={submit}>
             {posting ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="send" size={20} color="#FFFFFF" />}
           </TouchableOpacity>

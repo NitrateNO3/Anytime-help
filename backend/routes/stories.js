@@ -132,8 +132,8 @@ const shapeStory = (s, me) => {
 };
 
 // @route GET /api/stories
-// @desc  Active stories grouped by category (staff) and by official (followed
-//        officials only), plus what the caller may post in
+// @desc  Active stories grouped by category (staff), by channel (everyone in the
+//        area) and by official (followed officials only), plus what the caller may post in
 router.get('/', auth, async (req, res) => {
   try {
     const me = String(req.user._id);
@@ -187,16 +187,17 @@ router.get('/', auth, async (req, res) => {
       }
     }
 
-    // Channel stories: channels the user follows or posts in (admins see every channel)
-    const isAdmin = isAreaAdminUser(req.user);
-    const secQuery = isAdmin
-      ? { is_active: true }
-      : { is_active: true, $or: [{ followers: req.user._id }, { assigned_members: req.user._id }] };
-    const visibleSections = await CommunitySection.find(secQuery).select('name verified section_type assigned_members').lean();
+    // Channel stories: shown to EVERYONE in the channel's area (residents, members,
+    // staff), no follow needed. Never across areas: filter on the caller's area
+    // explicitly, and show none when the request has no area.
+    const visibleSections = req.areaId
+      ? await CommunitySection.find({ is_active: true, area: req.areaId }).select('name verified section_type assigned_members').lean()
+      : [];
     const sectionMap = new Map(visibleSections.map(sec => [String(sec._id), sec]));
     if (sectionMap.size) {
       const chStories = await Story.find({
         expiresAt: { $gt: now },
+        area: req.areaId,
         section: { $in: [...sectionMap.keys()] },
       }).sort({ createdAt: 1 }).lean();
       for (const st of chStories) {

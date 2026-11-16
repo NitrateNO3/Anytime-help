@@ -596,8 +596,6 @@ export default function CommunityScreenContent({
       });
 
       const nextIsFollowing = !isCurrentlyFollowing;
-      // Channel stories are shown to followers only
-      refreshStoriesBar();
 
       // Update local state in communities list
       setCommunities(prev => prev.map(c => {

@@ -121,7 +121,7 @@ export default function ChannelStoriesModal({ section, apiUrl, headers, onClose 
           <div>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Stories · {section.name}</h3>
             <small style={{ color: '#64748b' }}>
-              Shown for 24 hours in the app's Status bar to everyone following this channel. Channel Admins can add stories from the app too.
+              Shown for 24 hours in the app's Status bar to every resident, member and staff of this area (no follow needed). Channel Admins can add stories from the app too.
             </small>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>
