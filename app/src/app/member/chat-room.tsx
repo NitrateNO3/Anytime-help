@@ -1202,7 +1202,7 @@ export default function MemberChatRoomScreen() {
         ) : (
           <View style={styles.viewOnlyFooter}>
             <Ionicons name="lock-closed-outline" size={15} color="#92400E" />
-            <Text style={styles.viewOnlyFooterText}>Only committee members can send messages in this group.</Text>
+            <Text style={styles.viewOnlyFooterText}>Only RWA members can send messages in this group.</Text>
           </View>
         )}
         {Platform.OS === 'ios' && iosKeyboardSpace > 0 && <View style={{ height: iosKeyboardSpace }} />}
