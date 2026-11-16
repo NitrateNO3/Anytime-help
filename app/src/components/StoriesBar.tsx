@@ -19,7 +19,7 @@ const STORY_DURATION_MS = 5000;
 
 // Shared across every StoriesBar instance and remount (per signed-in token)
 // Where the signed-in user may post: their staff categories and/or their own official page
-export interface PostTarget { kind: 'category' | 'official'; id: string; label: string }
+export interface PostTarget { kind: 'category' | 'official' | 'channel'; id: string; label: string }
 
 let storiesCache: { token: string; groups: StoryGroup[]; postable: PostTarget[] } | null = null;
 
@@ -51,8 +51,9 @@ export interface StoryItem {
 
 export interface StoryGroup {
   key?: string;
-  kind?: 'category' | 'official';
+  kind?: 'category' | 'official' | 'channel';
   official_id?: string;
+  section_id?: string;
   verified?: boolean;
   category: string;
   title_hi?: string;
@@ -124,6 +125,8 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
       const nextPostable: PostTarget[] = [
         ...(Array.isArray(res.data?.postable_officials) ? res.data.postable_officials : [])
           .map((o: any) => ({ kind: 'official' as const, id: String(o._id), label: o.name })),
+        ...(Array.isArray(res.data?.postable_channels) ? res.data.postable_channels : [])
+          .map((c: any) => ({ kind: 'channel' as const, id: String(c._id), label: c.name })),
         ...(Array.isArray(res.data?.postable_categories) ? res.data.postable_categories : [])
           .map((c: string) => ({ kind: 'category' as const, id: c, label: c })),
       ];
@@ -216,7 +219,7 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
             </View>
             <View style={styles.itemTitleRow}>
               <Text style={[styles.itemTitle, { marginTop: 0, flexShrink: 1 }]} numberOfLines={1}>{catLabel(g)}</Text>
-              {g.kind === 'official' && g.verified && <VerifiedBadge size={12} style={{ marginLeft: 2 }} />}
+              {(g.kind === 'official' || g.kind === 'channel') && g.verified && <VerifiedBadge size={12} style={{ marginLeft: 2 }} />}
             </View>
             <Text style={styles.itemSub} numberOfLines={1}>{timeAgo(g.stories[g.stories.length - 1].createdAt)}</Text>
           </TouchableOpacity>
@@ -654,7 +657,9 @@ function StoryComposer({ targets, onClose, onPosted }: {
     setPosting(true);
     try {
       await axios.post(`${API_URL}/stories`, {
-        ...(target.kind === 'official' ? { official: target.id } : { category: target.id }),
+        ...(target.kind === 'official' ? { official: target.id }
+          : target.kind === 'channel' ? { section: target.id }
+            : { category: target.id }),
         caption: caption.trim(),
         ...(mode === 'image' ? { image } : { bg_color: bg }),
       });
@@ -683,14 +688,14 @@ function StoryComposer({ targets, onClose, onPosted }: {
           </View>
         </View>
 
-        {/* Only the user's own staff categories / own official page */}
+        {/* Only the user's own staff categories / own official page / channels they post in */}
         <View style={styles.catPickerWrap}>
           <Text style={styles.catPickerLabel}>Post in</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 16 }}>
             {targets.map((tg, i) => (
               <TouchableOpacity key={tg.kind + tg.id} onPress={() => setTargetIdx(i)} style={[styles.catChip, targetIdx === i && styles.catChipActive]}>
                 <Text style={[styles.catChipText, targetIdx === i && styles.catChipTextActive]}>
-                  {tg.kind === 'official' ? `As ${tg.label}` : tg.label}
+                  {tg.kind === 'official' ? `As ${tg.label}` : tg.kind === 'channel' ? `# ${tg.label}` : tg.label}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -752,7 +757,7 @@ function StoryComposer({ targets, onClose, onPosted }: {
               onChangeText={setCaption}
               maxLength={700}
             />
-          ) : <View style={{ flex: 1 }}><Text style={styles.footerNote}>Visible to everyone for 24 hours</Text></View>}
+          ) : <View style={{ flex: 1 }}><Text style={styles.footerNote}>{target?.kind === 'channel' ? 'Visible to channel followers for 24 hours' : 'Visible to everyone for 24 hours'}</Text></View>}
           <TouchableOpacity style={[styles.sendBtn, !canSubmit && { opacity: 0.4 }]} disabled={!canSubmit || posting} onPress={submit}>
             {posting ? <ActivityIndicator color="#FFFFFF" /> : <Ionicons name="send" size={20} color="#FFFFFF" />}
           </TouchableOpacity>

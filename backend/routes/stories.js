@@ -7,6 +7,29 @@ const auth = require('../middleware/auth');
 const Story = require('../models/Story');
 const Category = require('../models/Category');
 const User = require('../models/User');
+const CommunitySection = require('../models/CommunitySection');
+const Area = require('../models/Area');
+
+const ADMIN_ROLES = ['Admin', 'SubAdmin', 'SuperAdmin'];
+const isAreaAdminUser = (user) => !!user && ADMIN_ROLES.includes(user.role);
+const sameId = (a, b) => String((a && a._id) || a) === String((b && b._id) || b);
+
+// Channel story rights: area admins on every channel, others only where they are a Channel Admin
+const canPostOnChannel = (section, user) =>
+  isAreaAdminUser(user) || (section.assigned_members || []).some(m => sameId(m, user._id));
+
+// Name shown on a channel story: admins post as the area (like channel messages)
+const channelAuthorName = async (req) => {
+  if (isAreaAdminUser(req.user)) {
+    const area = req.areaId ? await Area.findById(req.areaId).select('name').lean() : null;
+    return area?.name || 'Admin';
+  }
+  return (req.user.member_id && req.user.member_id.trim()) || req.user.name || '';
+};
+
+// Older channels have no `verified` field: announcement channels showed the tick
+const sectionVerified = (sec) =>
+  sec.verified !== undefined && sec.verified !== null ? !!sec.verified : sec.section_type === 'announcement';
 
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -91,6 +114,7 @@ const shapeStory = (s, me) => {
     _id: s._id,
     category: s.category,
     official: s.official || null,
+    section: s.section || null,
     author: s.author,
     author_name: s.author_name,
     media_type: s.media_type,
@@ -115,7 +139,7 @@ router.get('/', auth, async (req, res) => {
     const me = String(req.user._id);
     const now = new Date();
     const [stories, categories, perm, ownOfficials] = await Promise.all([
-      Story.find({ expiresAt: { $gt: now }, official: null }).sort({ createdAt: 1 }).lean(),
+      Story.find({ expiresAt: { $gt: now }, official: null, section: null }).sort({ createdAt: 1 }).lean(),
       Category.find().sort({ order: 1 }).select('title title_hi title_hinglish image order').lean(),
       getPostableCategories(req.user),
       getOwnOfficials(req),
@@ -163,6 +187,31 @@ router.get('/', auth, async (req, res) => {
       }
     }
 
+    // Channel stories: channels the user follows or posts in (admins see every channel)
+    const isAdmin = isAreaAdminUser(req.user);
+    const secQuery = isAdmin
+      ? { is_active: true }
+      : { is_active: true, $or: [{ followers: req.user._id }, { assigned_members: req.user._id }] };
+    const visibleSections = await CommunitySection.find(secQuery).select('name verified section_type assigned_members').lean();
+    const sectionMap = new Map(visibleSections.map(sec => [String(sec._id), sec]));
+    if (sectionMap.size) {
+      const chStories = await Story.find({
+        expiresAt: { $gt: now },
+        section: { $in: [...sectionMap.keys()] },
+      }).sort({ createdAt: 1 }).lean();
+      for (const st of chStories) {
+        const sec = sectionMap.get(String(st.section));
+        const key = `channel:${st.section}`;
+        if (!groups.has(key)) {
+          groups.set(key, { key, kind: 'channel', section_id: String(st.section), category: sec.name, verified: sectionVerified(sec), image: '', stories: [] });
+        }
+        groups.get(key).stories.push(shapeStory(st, me));
+      }
+    }
+    const postableChannels = visibleSections
+      .filter(sec => canPostOnChannel(sec, req.user))
+      .map(sec => ({ _id: sec._id, name: sec.name }));
+
     const result = [...groups.values()]
       .map(g => ({
         ...g,
@@ -176,9 +225,10 @@ router.get('/', auth, async (req, res) => {
     const postableOfficials = ownOfficials.map(o => ({ _id: o._id, name: o.name }));
     res.json({
       groups: result,
-      can_post: postable.length > 0 || postableOfficials.length > 0,
+      can_post: postable.length > 0 || postableOfficials.length > 0 || postableChannels.length > 0,
       postable_categories: postable,
       postable_officials: postableOfficials,
+      postable_channels: postableChannels,
     });
   } catch (err) {
     console.error('Error fetching stories:', err);
@@ -192,8 +242,20 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
   try {
     let category;
     let officialId = null;
+    let sectionId = null;
+    let authorName = req.user.name || '';
 
-    if (req.body.official) {
+    if (req.body.section) {
+      // Channel story: area admin, or a Channel Admin of this channel
+      const section = await CommunitySection.findById(req.body.section).select('name is_active assigned_members').lean();
+      if (!section || !section.is_active) return res.status(404).json({ msg: 'Channel not found' });
+      if (!canPostOnChannel(section, req.user)) {
+        return res.status(403).json({ msg: 'Only admins and Channel Admins can add a story to this channel' });
+      }
+      category = section.name;
+      sectionId = section._id;
+      authorName = await channelAuthorName(req);
+    } else if (req.body.official) {
       // Posting as an official: the login number must match that official
       const official = await Official.findById(req.body.official).select('name phone').lean();
       if (!official) return res.status(404).json({ msg: 'Official not found' });
@@ -218,8 +280,9 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
     const story = new Story({
       category,
       official: officialId,
+      section: sectionId,
       author: req.user._id,
-      author_name: req.user.name || '',
+      author_name: authorName,
       caption,
       bg_color: /^#[0-9a-fA-F]{6}$/.test(req.body.bg_color || '') ? req.body.bg_color : '#2563EB',
     });
@@ -246,6 +309,34 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
   } catch (err) {
     console.error('Error posting story:', err);
     res.status(500).json({ msg: 'Could not post story' });
+  }
+});
+
+// @route GET /api/stories/channel/:sectionId
+// @desc  Active stories on one channel with view / like counts (admins and Channel Admins)
+router.get('/channel/:sectionId', auth, async (req, res) => {
+  try {
+    const section = await CommunitySection.findById(req.params.sectionId).select('name assigned_members').lean();
+    if (!section) return res.status(404).json({ msg: 'Channel not found' });
+    if (!canPostOnChannel(section, req.user)) return res.status(403).json({ msg: 'Not allowed' });
+    const stories = await Story.find({ section: section._id, expiresAt: { $gt: new Date() } })
+      .sort({ createdAt: -1 }).lean();
+    res.json(stories.map(st => ({
+      _id: st._id,
+      author_name: st.author_name,
+      media_type: st.media_type,
+      media_url: st.media_url,
+      caption: st.caption,
+      bg_color: st.bg_color,
+      createdAt: st.createdAt,
+      expiresAt: st.expiresAt,
+      is_mine: String(st.author) === String(req.user._id),
+      view_count: (st.viewers || []).filter(v => String(v) !== String(st.author)).length,
+      like_count: (st.likes || []).length,
+    })));
+  } catch (err) {
+    console.error('Error fetching channel stories:', err);
+    res.status(500).json({ msg: 'Server Error' });
   }
 });
 
@@ -303,9 +394,10 @@ router.post('/:id/like', auth, async (req, res) => {
 router.get('/:id/viewers', auth, async (req, res) => {
   try {
     const result = await runUnscoped(async () => {
-      const story = await Story.findById(req.params.id).select('author viewers views likes').lean().exec();
+      const story = await Story.findById(req.params.id).select('author viewers views likes section area').lean().exec();
       if (!story) return { status: 404 };
-      if (String(story.author) !== String(req.user._id) && !isSuperAdmin(req)) return { status: 403 };
+      const channelAdmin = !!story.section && isAreaAdminUser(req.user) && !!req.areaId && String(story.area) === String(req.areaId);
+      if (String(story.author) !== String(req.user._id) && !isSuperAdmin(req) && !channelAdmin) return { status: 403 };
 
       const atByUser = new Map((story.views || []).map(v => [String(v.user), v.at]));
       const likedBy = new Set((story.likes || []).map(String));

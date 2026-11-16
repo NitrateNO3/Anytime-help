@@ -7,6 +7,9 @@ const storySchema = new mongoose.Schema({
   // Set when an Official posts the story (category then holds the official's name).
   // Official stories cross areas: they are shown in every area the official is visible in.
   official: { type: mongoose.Schema.Types.ObjectId, ref: 'Official', default: null, index: true },
+  // Set when the story is posted on a community channel (category then holds the channel name).
+  // Posted by the area admin or the channel's assigned posters; shown to its followers.
+  section: { type: mongoose.Schema.Types.ObjectId, ref: 'CommunitySection', default: null, index: true },
   author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   author_name: { type: String, default: '' },
   // 'image' = photo (+ optional caption), 'text' = text on coloured background

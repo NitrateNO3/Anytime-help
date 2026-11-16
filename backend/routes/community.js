@@ -669,7 +669,7 @@ router.post('/sections/:sectionId/messages', auth, async (req, res) => {
 
     if (!access.can_send) {
       return res.status(403).json({
-        msg: 'Read-only access: Followers are only permitted to view updates. Only Admins or members assigned to this channel can post updates.'
+        msg: 'Read-only access: Followers are only permitted to view updates. Only Admins and Channel Admins can post in this channel.'
       });
     }
 

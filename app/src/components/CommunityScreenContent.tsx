@@ -596,6 +596,8 @@ export default function CommunityScreenContent({
       });
 
       const nextIsFollowing = !isCurrentlyFollowing;
+      // Channel stories are shown to followers only
+      refreshStoriesBar();
 
       // Update local state in communities list
       setCommunities(prev => prev.map(c => {
@@ -1058,7 +1060,8 @@ export default function CommunityScreenContent({
               </Text>
             </View>
 
-            {/* Follow Toggle */}
+            {/* Follow Toggle (hidden for Channel Admins: they always have access) */}
+            {!activeSection.user_access?.is_assigned && (
             <TouchableOpacity 
               style={[
                 styles.channelHeaderFollowBtn,
@@ -1076,6 +1079,7 @@ export default function CommunityScreenContent({
                 {activeSection.user_access?.is_following ? 'Following' : 'Follow'}
               </Text>
             </TouchableOpacity>
+            )}
           </View>
 
           {/* Messages Feed OR Follow-Gate */}

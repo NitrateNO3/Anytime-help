@@ -5,13 +5,14 @@ import {
   Plus, Edit2, Trash2, Search, X, Eye, 
   Send, Users, RefreshCw, Check, ArrowLeft,
   Megaphone, Zap, Shield, Droplets, Home,
-  MessageCircle, Building2, Layers, CheckCircle2, BadgeCheck
+  MessageCircle, Building2, Layers, CheckCircle2, BadgeCheck, CircleDashed
 } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { socketAuth } from '../lib/area';
 import '../index.css';
 import './Communities.css';
 import { confirmDialog } from '../components/ConfirmDialog';
+import ChannelStoriesModal from '../components/ChannelStoriesModal';
 
 const getInitialApiUrl = () => {
   return import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://anytime-help.onrender.com/api');
@@ -174,6 +175,8 @@ export default function Communities() {
   const [memberSearch, setMemberSearch] = useState('');
 
   // Followers view Modal for a Section
+  // Channel whose stories modal is open
+  const [storiesSection, setStoriesSection] = useState<CommunitySectionItem | null>(null);
   const [viewFollowersSection, setViewFollowersSection] = useState<CommunitySectionItem | null>(null);
 
   // Messenger / Live Channel State
@@ -945,7 +948,7 @@ export default function Communities() {
               Channels
             </h3>
             <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>
-              Announcement: only admins and assigned posters can post. Discussion: every follower can post too.
+              Announcement: only admins and Channel Admins can post. Discussion: every follower can post too.
             </p>
           </div>
 
@@ -1000,7 +1003,7 @@ export default function Communities() {
                       <div style={{ width: 4, height: 4, borderRadius: 2, background: '#cbd5e1' }} />
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <Users size={14} color="#2563EB" />
-                        <span><strong>{sec.assigned_count || 0}</strong> Assigned Posters</span>
+                        <span><strong>{sec.assigned_count || 0}</strong> Channel Admins</span>
                       </div>
                     </div>
 
@@ -1027,11 +1030,21 @@ export default function Communities() {
                     <button 
                       className="btn btn-secondary"
                       style={{ padding: '8px 10px', fontSize: 13 }}
-                      title="Assign Posters (members or staff who can post here)"
+                      title="Add or manage 24-hour stories on this channel"
+                      onClick={() => setStoriesSection(sec)}
+                    >
+                      <CircleDashed size={15} />
+                      Story
+                    </button>
+
+                    <button 
+                      className="btn btn-secondary"
+                      style={{ padding: '8px 10px', fontSize: 13 }}
+                      title="Channel Admins: members or staff who can send messages and add stories in this channel"
                       onClick={() => openAssignMembersModal(sec)}
                     >
                       <Users size={15} />
-                      Assign Posters
+                      Channel Admins
                     </button>
 
                     <button 
@@ -1263,7 +1276,7 @@ export default function Communities() {
                 </label>
 
                 <div style={{ marginTop: 8, padding: '12px 16px', background: '#EFF6FF', borderRadius: 8, fontSize: 12, color: '#1E40AF', border: '1px solid #DBEAFE' }}>
-                  <strong>How it works:</strong> Residents follow the channel to read it. After creating it, use <strong>Assign Posters</strong> on the channel card to let committee members or staff post. They can post only in this channel.
+                  <strong>How it works:</strong> Residents follow the channel to read it. After creating it, use <strong>Channel Admins</strong> on the channel card to choose members or staff who can send messages and add stories. They get these rights in this channel only.
                 </div>
               </div>
 
@@ -1288,6 +1301,15 @@ export default function Communities() {
         </div>
       )}
 
+      {storiesSection && (
+        <ChannelStoriesModal
+          section={storiesSection}
+          apiUrl={API_URL}
+          headers={getHeaders}
+          onClose={() => setStoriesSection(null)}
+        />
+      )}
+
       {/* MODAL 3: Assign Members to Particular Section */}
       {assigningSection && (
         <div className="comm-modal-overlay">
@@ -1295,10 +1317,10 @@ export default function Communities() {
             <div className="comm-modal-header">
               <div>
                 <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
-                  Assign Posters to "{assigningSection.name}"
+                  Channel Admins · {assigningSection.name}
                 </h3>
                 <small style={{ color: '#64748b' }}>
-                  Committee members and staff you select can post in THIS channel only.
+                  Members and staff you select can send messages and add stories in THIS channel only. They don't need to follow it.
                 </small>
               </div>
               <button 
@@ -1312,11 +1334,11 @@ export default function Communities() {
             <div className="comm-modal-body">
               {assigningSection.followers_can_post ? (
                 <div style={{ marginBottom: 14, padding: '10px 12px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, fontSize: 12.5, color: '#166534' }}>
-                  <strong>This is a Discussion channel.</strong> Every resident who follows it can already post, so you don't need to assign them. Assign here only committee members or staff you want to post even without following.
+                  <strong>This is a Discussion channel.</strong> Every resident who follows it can already send messages. Make someone a Channel Admin only if they should also add stories, or post without following.
                 </div>
               ) : (
                 <div style={{ marginBottom: 14, padding: '10px 12px', background: '#EFF6FF', border: '1px solid #DBEAFE', borderRadius: 8, fontSize: 12.5, color: '#1E40AF' }}>
-                  <strong>Announcement channel.</strong> Only admins and the posters you select below can post. To let every follower post, edit the channel and choose <strong>Discussion</strong>.
+                  <strong>Announcement channel.</strong> Only admins and the Channel Admins you select below can post. To let every follower post, edit the channel and choose <strong>Discussion</strong>.
                 </div>
               )}
               {/* Search */}
@@ -1438,7 +1460,7 @@ export default function Communities() {
                 className="btn btn-primary"
                 onClick={handleSaveAssignedMembers}
               >
-                Save Posters ({selectedMemberIds.length})
+                Save Channel Admins ({selectedMemberIds.length})
               </button>
             </div>
           </div>
