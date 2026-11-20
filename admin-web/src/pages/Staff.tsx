@@ -411,8 +411,36 @@ function LocationAssignmentSection({
   );
 }
 
+// Permissions an admin can give a staff account (keep in sync with STAFF_PERMISSIONS in backend/routes/users.js)
+const STAFF_PERMISSION_OPTIONS = [
+  { key: 'Post Stories', hint: 'Can add 24-hour stories in their categories from the app' },
+];
+
+const StaffPermissionPicker = ({ value, onChange }: { value: string[]; onChange: (next: string[]) => void }) => (
+  <div style={{ display: 'grid', gap: 10, marginTop: 8 }}>
+    {STAFF_PERMISSION_OPTIONS.map(opt => {
+      const checked = value.includes(opt.key);
+      return (
+        <label key={opt.key} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '12px 16px', border: '1px solid ' + (checked ? 'var(--primary)' : 'var(--border-color)'), borderRadius: 8, background: checked ? 'rgba(79, 70, 229, 0.05)' : 'white' }}>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onChange(e.target.checked ? [...value, opt.key] : value.filter(p => p !== opt.key))}
+            style={{ width: 18, height: 18, marginTop: 2, accentColor: 'var(--primary)', cursor: 'pointer' }}
+          />
+          <span>
+            <span style={{ display: 'block', fontWeight: checked ? 600 : 500, color: checked ? 'var(--primary)' : 'var(--text-main)', fontSize: 14 }}>{opt.key}</span>
+            <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{opt.hint}</span>
+          </span>
+        </label>
+      );
+    })}
+  </div>
+);
+
 export default function Staff() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
+  const [staffPermissions, setStaffPermissions] = useState<string[]>([]);
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -685,7 +713,8 @@ export default function Staff() {
         phone_number: phoneNumber,
         assigned_categories: categories,
         assigned_locations: cleanLocations,
-        phase: staffPhase
+        phase: staffPhase,
+        permissions: staffPermissions
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -695,6 +724,7 @@ export default function Staff() {
       // Reset form
       setStaffPersonalName('');
       setPhoneNumber('');
+      setStaffPermissions([]);
       setAssignedLocations([{ phase: 'Sushant Lok 2', blocks: ['C'] }]);
       
       // Auto switch back to list
@@ -735,7 +765,8 @@ export default function Staff() {
         phone_number: editingUser.phone_number,
         assigned_categories: editingUser.assigned_categories || (editingUser.assigned_category ? [editingUser.assigned_category] : []),
         assigned_locations: cleanLocations,
-        phase: hasUniversal ? 'Universal' : (locSummary || editingUser.phase)
+        phase: hasUniversal ? 'Universal' : (locSummary || editingUser.phase),
+        permissions: editingUser.permissions || []
       }, {
         headers: { 'x-auth-token': token }
       });
@@ -1120,6 +1151,18 @@ export default function Staff() {
                                 {cat}
                               </span>
                             ))}
+                            {(member.permissions || []).includes('Post Stories') && (
+                              <span style={{
+                                background: '#DCFCE7',
+                                color: '#166534',
+                                padding: '6px 12px',
+                                borderRadius: '20px',
+                                fontSize: '12px',
+                                fontWeight: 600
+                              }}>
+                                Can post stories
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td>
@@ -1281,6 +1324,11 @@ export default function Staff() {
               </div>
             </div>
 
+            <div className="input-group">
+              <label>App Permissions</label>
+              <StaffPermissionPicker value={staffPermissions} onChange={setStaffPermissions} />
+            </div>
+
             <button type="submit" className="btn-primary" disabled={isCreating} style={{ marginTop: '16px', height: '52px' }}>
               {isCreating ? 'Assigning Staff...' : 'Assign Staff'}
             </button>
@@ -1377,6 +1425,14 @@ export default function Staff() {
                 </div>
               </div>
               
+              <div className="form-group">
+                <label className="form-label">App Permissions</label>
+                <StaffPermissionPicker
+                  value={editingUser.permissions || []}
+                  onChange={(next) => setEditingUser({ ...editingUser, permissions: next })}
+                />
+              </div>
+
               <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
                 <button type="button" onClick={() => setEditingUser(null)} className="btn btn-outline" style={{ flex: 1 }} disabled={isUpdating}>
                   Cancel

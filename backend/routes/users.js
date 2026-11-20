@@ -626,8 +626,13 @@ router.post('/members', auth, async (req, res) => {
 // @route   POST api/users/staff
 // @desc    Create a new staff member
 // @access  Admin Private
+// Permissions an admin can give a staff account (only these are saved)
+const STAFF_PERMISSIONS = ['Post Stories'];
+const cleanStaffPermissions = (list) =>
+  Array.isArray(list) ? [...new Set(list.filter(p => STAFF_PERMISSIONS.includes(p)))] : [];
+
 router.post('/staff', auth, async (req, res) => {
-  let { name, phone_number, assigned_category, assigned_categories, phase, assigned_locations } = req.body;
+  let { name, phone_number, assigned_category, assigned_categories, phase, assigned_locations, permissions } = req.body;
   
   if (!assigned_categories && assigned_category) {
     assigned_categories = [assigned_category];
@@ -692,6 +697,9 @@ router.post('/staff', auth, async (req, res) => {
       if (name) {
         user.name = name;
       }
+      if (permissions !== undefined) {
+        user.permissions = cleanStaffPermissions(permissions);
+      }
       await user.save();
 
       const io = req.app.get('io');
@@ -713,6 +721,7 @@ router.post('/staff', auth, async (req, res) => {
       assigned_categories: assigned_categories || [],
       assigned_locations: assigned_locations || [],
       phase: formattedPhase,
+      permissions: cleanStaffPermissions(permissions),
       has_logged_in: hasLoggedIn
     });
 
@@ -1120,6 +1129,10 @@ router.put('/:id', auth, async (req, res) => {
       if (member_id !== undefined) user.member_id = member_id;
     }
     
+    if (user.role === 'Staff' && permissions !== undefined) {
+      user.permissions = cleanStaffPermissions(permissions);
+    }
+
     if (user.role === 'Staff' || user.role === 'PaidStaff') {
       let finalAssignedCategories = assigned_categories;
       if (!finalAssignedCategories && assigned_category !== undefined) {

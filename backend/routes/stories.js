@@ -59,17 +59,24 @@ const splitCats = (account) => {
   return out;
 };
 
+// Staff post category stories only after the area admin grants this permission
+// (Staff page in the admin panel)
+const STORY_PERMISSION = 'Post Stories';
+const hasStoryPermission = (account) => (account.permissions || []).includes(STORY_PERMISSION);
+
 // Categories this user may post stories in. A person can hold several Staff
-// accounts with the same phone number (one per zone), so merge all of them.
+// accounts with the same phone number (one per zone), so merge all of them,
+// counting only the accounts that were given the story permission.
 // Returns { all: true } for 'All Complaints' / 'All' staff.
 const getPostableCategories = async (user) => {
   if (!user || user.role !== 'Staff') return { all: false, cats: [] };
   let accounts = [user];
   if (user.phone_number) {
     const linked = await User.find({ phone_number: user.phone_number, role: 'Staff' })
-      .select('assigned_category assigned_categories').lean();
+      .select('assigned_category assigned_categories permissions').lean();
     if (linked.length) accounts = linked;
   }
+  accounts = accounts.filter(hasStoryPermission);
   const cats = new Set();
   let all = false;
   for (const acc of accounts) {
@@ -272,6 +279,9 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
       category = String(req.body.category || '').trim();
       if (!category) return res.status(400).json({ msg: 'Category is required' });
       const perm = await getPostableCategories(req.user);
+      if (!perm.all && perm.cats.length === 0) {
+        return res.status(403).json({ msg: 'Ask your area admin for permission to post stories' });
+      }
       if (!canPostIn(perm, category)) {
         return res.status(403).json({ msg: 'You can only post stories in your own category' });
       }
