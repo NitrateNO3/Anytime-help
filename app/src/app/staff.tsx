@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, Alert, RefreshControl, Modal, TextInput, Platform, BackHandler, KeyboardAvoidingView, Keyboard, FlatList, Dimensions } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { ScrollViewInstance } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Modal, TextInput, Platform, BackHandler, KeyboardAvoidingView, Keyboard, FlatList, Dimensions, Share } from 'react-native';
 import ZoomableImage from '../components/ZoomableImage';
 import StoriesBar from '../components/StoriesBar';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +23,40 @@ import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 
 const WalkthroughableView = walkthroughable(View);
+
+// Design tokens (Staff app design: Anytime Help Design System)
+const C = {
+  bg: '#F4F6FA',
+  ink: '#0B1020',
+  ink2: '#2B3245',
+  ink3: '#475069',
+  muted: '#6B7489',
+  line: '#E6E9F0',
+  line2: '#EEF1F6',
+  field: '#DCE1EA',
+  primary: '#2F6FED',
+  hero: '#1E4FD8',
+  pending: '#D97706',
+  progress: '#2F6FED',
+  resolved: '#16A34A',
+  danger: '#E5484D',
+};
+
+const STATUS_META: Record<string, { label: string; color: string }> = {
+  PENDING: { label: 'PENDING', color: C.pending },
+  IN_PROGRESS: { label: 'IN PROGRESS', color: C.progress },
+  RESOLVED: { label: 'RESOLVED', color: C.resolved },
+  DONE: { label: 'RESOLVED', color: C.resolved },
+};
+
+const PRIORITY_META: Record<string, [string, string]> = {
+  High: ['#FFE4E1', '#C2311E'],
+  Urgent: ['#FFE4E1', '#C2311E'],
+  Medium: ['#DCE8FF', '#1A3FB8'],
+  Low: ['#EEF0F4', '#475069'],
+};
+
+const HERO_RATIO = 470 / 1200;
 
 export default function StaffScreen() {
   const { start } = useCopilot();
@@ -507,10 +542,370 @@ export default function StaffScreen() {
     }
   };
 
+  // ---------- UI-only state (new staff design) ----------
+  const insets = useSafeAreaInsets();
+  const [scrolled, setScrolled] = useState(false);
+  const isTasks = activeTab === 'Tasks';
+  const isAnnSection = activeTab === 'Announcements' || activeTab === 'Broadcasts';
+  // Top bar stays blue on the Tasks home, even while scrolling
+  const barIsBlue = isTasks;
+  const heroWidth = Dimensions.get('window').width;
+  const heroHeight = Math.round(heroWidth * HERO_RATIO);
+
+  const onScroll = (e: any) => {
+    const sc = e.nativeEvent.contentOffset.y > 8;
+    if (sc !== scrolled) setScrolled(sc);
+  };
+
+  // On open: let the banner show for ~3.5 s, then glide the counts up under the pinned top bar.
+  // Stops if the staff member touches the list first. Runs once per visit.
+  const scrollRef = React.useRef<ScrollViewInstance>(null);
+  const layoutRef = React.useRef({ bar: 0, content: 0, stats: 0 });
+  const userMovedRef = React.useRef(false);
+  const autoScrollDoneRef = React.useRef(false);
+  useEffect(() => {
+    if (!isTasks || !user || autoScrollDoneRef.current) return;
+    const timer = setTimeout(() => {
+      autoScrollDoneRef.current = true;
+      const { bar, content, stats: statsY } = layoutRef.current;
+      if (userMovedRef.current || !statsY) return;
+      scrollRef.current?.scrollTo({ y: Math.max(0, content + statsY - bar - 12), animated: true });
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [isTasks, !!user]);
+
+  const switchTab = (tab: 'Tasks' | 'Broadcasts' | 'Announcements') => {
+    setActiveTab(tab);
+    setScrolled(false);
+  };
+
+  const pickStatusFilter = (status: string) => {
+    setSelectedStatus(status);
+    setLoading(true);
+    fetchComplaints(searchQuery, selectedCategory, status);
+    setActiveTab('Tasks');
+  };
+
+  const complaintCode = (item: any) => item.complaint_id || `#AH-${item._id?.slice(-5).toUpperCase()}`;
+
+  const shareComplaint = async (item: any) => {
+    const st = STATUS_META[item.status]?.label || item.status;
+    const title = t(`categories.${item.title}`, { defaultValue: item.title });
+    const lines = [`${complaintCode(item)} · ${title} (${st})`, item.location, item.description].filter(Boolean);
+    try {
+      await Share.share({ message: lines.join('\n') });
+    } catch (e) {
+      console.log('Share complaint error:', e);
+    }
+  };
+
+  const areaLabel = (() => {
+    if (!user) return '';
+    if (Array.isArray(user.assigned_locations) && user.assigned_locations.length > 0) {
+      return user.assigned_locations.map((loc: any) => {
+        const isAll = !loc.blocks || loc.blocks.length === 0 || loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks');
+        const blks = isAll ? 'All Blocks' : loc.blocks.join(', ');
+        return `${loc.phase}: ${blks}`;
+      }).join(' | ');
+    }
+    if (user.phase && user.address) return `${user.phase}: ${user.address}`;
+    if (user.phase) return user.phase;
+    if (user.address) return user.address;
+    return t('staff.allLocations', { defaultValue: 'All Locations' });
+  })();
+
+  const deptLabel = (cat?: string) =>
+    !cat || cat === 'All Complaints'
+      ? t('staff.allComplaints', { defaultValue: 'All Complaints' })
+      : cat;
+
+  const extraStaffAccounts = (user?.accounts || []).filter((acc: any) => acc.role === 'Staff');
+  // All departments in one chip (main account + linked staff accounts), so the chips stay on one line
+  const deptChipLabel = [...new Set([user?.assigned_category, ...extraStaffAccounts.map((a: any) => a.assigned_category)].map(deptLabel))].join(', ');
+
+  const selectedComplaint = complaints.find((c) => c._id === selectedComplaintId);
+
+  const myAnnouncements = announcements.filter((item) => {
+    const uid = user?._id || user?.id;
+    const cid = item?.createdBy?._id || item?.createdBy?.id || item?.createdBy;
+    return uid && cid && String(uid) === String(cid);
+  });
+  const otherAnnouncements = announcements.filter((item) => {
+    const uid = user?._id || user?.id;
+    const cid = item?.createdBy?._id || item?.createdBy?.id || item?.createdBy;
+    return !uid || !cid || String(uid) !== String(cid);
+  });
+
+  const audienceLabel = (aud?: string) => {
+    if (aud === 'Members') return t('staff.rwaMembers', { defaultValue: 'RWA (Members)' });
+    if (aud === 'All') return t('staff.residentAll', { defaultValue: 'Resident (All)' });
+    return '';
+  };
+
+  // ---------- Pieces ----------
+  const renderHeaderButtons = () => (
+    <View style={[styles.topBar, { backgroundColor: barIsBlue ? C.hero : 'rgba(244,246,250,0.98)' }, scrolled && !barIsBlue && styles.topBarScrolled]}>
+      <TouchableOpacity
+        onPress={toggleLanguage}
+        activeOpacity={0.8}
+        style={[styles.langBtn, barIsBlue ? styles.glassBtn : styles.solidBtn]}
+      >
+        <Text style={[styles.langBtnText, { color: barIsBlue ? '#FFFFFF' : C.ink }]}>{getLanguageDisplayName(i18n.language)}</Text>
+      </TouchableOpacity>
+      <View style={{ flex: 1 }} />
+      <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल, भाषा और सेटिंग्स मैनेज कर सकते हैं।" order={3} name="staff_settings">
+        <WalkthroughableView>
+          <TouchableOpacity
+            accessibilityLabel="Settings"
+            onPress={() => router.push('/staff-settings')}
+            activeOpacity={0.8}
+            style={[styles.roundBtn, barIsBlue ? styles.glassBtn : styles.solidBtn]}
+          >
+            <Ionicons name="settings-outline" size={24} color={barIsBlue ? '#FFFFFF' : C.primary} />
+          </TouchableOpacity>
+        </WalkthroughableView>
+      </CopilotStep>
+    </View>
+  );
+
+  const renderHero = () => (
+    <View style={{ backgroundColor: C.hero, marginHorizontal: -18 }}>
+      <View style={{ paddingHorizontal: 18, paddingTop: 2, paddingBottom: 6 }}>
+        <Text style={styles.heroKicker}>{t('staff.portal', { defaultValue: 'Staff Portal' })}</Text>
+        <Text style={styles.heroTitle}>
+          {t('resident.hello', { defaultValue: 'Hello,' })} {user?.name?.split(' ')[0] || 'Staff'}
+        </Text>
+        {user && (
+          <View style={styles.heroChips}>
+            <View style={styles.heroChip}>
+              <Ionicons name="location" size={14} color="#FFFFFF" />
+              <Text style={styles.heroChipText} numberOfLines={1}>{areaLabel}</Text>
+            </View>
+            <View style={styles.heroChip}>
+              <Ionicons name="pricetag" size={13} color="#3DDC97" />
+              <Text style={styles.heroChipText} numberOfLines={1}>{deptChipLabel}</Text>
+            </View>
+          </View>
+        )}
+      </View>
+
+      {/* Staff-only banners from the RWA admin */}
+      <View style={{ width: heroWidth, height: heroHeight, overflow: 'hidden', marginTop: 8 }}>
+        {banners.length > 0 ? (
+          <FlatList
+            ref={bannerFlatListRef}
+            data={banners}
+            horizontal
+            pagingEnabled
+            scrollEnabled={banners.length > 1}
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(item) => item._id}
+            onLayout={() => setBannerCardWidth(heroWidth)}
+            getItemLayout={(_, index) => ({ length: heroWidth, offset: heroWidth * index, index })}
+            onMomentumScrollEnd={(e: any) => {
+              const idx = Math.round(e.nativeEvent.contentOffset.x / heroWidth);
+              setBannerIndex(idx);
+            }}
+            renderItem={({ item }) => (
+              <View style={{ width: heroWidth, height: heroHeight }}>
+                <Image source={{ uri: item.url }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                {item.title ? (
+                  <LinearGradient
+                    colors={['transparent', 'rgba(11,16,32,0.75)']}
+                    style={styles.bannerCaption}
+                  >
+                    <Text style={styles.bannerCaptionText} numberOfLines={1}>{item.title}</Text>
+                  </LinearGradient>
+                ) : null}
+              </View>
+            )}
+          />
+        ) : (
+          <Image source={require('../../assets/image.png')} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+        )}
+        <LinearGradient pointerEvents="none" colors={[C.hero, 'rgba(30,79,216,0)']} style={styles.heroFadeTop} />
+        <LinearGradient pointerEvents="none" colors={['rgba(244,246,250,0)', C.bg]} style={styles.heroFadeBottom} />
+        {banners.length > 1 && (
+          <View pointerEvents="none" style={styles.heroDots}>
+            {banners.map((_, i) => (
+              <View
+                key={i}
+                style={{
+                  height: 6,
+                  width: bannerIndex === i ? 18 : 6,
+                  borderRadius: 3,
+                  backgroundColor: bannerIndex === i ? C.hero : 'rgba(30,79,216,0.3)',
+                }}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+    </View>
+  );
+
+  const renderStats = () => {
+    const items = [
+      { key: 'PENDING', n: stats.pending, label: t('staff.pendingShort', { defaultValue: 'Pending' }), color: C.pending },
+      { key: 'IN_PROGRESS', n: stats.inProgress, label: t('staff.inProgress', { defaultValue: 'In Progress' }), color: C.progress },
+      { key: 'RESOLVED', n: stats.resolved, label: t('staff.resolvedShort', { defaultValue: 'Resolved' }), color: C.resolved },
+    ];
+    return (
+      <View style={styles.statsRow}>
+        {items.map((m) => {
+          const on = selectedStatus === m.key;
+          return (
+            <TouchableOpacity
+              key={m.key}
+              activeOpacity={0.8}
+              onPress={() => pickStatusFilter(on ? 'ALL' : m.key)}
+              style={[styles.statCard, { borderColor: on ? m.color : C.line2 }]}
+            >
+              <Text style={[styles.statNum, { color: m.color }]}>{m.n}</Text>
+              <Text style={styles.statLabel} numberOfLines={1}>{m.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  };
+
+  const renderTaskCard = (item: any) => {
+    const st = STATUS_META[item.status] || { label: String(item.status || '').replace('_', ' '), color: C.muted };
+    const pr = PRIORITY_META[item.priority] || PRIORITY_META.Low;
+    const isOpen = item.status !== 'DONE' && item.status !== 'RESOLVED';
+    const highlight = item.is_escalated ? '#F2A49C' : (item.priority === 'High' || item.priority === 'Urgent') && isOpen ? '#F6C7BE' : C.line2;
+    return (
+      <View key={item._id} style={[styles.taskCard, { borderColor: highlight }, item.is_escalated && { borderWidth: 1.5 }]}>
+        <TouchableOpacity activeOpacity={0.85} onPress={() => router.push(`/task-details?id=${item._id}`)} style={{ gap: 8 }}>
+          {item.is_escalated && (
+            <View style={styles.escalatedRow}>
+              <Ionicons name="flame" size={15} color="#DC2626" />
+              <Text style={styles.escalatedText}>ESCALATED</Text>
+              {(item.escalated_by_name || item.escalated_by?.name) && (
+                <Text style={styles.escalatedBy} numberOfLines={1}>
+                  By: {item.escalated_by_name || item.escalated_by?.name}
+                </Text>
+              )}
+            </View>
+          )}
+          <View style={styles.cardMetaRow}>
+            <View style={styles.idPill}><Text style={styles.idPillText}>{complaintCode(item)}</Text></View>
+            {item.priority ? (
+              <View style={[styles.prPill, { backgroundColor: pr[0] }]}>
+                <Text style={[styles.prPillText, { color: pr[1] }]}>{item.priority}</Text>
+              </View>
+            ) : null}
+            <View style={styles.statusWrap}>
+              <View style={[styles.statusDot, { backgroundColor: st.color }]} />
+              <Text style={[styles.statusCaps, { color: st.color }]}>{st.label}</Text>
+            </View>
+          </View>
+          <Text style={styles.taskTitle}>{t(`categories.${item.title}`, { defaultValue: item.title })}</Text>
+          {item.location ? (
+            <View style={styles.addrRow}>
+              <Ionicons name="location-outline" size={14} color={C.ink3} style={{ marginTop: 1 }} />
+              <Text style={styles.addrText}>{item.location}</Text>
+            </View>
+          ) : null}
+          {item.description ? <Text style={styles.taskDesc}>{item.description}</Text> : null}
+        </TouchableOpacity>
+
+        {item.before_image ? (
+          <TouchableOpacity activeOpacity={0.85} onPress={() => setFullScreenImage(item.before_image)} style={styles.taskPhoto}>
+            <Image source={{ uri: item.before_image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+          </TouchableOpacity>
+        ) : null}
+
+        <View style={styles.cardActions}>
+          <TouchableOpacity activeOpacity={0.8} style={styles.updateBtn} onPress={() => openStatusDropdown(item._id)}>
+            <Text style={styles.updateBtnText}>{t('staff.updateStatus', { defaultValue: 'Update Status' })}</Text>
+            <Ionicons name="chevron-down" size={18} color={C.ink} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityLabel={`Share ${complaintCode(item)}`}
+            activeOpacity={0.8}
+            style={styles.shareBtn}
+            onPress={() => shareComplaint(item)}
+          >
+            <Ionicons name="share-outline" size={19} color={C.ink} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
+  const renderAnnouncementCard = (item: any, mine: boolean) => {
+    const aud = audienceLabel(item.targetAudience);
+    const by = item?.createdBy?.name || item?.createdByName;
+    return (
+      <View key={item._id} style={styles.annCard}>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+          <Text style={styles.annTitle}>{item.title}</Text>
+          {aud ? (
+            <View style={styles.audPill}><Text style={styles.audPillText}>{aud}</Text></View>
+          ) : null}
+          {mine && (
+            <TouchableOpacity
+              accessibilityLabel="Delete broadcast"
+              onPress={() => confirmDeleteBroadcast(item._id)}
+              style={styles.annDeleteBtn}
+            >
+              <Ionicons name="trash-outline" size={17} color="#E5484D" />
+            </TouchableOpacity>
+          )}
+        </View>
+        <Text style={styles.annBody}>{item.message}</Text>
+        {item.image ? (
+          <TouchableOpacity activeOpacity={0.85} onPress={() => setFullScreenImage(item.image)}>
+            <Image source={{ uri: item.image }} style={styles.annImage} resizeMode="cover" />
+          </TouchableOpacity>
+        ) : null}
+        <Text style={styles.annMeta}>
+          {formatDateTime(item.date || item.createdAt)}{by && !mine ? ` · By ${by}` : ''}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderEmpty = (icon: any, title: string, sub?: string) => (
+    <View style={styles.emptyWrap}>
+      <Ionicons name={icon} size={56} color="#C9CED9" />
+      <Text style={styles.emptyTitle}>{title}</Text>
+      {sub ? <Text style={styles.emptySub}>{sub}</Text> : null}
+    </View>
+  );
+
+  const tabItems: { key: string; label: string; icon: any; iconOn: any; badge: number; onPress: () => void; on: boolean; step: { order: number; name: string; text: string } }[] = [
+    {
+      key: 'Tasks', label: t('staff.tasksTab', { defaultValue: 'Tasks' }), icon: 'construct-outline', iconOn: 'construct', badge: stats.pending,
+      on: isTasks, onPress: () => switchTab('Tasks'),
+      step: { order: 1, name: 'tasks_tab', text: 'यहाँ आप अपने सभी असाइन किए गए कार्य (tasks) देख और मैनेज कर सकते हैं।' },
+    },
+    {
+      key: 'Announcements', label: t('resident.announcements', { defaultValue: 'Announcements' }), icon: 'megaphone-outline', iconOn: 'megaphone', badge: 0,
+      on: isAnnSection, onPress: () => switchTab('Announcements'),
+      step: { order: 2, name: 'announcements_tab', text: 'एडमिन या मैनेजमेंट से आई घोषणाएं यहाँ देखें।' },
+    },
+    {
+      key: 'Community', label: t('staff.communityTab', { defaultValue: 'Community' }), icon: 'people-outline', iconOn: 'people', badge: 0,
+      on: false, onPress: () => router.push('/staff-community' as any),
+      step: { order: 4, name: 'community_tab', text: 'कम्युनिटी चैनल में अपडेट पढ़ें और पोस्ट करें।' },
+    },
+  ];
+
+  const statusOptions = [
+    { key: 'PENDING', label: t('staff.pending', { defaultValue: 'Pending' }), icon: 'time-outline' as const, color: C.pending },
+    { key: 'IN_PROGRESS', label: t('staff.inProgress', { defaultValue: 'In Progress' }), icon: 'construct-outline' as const, color: C.progress },
+    { key: 'DONE', label: t('staff.resolved', { defaultValue: 'Resolved (Done)' }), icon: 'checkmark-circle-outline' as const, color: C.resolved },
+  ];
+
+  const tabBarBottom = Math.max(insets.bottom, 8) + 10;
+
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-      
+    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: barIsBlue ? C.hero : C.bg }]}>
+      <StatusBar barStyle={barIsBlue ? 'light-content' : 'dark-content'} />
+
       {isOffline && (
         <View style={styles.offlineBanner}>
           <Ionicons name="cloud-offline" size={16} color="#FFFFFF" style={{ marginRight: 6 }} />
@@ -518,704 +913,350 @@ export default function StaffScreen() {
         </View>
       )}
 
-      <ScrollView 
-        style={styles.container} 
-        contentContainerStyle={styles.contentContainer}
+      <ScrollView
+        style={{ flex: 1, backgroundColor: C.bg }}
+        contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 180 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        ref={scrollRef}
+        stickyHeaderIndices={[0]}
+        onScroll={onScroll}
+        onScrollBeginDrag={() => { userMovedRef.current = true; }}
+        scrollEventThrottle={16}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[C.primary]} tintColor={barIsBlue ? '#FFFFFF' : C.primary} />}
       >
-        {/* Header matched with Resident Theme */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={toggleLanguage} style={styles.langToggle}>
-            <Text style={styles.langToggleText}>{getLanguageDisplayName(i18n.language)}</Text>
-          </TouchableOpacity>
-          <View style={styles.headerRight}>
-            <TouchableOpacity 
-              style={[styles.iconBtn, { backgroundColor: '#EFF6FF', marginRight: 8 }]} 
-              onPress={() => router.push('/staff-raise' as any)}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="add-circle" size={24} color="#2563EB" />
-            </TouchableOpacity>
-            <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल, भाषा और सेटिंग्स मैनेज कर सकते हैं।" order={3} name="staff_settings">
-              <WalkthroughableView>
-                <TouchableOpacity style={styles.iconBtn} onPress={() => router.push('/staff-settings')} activeOpacity={0.7}>
-                  <Ionicons name="settings-outline" size={24} color="#3B82F6" />
-                </TouchableOpacity>
-              </WalkthroughableView>
-            </CopilotStep>
-          </View>
+        {/* 0: sticky top bar (language, report, settings) */}
+        <View style={{ marginHorizontal: -18 }} onLayout={(e) => { layoutRef.current.bar = e.nativeEvent.layout.height; }}>
+          {renderHeaderButtons()}
         </View>
 
-        {/* Title Area */}
-        <View style={styles.titleArea}>
-          <Text style={styles.title}>{t('staff.portal')}</Text>
-          <Text style={styles.subtitle}>{t('resident.hello', { defaultValue: 'Welcome,' })} {user?.name?.split(' ')[0] || 'Staff'}</Text>
-
-          {/* Category stories: staff can post in their own category, and see everyone's */}
-          <StoriesBar title={t('community.status', { defaultValue: 'Status' })} />
-
-          {/* Dynamic Staff Banner */}
-          <View 
-            style={{ marginBottom: 16 }}
-            onLayout={(e) => setBannerCardWidth(e.nativeEvent.layout.width)}
-          >
-            {banners.length > 0 ? (
-              banners.length === 1 ? (
-                <View style={{ borderRadius: 16, overflow: 'hidden', height: 160, backgroundColor: '#0F172A', position: 'relative' }}>
-                  <Image 
-                    source={{ uri: banners[0].url }} 
-                    style={{ width: '100%', height: '100%' }}
-                    resizeMode="cover"
-                  />
-                  {banners[0].title ? (
-                    <LinearGradient
-                      colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
-                      style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, paddingVertical: 10 }}
-                    >
-                      <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
-                        {banners[0].title}
-                      </Text>
-                    </LinearGradient>
-                  ) : null}
+        {/* 1: page content */}
+        <View style={{ gap: 16 }} onLayout={(e) => { layoutRef.current.content = e.nativeEvent.layout.y; }}>
+          {isTasks ? (
+            <>
+              {renderHero()}
+              {user && (
+                <View onLayout={(e) => { layoutRef.current.stats = e.nativeEvent.layout.y; }}>
+                  {renderStats()}
                 </View>
-              ) : (
-                <View style={{ borderRadius: 16, overflow: 'hidden', height: 160, backgroundColor: '#0F172A', position: 'relative' }}>
-                  <FlatList
-                    ref={bannerFlatListRef}
-                    data={banners}
-                    horizontal
-                    pagingEnabled
-                    showsHorizontalScrollIndicator={false}
-                    keyExtractor={(item) => item._id}
-                    getItemLayout={(_, index) => ({
-                      length: bannerCardWidth,
-                      offset: bannerCardWidth * index,
-                      index,
-                    })}
-                    onMomentumScrollEnd={(e: any) => {
-                      const idx = Math.round(e.nativeEvent.contentOffset.x / bannerCardWidth);
-                      setBannerIndex(idx);
-                    }}
-                    renderItem={({ item }) => (
-                      <View style={{ width: bannerCardWidth, height: 160, position: 'relative' }}>
-                        <Image 
-                          source={{ uri: item.url }} 
-                          style={{ width: '100%', height: '100%' }}
-                          resizeMode="cover"
-                        />
-                        {item.title ? (
-                          <LinearGradient
-                            colors={['transparent', 'rgba(15, 23, 42, 0.85)']}
-                            style={{ position: 'absolute', bottom: 0, left: 0, right: 0, paddingHorizontal: 14, paddingVertical: 10 }}
-                          >
-                            <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '700' }} numberOfLines={1}>
-                              {item.title}
-                            </Text>
-                          </LinearGradient>
-                        ) : null}
-                      </View>
-                    )}
-                  />
-                  {/* Carousel Dots */}
-                  <View style={{ position: 'absolute', bottom: 8, left: 0, right: 0, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6 }}>
-                    {banners.map((_, i) => (
-                      <View 
-                        key={i} 
-                        style={{
-                          width: bannerIndex === i ? 18 : 6,
-                          height: 6,
-                          borderRadius: 3,
-                          backgroundColor: bannerIndex === i ? '#38BDF8' : 'rgba(255, 255, 255, 0.5)',
-                        }}
-                      />
-                    ))}
-                  </View>
-                </View>
-              )
-            ) : (
-              <View style={{ alignItems: 'center' }}>
-                <Image 
-                  source={require('../../assets/image.png')} 
-                  style={{ width: '100%', height: 160, borderRadius: 16, resizeMode: 'cover' }}
-                />
-              </View>
-            )}
-          </View>
-          
-          {user && (
-            <View style={styles.assignmentBox}>
-              <View style={styles.infoRow}>
-                <Ionicons name="location" size={16} color="#3B82F6" />
-                <Text style={styles.infoText}>
-                  {(() => {
-                    if (Array.isArray(user.assigned_locations) && user.assigned_locations.length > 0) {
-                      return user.assigned_locations.map((loc: any) => {
-                        const isAll = !loc.blocks || loc.blocks.length === 0 || loc.blocks.includes('ALL') || loc.blocks.includes('All Blocks');
-                        const blks = isAll ? 'All Blocks' : loc.blocks.join(', ');
-                        return `${loc.phase}: ${blks}`;
-                      }).join(' | ');
-                    }
-                    if (user.phase && user.address) return `${user.phase}: ${user.address}`;
-                    if (user.phase) return user.phase;
-                    if (user.address) return user.address;
-                    return t('staff.allLocations', { defaultValue: 'All Locations' });
-                  })()}
-                </Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Ionicons name="pricetag" size={16} color="#10B981" />
-                <Text style={styles.infoText}>{user.assigned_category === 'All Complaints' ? t('staff.allComplaints', { defaultValue: 'All Complaints' }) : (user.assigned_category || t('staff.allComplaints', { defaultValue: 'All Complaints' }))}</Text>
-              </View>
-              {user.accounts?.filter((acc: any) => acc.role === 'Staff').map((acc: any, idx: number) => (
-                <View key={idx} style={styles.extraAccountBox}>
-                  <View style={styles.infoRow}>
-                    <Ionicons name="location" size={16} color="#3B82F6" />
-                    <Text style={styles.infoText}>
-                      {(() => {
-                        if (acc.phase && acc.address) return `${acc.phase}: ${acc.address}`;
-                        if (acc.phase) return acc.phase;
-                        if (acc.address) return acc.address;
-                        return t('staff.allLocations', { defaultValue: 'All Locations' });
-                      })()}
-                    </Text>
-                  </View>
-                  <View style={styles.infoRow}>
-                    <Ionicons name="pricetag" size={16} color="#10B981" />
-                    <Text style={styles.infoText}>{acc.assigned_category === 'All Complaints' ? t('staff.allComplaints', { defaultValue: 'All Complaints' }) : (acc.assigned_category || t('staff.allComplaints', { defaultValue: 'All Complaints' }))}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          )}
+              )}
 
-          {user && (
-            <View style={styles.statsBanner}>
-              <TouchableOpacity 
-                style={[styles.statItem, selectedStatus === 'PENDING' && { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  const newStatus = selectedStatus === 'PENDING' ? 'ALL' : 'PENDING';
-                  setSelectedStatus(newStatus);
-                  setLoading(true);
-                  fetchComplaints(searchQuery, selectedCategory, newStatus);
-                  setActiveTab('Tasks');
-                }}
-              >
-                <Text style={[styles.statNumber, { color: '#F59E0B' }]}>{stats.pending}</Text>
-                <Text style={styles.statLabel}>Pending</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.statItem, selectedStatus === 'IN_PROGRESS' && { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  const newStatus = selectedStatus === 'IN_PROGRESS' ? 'ALL' : 'IN_PROGRESS';
-                  setSelectedStatus(newStatus);
-                  setLoading(true);
-                  fetchComplaints(searchQuery, selectedCategory, newStatus);
-                  setActiveTab('Tasks');
-                }}
-              >
-                <Text style={[styles.statNumber, { color: '#3B82F6' }]}>{stats.inProgress}</Text>
-                <Text style={styles.statLabel}>In Progress</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity 
-                style={[styles.statItem, selectedStatus === 'RESOLVED' && { backgroundColor: '#ECFDF5', borderColor: '#A7F3D0' }]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  const newStatus = selectedStatus === 'RESOLVED' ? 'ALL' : 'RESOLVED';
-                  setSelectedStatus(newStatus);
-                  setLoading(true);
-                  fetchComplaints(searchQuery, selectedCategory, newStatus);
-                  setActiveTab('Tasks');
-                }}
-              >
-                <Text style={[styles.statNumber, { color: '#10B981' }]}>{stats.resolved}</Text>
-                <Text style={styles.statLabel}>Resolved</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+              {/* Category stories: staff can post in their own category, and see everyone's */}
+              <StoriesBar title={t('community.status', { defaultValue: 'Status' })} />
 
-          {/* Quick Action: Report / Lodge Grievance for Staff */}
-          <TouchableOpacity 
-            style={styles.raiseGrievanceBanner}
-            onPress={() => router.push('/staff-raise' as any)}
-            activeOpacity={0.8}
-          >
-            <View style={styles.raiseGrievanceIconWrapper}>
-              <Ionicons name="megaphone" size={22} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.raiseGrievanceTitle}>{t('staff.reportIssue', { defaultValue: 'Report / Raise Issue' })}</Text>
-              <Text style={styles.raiseGrievanceSubtitle}>{t('staff.reportIssueSub', { defaultValue: 'Spotted a problem in your area? Lodge a grievance directly' })}</Text>
-            </View>
-            <View style={styles.raiseGrievanceArrow}>
-              <Ionicons name="chevron-forward" size={18} color="#2563EB" />
-            </View>
-          </TouchableOpacity>
-
-          {/* Community channels: staff assigned by the admin can post updates here */}
-          <TouchableOpacity
-            style={[styles.raiseGrievanceBanner, { marginTop: 12 }]}
-            onPress={() => router.push('/staff-community' as any)}
-            activeOpacity={0.8}
-          >
-            <View style={[styles.raiseGrievanceIconWrapper, { backgroundColor: '#0EA5E9' }]}>
-              <Ionicons name="chatbubbles" size={22} color="#FFFFFF" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.raiseGrievanceTitle}>{t('staff.channels', { defaultValue: 'Community Channels' })}</Text>
-              <Text style={styles.raiseGrievanceSubtitle}>{t('staff.channelsSub', { defaultValue: 'Read updates, and post in channels assigned to you' })}</Text>
-            </View>
-            <View style={styles.raiseGrievanceArrow}>
-              <Ionicons name="chevron-forward" size={18} color="#2563EB" />
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* Filters */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterContainer}>
-          <CopilotStep text="यहाँ आप अपने सभी असाइन किए गए कार्य (tasks) देख और मैनेज कर सकते हैं।" order={1} name="tasks_tab">
-            <WalkthroughableView>
-              <TouchableOpacity 
-                style={[styles.filterChip, activeTab === 'Tasks' && styles.filterChipActive]}
-                onPress={() => setActiveTab('Tasks')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.filterText, activeTab === 'Tasks' && styles.filterTextActive]}>{t('staff.assignedTasks')}</Text>
-              </TouchableOpacity>
-            </WalkthroughableView>
-          </CopilotStep>
-          <CopilotStep text="एडमिन या मैनेजमेंट से आई घोषणाएं यहाँ देखें।" order={2} name="announcements_tab">
-            <WalkthroughableView>
-              <TouchableOpacity 
-                style={[styles.filterChip, activeTab === 'Announcements' && styles.filterChipActive]}
-                onPress={() => setActiveTab('Announcements')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.filterText, activeTab === 'Announcements' && styles.filterTextActive]}>{t('resident.announcements', { defaultValue: 'Announcements' })}</Text>
-              </TouchableOpacity>
-            </WalkthroughableView>
-          </CopilotStep>
-          <CopilotStep text="निवासियों को ज़रूरी अपडेट या घोषणाएँ भेजने के लिए इसका उपयोग करें।" order={3} name="broadcasts_tab">
-            <WalkthroughableView>
-              <TouchableOpacity 
-                style={[styles.filterChip, activeTab === 'Broadcasts' && styles.filterChipActive]}
-                onPress={() => setActiveTab('Broadcasts')}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.filterText, activeTab === 'Broadcasts' && styles.filterTextActive]}>{t('staff.myBroadcasts', { defaultValue: 'My Broadcasts' })}</Text>
-              </TouchableOpacity>
-            </WalkthroughableView>
-          </CopilotStep>
-        </ScrollView>
-
-        {activeTab === 'Tasks' ? (
-          <>
-            <View style={{ marginBottom: 16 }}>
-              <View style={styles.searchBar}>
-                <Ionicons name="search-outline" size={20} color="#94A3B8" style={{ marginRight: 8 }} />
+              <View style={styles.searchBox}>
+                <Ionicons name="search-outline" size={20} color={C.muted} />
                 <TextInput
-                  style={{ flex: 1, height: 40, color: '#111827' }}
+                  style={styles.searchInput}
                   placeholder={t('staff.searchTasks', { defaultValue: 'Search tasks...' })}
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor="#8A92A6"
                   value={searchQuery}
                   onChangeText={setSearchQuery}
+                  returnKeyType="search"
                 />
                 {searchQuery.length > 0 && (
-                  <TouchableOpacity onPress={() => { setSearchQuery(''); fetchComplaints('', selectedCategory, selectedStatus); }}>
-                    <Ionicons name="close-circle" size={20} color="#D1D5DB" />
+                  <TouchableOpacity
+                    accessibilityLabel="Clear search"
+                    onPress={() => { setSearchQuery(''); fetchComplaints('', selectedCategory, selectedStatus); }}
+                  >
+                    <Ionicons name="close-circle" size={20} color="#C9CED9" />
                   </TouchableOpacity>
                 )}
               </View>
 
-              {/* Status Filter - Segmented Control */}
-              <View style={styles.statusContainer}>
-                {['ALL', 'PENDING', 'IN_PROGRESS', 'RESOLVED'].map(status => {
-                  const isActive = selectedStatus === status;
-                  const label = status === 'ALL' ? 'All' : status.replace('_', ' ');
+              <View style={styles.segment}>
+                {[
+                  ['ALL', t('staff.all', { defaultValue: 'All' })],
+                  ['PENDING', t('staff.pendingShort', { defaultValue: 'Pending' })],
+                  ['IN_PROGRESS', t('staff.inProgress', { defaultValue: 'In Progress' })],
+                  ['RESOLVED', t('staff.resolvedShort', { defaultValue: 'Resolved' })],
+                ].map(([key, label]) => {
+                  const on = selectedStatus === key;
                   return (
-                    <TouchableOpacity 
-                      key={status}
-                      style={[styles.statusTab, isActive && styles.statusTabActive]}
-                      onPress={() => {
-                        setSelectedStatus(status);
-                        setLoading(true);
-                        fetchComplaints(searchQuery, selectedCategory, status);
-                      }}
-                      activeOpacity={0.8}
+                    <TouchableOpacity
+                      key={key}
+                      activeOpacity={0.85}
+                      onPress={() => pickStatusFilter(key)}
+                      style={[styles.segBtn, on && styles.segBtnOn]}
                     >
-                      <Text style={[styles.statusTabText, isActive && styles.statusTabTextActive]}>{label}</Text>
+                      <Text style={[styles.segText, { color: on ? C.primary : C.ink3 }]} numberOfLines={1}>{label}</Text>
                     </TouchableOpacity>
                   );
                 })}
               </View>
 
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 20, paddingVertical: 15, gap: 10 }}>
-                {filterCategories.map(cat => {
-                  const isActive = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
-                  return (
-                    <TouchableOpacity 
-                      key={cat} 
-                      style={[styles.catChip, isActive && styles.catChipActive]}
-                      onPress={() => {
-                        const newCat = cat === 'All' ? '' : cat;
-                        setSelectedCategory(newCat);
-                        setLoading(true);
-                        fetchComplaints(searchQuery, newCat, selectedStatus);
-                      }}
-                    >
-                      <Text style={[styles.catChipText, isActive && styles.catChipTextActive]}>{cat === 'All' ? 'All' : t(`categories.${cat}`, { defaultValue: cat })}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
-
-            {loading ? (
-              <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />
-            ) : complaints.length === 0 ? (
-              <View style={styles.emptyStateContainer}>
-                <Ionicons name="checkmark-circle-outline" size={64} color="#D1D5DB" />
-                <Text style={styles.emptyTextLarge}>{t('staff.noTasks')}</Text>
-              </View>
-            ) : (
-              complaints.map((item) => (
-                <TouchableOpacity 
-                  key={item._id} 
-                  style={[
-                    styles.card,
-                    item.is_escalated && { borderColor: '#EF4444', borderWidth: 1.5, backgroundColor: '#FFF5F5' }
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={() => router.push(`/task-details?id=${item._id}`)}
+              {/* Category chips only when the staff member handles 2+ categories ('All' + 2) */}
+              {filterCategories.length > 2 && (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={{ marginHorizontal: -18 }}
+                  contentContainerStyle={{ paddingHorizontal: 18, gap: 8 }}
                 >
-                  {/* Escalated Header Banner for Staff */}
-                  {item.is_escalated && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF2F2', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: '#FCA5A5', marginBottom: 10, gap: 6 }}>
-                      <Ionicons name="flame" size={15} color="#DC2626" />
-                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#DC2626', letterSpacing: 0.5 }}>
-                        ESCALATED
-                      </Text>
-                      {(item.escalated_by_name || item.escalated_by?.name) && (
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#991B1B', marginLeft: 'auto' }}>
-                          By: {item.escalated_by_name || item.escalated_by?.name}
+                  {filterCategories.map((cat) => {
+                    const on = (cat === 'All' && selectedCategory === '') || cat === selectedCategory;
+                    return (
+                      <TouchableOpacity
+                        key={cat}
+                        activeOpacity={0.85}
+                        style={[styles.catChip, on && styles.catChipOn]}
+                        onPress={() => {
+                          const newCat = cat === 'All' ? '' : cat;
+                          setSelectedCategory(newCat);
+                          setLoading(true);
+                          fetchComplaints(searchQuery, newCat, selectedStatus);
+                        }}
+                      >
+                        <Text style={[styles.catChipText, on && { color: '#FFFFFF' }]}>
+                          {cat === 'All' ? t('staff.all', { defaultValue: 'All' }) : t(`categories.${cat}`, { defaultValue: cat })}
                         </Text>
-                      )}
-                    </View>
-                  )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
 
-                  <View style={[styles.cardHeader, { marginBottom: 10 }]}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <View style={{ backgroundColor: '#EEF2FF', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, borderWidth: 1, borderColor: '#E0E7FF' }}>
-                        <Text style={{ fontSize: 11, fontWeight: '700', color: '#4338CA', letterSpacing: 0.5 }}>
-                          {item.complaint_id || `#AH-${item._id?.slice(-5).toUpperCase()}`}
-                        </Text>
-                      </View>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>{item.priority}</Text>
-                      </View>
-                    </View>
-                    <Text style={[
-                      styles.statusText, 
-                      item.status === 'PENDING' ? { color: '#F59E0B' } : 
-                      item.status === 'IN_PROGRESS' ? { color: '#3B82F6' } : { color: '#10B981' }
-                    ]}>
-                      ● {item.status === 'DONE' ? 'RESOLVED' : item.status.replace('_', ' ')}
-                    </Text>
-                  </View>
+              {loading ? (
+                <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 32 }} />
+              ) : complaints.length === 0 ? (
+                renderEmpty('checkmark-circle-outline', t('staff.noTasks', { defaultValue: 'No tasks here.' }))
+              ) : (
+                complaints.map(renderTaskCard)
+              )}
+            </>
+          ) : (
+            <>
+              <View style={{ gap: 2, marginTop: 4 }}>
+                <Text style={styles.secKicker}>{t('staff.portal', { defaultValue: 'Staff Portal' })}</Text>
+                <Text style={styles.secTitle}>{t('resident.announcements', { defaultValue: 'Announcements' })}</Text>
+              </View>
 
-                  <Text style={styles.cardTitle}>{t(`categories.${item.title}`, { defaultValue: item.title })}</Text>
-                  
-                  <View style={styles.locationRow}>
-                    <Ionicons name="location-outline" size={16} color="#6B7280" />
-                    <Text style={styles.cardLocation}>{item.location}</Text>
-                  </View>
-
-                  <Text style={styles.descText}>{item.description}</Text>
-
-                  {item.before_image ? (
-                    <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.before_image)} style={styles.imageContainer}>
-                      <Image source={{ uri: item.before_image }} style={styles.cardImage} />
+              <View style={styles.segment}>
+                {([
+                  ['Announcements', t('staff.fromManagement', { defaultValue: 'From management' })],
+                  ['Broadcasts', t('staff.myBroadcasts', { defaultValue: 'My Broadcasts' })],
+                ] as const).map(([key, label]) => {
+                  const on = activeTab === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      activeOpacity={0.85}
+                      onPress={() => setActiveTab(key)}
+                      style={[styles.segBtn, on && styles.segBtnOn]}
+                    >
+                      <Text style={[styles.segText, { color: on ? C.primary : C.ink3 }]} numberOfLines={1}>{label}</Text>
                     </TouchableOpacity>
-                  ) : null}
+                  );
+                })}
+              </View>
 
-                  {/* Action Dropdown Button */}
-                  <TouchableOpacity 
-                    style={styles.dropdownBtn}
-                    onPress={() => openStatusDropdown(item._id)}
-                  >
-                    <Text style={styles.dropdownBtnText}>{t('staff.updateStatus')}</Text>
-                    <Ionicons name="chevron-down" size={20} color="#111827" />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              ))
-            )}
-          </>
-        ) : activeTab === 'Announcements' ? (
-          <>
-            {(() => {
-              const filteredAnnouncements = announcements.filter(item => {
-                const uid = user?._id || user?.id;
-                const cid = item?.createdBy?._id || item?.createdBy?.id || item?.createdBy;
-                return !uid || !cid || String(uid) !== String(cid);
-              });
-
-              if (loadingAnnouncements) {
-                return <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />;
-              }
-
-              if (filteredAnnouncements.length === 0) {
-                return (
-                  <View style={styles.emptyStateContainer}>
-                    <Ionicons name="megaphone-outline" size={64} color="#D1D5DB" />
-                    <Text style={styles.emptyTextLarge}>{t('resident.noAnnouncements', { defaultValue: 'No Announcements' })}</Text>
-                    <Text style={styles.emptyTextSub}>{t('staff.noAnnouncementsSub', { defaultValue: 'You have no new announcements from management.' })}</Text>
-                  </View>
-                );
-              }
-
-              return filteredAnnouncements.map((item) => (
-                <View key={item._id} style={[styles.card, { padding: 16 }]}>
-                  <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6 }}>{item.title}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
-                    <Ionicons name="time-outline" size={13} color="#6B7280" />
-                    <Text style={{ fontSize: 12, color: '#6B7280' }}>{formatDateTime(item.date || item.createdAt)}</Text>
-                  </View>
-                  <Text style={{ fontSize: 15, color: '#4B5563', lineHeight: 22 }}>{item.message}</Text>
-                  {item.image && (
-                    <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.image)}>
-                      <Image source={{ uri: item.image }} style={{ width: '100%', height: 200, borderRadius: 12, marginTop: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ));
-            })()}
-          </>
-        ) : (
-          <>
-            {(() => {
-              const filteredAnnouncements = announcements.filter(item => {
-                const uid = user?._id || user?.id;
-                const cid = item?.createdBy?._id || item?.createdBy?.id || item?.createdBy;
-                return uid && cid && String(uid) === String(cid);
-              });
-
-              if (loadingAnnouncements) {
-                return <ActivityIndicator size="large" color="#1D4ED8" style={{ marginTop: 40 }} />;
-              }
-
-              if (filteredAnnouncements.length === 0) {
-                return (
-                  <View style={styles.emptyStateContainer}>
-                    <Ionicons name="megaphone-outline" size={64} color="#D1D5DB" />
-                    <Text style={styles.emptyTextLarge}>{t('staff.noBroadcasts', { defaultValue: 'No broadcasts sent yet.' })}</Text>
-                    <Text style={styles.emptyTextSub}>{t('staff.noBroadcastsSub', { defaultValue: "You haven't sent any messages to the residents. Tap the button below to send your first message." })}</Text>
-                  </View>
-                );
-              }
-
-              return filteredAnnouncements.map((item) => (
-                <View key={item._id} style={[styles.card, { padding: 16 }]}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Text style={{ fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 6, flex: 1 }}>{item.title}</Text>
-                    <TouchableOpacity onPress={() => confirmDeleteBroadcast(item._id)} style={{ padding: 4, backgroundColor: '#FEE2E2', borderRadius: 8 }}>
-                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
-                    </TouchableOpacity>
-                  </View>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 }}>
-                    <Ionicons name="time-outline" size={13} color="#6B7280" />
-                    <Text style={{ fontSize: 12, color: '#6B7280' }}>{formatDateTime(item.date || item.createdAt)}</Text>
-                  </View>
-                  <Text style={{ fontSize: 15, color: '#4B5563', lineHeight: 22 }}>{item.message}</Text>
-                  {item.image && (
-                    <TouchableOpacity activeOpacity={0.8} onPress={() => setFullScreenImage(item.image)}>
-                      <Image source={{ uri: item.image }} style={{ width: '100%', height: 200, borderRadius: 12, marginTop: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ));
-            })()}
-          </>
-        )}
-        <View style={{ height: 120 }} />
+              {loadingAnnouncements ? (
+                <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 32 }} />
+              ) : activeTab === 'Announcements' ? (
+                otherAnnouncements.length === 0
+                  ? renderEmpty('megaphone-outline', t('resident.noAnnouncements', { defaultValue: 'No Announcements' }), t('staff.noAnnouncementsSub', { defaultValue: 'You have no new announcements from management.' }))
+                  : otherAnnouncements.map((a) => renderAnnouncementCard(a, false))
+              ) : (
+                myAnnouncements.length === 0
+                  ? renderEmpty('megaphone-outline', t('staff.noBroadcasts', { defaultValue: 'No broadcasts sent yet.' }), t('staff.noBroadcastsSub', { defaultValue: "You haven't sent any messages to the residents. Tap the button below to send your first message." }))
+                  : myAnnouncements.map((a) => renderAnnouncementCard(a, true))
+              )}
+            </>
+          )}
+        </View>
       </ScrollView>
 
-      {/* Status Selection Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={modalVisible}
-        onRequestClose={() => setModalVisible(false)}
+      {/* Floating bottom tab bar */}
+      <View style={[styles.tabBar, { bottom: tabBarBottom }]}>
+        {tabItems.map((tb) => (
+          <CopilotStep key={tb.key} text={tb.step.text} order={tb.step.order} name={tb.step.name}>
+            <WalkthroughableView style={{ flex: 1 }}>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={tb.onPress}
+                accessibilityState={{ selected: tb.on }}
+                style={styles.tabBtn}
+              >
+                <View style={[styles.tabPill, tb.on && { backgroundColor: '#EEF4FF' }]}>
+                  <Ionicons name={tb.on ? tb.iconOn : tb.icon} size={22} color={tb.on ? C.primary : C.muted} />
+                  {tb.badge > 0 && (
+                    <View style={styles.tabBadge}>
+                      <Text style={styles.tabBadgeText}>{tb.badge > 99 ? '99+' : tb.badge}</Text>
+                    </View>
+                  )}
+                </View>
+                <Text style={[styles.tabLabel, { color: tb.on ? C.primary : C.muted, fontWeight: tb.on ? '800' : '600' }]} numberOfLines={1}>
+                  {tb.label}
+                </Text>
+              </TouchableOpacity>
+            </WalkthroughableView>
+          </CopilotStep>
+        ))}
+      </View>
+
+      {/* FAB: new announcement */}
+      <TouchableOpacity
+        accessibilityLabel={t('staff.newAnnouncement', { defaultValue: 'New Announcement' })}
+        activeOpacity={0.85}
+        style={[styles.fab, { bottom: tabBarBottom + 82 }]}
+        onPress={() => setBroadcastModalVisible(true)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
-          onPress={() => setModalVisible(false)}
-        >
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{t('staff.updateStatus')}</Text>
-            
-            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('PENDING')} disabled={!!updatingStatus}>
-              {updatingStatus === 'PENDING' ? <ActivityIndicator size="small" color="#F59E0B" /> : <Ionicons name="time-outline" size={24} color="#F59E0B" />}
-              <Text style={styles.modalOptionText}>{t('staff.pending')}</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('IN_PROGRESS')} disabled={!!updatingStatus}>
-              {updatingStatus === 'IN_PROGRESS' ? <ActivityIndicator size="small" color="#3B82F6" /> : <Ionicons name="construct-outline" size={24} color="#3B82F6" />}
-              <Text style={styles.modalOptionText}>{t('staff.inProgress')}</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.modalOption} onPress={() => updateStatus('DONE')} disabled={!!updatingStatus}>
-              {updatingStatus === 'DONE' ? <ActivityIndicator size="small" color="#10B981" /> : <Ionicons name="checkmark-circle-outline" size={24} color="#10B981" />}
-              <Text style={styles.modalOptionText}>{t('staff.resolved')}</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={[styles.modalOption, { borderBottomWidth: 0, marginTop: 8 }]} onPress={() => setModalVisible(false)}>
-              <Text style={{ fontSize: 16, color: '#6B7280', fontWeight: '600', textAlign: 'center', width: '100%' }}>{t('staff.cancel')}</Text>
+        <Ionicons name="megaphone" size={26} color="#FFFFFF" />
+      </TouchableOpacity>
+
+      {/* Update status: centre dialog */}
+      <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
+        <View style={styles.dialogWrap}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setModalVisible(false)} />
+          <View style={styles.dialog}>
+            <Text style={styles.dialogTitle}>{t('staff.updateStatus', { defaultValue: 'Update Status' })}</Text>
+            {selectedComplaint && (
+              <Text style={styles.dialogSub} numberOfLines={1}>
+                {complaintCode(selectedComplaint)} · {t(`categories.${selectedComplaint.title}`, { defaultValue: selectedComplaint.title })}
+              </Text>
+            )}
+            {statusOptions.map((o) => {
+              const current = selectedComplaint && (selectedComplaint.status === o.key || (o.key === 'DONE' && selectedComplaint.status === 'RESOLVED'));
+              return (
+                <TouchableOpacity
+                  key={o.key}
+                  activeOpacity={0.8}
+                  disabled={!!updatingStatus}
+                  onPress={() => updateStatus(o.key)}
+                  style={[styles.dialogOption, current && { backgroundColor: '#F5F8FF' }]}
+                >
+                  {updatingStatus === o.key
+                    ? <ActivityIndicator size="small" color={o.color} />
+                    : <Ionicons name={o.icon} size={22} color={o.color} />}
+                  <Text style={styles.dialogOptionText}>{o.label}</Text>
+                  {current && <Ionicons name="checkmark" size={20} color={C.primary} />}
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.dialogCancel}>
+              <Text style={styles.dialogCancelText}>{t('staff.cancel', { defaultValue: 'Cancel' })}</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
 
-      {/* Broadcast Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={broadcastModalVisible}
-        onRequestClose={() => setBroadcastModalVisible(false)}
-      >
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-          style={{ flex: 1 }}
-        >
-          <TouchableOpacity 
-            style={styles.modalOverlay} 
-            activeOpacity={1} 
-            onPress={() => {
-              Keyboard.dismiss();
-            }}
-          >
-            <TouchableOpacity 
-              activeOpacity={1} 
-              style={styles.broadcastModalContent}
-              onPress={() => Keyboard.dismiss()}
-            >
-            <View style={styles.broadcastHeader}>
-              <Text style={styles.modalTitle}>{t('staff.newAnnouncement', { defaultValue: 'New Announcement' })}</Text>
-              <TouchableOpacity onPress={() => setBroadcastModalVisible(false)}>
-                <Ionicons name="close" size={24} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.broadcastHelpText}>{t('staff.chooseAudience', { defaultValue: 'Choose who should receive this announcement.' })}</Text>
-
-            {/* Target Society Groups & Blocks Indicator */}
-            <View style={{ marginBottom: 14, padding: 10, backgroundColor: '#EFF6FF', borderRadius: 8, borderWidth: 1, borderColor: '#BFDBFE' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 2 }}>
-                <Ionicons name="location" size={14} color="#1D4ED8" style={{ marginRight: 4 }} />
-                <Text style={{ fontSize: 12, fontWeight: '700', color: '#1D4ED8' }}>
-                  Target Groups & Blocks:
-                </Text>
-              </View>
-              <Text style={{ fontSize: 12, color: '#1E3A8A', lineHeight: 16 }}>
-                {Array.isArray(user?.assigned_locations) && user.assigned_locations.length > 0
-                  ? user.assigned_locations.map((l: any) => `${l.phase}: ${(!l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL')) ? 'All Blocks' : `Block ${l.blocks.join(', ')}`}`).join(' | ')
-                  : (user?.phase || 'All Assigned Locations')}
-              </Text>
-            </View>
-            
-            <View style={{ flexDirection: 'row', marginBottom: 16, backgroundColor: '#F3F4F6', borderRadius: 8, padding: 4 }}>
-              <TouchableOpacity 
-                style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: broadcastTarget === 'All' ? '#FFFFFF' : 'transparent', borderRadius: 6, shadowColor: broadcastTarget === 'All' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: broadcastTarget === 'All' ? 2 : 0 }}
-                onPress={() => setBroadcastTarget('All')}
-              >
-                <Text style={{ fontWeight: broadcastTarget === 'All' ? '600' : '500', color: broadcastTarget === 'All' ? '#111827' : '#6B7280' }}>{t('staff.residentAll', { defaultValue: 'Resident (All)' })}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity 
-                style={{ flex: 1, paddingVertical: 10, alignItems: 'center', backgroundColor: broadcastTarget === 'Members' ? '#FFFFFF' : 'transparent', borderRadius: 6, shadowColor: broadcastTarget === 'Members' ? '#000' : 'transparent', shadowOpacity: 0.1, shadowRadius: 2, elevation: broadcastTarget === 'Members' ? 2 : 0 }}
-                onPress={() => setBroadcastTarget('Members')}
-              >
-                <Text style={{ fontWeight: broadcastTarget === 'Members' ? '600' : '500', color: broadcastTarget === 'Members' ? '#111827' : '#6B7280' }}>{t('staff.rwaMembers', { defaultValue: 'RWA (Members)' })}</Text>
-              </TouchableOpacity>
-            </View>
-            
-            <TextInput
-              style={styles.input}
-              placeholder={t('staff.broadcastTitle', { defaultValue: 'Broadcast Title (e.g., Power Outage)' })}
-              value={broadcastTitle}
-              onChangeText={setBroadcastTitle}
-              placeholderTextColor="#9CA3AF"
-            />
-            
-            <TextInput
-              style={[styles.input, styles.textArea]}
-              placeholder={t('staff.messageDetails', { defaultValue: 'Message details...' })}
-              value={broadcastMessage}
-              onChangeText={setBroadcastMessage}
-              multiline
-              numberOfLines={4}
-              placeholderTextColor="#9CA3AF"
-            />
-            
-            <View style={{ marginBottom: 16 }}>
-              <Text style={{ fontSize: 14, fontWeight: '500', color: '#374151', marginBottom: 8 }}>{t('staff.imageOptional', { defaultValue: 'Image (Optional)' })}</Text>
-              {broadcastImage ? (
-                <View style={{ position: 'relative' }}>
-                  <Image source={{ uri: broadcastImage }} style={{ width: '100%', height: 150, borderRadius: 12, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
-                  <TouchableOpacity onPress={() => setBroadcastImage(null)} style={{ position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.5)', padding: 6, borderRadius: 16 }}>
-                    <Ionicons name="close" size={20} color="#FFF" />
+      {/* New announcement: bottom sheet */}
+      <Modal animationType="slide" transparent visible={broadcastModalVisible} onRequestClose={() => setBroadcastModalVisible(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+          <View style={styles.sheetWrap}>
+            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setBroadcastModalVisible(false); }} />
+            <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 14 }]}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text style={styles.sheetTitle}>{t('staff.newAnnouncement', { defaultValue: 'New Announcement' })}</Text>
+                    <Text style={styles.sheetSub}>{t('staff.chooseAudience', { defaultValue: 'Choose who should receive this announcement.' })}</Text>
+                  </View>
+                  <TouchableOpacity accessibilityLabel="Close" onPress={() => setBroadcastModalVisible(false)} style={styles.sheetClose}>
+                    <Ionicons name="close" size={20} color={C.ink} />
                   </TouchableOpacity>
                 </View>
-              ) : (
-                <TouchableOpacity onPress={pickBroadcastImage} style={{ padding: 16, borderWidth: 1, borderColor: '#D1D5DB', borderStyle: 'dashed', borderRadius: 12, alignItems: 'center', backgroundColor: '#F9FAFB' }}>
-                  <Ionicons name="image-outline" size={32} color="#9CA3AF" />
-                  <Text style={{ marginTop: 8, color: '#6B7280', fontWeight: '500' }}>{t('staff.tapToAttach', { defaultValue: 'Tap to attach an image' })}</Text>
+
+                <View style={styles.targetBox}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="location" size={15} color="#1A3FB8" />
+                    <Text style={styles.targetTitle}>Target Groups & Blocks:</Text>
+                  </View>
+                  <Text style={styles.targetText}>
+                    {Array.isArray(user?.assigned_locations) && user.assigned_locations.length > 0
+                      ? user.assigned_locations.map((l: any) => `${l.phase}: ${(!l.blocks || l.blocks.length === 0 || l.blocks.includes('ALL')) ? 'All Blocks' : `Block ${l.blocks.join(', ')}`}`).join(' | ')
+                      : (user?.phase || 'All Assigned Locations')}
+                  </Text>
+                </View>
+
+                <View style={[styles.segment, { backgroundColor: '#F0F2F6' }]}>
+                  {([
+                    ['All', t('staff.residentAll', { defaultValue: 'Resident (All)' })],
+                    ['Members', t('staff.rwaMembers', { defaultValue: 'RWA (Members)' })],
+                  ] as const).map(([key, label]) => {
+                    const on = broadcastTarget === key;
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        activeOpacity={0.85}
+                        onPress={() => setBroadcastTarget(key)}
+                        style={[styles.segBtn, { height: 44 }, on && styles.segBtnOn]}
+                      >
+                        <Text style={[styles.segText, { fontSize: 14, color: on ? C.ink : C.ink3 }]}>{label}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('staff.broadcastTitle', { defaultValue: 'Broadcast Title (e.g., Power Outage)' })}
+                  value={broadcastTitle}
+                  onChangeText={setBroadcastTitle}
+                  placeholderTextColor="#8A92A6"
+                />
+                <TextInput
+                  style={[styles.input, styles.textArea]}
+                  placeholder={t('staff.messageDetails', { defaultValue: 'Message details...' })}
+                  value={broadcastMessage}
+                  onChangeText={setBroadcastMessage}
+                  multiline
+                  numberOfLines={4}
+                  placeholderTextColor="#8A92A6"
+                />
+
+                <Text style={styles.fieldLabel}>{t('staff.imageOptional', { defaultValue: 'Image (Optional)' })}</Text>
+                {broadcastImage ? (
+                  <View>
+                    <Image source={{ uri: broadcastImage }} style={{ width: '100%', height: 150, borderRadius: 16, backgroundColor: '#E2E8F0' }} resizeMode="cover" />
+                    <TouchableOpacity accessibilityLabel="Remove image" onPress={() => setBroadcastImage(null)} style={styles.removeImg}>
+                      <Ionicons name="close" size={18} color="#FFFFFF" />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
+                  <TouchableOpacity onPress={pickBroadcastImage} activeOpacity={0.8} style={styles.imgDrop}>
+                    <Ionicons name="image-outline" size={26} color={C.muted} />
+                    <Text style={styles.imgDropText}>{t('staff.tapToAttach', { defaultValue: 'Tap to attach an image' })}</Text>
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={[styles.primaryBtn, { backgroundColor: broadcastTitle.trim() && broadcastMessage.trim() ? C.primary : '#A9C0F2' }]}
+                  onPress={handleBroadcast}
+                  disabled={sendingBroadcast}
+                >
+                  {sendingBroadcast ? (
+                    <ActivityIndicator color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="megaphone" size={18} color="#FFFFFF" />
+                      <Text style={styles.primaryBtnText}>{t('staff.sendAnnouncement', { defaultValue: 'Send Announcement' })}</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
-              )}
+              </ScrollView>
             </View>
-            
-            <TouchableOpacity 
-              style={styles.broadcastBtn} 
-              onPress={handleBroadcast}
-              disabled={sendingBroadcast}
-            >
-              {sendingBroadcast ? (
-                <ActivityIndicator color="#111827" />
-              ) : (
-                <>
-                  <Ionicons name="megaphone" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                  <Text style={styles.broadcastBtnText}>{t('staff.sendAnnouncement', { defaultValue: 'Send Announcement' })}</Text>
-                </>
-              )}
-            </TouchableOpacity>
-            </TouchableOpacity>
-          </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Full Screen Image Modal */}
-      <Modal visible={!!fullScreenImage} transparent={true} animationType="fade" onRequestClose={() => setFullScreenImage(null)}>
+      {/* Full screen image */}
+      <Modal visible={!!fullScreenImage} transparent animationType="fade" onRequestClose={() => setFullScreenImage(null)}>
         <View style={styles.fullScreenImageContainer}>
-          <TouchableOpacity style={styles.closeImageBtn} onPress={() => setFullScreenImage(null)}>
+          <TouchableOpacity accessibilityLabel="Close" style={styles.closeImageBtn} onPress={() => setFullScreenImage(null)}>
             <Ionicons name="close" size={28} color="#FFFFFF" />
           </TouchableOpacity>
           {fullScreenImage && <ZoomableImage uri={fullScreenImage} />}
         </View>
       </Modal>
 
-      {/* Custom Delete Modal */}
-      <Modal
-        animationType="fade"
-        transparent={true}
-        visible={deleteModalVisible}
-        onRequestClose={() => setDeleteModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
+      {/* Delete broadcast confirm */}
+      <Modal animationType="fade" transparent visible={deleteModalVisible} onRequestClose={() => setDeleteModalVisible(false)}>
+        <View style={styles.dialogWrap}>
           <View style={styles.deleteModalContainer}>
             <View style={styles.deleteIconCircle}>
-              <Ionicons name="trash" size={32} color="#EF4444" />
+              <Ionicons name="trash" size={30} color="#E5484D" />
             </View>
             <Text style={styles.deleteModalTitle}>Delete Broadcast</Text>
             <Text style={styles.deleteModalText}>
@@ -1225,169 +1266,148 @@ export default function StaffScreen() {
               <TouchableOpacity style={styles.cancelBtn} onPress={() => setDeleteModalVisible(false)} disabled={isDeleting}>
                 <Text style={styles.cancelBtnText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.deleteBtn, isDeleting && { opacity: 0.6 }]} 
-                onPress={executeDeleteBroadcast}
-                disabled={isDeleting}
-              >
-                {isDeleting ? (
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                ) : (
-                  <Text style={styles.deleteBtnText}>Delete</Text>
-                )}
+              <TouchableOpacity style={[styles.deleteBtn, isDeleting && { opacity: 0.6 }]} onPress={executeDeleteBroadcast} disabled={isDeleting}>
+                {isDeleting ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={styles.deleteBtnText}>Delete</Text>}
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
-      {/* FAB for Broadcast */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => setBroadcastModalVisible(true)}
-      >
-        <Ionicons name="megaphone" size={24} color="#FFF" />
-      </TouchableOpacity>
-
-
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F8FAFC' },
-  offlineBanner: { backgroundColor: '#EF4444', paddingVertical: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
+  safeArea: { flex: 1 },
+  offlineBanner: { backgroundColor: '#E5484D', paddingVertical: 8, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   offlineText: { color: '#FFFFFF', fontSize: 13, fontWeight: '600' },
-  container: { flex: 1 },
-  contentContainer: { paddingHorizontal: 20, paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ? StatusBar.currentHeight + 20 : 50) : 60 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  headerRight: { flexDirection: 'row', alignItems: 'center' },
-  langToggle: { backgroundColor: '#FFFFFF', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
-  langToggleText: { fontSize: 13, fontWeight: '600', color: '#334155' },
-  iconBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
-  
-  titleArea: { marginBottom: 24 },
-  title: { fontSize: 20, fontWeight: '600', color: '#64748B', marginBottom: 4 },
-  subtitle: { fontSize: 26, fontWeight: '800', color: '#1E293B', marginBottom: 12 },
-  
-  assignmentBox: { backgroundColor: '#FFFFFF', padding: 12, borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
-  infoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  infoText: { fontSize: 14, fontWeight: '600', color: '#475569', marginLeft: 8 },
-  extraAccountBox: { marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: '#F1F5F9' },
-  
-  statsBanner: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, gap: 10 },
-  statItem: { flex: 1, alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 16, paddingVertical: 14, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2, borderWidth: 1, borderColor: '#F1F5F9' },
-  statDivider: { width: 1, backgroundColor: '#E2E8F0', height: '80%', alignSelf: 'center' },
-  statNumber: { fontSize: 22, fontWeight: '800', color: '#3B82F6', marginBottom: 2 },
-  statLabel: { fontSize: 12, fontWeight: '600', color: '#64748B' },
-  
-  filterScroll: { marginBottom: 20 },
-  filterContainer: { paddingRight: 20, paddingVertical: 10, gap: 12 },
-  filterChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 24, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 },
-  filterChipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
-  filterText: { fontSize: 15, fontWeight: '600', color: '#475569' },
-  filterTextActive: { color: '#FFFFFF' },
-  
-  searchBar: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 12, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0', height: 46 },
-  
-  statusContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 12, padding: 4, marginBottom: 16, borderWidth: 1, borderColor: '#E2E8F0' },
-  statusTab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 8 },
-  statusTabActive: { backgroundColor: '#FFFFFF', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-  statusTabText: { fontSize: 13, fontWeight: '600', color: '#64748B', textTransform: 'capitalize' },
-  statusTabTextActive: { color: '#3B82F6', fontWeight: '700' },
 
-  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 4, elevation: 2 },
-  catChipActive: { backgroundColor: '#3B82F6', borderColor: '#3B82F6' },
-  catChipText: { fontSize: 13, fontWeight: '600', color: '#475569', textTransform: 'capitalize' },
-  catChipTextActive: { color: '#FFFFFF' },
-  
-  card: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 10, elevation: 4, borderWidth: 1, borderColor: '#F1F5F9' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  badge: { backgroundColor: '#DBEAFE', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
-  badgeText: { fontSize: 12, fontWeight: '700', color: '#1D4ED8' },
-  statusText: { fontSize: 13, fontWeight: '700' },
-  cardTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B', marginBottom: 8 },
-  locationRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  cardLocation: { fontSize: 14, color: '#64748B', marginLeft: 4, fontWeight: '500' },
-  descText: { fontSize: 14, color: '#475569', lineHeight: 22, marginBottom: 16 },
-  imageContainer: { width: '100%', height: 160, borderRadius: 16, overflow: 'hidden', marginBottom: 16 },
-  cardImage: { width: '100%', height: '100%' },
-  
-  dropdownBtn: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#F1F5F9', padding: 14, borderRadius: 12, marginTop: 4 },
-  dropdownBtnText: { color: '#334155', fontSize: 15, fontWeight: '600' },
-  
-  emptyStateContainer: { alignItems: 'center', justifyContent: 'center', marginTop: 60, paddingHorizontal: 40 },
-  emptyTextLarge: { fontSize: 20, fontWeight: '700', color: '#475569', marginTop: 16, textAlign: 'center' },
-  emptyTextSub: { fontSize: 15, color: '#64748B', textAlign: 'center', marginTop: 8, lineHeight: 22 },
-  
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' },
-  modalContent: { width: '80%', backgroundColor: 'white', borderRadius: 20, padding: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: '#1E293B', marginBottom: 16, textAlign: 'center' },
-  modalOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-  modalOptionText: { fontSize: 16, color: '#475569', fontWeight: '500', marginLeft: 12 },
-  
-  broadcastModalContent: { width: '90%', backgroundColor: 'white', borderRadius: 24, padding: 24, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 },
-  broadcastHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  broadcastHelpText: { fontSize: 14, color: '#64748B', marginBottom: 20 },
-  input: { backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#E2E8F0', borderRadius: 16, padding: 16, fontSize: 16, color: '#1E293B', marginBottom: 16 },
+  // Top bar
+  topBar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 18, paddingTop: 14, paddingBottom: 12 },
+  topBarScrolled: { borderBottomWidth: 1, borderBottomColor: C.line, shadowColor: C.ink, shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 18, elevation: 3 },
+  langBtn: { height: 44, paddingHorizontal: 16, borderRadius: 999, justifyContent: 'center', borderWidth: 1 },
+  langBtnText: { fontSize: 15, fontWeight: '600' },
+  roundBtn: { width: 50, height: 50, borderRadius: 25, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  glassBtn: { backgroundColor: 'rgba(255,255,255,0.16)', borderColor: 'rgba(255,255,255,0.3)' },
+  solidBtn: { backgroundColor: '#FFFFFF', borderColor: C.line, shadowColor: C.ink, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 },
+
+  // Hero
+  heroKicker: { fontSize: 15, fontWeight: '600', color: '#DCE6FF' },
+  heroTitle: { fontSize: 28, fontWeight: '800', color: '#FFFFFF', letterSpacing: -0.5, lineHeight: 34, marginTop: 4 },
+  heroChips: { flexDirection: 'row', flexWrap: 'nowrap', gap: 8, marginTop: 10 },
+  heroChip: { height: 30, flexShrink: 1, paddingHorizontal: 10, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  heroChipText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  heroFadeTop: { position: 'absolute', left: 0, right: 0, top: 0, height: 26 },
+  heroFadeBottom: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 30 },
+  heroDots: { position: 'absolute', left: 0, right: 0, bottom: 8, flexDirection: 'row', justifyContent: 'center', gap: 5 },
+  bannerCaption: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: 18, paddingTop: 18, paddingBottom: 22 },
+  bannerCaptionText: { color: '#FFFFFF', fontSize: 14, fontWeight: '800' },
+
+  // Stats
+  statsRow: { flexDirection: 'row', gap: 10 },
+  statCard: { flex: 1, height: 84, borderRadius: 18, borderWidth: 1.5, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  statNum: { fontSize: 26, fontWeight: '800', lineHeight: 30, fontVariant: ['tabular-nums'] },
+  statLabel: { fontSize: 13, fontWeight: '600', color: C.ink3 },
+
+  // Search + segments
+  searchBox: { height: 48, borderRadius: 16, borderWidth: 1, borderColor: C.field, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 10 },
+  searchInput: { flex: 1, height: 46, fontSize: 15, color: C.ink, paddingVertical: 0 },
+  segment: { flexDirection: 'row', padding: 4, backgroundColor: '#ECEFF5', borderRadius: 14 },
+  segBtn: { flex: 1, height: 40, borderRadius: 11, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
+  segBtnOn: { backgroundColor: '#FFFFFF', shadowColor: C.ink, shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 2 },
+  segText: { fontSize: 13, fontWeight: '700' },
+  catChip: { height: 36, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.field, justifyContent: 'center' },
+  catChipOn: { backgroundColor: C.primary, borderColor: C.primary },
+  catChipText: { fontSize: 13, fontWeight: '700', color: C.ink3 },
+
+  // Task card
+  taskCard: { backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, padding: 16, gap: 10, shadowColor: C.ink, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 14, elevation: 2 },
+  escalatedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FCA5A5', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
+  escalatedText: { fontSize: 11, fontWeight: '800', color: '#DC2626', letterSpacing: 0.5 },
+  escalatedBy: { marginLeft: 'auto', fontSize: 11, fontWeight: '700', color: '#991B1B', flexShrink: 1 },
+  cardMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  idPill: { height: 26, paddingHorizontal: 9, borderRadius: 8, backgroundColor: '#EEF1FF', borderWidth: 1, borderColor: '#DCE1FA', justifyContent: 'center' },
+  idPillText: { color: '#3B3FC4', fontSize: 12, fontWeight: '800' },
+  prPill: { height: 26, paddingHorizontal: 9, borderRadius: 999, justifyContent: 'center' },
+  prPillText: { fontSize: 12, fontWeight: '700' },
+  statusWrap: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statusDot: { width: 9, height: 9, borderRadius: 5 },
+  statusCaps: { fontSize: 12, fontWeight: '800', letterSpacing: 0.4 },
+  taskTitle: { fontSize: 18, fontWeight: '800', color: C.ink, letterSpacing: -0.2 },
+  addrRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
+  addrText: { flex: 1, fontSize: 13, color: C.ink3, lineHeight: 18 },
+  taskDesc: { fontSize: 14, lineHeight: 21, color: C.ink2 },
+  taskPhoto: { height: 120, borderRadius: 16, overflow: 'hidden', backgroundColor: '#E2E8F0' },
+  cardActions: { flexDirection: 'row', gap: 8 },
+  updateBtn: { flex: 1, height: 48, borderRadius: 14, backgroundColor: '#F0F3F8', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14 },
+  updateBtnText: { fontSize: 15, fontWeight: '600', color: C.ink },
+  shareBtn: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#F0F3F8', alignItems: 'center', justifyContent: 'center' },
+
+  // Announcements
+  secKicker: { fontSize: 17, fontWeight: '600', color: C.muted },
+  secTitle: { fontSize: 30, fontWeight: '800', color: C.ink, letterSpacing: -0.5 },
+  annCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.line2, borderRadius: 20, padding: 16, gap: 8 },
+  annTitle: { flex: 1, fontSize: 16, fontWeight: '800', color: C.ink },
+  audPill: { height: 22, paddingHorizontal: 8, borderRadius: 999, backgroundColor: '#F0F2F6', justifyContent: 'center' },
+  audPillText: { fontSize: 11, fontWeight: '700', color: C.ink3 },
+  annDeleteBtn: { width: 32, height: 32, borderRadius: 10, backgroundColor: '#FFF1F0', alignItems: 'center', justifyContent: 'center' },
+  annBody: { fontSize: 14, lineHeight: 21, color: C.ink2 },
+  annImage: { width: '100%', height: 190, borderRadius: 14, backgroundColor: '#E2E8F0', marginTop: 2 },
+  annMeta: { fontSize: 12, color: C.muted },
+
+  emptyWrap: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
+  emptyTitle: { fontSize: 18, fontWeight: '800', color: C.ink3, marginTop: 14, textAlign: 'center' },
+  emptySub: { fontSize: 14, color: C.muted, marginTop: 6, textAlign: 'center', lineHeight: 20 },
+
+  // Tab bar + FAB
+  tabBar: { position: 'absolute', left: 16, right: 16, height: 68, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.line, borderRadius: 26, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 6, shadowColor: C.ink, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.12, shadowRadius: 24, elevation: 10 },
+  tabBtn: { height: 58, alignItems: 'center', justifyContent: 'center', gap: 3 },
+  tabPill: { width: 52, height: 30, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  tabBadge: { position: 'absolute', top: -3, right: 2, minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9, backgroundColor: C.danger, borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  tabBadgeText: { color: '#FFFFFF', fontSize: 10, fontWeight: '800' },
+  tabLabel: { fontSize: 11 },
+  fab: { position: 'absolute', right: 18, width: 58, height: 58, borderRadius: 29, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center', shadowColor: C.primary, shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.4, shadowRadius: 18, elevation: 8 },
+
+  // Status dialog
+  dialogWrap: { flex: 1, backgroundColor: 'rgba(11,16,32,0.45)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36 },
+  dialog: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 26, paddingTop: 20, paddingHorizontal: 18, paddingBottom: 8 },
+  dialogTitle: { textAlign: 'center', fontSize: 18, fontWeight: '800', color: C.ink, marginBottom: 6 },
+  dialogSub: { textAlign: 'center', fontSize: 12, color: C.muted, marginBottom: 8 },
+  dialogOption: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 15, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: '#F0F2F6', borderRadius: 10 },
+  dialogOptionText: { flex: 1, fontSize: 16, fontWeight: '600', color: C.ink },
+  dialogCancel: { height: 54, alignItems: 'center', justifyContent: 'center' },
+  dialogCancelText: { fontSize: 16, fontWeight: '600', color: C.muted },
+
+  // Announcement sheet
+  sheetWrap: { flex: 1, backgroundColor: 'rgba(11,16,32,0.45)', justifyContent: 'flex-end' },
+  sheet: { maxHeight: '92%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 18, paddingHorizontal: 20 },
+  sheetTitle: { fontSize: 20, fontWeight: '800', color: C.ink, letterSpacing: -0.2 },
+  sheetSub: { fontSize: 13, color: C.muted },
+  sheetClose: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0F2F6', alignItems: 'center', justifyContent: 'center' },
+  targetBox: { padding: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#EEF4FF', borderWidth: 1, borderColor: '#C7D5FA', gap: 2 },
+  targetTitle: { fontSize: 13, fontWeight: '800', color: '#1A3FB8' },
+  targetText: { fontSize: 13, color: C.ink2, lineHeight: 18 },
+  input: { minHeight: 52, borderRadius: 16, borderWidth: 1, borderColor: C.field, backgroundColor: '#F8F9FC', paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: C.ink },
   textArea: { height: 120, textAlignVertical: 'top' },
-  broadcastBtn: { backgroundColor: '#3B82F6', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', padding: 16, borderRadius: 16, marginTop: 8 },
-  broadcastBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  
-  fab: { position: 'absolute', bottom: 24, right: 24, backgroundColor: '#3B82F6', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: '#3B82F6', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 10, elevation: 6 },
-  
-  deleteModalContainer: { width: '90%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 10 },
-  deleteIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEE2E2', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  deleteModalTitle: { fontSize: 22, fontWeight: '800', color: '#1E293B', marginBottom: 8 },
-  deleteModalText: { fontSize: 15, color: '#64748B', textAlign: 'center', marginBottom: 24, lineHeight: 22 },
-  deleteModalActions: { flexDirection: 'row', width: '100%', gap: 12 },
-  cancelBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#F1F5F9', alignItems: 'center' },
-  cancelBtnText: { fontSize: 16, fontWeight: '700', color: '#475569' },
-  deleteBtn: { flex: 1, paddingVertical: 14, borderRadius: 16, backgroundColor: '#EF4444', alignItems: 'center' },
-  deleteBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
-  
-  // Full screen image styles
-  fullScreenImageContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
-  fullScreenImage: { width: '100%', height: '100%' },
-  closeImageBtn: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 60, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: C.ink2, marginBottom: -6 },
+  imgDrop: { height: 96, borderRadius: 16, borderWidth: 1.5, borderStyle: 'dashed', borderColor: '#C9D2E3', backgroundColor: '#FAFBFD', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  imgDropText: { fontSize: 13, fontWeight: '600', color: C.ink3 },
+  removeImg: { position: 'absolute', top: 8, right: 8, backgroundColor: 'rgba(0,0,0,0.55)', width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  primaryBtn: { height: 54, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  primaryBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
 
-  // Staff Raise Grievance Banner
-  raiseGrievanceBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1.5,
-    borderColor: '#BFDBFE',
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 14,
-    gap: 12,
-  },
-  raiseGrievanceIconWrapper: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#2563EB',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  raiseGrievanceTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#1E40AF',
-    marginBottom: 2,
-  },
-  raiseGrievanceSubtitle: {
-    fontSize: 12,
-    color: '#60A5FA',
-    lineHeight: 16,
-  },
-  raiseGrievanceArrow: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#DBEAFE',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  // Delete confirm
+  deleteModalContainer: { width: '100%', backgroundColor: '#FFFFFF', borderRadius: 24, padding: 24, alignItems: 'center' },
+  deleteIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FFE4E1', justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
+  deleteModalTitle: { fontSize: 20, fontWeight: '800', color: C.ink, marginBottom: 8 },
+  deleteModalText: { fontSize: 15, color: C.muted, textAlign: 'center', marginBottom: 22, lineHeight: 22 },
+  deleteModalActions: { flexDirection: 'row', width: '100%', gap: 12 },
+  cancelBtn: { flex: 1, height: 50, borderRadius: 16, backgroundColor: '#F0F2F6', alignItems: 'center', justifyContent: 'center' },
+  cancelBtnText: { fontSize: 16, fontWeight: '700', color: C.ink3 },
+  deleteBtn: { flex: 1, height: 50, borderRadius: 16, backgroundColor: '#E5484D', alignItems: 'center', justifyContent: 'center' },
+  deleteBtnText: { fontSize: 16, fontWeight: '700', color: '#FFFFFF' },
+
+  // Full screen image
+  fullScreenImageContainer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' },
+  closeImageBtn: { position: 'absolute', top: Platform.OS === 'android' ? 40 : 60, right: 20, zIndex: 10, padding: 8, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20 },
 });
