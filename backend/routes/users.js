@@ -1104,7 +1104,9 @@ router.put('/:id', auth, async (req, res) => {
       if (!hasAccess) return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    const { name, phone_number, designation, assigned_category, assigned_categories, phase, block, house_no, property_type, permissions, member_id, address, assigned_locations } = req.body;
+    const { name, phone_number, designation, assigned_category, assigned_categories, phase, block, house_no, property_type, permissions, member_id, address } = req.body;
+    // `let`: the staff block below cleans this list and reassigns it
+    let { assigned_locations } = req.body;
     let user = await User.findById(req.params.id);
     
     if (!user) {
