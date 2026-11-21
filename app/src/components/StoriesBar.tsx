@@ -161,8 +161,10 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
   const canPost = postable.length > 0;
   const myStories = groups.flatMap(g => g.stories.filter(s => s.is_mine));
 
-  // Nothing to show for a resident when no stories are active
-  if (loaded && !canPost && groups.length === 0) return null;
+  // Show nothing (no heading, no spinner) until we know there is something to show:
+  // the bar appears only once the caller may post or there are active stories.
+  if (!loaded) return null;
+  if (!canPost && groups.length === 0) return null;
 
   const markSeenLocally = (storyId: string) => {
     setGroups(prev => prev.map(g => {
@@ -212,7 +214,6 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
           </TouchableOpacity>
         )}
 
-        {!loaded && <ActivityIndicator style={{ marginLeft: 12 }} color="#2563EB" />}
 
         {groups.map((g, idx) => (
           <TouchableOpacity key={g.key || g.category} style={styles.item} activeOpacity={0.8} onPress={() => setViewerStart(idx)}>
