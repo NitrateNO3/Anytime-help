@@ -32,6 +32,7 @@ interface CommunitySectionItem {
     sender_name: string;
     timestamp: string;
   };
+  open_to_all?: boolean;
   user_access?: {
     can_view: boolean;
     can_send: boolean;
@@ -608,7 +609,7 @@ export default function CommunityScreenContent({
             followers_count: nextIsFollowing ? currentCount + 1 : Math.max(0, currentCount - 1),
             user_access: {
               ...(s.user_access || { can_send: false, is_assigned: false, is_admin: false }),
-              can_view: nextIsFollowing,
+              can_view: nextIsFollowing || !!s.open_to_all,
               is_following: nextIsFollowing
             }
           };
@@ -623,12 +624,12 @@ export default function CommunityScreenContent({
           followers_count: res.data?.follower_count ?? (nextIsFollowing ? (prev.followers_count || 0) + 1 : Math.max(0, (prev.followers_count || 0) - 1)),
           user_access: {
             ...(prev.user_access || { can_send: false, is_assigned: false, is_admin: false }),
-            can_view: nextIsFollowing,
+            can_view: nextIsFollowing || !!prev.open_to_all,
             is_following: nextIsFollowing
           }
         }) : null);
 
-        setRequiresFollow(!nextIsFollowing);
+        setRequiresFollow(!nextIsFollowing && !section.open_to_all);
         if (nextIsFollowing) {
           loadSectionMessages(section._id);
         }
@@ -943,8 +944,9 @@ export default function CommunityScreenContent({
             <View style={styles.lvCard}>
               {channelRows.map(({ sec, comm }, idx) => {
                 const isFollowing = !!sec.user_access?.is_following;
+                const canRead = isFollowing || !!sec.user_access?.can_view;
                 const ts = sec.last_message?.timestamp;
-                const unread = isFollowing && !!ts && new Date(ts).getTime() > (lastSeen[sec._id] || 0);
+                const unread = canRead && !!ts && new Date(ts).getTime() > (lastSeen[sec._id] || 0);
                 const tint = comm.color || '#2563EB';
                 return (
                   <TouchableOpacity
@@ -962,7 +964,7 @@ export default function CommunityScreenContent({
                         {(sec.verified ?? sec.section_type === 'announcement') && <VerifiedBadge size={15} style={{ marginLeft: 4 }} />}
                       </View>
                       <Text style={styles.chPreview} numberOfLines={1}>
-                        {!isFollowing
+                        {!canRead
                           ? 'Tap to follow this channel'
                           : sec.last_message?.text
                             ? `${sec.last_message.sender_name ? sec.last_message.sender_name + ': ' : ''}${sec.last_message.text}`
@@ -971,7 +973,7 @@ export default function CommunityScreenContent({
                     </View>
                     <View style={styles.chMeta}>
                       {!!ts && <Text style={[styles.chTime, unread && { color: '#2563EB', fontWeight: '700' }]}>{formatMessageTime(ts)}</Text>}
-                      {unread ? <View style={styles.unreadDot} /> : !isFollowing ? <Ionicons name="add-circle-outline" size={18} color="#94A3B8" /> : null}
+                      {unread ? <View style={styles.unreadDot} /> : !canRead ? <Ionicons name="add-circle-outline" size={18} color="#94A3B8" /> : null}
                     </View>
                   </TouchableOpacity>
                 );

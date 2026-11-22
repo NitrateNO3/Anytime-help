@@ -33,6 +33,17 @@ const communitySectionSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Staff channel: only Staff can be Channel Admins, so only
+  // the staff the admin picks can post. Followers stay read only.
+  staff_only_posting: {
+    type: Boolean,
+    default: false
+  },
+  // Everyone who can see the community can read this channel without following it.
+  open_to_all: {
+    type: Boolean,
+    default: false
+  },
   // Blue tick (verified badge) shown next to the channel name in the app.
   // No default on purpose: older channels without this field fall back to the
   // previous rule (announcement channels showed the tick).

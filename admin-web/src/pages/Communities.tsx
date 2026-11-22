@@ -39,6 +39,8 @@ interface CommunitySectionItem {
   section_type: 'announcement' | 'discussion';
   followers_can_post?: boolean;
   verified?: boolean;
+  staff_only_posting?: boolean;
+  open_to_all?: boolean;
   assigned_members: UserItem[];
   followers: string[];
   followers_count?: number;
@@ -199,6 +201,8 @@ export default function Communities() {
   const [secFollowersCanPost, setSecFollowersCanPost] = useState(false);
   const [secIcon, setSecIcon] = useState('megaphone');
   const [secVerified, setSecVerified] = useState(true);
+  const [secStaffOnly, setSecStaffOnly] = useState(false);
+  const [secOpenToAll, setSecOpenToAll] = useState(true);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
@@ -465,6 +469,8 @@ export default function Communities() {
     setSecDesc('');
     setSecFollowersCanPost(false);
     setSecVerified(true);
+    setSecStaffOnly(false);
+    setSecOpenToAll(true);
     setSecIcon('megaphone');
     setIsSectionModalOpen(true);
   };
@@ -475,6 +481,8 @@ export default function Communities() {
     setSecDesc(sec.description);
     setSecFollowersCanPost(!!sec.followers_can_post);
     setSecVerified(isSectionVerified(sec));
+    setSecStaffOnly(!!sec.staff_only_posting);
+    setSecOpenToAll(!!sec.open_to_all);
     setSecIcon(sec.icon || 'megaphone');
     setIsSectionModalOpen(true);
   };
@@ -492,8 +500,10 @@ export default function Communities() {
       const payload = {
         name: secName.trim(),
         description: secDesc.trim(),
-        section_type: secFollowersCanPost ? 'discussion' : 'announcement',
-        followers_can_post: secFollowersCanPost,
+        section_type: secFollowersCanPost && !secStaffOnly ? 'discussion' : 'announcement',
+        followers_can_post: secFollowersCanPost && !secStaffOnly,
+        staff_only_posting: secStaffOnly,
+        open_to_all: secOpenToAll,
         verified: secVerified,
         icon: secIcon
       };
@@ -531,6 +541,11 @@ export default function Communities() {
       toast.error(err.response?.data?.msg || 'Failed to delete channel');
     }
   };
+
+  // Staff channels only list staff in the Channel Admins picker
+  const pickerUsers = assigningSection?.staff_only_posting
+    ? allUsers.filter(u => u.role === 'Staff')
+    : allUsers;
 
   // Open Assign Members Modal for Section
   const openAssignMembersModal = (sec: CommunitySectionItem) => {
@@ -984,10 +999,10 @@ export default function Communities() {
                           {isSectionVerified(sec) && <BadgeCheck size={16} color="#2563EB" />}
                           <span style={{
                             fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10,
-                            background: sec.followers_can_post ? '#DCFCE7' : '#EFF6FF',
-                            color: sec.followers_can_post ? '#15803D' : '#1D4ED8',
+                            background: sec.staff_only_posting ? '#FEF3C7' : sec.followers_can_post ? '#DCFCE7' : '#EFF6FF',
+                            color: sec.staff_only_posting ? '#B45309' : sec.followers_can_post ? '#15803D' : '#1D4ED8',
                           }}>
-                            {sec.followers_can_post ? 'DISCUSSION' : 'ANNOUNCEMENT'}
+                            {sec.staff_only_posting ? 'STAFF CHANNEL' : sec.followers_can_post ? 'DISCUSSION' : 'ANNOUNCEMENT'}
                           </span>
                         </h4>
                         <p className="section-desc">{sec.description || 'No description'}</p>
@@ -1239,6 +1254,31 @@ export default function Communities() {
                   />
                 </div>
 
+                <label
+                  style={{
+                    display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', padding: '10px 12px', marginBottom: 10,
+                    borderRadius: 8, border: secStaffOnly ? '1.5px solid #B45309' : '1px solid #E2E8F0',
+                    background: secStaffOnly ? '#FFFBEB' : '#FFFFFF',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    style={{ width: 'auto', marginTop: 3 }}
+                    checked={secStaffOnly}
+                    onChange={e => {
+                      setSecStaffOnly(e.target.checked);
+                      if (e.target.checked) setSecFollowersCanPost(false);
+                    }}
+                  />
+                  <span>
+                    <strong style={{ fontSize: 13, color: '#0F172A' }}>Staff channel (only staff post)</strong>
+                    <span style={{ display: 'block', fontSize: 12, color: '#64748B', marginTop: 2 }}>
+                      Only the staff you pick in Channel Admins can send messages and stories. Members and residents can only read.
+                    </span>
+                  </span>
+                </label>
+
+                {!secStaffOnly && (
                 <div style={{ marginBottom: 8 }}>
                   <label className="form-label" style={{ fontWeight: 600, fontSize: 13, marginBottom: 8, display: 'block' }}>
                     Who can post?
@@ -1269,6 +1309,12 @@ export default function Communities() {
                     </label>
                   ))}
                 </div>
+                )}
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: '8px 0 4px', fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
+                  <input type="checkbox" style={{ width: 'auto' }} checked={secOpenToAll} onChange={e => setSecOpenToAll(e.target.checked)} />
+                  Everyone can read without following
+                </label>
 
                 <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', margin: '8px 0 4px', fontSize: 13, fontWeight: 600, color: '#0F172A' }}>
                   <input type="checkbox" style={{ width: 'auto' }} checked={secVerified} onChange={e => setSecVerified(e.target.checked)} />
@@ -1276,7 +1322,7 @@ export default function Communities() {
                 </label>
 
                 <div style={{ marginTop: 8, padding: '12px 16px', background: '#EFF6FF', borderRadius: 8, fontSize: 12, color: '#1E40AF', border: '1px solid #DBEAFE' }}>
-                  <strong>How it works:</strong> Residents follow the channel to read it. After creating it, use <strong>Channel Admins</strong> on the channel card to choose members or staff who can send messages and add stories. They get these rights in this channel only.
+                  <strong>How it works:</strong> {secOpenToAll ? 'Everyone in the selected roles can read it right away.' : 'Residents follow the channel to read it.'} After creating it, use <strong>Channel Admins</strong> on the channel card to choose members or staff who can send messages and add stories. They get these rights in this channel only.
                 </div>
               </div>
 
@@ -1332,7 +1378,11 @@ export default function Communities() {
             </div>
 
             <div className="comm-modal-body">
-              {assigningSection.followers_can_post ? (
+              {assigningSection.staff_only_posting ? (
+                <div style={{ marginBottom: 14, padding: '10px 12px', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: 8, fontSize: 12.5, color: '#92400E' }}>
+                  <strong>Staff channel.</strong> Only staff are listed. The staff you select can post; members and residents can only read.
+                </div>
+              ) : assigningSection.followers_can_post ? (
                 <div style={{ marginBottom: 14, padding: '10px 12px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, fontSize: 12.5, color: '#166534' }}>
                   <strong>This is a Discussion channel.</strong> Every resident who follows it can already send messages. Make someone a Channel Admin only if they should also add stories, or post without following.
                 </div>
@@ -1360,7 +1410,7 @@ export default function Communities() {
                   <button 
                     type="button" 
                     onClick={() => {
-                      const filtered = allUsers.filter(u => {
+                      const filtered = pickerUsers.filter(u => {
                         const q = memberSearch.toLowerCase();
                         return (
                           (u.name || '').toLowerCase().includes(q) ||
@@ -1372,7 +1422,7 @@ export default function Communities() {
                     }}
                     style={{ background: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1D4ED8', cursor: 'pointer', fontSize: 12, padding: '4px 10px', borderRadius: 6, fontWeight: 600 }}
                   >
-                    Select All ({allUsers.length})
+                    Select All ({pickerUsers.length})
                   </button>
                   {selectedMemberIds.length > 0 && (
                     <button 
@@ -1387,7 +1437,7 @@ export default function Communities() {
               </div>
 
               <div style={{ maxHeight: 340, overflowY: 'auto', border: '1px solid #E2E8F0', borderRadius: 8 }}>
-                {allUsers
+                {pickerUsers
                   .filter(u => {
                     const q = memberSearch.toLowerCase();
                     return (

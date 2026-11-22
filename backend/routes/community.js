@@ -67,14 +67,25 @@ const getSectionUserAccess = (section, user) => {
     };
   }
 
-  // Not following and not assigned
+  // Not following and not assigned: open channels can still be read
   return {
-    can_view: false,
+    can_view: !!section.open_to_all,
     can_send: false,
     is_assigned: false,
     is_following: false,
     is_admin: false
   };
+};
+
+const STAFF_ROLES = ['Staff'];
+
+// Keeps only real users; for staff channels only Staff can be Channel Admins.
+const validateAssigned = async (ids, staffOnly) => {
+  if (!Array.isArray(ids) || ids.length === 0) return [];
+  const query = { _id: { $in: ids } };
+  if (staffOnly) query.role = { $in: STAFF_ROLES };
+  const validUsers = await User.find(query).select('_id');
+  return validUsers.map(u => u._id);
 };
 
 // ==========================================
@@ -322,17 +333,13 @@ router.post('/:id/sections', auth, async (req, res) => {
       return res.status(404).json({ msg: 'Community not found' });
     }
 
-    const { name, description, icon, section_type, assigned_members, followers_can_post, verified } = req.body;
+    const { name, description, icon, section_type, assigned_members, followers_can_post, verified, staff_only_posting, open_to_all } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ msg: 'Section name is required' });
     }
 
-    // Validate assigned members if provided
-    let validatedMemberIds = [];
-    if (Array.isArray(assigned_members) && assigned_members.length > 0) {
-      const validUsers = await User.find({ _id: { $in: assigned_members } }).select('_id');
-      validatedMemberIds = validUsers.map(u => u._id);
-    }
+    const staffOnly = staff_only_posting === true || staff_only_posting === 'true';
+    const validatedMemberIds = await validateAssigned(assigned_members, staffOnly);
 
     const newSection = new CommunitySection({
       community_id: community._id,
@@ -340,7 +347,10 @@ router.post('/:id/sections', auth, async (req, res) => {
       description: (description || '').trim(),
       icon: icon || (section_type === 'discussion' ? 'chatbubbles' : 'megaphone'),
       section_type: section_type || 'announcement',
-      followers_can_post: followers_can_post === true || followers_can_post === 'true',
+      // A staff channel is read only for followers
+      followers_can_post: !staffOnly && (followers_can_post === true || followers_can_post === 'true'),
+      staff_only_posting: staffOnly,
+      open_to_all: open_to_all === true || open_to_all === 'true',
       verified: verified === undefined ? true : (verified === true || verified === 'true'),
       assigned_members: validatedMemberIds,
       followers: [] // Empty initial followers, members follow for read access
@@ -432,7 +442,7 @@ router.put('/sections/:sectionId', auth, async (req, res) => {
       return res.status(403).json({ msg: 'Access denied: Only Admins can modify community sections' });
     }
 
-    const { name, description, icon, section_type, assigned_members, is_active, followers_can_post, verified } = req.body;
+    const { name, description, icon, section_type, assigned_members, is_active, followers_can_post, verified, staff_only_posting, open_to_all } = req.body;
     const section = await CommunitySection.findById(req.params.sectionId);
     if (!section) return res.status(404).json({ msg: 'Section not found' });
 
@@ -443,10 +453,19 @@ router.put('/sections/:sectionId', auth, async (req, res) => {
     if (is_active !== undefined) section.is_active = !!is_active;
     if (followers_can_post !== undefined) section.followers_can_post = followers_can_post === true || followers_can_post === 'true';
     if (verified !== undefined) section.verified = verified === true || verified === 'true';
+    if (staff_only_posting !== undefined) section.staff_only_posting = staff_only_posting === true || staff_only_posting === 'true';
+    if (open_to_all !== undefined) section.open_to_all = open_to_all === true || open_to_all === 'true';
 
-    if (Array.isArray(assigned_members)) {
-      const validUsers = await User.find({ _id: { $in: assigned_members } }).select('_id');
-      section.assigned_members = validUsers.map(u => u._id);
+    if (section.staff_only_posting) {
+      // Staff channel: followers read only, and members lose Channel Admin rights
+      section.followers_can_post = false;
+      section.section_type = 'announcement';
+      section.assigned_members = await validateAssigned(
+        Array.isArray(assigned_members) ? assigned_members : section.assigned_members,
+        true
+      );
+    } else if (Array.isArray(assigned_members)) {
+      section.assigned_members = await validateAssigned(assigned_members, false);
     }
 
     await section.save();
