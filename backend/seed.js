@@ -46,19 +46,6 @@ const seedDB = async () => {
       }
     }
 
-    // Partner (PaidStaff)
-    let partner = await User.findOne({ email: 'test@partner.com' });
-    if (!partner) {
-      await User.create({
-        name: 'Test Partner',
-        email: 'test@partner.com',
-        password: hashedPassword,
-        role: 'PaidStaff',
-        phone_number: '9999999999' // PaidStaff often need phone number in app
-      });
-      console.log('Partner (PaidStaff) created');
-    }
-
     // Admin
     let admin = await User.findOne({ email: 'admin@anytimehelp.com' });
     if (!admin) {

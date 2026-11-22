@@ -150,7 +150,7 @@ router.get('/', auth, async (req, res) => {
 
       let staffAnnCond = null;
       if (hasAllStaffPerm) {
-        const staffUsers = await User.find({ role: { $in: ['Staff', 'PaidStaff'] } }).select('_id');
+        const staffUsers = await User.find({ role: { $in: ['Staff'] } }).select('_id');
         const staffIds = staffUsers.map(s => s._id);
         staffAnnCond = { createdBy: { $in: staffIds } };
       }
@@ -219,7 +219,7 @@ router.get('/', auth, async (req, res) => {
 
       let staffAnnCond = null;
       if (hasAllStaffPerm) {
-        const staffUsers = await User.find({ role: { $in: ['Staff', 'PaidStaff'] } }).select('_id');
+        const staffUsers = await User.find({ role: { $in: ['Staff'] } }).select('_id');
         const staffIds = staffUsers.map(s => s._id);
         staffAnnCond = { createdBy: { $in: staffIds } };
       }
@@ -558,7 +558,7 @@ router.post('/', auth, async (req, res) => {
       if (rolesToNotify.length > 0) {
         userQuery.role = { $in: rolesToNotify };
       } else if (isAll) {
-        userQuery.role = { $in: ['Resident', 'Member', 'Staff', 'Admin', 'SubAdmin', 'PaidStaff'] };
+        userQuery.role = { $in: ['Resident', 'Member', 'Staff', 'Admin', 'SubAdmin'] };
       } else {
         userQuery.role = { $in: ['Resident', 'Member', 'Staff', 'Admin', 'SubAdmin'] };
       }
@@ -684,8 +684,8 @@ router.post('/', auth, async (req, res) => {
         }
       }
       
-      // If posted by Staff or PaidStaff, also notify Members who have 'All Staff Announcements' permission
-      if (req.user.role === 'Staff' || req.user.role === 'PaidStaff') {
+      // If posted by Staff, also notify Members who have 'All Staff Announcements' permission
+      if (req.user.role === 'Staff') {
         const staffPermMembers = await User.find({
           permissions: { $in: ['All Staff Announcements', 'Staff Announcements (All)'] }
         }).select('_id');

@@ -22,7 +22,7 @@ router.post('/register', async (req, res) => {
   try {
     if (!phone_number) return res.status(400).json({ msg: 'Phone number is required' });
     const cleanPhone = phone_number.replace(/^\+91/, '').trim();
-    const isTestAccount = ['9999999999', '8888888888', '7777777777'].includes(cleanPhone);
+    const isTestAccount = ['9999999999', '8888888888'].includes(cleanPhone);
 
     // Verify OTP - STRICT: Account cannot be created without valid OTP
     if (!otp) {
@@ -346,7 +346,7 @@ router.post('/firebase-login', async (req, res) => {
         io.emit('user_created', user);
       }
     } else {
-      user = users.find(u => u.role === 'Staff' || u.role === 'PaidStaff') 
+      user = users.find(u => u.role === 'Staff') 
           || users.find(u => u.role === 'Admin' || u.role === 'SubAdmin') 
           || users[0];
           
@@ -446,7 +446,7 @@ router.post('/send-otp', async (req, res) => {
       }
 
       // Generate 6 digit OTP for registration
-      const isTestAccount = ['9999999999', '8888888888', '7777777777'].includes(phone_number);
+      const isTestAccount = ['9999999999', '8888888888'].includes(phone_number);
       const otp = isTestAccount ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
 
       otpStore.set(`reg_${phone_number}`, {
@@ -524,9 +524,6 @@ router.post('/send-otp', async (req, res) => {
       } else if (phone_number === '8888888888') {
         userExists = new User({ name: 'Staff Reviewer', phone_number: dbPhoneNumber, role: 'Staff', assigned_category: 'Electrical', assigned_categories: ['Electrical'] });
         await userExists.save();
-      } else if (phone_number === '7777777777') {
-        userExists = new User({ name: 'Partner Reviewer', phone_number: dbPhoneNumber, role: 'PaidStaff' });
-        await userExists.save();
       } else {
         return res.status(400).json({ msg: 'Number not registered. Please sign up first.' });
       }
@@ -545,7 +542,7 @@ router.post('/send-otp', async (req, res) => {
     }
 
     // Generate 6 digit OTP (Hardcoded for Review Accounts)
-    const isTestAccount = ['9999999999', '8888888888', '7777777777'].includes(phone_number);
+    const isTestAccount = ['9999999999', '8888888888'].includes(phone_number);
     const otp = isTestAccount ? '123456' : Math.floor(100000 + Math.random() * 900000).toString();
     
     // Store OTP with 5 minute expiration
@@ -650,7 +647,7 @@ router.post('/verify-otp', async (req, res) => {
     
     // Prioritize explicitly requested role if provided (e.g. Resident, Member, Staff)
     let user = (role ? users.find(u => u.role === role) : null)
-            || users.find(u => u.role === 'Staff' || u.role === 'PaidStaff') 
+            || users.find(u => u.role === 'Staff') 
             || users.find(u => u.role === 'Admin' || u.role === 'SubAdmin') 
             || users.find(u => u.role === 'Member')
             || users[0];

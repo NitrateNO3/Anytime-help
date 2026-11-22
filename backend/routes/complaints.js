@@ -651,7 +651,7 @@ router.get('/', auth, async (req, res) => {
     }
 
     // Fetch all active staff to fill any unassigned complaints dynamically
-    const allActiveStaff = await User.find({ role: { $in: ['Staff', 'PaidStaff'] } })
+    const allActiveStaff = await User.find({ role: { $in: ['Staff'] } })
       .select('name phone_number role assigned_category assigned_categories phase assigned_locations')
       .lean();
 
@@ -782,7 +782,7 @@ router.get('/:id', auth, async (req, res) => {
       }
 
       // Fetch all active staff
-      const allStaff = await User.find({ role: { $in: ['Staff', 'PaidStaff'] } })
+      const allStaff = await User.find({ role: { $in: ['Staff'] } })
         .select('name phone_number role assigned_category assigned_categories phase assigned_locations')
         .lean();
 
@@ -989,7 +989,7 @@ router.post('/:id/reply', auth, async (req, res) => {
       role = 'Admin';
     } else if (role === 'Member') {
       role = 'Member';
-    } else if (role === 'Staff' || role === 'PaidStaff') {
+    } else if (role === 'Staff') {
       role = 'Staff';
     } else {
       role = 'Resident';
@@ -1145,8 +1145,8 @@ router.patch('/:id', auth, async (req, res) => {
         complaint.status_priority = 3;
         complaint.resolved_at = new Date();
         complaint.resolved_by = req.user.id || req.user._id;
-        complaint.resolved_by_name = (req.user && req.user.name) ? req.user.name : ((req.user.role === 'Staff' || req.user.role === 'PaidStaff') ? 'Staff' : 'Admin');
-        if (req.user.role === 'Staff' || req.user.role === 'PaidStaff') {
+        complaint.resolved_by_name = (req.user && req.user.name) ? req.user.name : ((req.user.role === 'Staff') ? 'Staff' : 'Admin');
+        if (req.user.role === 'Staff') {
           complaint.assigned_staff = req.user.id;
         }
       } else if (complaint.is_escalated) {
@@ -1164,7 +1164,7 @@ router.patch('/:id', auth, async (req, res) => {
         complaint.resolved_by = null;
         complaint.resolved_by_name = null;
         complaint.resolved_at = null;
-        if (req.user.role === 'Staff' || req.user.role === 'PaidStaff') {
+        if (req.user.role === 'Staff') {
           complaint.assigned_staff = req.user.id;
         }
       } else {

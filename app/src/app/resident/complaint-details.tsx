@@ -558,7 +558,7 @@ export default function ComplaintDetails() {
               {complaint.replies.map((reply: any, idx: number) => {
                 const isMember = reply.role === 'Member' || reply.user?.role === 'Member';
                 const isAdmin = reply.role === 'Admin' || reply.user?.role === 'Admin' || reply.user?.role === 'SubAdmin';
-                const isStaff = reply.role === 'Staff' || reply.user?.role === 'Staff' || reply.user?.role === 'PaidStaff';
+                const isStaff = reply.role === 'Staff' || reply.user?.role === 'Staff';
                 const designation = reply.user?.designation ? ` • ${reply.user.designation}` : '';
 
                 let cardBg = '#F8FAFC';

@@ -27,8 +27,6 @@ export default function Index() {
           target = '/resident';
         } else if (user.role === 'Staff') {
           target = '/staff';
-        } else if (user.role === 'PaidStaff') {
-          target = '/paid-staff';
         } else if (user.role === 'Member') {
           target = '/member';
         } else {

@@ -99,8 +99,6 @@ export default function LoginScreen() {
               router.replace('/resident');
             } else if (user.role === 'Staff') {
               router.replace('/staff');
-            } else if (user.role === 'PaidStaff') {
-              router.replace('/paid-staff');
             } else if (user.role === 'Member') {
               router.replace('/member' as any);
             }
@@ -198,9 +196,6 @@ export default function LoginScreen() {
       } else if (user.role === 'Staff') {
         Toast.show({ type: 'success', text1: 'Welcome', text2: 'Logged in successfully' });
         router.replace('/staff');
-      } else if (user.role === 'PaidStaff') {
-        Toast.show({ type: 'success', text1: 'Welcome', text2: 'Logged in successfully' });
-        router.replace('/paid-staff');
       } else if (user.role === 'Member') {
         Toast.show({ type: 'success', text1: 'Welcome', text2: 'Logged in successfully' });
         router.replace('/member' as any);

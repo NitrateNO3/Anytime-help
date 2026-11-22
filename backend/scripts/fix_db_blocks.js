@@ -15,7 +15,7 @@ async function run() {
 
     // 1. Fix Staff assigned_locations
     const staffMembers = await User.find({
-      role: { $in: ['Staff', 'PaidStaff', 'SubAdmin'] },
+      role: { $in: ['Staff', 'SubAdmin'] },
       assigned_locations: { $exists: true, $ne: [] }
     });
 

@@ -10,7 +10,6 @@ import AdminLayout from './layouts/AdminLayout';
 import Banners from './pages/Banners';
 import Residents from './pages/Residents';
 import PaidServices from './pages/PaidServices';
-import PaidStaff from './pages/PaidStaff';
 import ServiceBookings from './pages/ServiceBookings';
 import Directory from './pages/Directory';
 import Officials from './pages/Officials';
@@ -93,7 +92,6 @@ function App() {
             <Route path="staff-banners" element={<StaffBanners />} />
             <Route path="bottom-banners" element={<BottomBanners />} />
             <Route path="paid-services" element={<PaidServices />} />
-            <Route path="paid-staff" element={<PaidStaff />} />
             <Route path="service-bookings" element={<ServiceBookings />} />
             <Route path="directory" element={<Directory />} />
             <Route path="officials" element={<Officials />} />

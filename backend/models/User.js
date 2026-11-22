@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
   phone_number: { type: String, required: false },
   firebase_uid: { type: String, required: false },
   expoPushToken: { type: String, required: false },
-  role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'SubAdmin', 'PaidStaff', 'Member', 'SuperAdmin'], default: 'Resident' },
+  role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'SubAdmin', 'Member', 'SuperAdmin'], default: 'Resident' },
   gender: { type: String, enum: ['Male', 'Female', 'Other'] },
   assigned_category: { type: String, required: false }, // Legacy support
   assigned_categories: { type: [String], default: [] }, // New array for multiple categories

@@ -213,7 +213,7 @@ export default function Communities() {
   const isTypingRef = useRef(false);
   const typingTimeoutRef = useRef<any>(null);
 
-  const availableRoles = ['All', 'Resident', 'Member', 'Staff', 'PaidStaff'];
+  const availableRoles = ['All', 'Resident', 'Member', 'Staff'];
 
   const getHeaders = () => {
     const token = localStorage.getItem('adminToken');

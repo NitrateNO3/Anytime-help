@@ -24,8 +24,7 @@
     "selectRole": "Select Role",
     "resident": "Resident",
     "staff": "Staff",
-    "member": "Member",
-    "paidStaff": "Vendor / Partner"
+    "member": "Member"
   },
   "settings": {
     "preferences": "Preferences",

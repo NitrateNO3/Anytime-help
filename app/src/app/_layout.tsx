@@ -183,7 +183,7 @@ export default function RootLayout() {
         // Delay slightly so React Navigation / Expo Router is fully initialized
         setTimeout(() => {
           if (type === 'complaint' && complaintId) {
-            if (userRole === 'Staff' || userRole === 'PaidStaff' || userRole === 'Admin' || userRole === 'SubAdmin') {
+            if (userRole === 'Staff' || userRole === 'Admin' || userRole === 'SubAdmin') {
               router.push(`/task-details?id=${complaintId}` as any);
             } else if (userRole === 'Member') {
               router.push(`/member-complaint-details?id=${complaintId}` as any);

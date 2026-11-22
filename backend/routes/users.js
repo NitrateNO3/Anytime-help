@@ -86,7 +86,7 @@ router.put('/me', auth, async (req, res) => {
 });
 
 // @route   DELETE api/users/me
-// @desc    Self-delete user account (Resident, Member, Staff, PaidStaff)
+// @desc    Self-delete user account (Resident, Member, Staff)
 // @access  Private
 router.delete('/me', auth, async (req, res) => {
   try {
@@ -105,7 +105,7 @@ router.delete('/me', auth, async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.emit('user_deleted', { id: req.user.id });
-      if (user.role === 'Staff' || user.role === 'PaidStaff') {
+      if (user.role === 'Staff') {
         io.emit('staff_changed', { action: 'delete', id: req.user.id });
       }
     }
@@ -275,21 +275,6 @@ router.get('/staff', auth, async (req, res) => {
     if (!page && !limit) return res.json(staff);
     
     return res.json({ staff, total, page: pageNum, totalPages: Math.ceil(total / limitNum) || 1 });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
-// @route   GET api/users/paid-staff
-// @desc    Get all paid staff members
-// @access  Admin Private
-router.get('/paid-staff', auth, async (req, res) => {
-  try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-    const staff = await User.find({ role: 'PaidStaff' }).select('-password -__v').lean();
-    res.json(staff);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -738,62 +723,6 @@ router.post('/staff', auth, async (req, res) => {
   }
 });
 
-// @route   POST api/users/paid-staff
-// @desc    Create a new paid staff member
-// @access  Admin Private
-router.post('/paid-staff', auth, async (req, res) => {
-  let { name, phone_number, assigned_category, assigned_categories } = req.body;
-
-  if (!assigned_categories && assigned_category) {
-    assigned_categories = [assigned_category];
-  }
-  const legacy_category = assigned_categories && assigned_categories.length > 0 ? assigned_categories.join(', ') : '';
-
-  try {
-    if (req.user.role !== 'Admin') {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-
-    if (!phone_number.startsWith('+')) {
-      phone_number = `+91${phone_number}`;
-    }
-
-    let user = await User.findOne({ phone_number, role: 'PaidStaff', assigned_category: legacy_category });
-    if (user) {
-      return res.status(400).json({ msg: 'Paid staff already exists for this category' });
-    }
-
-    let existingActiveUser = await User.findOne({ phone_number, has_logged_in: true });
-    let hasLoggedIn = !!existingActiveUser;
-
-    user = new User({
-      name,
-      phone_number,
-      role: 'PaidStaff',
-      assigned_category: legacy_category,
-      assigned_categories: assigned_categories || [],
-      has_logged_in: hasLoggedIn
-    });
-
-    await user.save();
-    
-    const io = req.app.get('io');
-    if (io) {
-      io.emit('staff_changed', { action: 'create', data: user });
-    }
-
-    res.status(201).json({
-      id: user.id,
-      name: user.name,
-      phone_number: user.phone_number,
-      role: user.role,
-      assigned_category: user.assigned_category
-    });
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-});
-
 // @route   DELETE api/users/:id
 // @desc    Delete a user
 // @access  Admin Private
@@ -815,7 +744,7 @@ router.delete('/:id', auth, async (req, res) => {
     }
 
     if (req.user.role === 'SubAdmin') {
-      if (user.role === 'Admin' || user.role === 'SubAdmin' || user.role === 'PaidStaff') {
+      if (user.role === 'Admin' || user.role === 'SubAdmin') {
         return res.status(403).json({ message: 'Sub-Admins cannot delete this user type' });
       }
       if (user.role === 'Resident' && !checkAccess(req.user, 'Residents')) {
@@ -835,7 +764,7 @@ router.delete('/:id', auth, async (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.emit('user_deleted', { id: req.params.id });
-      if (user.role === 'Staff' || user.role === 'PaidStaff') {
+      if (user.role === 'Staff') {
         io.emit('staff_changed', { action: 'delete', id: req.params.id });
       }
     }
@@ -1135,7 +1064,7 @@ router.put('/:id', auth, async (req, res) => {
       user.permissions = cleanStaffPermissions(permissions);
     }
 
-    if (user.role === 'Staff' || user.role === 'PaidStaff') {
+    if (user.role === 'Staff') {
       let finalAssignedCategories = assigned_categories;
       if (!finalAssignedCategories && assigned_category !== undefined) {
         finalAssignedCategories = [assigned_category];

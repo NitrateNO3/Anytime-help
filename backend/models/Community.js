@@ -20,10 +20,10 @@ const communitySchema = new mongoose.Schema({
     default: '#F59E0B' // default accent color (amber/gold for electricity)
   },
   // Role-based visibility
-  // 'All' or specific roles: ['Resident', 'Member', 'Staff', 'PaidStaff']
+  // 'All' or specific roles: ['Resident', 'Member', 'Staff']
   target_roles: [{ 
     type: String, 
-    enum: ['All', 'Resident', 'Member', 'Staff', 'PaidStaff'],
+    enum: ['All', 'Resident', 'Member', 'Staff'],
     default: 'All'
   }],
   created_by: { 

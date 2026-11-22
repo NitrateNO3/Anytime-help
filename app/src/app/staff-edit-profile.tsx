@@ -229,7 +229,7 @@ export default function StaffEditProfileScreen() {
             <View style={styles.roleBadge}>
               <Ionicons name="shield-checkmark" size={13} color="#1D4ED8" style={{ marginRight: 4 }} />
               <Text style={styles.roleBadgeText}>
-                {role === 'PaidStaff' ? 'Paid Maintenance Staff' : 'Maintenance Staff'}
+                Maintenance Staff
               </Text>
             </View>
           </View>

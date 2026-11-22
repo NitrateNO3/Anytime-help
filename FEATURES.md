@@ -6,11 +6,11 @@ This document outlines the core features and architecture of the **Anytime Help*
 
 ## 📱 Mobile App (Residents & Staff)
 
-The mobile application is built using **React Native (Expo)** and provides specialized features based on the user's role (Resident, Staff, or Paid Staff).
+The mobile application is built using **React Native (Expo)** and provides specialized features based on the user's role (Resident, Member or Staff).
 
 ### 1. Authentication & Security
 - **Phone Number Registration & Login:** Users register and log in securely using their phone number.
-- **Role-Based Access Control:** The app automatically directs users to their respective dashboards (Resident, Staff, or Paid Staff) based on their assigned role.
+- **Role-Based Access Control:** The app automatically directs users to their respective dashboards (Resident, Member or Staff) based on their assigned role.
 - **Global Session Management:** Integrated Socket.io and global Axios interceptors ensure that if an admin deletes a user, they are **instantly and forcefully logged out** from the app.
 
 ### 2. Resident Features
@@ -24,9 +24,6 @@ The mobile application is built using **React Native (Expo)** and provides speci
 ### 3. Staff Features
 - **Complaint Management:** Staff members receive complaints assigned to their category (e.g., Plumbing, Electrical) and can update the status (In Progress, Resolved).
 - **Real-Time Sync:** Socket.io ensures staff members see new complaints the moment they are raised.
-
-### 4. Paid Staff Features
-- **Service Bookings:** Paid staff receive service requests directly on their dashboard and can manage appointments and statuses.
 
 ---
 
