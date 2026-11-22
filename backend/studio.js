@@ -19,8 +19,6 @@ const models = {
   Area: require('./models/Area'),
   Community: require('./models/Community'),
   CommunitySection: require('./models/CommunitySection'),
-  PaidService: require('./models/PaidService'),
-  ServiceBooking: require('./models/ServiceBooking'),
   Official: require('./models/Official'),
   OfficialPost: require('./models/OfficialPost'),
   Department: require('./models/Department'),

@@ -12,14 +12,13 @@ const { runUnscoped, setDefaultArea } = require('./areaContext');
 const SCOPED_MODELS = [
   'Announcement', 'Banner', 'BottomBanner', 'Category', 'ChatGroup', 'ChatMessage',
   'Community', 'CommunityMessage', 'CommunitySection', 'Complaint', 'Department',
-  'Directory', 'PaidService', 'ServiceBooking', 'StaffBanner', 'User',
+  'Directory', 'StaffBanner', 'User',
 ];
 
 // collection -> old single-field unique index name
 const OLD_UNIQUE_INDEXES = {
   categories: 'title_1',
   departments: 'name_1',
-  paidservices: 'name_1',
 };
 
 const DEFAULT_AREA = {
@@ -61,7 +60,7 @@ async function migrate() {
     }
 
     // Build the new per-area compound indexes now that old ones are gone.
-    for (const name of ['Category', 'Department', 'PaidService']) {
+    for (const name of ['Category', 'Department']) {
       await mongoose.model(name).createIndexes().catch((e) =>
         console.error(`[areas] createIndexes ${name}:`, e.message));
     }

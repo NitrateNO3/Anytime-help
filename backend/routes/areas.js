@@ -204,7 +204,7 @@ router.put('/:id/admins/:userId', async (req, res) => {
 // @desc    Remove an admin from an area
 // @route   DELETE /api/areas/:id
 // @desc    Delete an empty area (e.g. a test area). Refused while the area has
-//          any users, complaints or service bookings, and for the original
+//          any users or complaints, and for the original
 //          area. Leftover setup data (categories, banners, ...) is deleted too.
 router.delete('/:id', async (req, res) => {
   try {
@@ -218,7 +218,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     const model = (name) => (mongoose.modelNames().includes(name) ? mongoose.model(name) : null);
-    const blockers = [['User', 'users'], ['Complaint', 'complaints'], ['ServiceBooking', 'service bookings']];
+    const blockers = [['User', 'users'], ['Complaint', 'complaints']];
     for (const [name, label] of blockers) {
       const M = model(name);
       const n = M ? await M.countDocuments({ area: area._id }) : 0;
@@ -230,7 +230,7 @@ router.delete('/:id', async (req, res) => {
     const SETUP_MODELS = [
       'Announcement', 'Banner', 'BottomBanner', 'Category', 'ChatGroup', 'ChatMessage',
       'Community', 'CommunityMessage', 'CommunitySection', 'Department', 'Directory',
-      'PaidService', 'StaffBanner',
+      'StaffBanner',
     ];
     for (const name of SETUP_MODELS) {
       const M = model(name);

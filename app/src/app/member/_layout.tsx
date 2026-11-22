@@ -325,12 +325,6 @@ export default function MemberLayout() {
         <Tabs.Screen name="privacy" />
         <Tabs.Screen name="about" />
         <Tabs.Screen name="support" />
-        <Tabs.Screen 
-          name="book-service" 
-          options={{ 
-            tabBarStyle: { display: 'none' }
-          }} 
-        />
         <Tabs.Screen name="announcements" />
         <Tabs.Screen name="residents" />
         <Tabs.Screen name="edit-profile" options={{ tabBarStyle: { display: 'none' } }} />

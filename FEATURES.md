@@ -16,7 +16,6 @@ The mobile application is built using **React Native (Expo)** and provides speci
 ### 2. Resident Features
 - **Real-Time Announcements:** A dedicated announcements section with a notification badge on the home screen. Socket.io is used for instant updates without needing to refresh.
 - **Civic Issue Complaints:** Residents can raise complaints with photos, GPS location, and detailed descriptions.
-- **Paid Services Booking:** Residents can browse and book verified paid services (e.g., Electrician, Plumber).
 - **Community Directory:** A searchable directory of important contacts within the community (e.g., Security, RWA Members).
 - **Force Update Mechanism:** The app automatically checks the backend for the minimum required version. If the app is outdated, a non-dismissible popup forces the user to redirect to the Play Store for the latest update.
 - **Multi-Language Support (i18n):** Users can switch between English and Hindi/Hinglish translations effortlessly.
@@ -40,9 +39,8 @@ The Admin dashboard is built using **React (Vite)** and serves as the centralize
 - **Manual Resident Addition:** Admins can manually add new residents by entering their details (Name, Phone Number, Phase, Block, etc.). This allows the resident to bypass registration and simply "Log In" with their phone number on the app.
 - **Delete Resident:** Admins can remove residents, instantly revoking their app access via real-time socket events.
 
-### 3. Staff & Paid Services Management
+### 3. Staff Management
 - **Add Staff:** Register new staff members and assign them to specific complaint categories.
-- **Service Categories:** Add and manage paid service categories (e.g., Carpentry, Cleaning) with pricing and descriptions.
 
 ### 4. Complaints Overview
 - Admins have a global view of all complaints raised by residents.
