@@ -1055,7 +1055,7 @@ export default function Communities() {
                     <button 
                       className="btn btn-secondary"
                       style={{ padding: '8px 10px', fontSize: 13 }}
-                      title="Channel Admins: members or staff who can send messages and add stories in this channel"
+                      title="Channel Admins: members or staff who can send messages in this channel (staff add stories only with the Post Stories permission)"
                       onClick={() => openAssignMembersModal(sec)}
                     >
                       <Users size={15} />
@@ -1273,7 +1273,7 @@ export default function Communities() {
                   <span>
                     <strong style={{ fontSize: 13, color: '#0F172A' }}>Staff channel (only staff post)</strong>
                     <span style={{ display: 'block', fontSize: 12, color: '#64748B', marginTop: 2 }}>
-                      Only the staff you pick in Channel Admins can send messages and stories. Members and residents can only read.
+                      Only the staff you pick in Channel Admins can send messages. Members and residents can only read. Staff add stories only with the Post Stories permission (Staff page).
                     </span>
                   </span>
                 </label>
@@ -1322,7 +1322,7 @@ export default function Communities() {
                 </label>
 
                 <div style={{ marginTop: 8, padding: '12px 16px', background: '#EFF6FF', borderRadius: 8, fontSize: 12, color: '#1E40AF', border: '1px solid #DBEAFE' }}>
-                  <strong>How it works:</strong> {secOpenToAll ? 'Everyone in the selected roles can read it right away.' : 'Residents follow the channel to read it.'} After creating it, use <strong>Channel Admins</strong> on the channel card to choose members or staff who can send messages and add stories. They get these rights in this channel only.
+                  <strong>How it works:</strong> {secOpenToAll ? 'Everyone in the selected roles can read it right away.' : 'Residents follow the channel to read it.'} After creating it, use <strong>Channel Admins</strong> on the channel card to choose members or staff who can send messages. Members also get to add stories; staff need the Post Stories permission for that. These rights apply in this channel only.
                 </div>
               </div>
 
@@ -1366,7 +1366,7 @@ export default function Communities() {
                   Channel Admins · {assigningSection.name}
                 </h3>
                 <small style={{ color: '#64748b' }}>
-                  Members and staff you select can send messages and add stories in THIS channel only. They don't need to follow it.
+                  Members and staff you select can send messages in THIS channel only. Members can also add stories; staff need the Post Stories permission. They don't need to follow it.
                 </small>
               </div>
               <button 

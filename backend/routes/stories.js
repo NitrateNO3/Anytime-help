@@ -14,9 +14,13 @@ const ADMIN_ROLES = ['Admin', 'SubAdmin', 'SuperAdmin'];
 const isAreaAdminUser = (user) => !!user && ADMIN_ROLES.includes(user.role);
 const sameId = (a, b) => String((a && a._id) || a) === String((b && b._id) || b);
 
-// Channel story rights: area admins on every channel, others only where they are a Channel Admin
+// Channel story rights: area admins on every channel, others only where they are a Channel Admin.
+// Staff also need the admin's "Post Stories" permission: being a Channel Admin only lets them message.
 const canPostOnChannel = (section, user) =>
-  isAreaAdminUser(user) || (section.assigned_members || []).some(m => sameId(m, user._id));
+  isAreaAdminUser(user) || (
+    (section.assigned_members || []).some(m => sameId(m, user._id))
+    && (user.role !== 'Staff' || (user.permissions || []).includes('Post Stories'))
+  );
 
 // Name shown on a channel story: admins post as the area (like channel messages)
 const channelAuthorName = async (req) => {
