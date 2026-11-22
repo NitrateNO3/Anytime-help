@@ -1192,6 +1192,7 @@ export default function StaffScreen() {
                 <Text style={styles.secTitle}>{t('staff.communityTab', { defaultValue: 'Community' })}</Text>
               </View>
 
+              <Text style={styles.storiesHead}>{t('staff.stories', { defaultValue: 'Stories' })}</Text>
               {/* Status row: "My status" (locked without the admin's story permission) + category statuses */}
               <StoriesBar variant="staff" myInitials={myInitials} style={{ marginHorizontal: -18, paddingHorizontal: 18 }} />
 
@@ -1325,7 +1326,8 @@ export default function StaffScreen() {
         ))}
       </View>
 
-      {/* FAB: new announcement */}
+      {/* FAB: new announcement (hidden while the staff chat is open: it covered the send button) */}
+      {!(isCommunity && staffChatOpen) && (
       <TouchableOpacity
         accessibilityLabel={t('staff.newAnnouncement', { defaultValue: 'New Announcement' })}
         activeOpacity={0.85}
@@ -1334,6 +1336,7 @@ export default function StaffScreen() {
       >
         <Ionicons name="megaphone" size={26} color="#FFFFFF" />
       </TouchableOpacity>
+      )}
 
       {/* Update status: centre dialog */}
       <Modal animationType="fade" transparent visible={modalVisible} onRequestClose={() => setModalVisible(false)}>
@@ -1631,6 +1634,7 @@ const styles = StyleSheet.create({
 
   // Announcements
   chatOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  storiesHead: { fontSize: 18, fontWeight: '800', color: C.ink, marginTop: 18, marginBottom: 4 },
   chatHead: { fontSize: 18, fontWeight: '800', color: C.ink, marginTop: 18, marginBottom: 10 },
   chatCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: C.line, padding: 14, shadowColor: C.ink, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 14, elevation: 2 },
   chatAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: C.hero, alignItems: 'center', justifyContent: 'center' },

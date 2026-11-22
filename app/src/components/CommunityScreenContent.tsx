@@ -1230,7 +1230,11 @@ export default function CommunityScreenContent({
                   <Ionicons name="chatbubble-ellipses-outline" size={40} color="#CBD5E1" />
                   <Text style={styles.emptyMessagesTitle}>No Messages Yet</Text>
                   <Text style={styles.emptyMessagesDesc}>
-                    Updates and announcements posted by administration will appear here.
+                    {isStaffChat
+                      ? ((userAccess?.can_send ?? activeSection.user_access?.can_send)
+                        ? t('community.staffChatEmptyCanPost', { defaultValue: 'Send the first message to staff and residents.' })
+                        : t('community.staffChatEmpty', { defaultValue: 'Messages from staff will appear here.' }))
+                      : 'Updates and announcements posted by administration will appear here.'}
                   </Text>
                 </View>
               }
