@@ -10,6 +10,7 @@ import { socketAuth } from '../utils/socketAuth';
 import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import VerifiedBadge from './VerifiedBadge';
+import Toast from 'react-native-toast-message';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 const SOCKET_URL = 'https://anytime-help.onrender.com';
@@ -91,9 +92,13 @@ function CategoryAvatar({ group, size }: { group: { category: string; image?: st
 interface StoriesBarProps {
   title?: string;
   style?: any;
+  // 'staff': the staff app Community row (always shows "My status", locked without the
+  // admin's permission; no heading)
+  variant?: 'default' | 'staff';
+  myInitials?: string;
 }
 
-export default function StoriesBar({ title = 'Status', style }: StoriesBarProps) {
+export default function StoriesBar({ title = 'Status', style, variant = 'default', myInitials = '' }: StoriesBarProps) {
   const { i18n } = useTranslation();
   // Start from the last fetched stories so the row never flashes a loader when a
   // screen is re-entered; fresh data is fetched silently in the background.
@@ -164,7 +169,7 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
   // Show nothing (no heading, no spinner) until we know there is something to show:
   // the bar appears only once the caller may post or there are active stories.
   if (!loaded) return null;
-  if (!canPost && groups.length === 0) return null;
+  if (variant !== 'staff' && !canPost && groups.length === 0) return null;
 
   const markSeenLocally = (storyId: string) => {
     setGroups(prev => prev.map(g => {
@@ -188,6 +193,74 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
       return { ...g, stories: g.stories.map(s => (s._id === storyId ? { ...s, liked, seen: true } : s)) };
     }));
   };
+
+  const overlays = (
+    <>
+      {viewerStart !== null && groups[viewerStart] && (
+        <StoryViewer
+          groups={groups}
+          startGroup={viewerStart}
+          catLabel={catLabel}
+          onSeen={markSeenLocally}
+          onLiked={markLikedLocally}
+          onCounts={setCountsLocally}
+          onDeleted={fetchStories}
+          onClose={() => setViewerStart(null)}
+        />
+      )}
+      {composerOpen && (
+        <StoryComposer
+          targets={postable}
+          onClose={() => setComposerOpen(false)}
+          onPosted={() => { setComposerOpen(false); fetchStories(); }}
+        />
+      )}
+    </>
+  );
+
+  // Staff app Community row: "My status" first, then a ring per category with stories
+  if (variant === 'staff') {
+    const badge = !canPost
+      ? { bg: '#9AA1B2', icon: 'lock-closed' as const }
+      : myStories.length > 0
+        ? { bg: '#16A34A', icon: 'checkmark' as const }
+        : { bg: '#2F6FED', icon: 'add' as const };
+    return (
+      <View style={style}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.sRow}>
+          <TouchableOpacity
+            style={styles.sItem}
+            activeOpacity={0.8}
+            accessibilityLabel="My status"
+            onPress={() => canPost
+              ? setComposerOpen(true)
+              : Toast.show({ type: 'info', text1: 'No access', text2: 'Ask your RWA admin for this access' })}
+          >
+            <View style={styles.sMine}>
+              <Text style={styles.sMineText}>{myInitials || 'ME'}</Text>
+              <View style={[styles.sBadge, { backgroundColor: badge.bg }]}>
+                <Ionicons name={badge.icon} size={12} color="#FFFFFF" />
+              </View>
+            </View>
+            <Text style={styles.sLabel} numberOfLines={1}>My status</Text>
+          </TouchableOpacity>
+
+          {groups.map((g, idx) => (
+            <TouchableOpacity key={g.key || g.category} style={styles.sItem} activeOpacity={0.8} onPress={() => setViewerStart(idx)}>
+              <View style={[styles.sRing, { borderColor: g.has_unseen ? '#2F6FED' : '#C9CED9' }]}>
+                <CategoryAvatar group={g} size={51} />
+              </View>
+              <View style={styles.sLabelRow}>
+                <Text style={[styles.sLabel, { flexShrink: 1 }]} numberOfLines={1}>{catLabel(g)}</Text>
+                {(g.kind === 'official' || g.kind === 'channel') && g.verified && <VerifiedBadge size={11} style={{ marginLeft: 2 }} />}
+              </View>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        {overlays}
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.wrap, style]}>
@@ -234,26 +307,7 @@ export default function StoriesBar({ title = 'Status', style }: StoriesBarProps)
         ))}
       </ScrollView>
 
-      {viewerStart !== null && groups[viewerStart] && (
-        <StoryViewer
-          groups={groups}
-          startGroup={viewerStart}
-          catLabel={catLabel}
-          onSeen={markSeenLocally}
-          onLiked={markLikedLocally}
-          onCounts={setCountsLocally}
-          onDeleted={fetchStories}
-          onClose={() => setViewerStart(null)}
-        />
-      )}
-
-      {composerOpen && (
-        <StoryComposer
-          targets={postable}
-          onClose={() => setComposerOpen(false)}
-          onPosted={() => { setComposerOpen(false); fetchStories(); }}
-        />
-      )}
+      {overlays}
     </View>
   );
 }
@@ -987,6 +1041,15 @@ const cs = StyleSheet.create({
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: 16 },
+  // Staff variant (Community row)
+  sRow: { gap: 14, paddingRight: 8 },
+  sItem: { width: 66, alignItems: 'center', gap: 6 },
+  sMine: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#EEF4FF', alignItems: 'center', justifyContent: 'center' },
+  sMineText: { color: '#2F6FED', fontSize: 18, fontWeight: '800' },
+  sBadge: { position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  sRing: { width: 62, height: 62, borderRadius: 31, borderWidth: 2.5, padding: 3, alignItems: 'center', justifyContent: 'center' },
+  sLabelRow: { flexDirection: 'row', alignItems: 'center', maxWidth: 66 },
+  sLabel: { fontSize: 11, fontWeight: '700', color: '#0B1020', textAlign: 'center' },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
   heading: { fontSize: 17, fontWeight: '800', color: '#0F172A' },
   hint: { fontSize: 12, color: '#64748B', fontWeight: '600' },

@@ -33,6 +33,7 @@ interface CommunitySectionItem {
     timestamp: string;
   };
   open_to_all?: boolean;
+  staff_only_posting?: boolean;
   user_access?: {
     can_view: boolean;
     can_send: boolean;
@@ -73,6 +74,14 @@ interface CommunityScreenContentProps {
   headerThemeColor?: string;
   // Resident/Member screens sit under a floating tab bar; staff's screen has none
   hasTabBar?: boolean;
+  // Shown inside another screen (staff home): opens straight into the staff chat, and
+  // leaving the chat calls onExit instead of navigating away
+  embeddedStaffChat?: boolean;
+  onExit?: () => void;
+  // Space kept under the chat box for the host screen's own floating tab bar
+  tabBarSpace?: number;
+  // Embedded only: false while the host keeps this mounted but hidden (back press ignored)
+  active?: boolean;
 }
 
 // Height kept free at the bottom for the app's floating tab bar
@@ -283,7 +292,13 @@ export default function CommunityScreenContent({
   backRoute, 
   headerThemeColor = '#0F172A',
   hasTabBar = true,
+  embeddedStaffChat = false,
+  onExit,
+  tabBarSpace = TAB_BAR_SPACE,
+  active = true,
 }: CommunityScreenContentProps) {
+  const activeRef = useRef(active);
+  useEffect(() => { activeRef.current = active; }, [active]);
   const router = useRouter();
   const { t } = useTranslation();
 
@@ -341,7 +356,15 @@ export default function CommunityScreenContent({
   useEffect(() => { activeOfficialRef.current = activeOfficialId; }, [activeOfficialId]);
 
   // Opened from an "official post" push notification: /resident/community?officialId=...
-  const { officialId: officialIdParam } = useLocalSearchParams<{ officialId?: string }>();
+  // or straight into one chat: ?sectionId=... (that channel) or ?staffChat=1 (the staff
+  // channel, from the staff app Community tab). Back from that chat leaves the screen.
+  const { officialId: officialIdParam, sectionId: sectionIdParam, staffChat: staffChatParam } =
+    useLocalSearchParams<{ officialId?: string; sectionId?: string; staffChat?: string }>();
+  const directChat = embeddedStaffChat || !!sectionIdParam || staffChatParam === '1';
+  const openedSectionParamRef = useRef(false);
+  const [directChatMissing, setDirectChatMissing] = useState(false);
+  const leaveOnChatBackRef = useRef(directChat);
+  useEffect(() => { leaveOnChatBackRef.current = directChat && !directChatMissing; }, [directChat, directChatMissing]);
   useEffect(() => {
     if (officialIdParam) {
       setActiveSection(null);
@@ -363,14 +386,70 @@ export default function CommunityScreenContent({
     AsyncStorage.getItem(LAST_SEEN_KEY).then(v => { if (v) setLastSeen(JSON.parse(v)); }).catch(() => {});
   }, []);
 
-  const openSection = (sec: CommunitySectionItem, comm: CommunityItem) => {
+  const markSectionSeen = (id: string) => {
+    setLastSeen(prev => {
+      const next = { ...prev, [id]: Date.now() };
+      AsyncStorage.setItem(LAST_SEEN_KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+  };
+
+  const openSection = (sec: CommunitySectionItem, comm: CommunityItem, markSeen = true) => {
     setActiveParentComm(comm);
     setActiveSection(sec);
+    if (!markSeen) return;
     setLastSeen(prev => {
       const next = { ...prev, [sec._id]: Date.now() };
       AsyncStorage.setItem(LAST_SEEN_KEY, JSON.stringify(next)).catch(() => {});
       return next;
     });
+  };
+
+  useEffect(() => {
+    if (!directChat || openedSectionParamRef.current || loading) return;
+    openedSectionParamRef.current = true;
+    if (!communitiesLoadedRef.current) { setDirectChatMissing(true); return; }
+    const rows = communities.flatMap(comm => (comm.sections || []).map(sec => ({ sec, comm })));
+    const lastTs = (s: CommunitySectionItem) => (s.last_message?.timestamp ? new Date(s.last_message.timestamp).getTime() : 0);
+    let pick: { sec: CommunitySectionItem; comm: CommunityItem } | undefined;
+    if (sectionIdParam) {
+      pick = rows.find(r => r.sec._id === String(sectionIdParam));
+    } else {
+      // Staff chat: the staff channel, preferring one everyone can read, then the latest active
+      const staffRows = rows
+        .filter(r => r.sec.staff_only_posting)
+        .sort((a, b) => (Number(!!b.sec.open_to_all) - Number(!!a.sec.open_to_all)) || (lastTs(b.sec) - lastTs(a.sec)));
+      pick = staffRows[0];
+    }
+    // Prepared while hidden (staff home): mark it read only once it is actually shown
+    if (pick) openSection(pick.sec, pick.comm, activeRef.current);
+    else setDirectChatMissing(true);
+  }, [directChat, sectionIdParam, communities, loading]);
+
+  useEffect(() => {
+    if (embeddedStaffChat && active && activeSectionRef.current) markSectionSeen(activeSectionRef.current._id);
+  }, [active]);
+
+  // The staff chat reads like a group chat: no follow / followers wording
+  const isStaffChat = !!activeSection?.staff_only_posting;
+
+  // Until the chat opens, show a loader instead of flashing the channel list
+  const directChatPending = directChat && !activeSection && !directChatMissing && !openedSectionParamRef.current;
+
+  // Leave this screen: back to where it was opened from (staff home has no tab bar)
+  const leaveScreen = () => {
+    if (onExit) { onExit(); return; }
+    if (router.canGoBack()) router.back();
+    else router.replace(backRoute as any);
+  };
+
+  // Leaving a chat: a chat opened straight from outside goes back there, otherwise to the list
+  const closeSection = () => {
+    if (leaveOnChatBackRef.current) {
+      leaveScreen();
+      return;
+    }
+    setActiveSection(null);
   };
 
   const toggleFollowOfficial = async (o: OfficialItem) => {
@@ -412,14 +491,17 @@ export default function CommunityScreenContent({
       fetchOfficials();
 
       const onBackPress = () => {
+        if (!activeRef.current) return false;
         if (activeOfficialRef.current) {
           setActiveOfficialId(null);
           return true;
         }
         if (activeSectionRef.current) {
-          setActiveSection(null);
+          if (leaveOnChatBackRef.current) leaveScreen();
+          else setActiveSection(null);
           return true;
         }
+        if (onExit) { onExit(); return true; }
         router.replace(backRoute as any);
         return true;
       };
@@ -837,14 +919,14 @@ export default function CommunityScreenContent({
     || (o.ward || '').toLowerCase().includes(q));
 
   return (
-    <SafeAreaView style={[styles.safeArea, !activeSection && { backgroundColor: '#F4F6FA' }]}>
-      <StatusBar barStyle={activeSection ? 'light-content' : 'dark-content'} />
+    <SafeAreaView edges={embeddedStaffChat ? [] : undefined} style={[styles.safeArea, !activeSection && { backgroundColor: '#F4F6FA' }]}>
+      {!embeddedStaffChat && <StatusBar barStyle={activeSection ? 'light-content' : 'dark-content'} />}
 
       {/* HEADER (only inside a channel; the list view has its own light header) */}
       {activeSection && (
-      <View style={[styles.headerBar, { backgroundColor: headerThemeColor }]}>
+      <View style={[styles.headerBar, { backgroundColor: headerThemeColor }, embeddedStaffChat && { paddingTop: 14 }]}>
         <TouchableOpacity
-          onPress={() => setActiveSection(null)}
+          onPress={closeSection}
           style={styles.backButton}
           activeOpacity={0.7}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -855,7 +937,9 @@ export default function CommunityScreenContent({
         <View style={styles.headerTitleWrap}>
           <Text style={styles.headerTitle} numberOfLines={1}>{activeSection.name}</Text>
           <Text style={styles.headerSubtitle} numberOfLines={1}>
-            {`${activeParentComm?.name || 'Community'} • ${activeSection.followers_count || 0} followers`}
+            {isStaffChat
+              ? t('community.staffChatMembers', { defaultValue: 'Staff & residents' })
+              : `${activeParentComm?.name || 'Community'} • ${activeSection.followers_count || 0} followers`}
           </Text>
         </View>
 
@@ -883,7 +967,12 @@ export default function CommunityScreenContent({
       {/* VIEW 1: STATUS, CHANNELS & OFFICIALS
           Stays mounted (just hidden) while a channel / official is open, like WhatsApp:
           coming back keeps the scroll position and the Status row with no reload. */}
-      <View style={{ flex: 1, display: activeSection || activeOfficial ? 'none' : 'flex' }}>
+      {directChatPending && (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#F4F6FA' }}>
+          <ActivityIndicator size="large" color={headerThemeColor} />
+        </View>
+      )}
+      <View style={{ flex: 1, display: activeSection || activeOfficial || directChatPending ? 'none' : 'flex' }}>
         <ScrollView
           style={{ backgroundColor: '#F4F6FA' }}
           contentContainerStyle={styles.listContent}
@@ -893,6 +982,16 @@ export default function CommunityScreenContent({
         >
           {/* Title header */}
           <View style={styles.lvHeader}>
+            {(!hasTabBar || !!onExit) && (
+              <TouchableOpacity
+                style={[styles.lvSearchBtn, { marginRight: 12 }]}
+                activeOpacity={0.7}
+                onPress={leaveScreen}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="arrow-back" size={20} color="#0F172A" />
+              </TouchableOpacity>
+            )}
             <View style={{ flex: 1 }}>
               {!!areaName && <Text style={styles.lvArea} numberOfLines={1}>{areaName}</Text>}
               <Text style={styles.lvTitle}>{t('community.title', { defaultValue: 'Community' })}</Text>
@@ -925,6 +1024,12 @@ export default function CommunityScreenContent({
           <View style={{ display: searchQuery ? 'none' : 'flex' }}>
             <StoriesBar title={t('community.status', { defaultValue: 'Status' })} />
           </View>
+
+          {directChatMissing && (
+            <View style={[styles.lvCard, { marginBottom: 12 }]}>
+              <Text style={styles.lvEmpty}>{t('community.noStaffChat', { defaultValue: 'The staff chat is not set up yet. Ask your RWA admin to create a staff channel.' })}</Text>
+            </View>
+          )}
 
           {/* CHANNELS */}
           <View style={styles.lvSectionHead}>
@@ -1051,7 +1156,8 @@ export default function CommunityScreenContent({
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
         >
-          {/* Channel Banner Info */}
+          {/* Channel Banner Info (the staff chat skips it when nobody needs to follow) */}
+          {!(isStaffChat && (activeSection.open_to_all || activeSection.user_access?.is_assigned)) && (
           <View style={styles.channelHeaderBar}>
             <View style={{ flex: 1, marginRight: 12 }}>
               <Text style={styles.channelNameText}>{activeSection.name}</Text>
@@ -1081,6 +1187,7 @@ export default function CommunityScreenContent({
             </TouchableOpacity>
             )}
           </View>
+          )}
 
           {/* Messages Feed OR Follow-Gate */}
           {loadingMessages ? (
@@ -1184,13 +1291,13 @@ export default function CommunityScreenContent({
           {/* Bottom Bar: Read-only Notice OR Post Input.
               Lifted above the floating tab bar; the tab bar hides while typing, so
               the extra space goes away when the keyboard is open. */}
-          <View style={{ marginBottom: hasTabBar && !keyboardOpen ? TAB_BAR_SPACE : 0 }}>
+          <View style={{ marginBottom: hasTabBar && !keyboardOpen ? tabBarSpace : 0 }}>
           {(userAccess?.can_send ?? activeSection.user_access?.can_send) ? (
             /* Message Input for Assigned Members / Admin */
             <View style={styles.inputContainer}>
               <TextInput 
                 style={styles.chatInput}
-                placeholder="Post update in this channel..."
+                placeholder={isStaffChat ? t('community.staffChatPlaceholder', { defaultValue: 'Message staff & residents...' }) : 'Post update in this channel...'}
                 placeholderTextColor="#94A3B8"
                 value={msgText}
                 onChangeText={handleTextChange}
@@ -1209,7 +1316,11 @@ export default function CommunityScreenContent({
             <View style={styles.readOnlyNoticeBar}>
               <Ionicons name="eye-outline" size={16} color="#64748B" style={{ marginRight: 6 }} />
               <Text style={styles.readOnlyNoticeText}>
-                {t('community.readOnlyNotice') || 'You are following this channel with read-only access'}
+                {isStaffChat
+                  ? (currentUser?.role === 'Staff'
+                    ? t('community.staffChatNoAccess', { defaultValue: 'You can read this chat. Ask your RWA admin to let you send messages.' })
+                    : t('community.staffChatReadOnly', { defaultValue: 'Only staff picked by the RWA admin can send messages' }))
+                  : (t('community.readOnlyNotice') || 'You are following this channel with read-only access')}
               </Text>
             </View>
           )}

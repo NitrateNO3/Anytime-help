@@ -3,6 +3,8 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import type { ScrollViewInstance } from 'react-native';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Modal, TextInput, Platform, BackHandler, KeyboardAvoidingView, Keyboard, FlatList, Dimensions, Share } from 'react-native';
 import ZoomableImage from '../components/ZoomableImage';
+import DeleteAccountModal from '../components/DeleteAccountModal';
+import CommunityScreenContent from '../components/CommunityScreenContent';
 import StoriesBar from '../components/StoriesBar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -58,6 +60,45 @@ const PRIORITY_META: Record<string, [string, string]> = {
 
 const HERO_RATIO = 470 / 1200;
 
+// The admin panel saves staff names as "Prince (Sushant Lok 2 (Block C))". Show only the
+// person's name: drop the bracketed location part (and any stray symbols around it).
+const cleanStaffName = (name?: string) => {
+  let n = String(name || '');
+  const cut = n.indexOf('(');
+  if (cut > 0) n = n.slice(0, cut);
+  return n.replace(/[()[\]{}|]/g, ' ').replace(/\s+/g, ' ').trim();
+};
+
+type AccessKey = 'ann' | 'status' | 'msg';
+type AccessMap = Record<AccessKey, boolean>;
+
+// "Your access" in the Settings sheet: the real access set by the RWA admin
+const AccessSection = React.memo(function AccessSection({ realAccess, t }: { realAccess: AccessMap; t: (k: string, o?: any) => string }) {
+  const rows = [
+    { label: t('staff.accessSolve', { defaultValue: 'Solve & update complaints' }), on: true },
+    { label: t('staff.accessAnnounce', { defaultValue: 'Send announcements' }), on: realAccess.ann },
+    { label: t('staff.accessStatus', { defaultValue: 'Post status' }), on: realAccess.status },
+    { label: t('staff.accessCommunity', { defaultValue: 'Message in community' }), on: realAccess.msg },
+  ];
+  return (
+    <View>
+        <Text style={styles.accessHeading}>{t('staff.yourAccess', { defaultValue: 'Your access' })}</Text>
+        {rows.map((a, i) => (
+          <View key={a.label} style={[styles.accessRow, i > 0 && { borderTopWidth: 1, borderTopColor: '#F0F2F6' }]}>
+            <Text style={styles.accessLabel}>{a.label}</Text>
+            <View style={[styles.accessPill, { backgroundColor: a.on ? '#E4F7EF' : '#F0F2F6' }]}>
+              <Ionicons name={a.on ? 'checkmark' : 'lock-closed'} size={11} color={a.on ? '#067A52' : C.muted} />
+              <Text style={[styles.accessPillText, { color: a.on ? '#067A52' : C.muted }]}>
+                {a.on ? t('staff.allowed', { defaultValue: 'Allowed' }) : t('staff.noAccess', { defaultValue: 'No access' })}
+              </Text>
+            </View>
+          </View>
+        ))}
+        <Text style={styles.accessNote}>{t('staff.setByAdmin', { defaultValue: 'Set by your RWA admin' })}</Text>
+    </View>
+  );
+});
+
 export default function StaffScreen() {
   const { start } = useCopilot();
   const router = useRouter();
@@ -65,7 +106,7 @@ export default function StaffScreen() {
   const [complaints, setComplaints] = useState<any[]>([]);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [filterCategories, setFilterCategories] = useState<string[]>(['All', 'Electricity', 'Garbage', 'Sweeping', 'Sewage cleaning', 'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service']);
-  const [activeTab, setActiveTab] = useState<'Tasks' | 'Broadcasts' | 'Announcements'>('Tasks');
+  const [activeTab, setActiveTab] = useState<'Tasks' | 'Broadcasts' | 'Announcements' | 'Community'>('Tasks');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
   const toggleLanguage = async () => {
@@ -547,6 +588,14 @@ export default function StaffScreen() {
   const [scrolled, setScrolled] = useState(false);
   const isTasks = activeTab === 'Tasks';
   const isAnnSection = activeTab === 'Announcements' || activeTab === 'Broadcasts';
+  const isCommunity = activeTab === 'Community';
+  // "PR" for Prince, "RK" for Ravi Kumar (shown on "My status")
+  const myName = cleanStaffName(user?.name);
+  const myInitials = (() => {
+    const words = myName.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) return (words[0][0] + words[1][0]).toUpperCase();
+    return (words[0] || '').slice(0, 2).toUpperCase();
+  })();
   // Top bar stays blue on the Tasks home, even while scrolling
   const barIsBlue = isTasks;
   const heroWidth = Dimensions.get('window').width;
@@ -574,7 +623,8 @@ export default function StaffScreen() {
     return () => clearTimeout(timer);
   }, [isTasks, !!user]);
 
-  const switchTab = (tab: 'Tasks' | 'Broadcasts' | 'Announcements') => {
+  const switchTab = (tab: 'Tasks' | 'Broadcasts' | 'Announcements' | 'Community') => {
+    if (tab !== 'Community') setStaffChatOpen(false);
     setActiveTab(tab);
     setScrolled(false);
   };
@@ -623,6 +673,118 @@ export default function StaffScreen() {
   // All departments in one chip (main account + linked staff accounts), so the chips stay on one line
   const deptChipLabel = [...new Set([user?.assigned_category, ...extraStaffAccounts.map((a: any) => a.assigned_category)].map(deptLabel))].join(', ');
 
+  // ---------- Settings sheet ----------
+  const [settingsVisible, setSettingsVisible] = useState(false);
+
+  // "Message in community": the staff member is a Channel Admin of at least one channel
+  const [canMessageCommunity, setCanMessageCommunity] = useState(false);
+  const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
+  const [authToken, setAuthToken] = useState('');
+
+  const openSettings = async () => {
+    setSettingsVisible(true);
+    const token = (await SecureStore.getItemAsync('userToken')) || '';
+    setAuthToken(token);
+    fetchUserProfile(); // pick up permission changes made by the admin
+    try {
+      const res = await axios.get(`${API_URL}/community?include_sections=true`, { headers: { 'x-auth-token': token } });
+      const list = Array.isArray(res.data) ? res.data : [];
+      setCanMessageCommunity(list.some((c: any) => (c.sections || []).some((s: any) => s.user_access?.is_assigned)));
+    } catch (e) {
+      console.log('Community access check error:', e);
+    }
+  };
+
+  // Community tab: the staff chat (the admin's staff channel) shown as one chat row
+  const [staffChat, setStaffChat] = useState<any | null>(null);
+  const [staffChatLoading, setStaffChatLoading] = useState(false);
+  const [staffChatUnread, setStaffChatUnread] = useState(false);
+  const staffChatLoadedRef = React.useRef(false);
+
+  const fetchStaffChat = React.useCallback(async () => {
+    if (!staffChatLoadedRef.current) setStaffChatLoading(true);
+    try {
+      const token = (await SecureStore.getItemAsync('userToken')) || '';
+      const res = await axios.get(`${API_URL}/community?include_sections=true`, { headers: { 'x-auth-token': token } });
+      const list = Array.isArray(res.data) ? res.data : [];
+      const sections = list.flatMap((c: any) => c.sections || []);
+      const lastTs = (s: any) => (s.last_message?.timestamp ? new Date(s.last_message.timestamp).getTime() : 0);
+      // Same pick as the chat screen: a staff channel, open to all first, then the latest active
+      const pick = sections
+        .filter((s: any) => s.staff_only_posting)
+        .sort((a: any, b: any) => (Number(!!b.open_to_all) - Number(!!a.open_to_all)) || (lastTs(b) - lastTs(a)))[0] || null;
+      setStaffChat(pick);
+      setCanMessageCommunity(sections.some((s: any) => s.user_access?.is_assigned));
+      if (pick) {
+        const seenRaw = await AsyncStorage.getItem('community_section_last_seen').catch(() => null);
+        const seen = seenRaw ? JSON.parse(seenRaw) : {};
+        setStaffChatUnread(lastTs(pick) > (seen[pick._id] || 0));
+      }
+      staffChatLoadedRef.current = true;
+    } catch (e) {
+      console.log('Staff chat error:', e);
+    } finally {
+      setStaffChatLoading(false);
+    }
+  }, []);
+
+  // Load when the tab opens, and again when coming back from the chat
+  useFocusEffect(
+    React.useCallback(() => {
+      if (isCommunity) fetchStaffChat();
+    }, [isCommunity, fetchStaffChat])
+  );
+
+  // The chat opens on top of the Community tab (tab bar stays), like an official's page
+  const [staffChatOpen, setStaffChatOpen] = useState(false);
+  const [keyboardUp, setKeyboardUp] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardUp(true));
+    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardUp(false));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  const openStaffChat = () => {
+    setStaffChatUnread(false);
+    setStaffChatOpen(true);
+  };
+
+  const closeStaffChat = React.useCallback(() => {
+    setStaffChatOpen(false);
+    fetchStaffChat();
+  }, [fetchStaffChat]);
+
+  const handleLogout = async () => {
+    try {
+      const userData = await SecureStore.getItemAsync('userData');
+      if (userData) {
+        const parsed = JSON.parse(userData);
+        await fetch(`${API_URL}/auth/logout`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: parsed._id || parsed.id }),
+        });
+      }
+    } catch (e) {
+      console.error('Error logging out from server', e);
+    }
+    setSettingsVisible(false);
+    await SecureStore.deleteItemAsync('userToken');
+    await SecureStore.deleteItemAsync('userData');
+    router.replace('/' as any);
+  };
+
+  // Access set by the RWA admin: "Post Stories" permission (admin Staff page) and
+  // Channel Admin of a community channel. Solving complaints and sending
+  // announcements are open to every staff member.
+  const staffAccounts = [user, ...extraStaffAccounts].filter(Boolean);
+  const canPostStatus = staffAccounts.some((a: any) => (a.permissions || []).includes('Post Stories'));
+  // Memoised so AccessSection only re-renders when the real access changes
+  const realAccess = React.useMemo<AccessMap>(
+    () => ({ ann: true, status: canPostStatus, msg: canMessageCommunity }),
+    [canPostStatus, canMessageCommunity]
+  );
+
   const selectedComplaint = complaints.find((c) => c._id === selectedComplaintId);
 
   const myAnnouncements = announcements.filter((item) => {
@@ -657,7 +819,7 @@ export default function StaffScreen() {
         <WalkthroughableView>
           <TouchableOpacity
             accessibilityLabel="Settings"
-            onPress={() => router.push('/staff-settings')}
+            onPress={openSettings}
             activeOpacity={0.8}
             style={[styles.roundBtn, barIsBlue ? styles.glassBtn : styles.solidBtn]}
           >
@@ -673,7 +835,7 @@ export default function StaffScreen() {
       <View style={{ paddingHorizontal: 18, paddingTop: 2, paddingBottom: 6 }}>
         <Text style={styles.heroKicker}>{t('staff.portal', { defaultValue: 'Staff Portal' })}</Text>
         <Text style={styles.heroTitle}>
-          {t('resident.hello', { defaultValue: 'Hello,' })} {user?.name?.split(' ')[0] || 'Staff'}
+          {t('resident.hello', { defaultValue: 'Hello,' })} {myName.split(' ')[0] || 'Staff'}
         </Text>
         {user && (
           <View style={styles.heroChips}>
@@ -889,7 +1051,7 @@ export default function StaffScreen() {
     },
     {
       key: 'Community', label: t('staff.communityTab', { defaultValue: 'Community' }), icon: 'people-outline', iconOn: 'people', badge: 0,
-      on: false, onPress: () => router.push('/staff-community' as any),
+      on: isCommunity, onPress: () => switchTab('Community'),
       step: { order: 4, name: 'community_tab', text: 'कम्युनिटी चैनल में अपडेट पढ़ें और पोस्ट करें।' },
     },
   ];
@@ -901,10 +1063,12 @@ export default function StaffScreen() {
   ];
 
   const tabBarBottom = Math.max(insets.bottom, 8) + 10;
+  // The open staff chat has a blue header, so the status bar area turns blue too
+  const topIsBlue = barIsBlue || (isCommunity && staffChatOpen);
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: barIsBlue ? C.hero : C.bg }]}>
-      <StatusBar barStyle={barIsBlue ? 'light-content' : 'dark-content'} />
+    <SafeAreaView edges={['top']} style={[styles.safeArea, { backgroundColor: topIsBlue ? C.hero : C.bg }]}>
+      <StatusBar barStyle={topIsBlue ? 'light-content' : 'dark-content'} />
 
       {isOffline && (
         <View style={styles.offlineBanner}>
@@ -940,9 +1104,6 @@ export default function StaffScreen() {
                   {renderStats()}
                 </View>
               )}
-
-              {/* Category stories: staff can post in their own category, and see everyone's */}
-              <StoriesBar title={t('community.status', { defaultValue: 'Status' })} />
 
               <View style={styles.searchBox}>
                 <Ionicons name="search-outline" size={20} color={C.muted} />
@@ -1024,6 +1185,57 @@ export default function StaffScreen() {
                 complaints.map(renderTaskCard)
               )}
             </>
+          ) : isCommunity ? (
+            <>
+              <View style={{ gap: 2, marginTop: 4 }}>
+                <Text style={styles.secKicker}>{t('staff.portal', { defaultValue: 'Staff Portal' })}</Text>
+                <Text style={styles.secTitle}>{t('staff.communityTab', { defaultValue: 'Community' })}</Text>
+              </View>
+
+              {/* Status row: "My status" (locked without the admin's story permission) + category statuses */}
+              <StoriesBar variant="staff" myInitials={myInitials} style={{ marginHorizontal: -18, paddingHorizontal: 18 }} />
+
+              {/* Staff chat: one chat for staff and residents; only permitted staff can send */}
+              <Text style={styles.chatHead}>{t('staff.chats', { defaultValue: 'Chats' })}</Text>
+              {staffChatLoading && !staffChat ? (
+                <ActivityIndicator size="large" color={C.primary} style={{ marginTop: 24 }} />
+              ) : staffChat ? (
+                <TouchableOpacity activeOpacity={0.8} onPress={openStaffChat} style={styles.chatCard}>
+                  <View style={styles.chatAvatar}>
+                    <Ionicons name="people" size={24} color="#FFFFFF" />
+                  </View>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <View style={styles.chatTopRow}>
+                      <Text style={styles.chatName} numberOfLines={1}>{staffChat.name}</Text>
+                      {!!staffChat.last_message?.timestamp && (
+                        <Text style={[styles.chatTime, staffChatUnread && { color: C.primary, fontWeight: '700' }]}>
+                          {new Date(staffChat.last_message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.chatTopRow}>
+                      <Text style={[styles.chatPreview, staffChatUnread && { color: C.ink, fontWeight: '600' }]} numberOfLines={1}>
+                        {staffChat.last_message?.text
+                          ? `${staffChat.last_message.sender_name ? cleanStaffName(staffChat.last_message.sender_name) + ': ' : ''}${staffChat.last_message.text}`
+                          : t('staff.chatEmpty', { defaultValue: 'No messages yet' })}
+                      </Text>
+                      {staffChatUnread && <View style={styles.chatDot} />}
+                    </View>
+                    <View style={styles.chatMetaRow}>
+                      <Text style={styles.chatMeta}>{t('staff.chatMembers', { defaultValue: 'Staff & residents' })}</Text>
+                      <View style={[styles.chatPill, { backgroundColor: staffChat.user_access?.can_send ? '#E4F7EF' : '#F0F2F6' }]}>
+                        <Ionicons name={staffChat.user_access?.can_send ? 'create-outline' : 'eye-outline'} size={11} color={staffChat.user_access?.can_send ? '#067A52' : C.muted} />
+                        <Text style={[styles.chatPillText, { color: staffChat.user_access?.can_send ? '#067A52' : C.muted }]}>
+                          {staffChat.user_access?.can_send ? t('staff.canPost', { defaultValue: 'You can post' }) : t('staff.readOnly', { defaultValue: 'Read only' })}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ) : (
+                renderEmpty('chatbubbles-outline', t('staff.noStaffChat', { defaultValue: 'Staff chat is not set up yet' }), t('staff.noStaffChatSub', { defaultValue: 'Your RWA admin can create it from the admin panel.' }))
+              )}
+            </>
           ) : (
             <>
               <View style={{ gap: 2, marginTop: 4 }}>
@@ -1066,8 +1278,27 @@ export default function StaffScreen() {
         </View>
       </ScrollView>
 
-      {/* Floating bottom tab bar */}
-      <View style={[styles.tabBar, { bottom: tabBarBottom }]}>
+      {/* Staff chat, opened over the Community tab */}
+      {/* Kept mounted (hidden) once the staff chat exists, so a tap opens it instantly */}
+      {!!staffChat && (
+        <View
+          pointerEvents={isCommunity && staffChatOpen ? 'auto' : 'none'}
+          style={[styles.chatOverlay, { top: insets.top }, !(isCommunity && staffChatOpen) && { display: 'none' }]}
+        >
+          <CommunityScreenContent
+            active={isCommunity && staffChatOpen}
+            backRoute="/staff"
+            headerThemeColor={C.hero}
+            hasTabBar
+            embeddedStaffChat
+            tabBarSpace={tabBarBottom + 68 + 8}
+            onExit={closeStaffChat}
+          />
+        </View>
+      )}
+
+      {/* Floating bottom tab bar (hidden while typing in the chat) */}
+      <View style={[styles.tabBar, { bottom: tabBarBottom }, isCommunity && staffChatOpen && keyboardUp && { display: 'none' }]}>
         {tabItems.map((tb) => (
           <CopilotStep key={tb.key} text={tb.step.text} order={tb.step.order} name={tb.step.name}>
             <WalkthroughableView style={{ flex: 1 }}>
@@ -1241,6 +1472,61 @@ export default function StaffScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
+      {/* Settings: bottom sheet */}
+      <Modal animationType="slide" transparent visible={settingsVisible} onRequestClose={() => setSettingsVisible(false)}>
+        <View style={styles.sheetWrap}>
+          <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setSettingsVisible(false)} />
+          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 12) + 14 }]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ gap: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+                <View style={{ flex: 1, gap: 4 }}>
+                  <Text style={styles.sheetTitle}>{t('settings.settingsTitle', { defaultValue: 'Settings' })}</Text>
+                  <Text style={styles.sheetSub}>{t('staff.settingsSub', { defaultValue: 'Language, access and account' })}</Text>
+                </View>
+                <TouchableOpacity accessibilityLabel="Close" onPress={() => setSettingsVisible(false)} style={styles.sheetClose}>
+                  <Ionicons name="close" size={20} color={C.ink} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Profile */}
+              <View style={styles.profileRow}>
+                <View style={styles.profileAvatar}>
+                  <Text style={styles.profileAvatarText}>{myInitials || 'ME'}</Text>
+                </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={styles.profileName} numberOfLines={1}>{myName || 'Staff'}</Text>
+                  <Text style={styles.profileMeta} numberOfLines={1}>{deptChipLabel}{areaLabel ? ` · ${areaLabel}` : ''}</Text>
+                </View>
+              </View>
+
+              {/* Your access (set by the RWA admin) */}
+              <AccessSection realAccess={realAccess} t={t} />
+
+              <TouchableOpacity activeOpacity={0.85} onPress={handleLogout} style={styles.logoutBtn}>
+                <Text style={styles.logoutText}>{t('settings.logout', { defaultValue: 'Log out' })}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => { setSettingsVisible(false); setDeleteAccountVisible(true); }}
+                style={styles.deleteAccountBtn}
+              >
+                <Ionicons name="trash-outline" size={15} color="#B4301B" />
+                <Text style={styles.deleteAccountText}>{t('settings.deleteAccount', { defaultValue: 'Delete Account' })}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <DeleteAccountModal
+        visible={deleteAccountVisible}
+        onClose={() => setDeleteAccountVisible(false)}
+        userName={myName || user?.name}
+        userId={user?._id || user?.id}
+        token={authToken}
+      />
+
       {/* Full screen image */}
       <Modal visible={!!fullScreenImage} transparent animationType="fade" onRequestClose={() => setFullScreenImage(null)}>
         <View style={styles.fullScreenImageContainer}>
@@ -1344,6 +1630,19 @@ const styles = StyleSheet.create({
   shareBtn: { width: 48, height: 48, borderRadius: 14, backgroundColor: '#F0F3F8', alignItems: 'center', justifyContent: 'center' },
 
   // Announcements
+  chatOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  chatHead: { fontSize: 18, fontWeight: '800', color: C.ink, marginTop: 18, marginBottom: 10 },
+  chatCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: C.line, padding: 14, shadowColor: C.ink, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 14, elevation: 2 },
+  chatAvatar: { width: 52, height: 52, borderRadius: 26, backgroundColor: C.hero, alignItems: 'center', justifyContent: 'center' },
+  chatTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  chatName: { flex: 1, fontSize: 16, fontWeight: '800', color: C.ink },
+  chatTime: { fontSize: 12, color: C.muted },
+  chatPreview: { flex: 1, fontSize: 13.5, color: C.muted, marginTop: 3 },
+  chatDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: C.primary },
+  chatMetaRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 },
+  chatMeta: { fontSize: 12, fontWeight: '600', color: C.ink3 },
+  chatPill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4 },
+  chatPillText: { fontSize: 11, fontWeight: '700' },
   secKicker: { fontSize: 17, fontWeight: '600', color: C.muted },
   secTitle: { fontSize: 30, fontWeight: '800', color: C.ink, letterSpacing: -0.5 },
   annCard: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: C.line2, borderRadius: 20, padding: 16, gap: 8 },
@@ -1379,11 +1678,29 @@ const styles = StyleSheet.create({
   dialogCancelText: { fontSize: 16, fontWeight: '600', color: C.muted },
 
   // Announcement sheet
-  sheetWrap: { flex: 1, backgroundColor: 'rgba(11,16,32,0.45)', justifyContent: 'flex-end' },
-  sheet: { maxHeight: '92%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 18, paddingHorizontal: 20 },
+  // No dark backdrop (it slid up with the sheet and looked like a black shadow)
+  sheetWrap: { flex: 1, backgroundColor: 'transparent', justifyContent: 'flex-end' },
+  sheet: { maxHeight: '92%', backgroundColor: '#FFFFFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 18, paddingHorizontal: 20, borderWidth: 1, borderBottomWidth: 0, borderColor: C.line, shadowColor: C.ink, shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.08, shadowRadius: 16, elevation: 12 },
   sheetTitle: { fontSize: 20, fontWeight: '800', color: C.ink, letterSpacing: -0.2 },
   sheetSub: { fontSize: 13, color: C.muted },
   sheetClose: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F0F2F6', alignItems: 'center', justifyContent: 'center' },
+
+  // Settings sheet
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, backgroundColor: '#F6F8FC' },
+  profileAvatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.primary, alignItems: 'center', justifyContent: 'center' },
+  profileAvatarText: { color: '#FFFFFF', fontSize: 16, fontWeight: '800' },
+  profileName: { fontSize: 16, fontWeight: '800', color: C.ink },
+  profileMeta: { fontSize: 12, color: C.muted },
+  accessHeading: { fontSize: 13, fontWeight: '800', color: C.ink, marginBottom: 4 },
+  accessRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11 },
+  accessLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: C.ink },
+  accessPill: { height: 24, paddingHorizontal: 9, borderRadius: 999, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  accessPillText: { fontSize: 11, fontWeight: '800' },
+  accessNote: { fontSize: 11, color: C.muted, marginTop: 4 },
+  logoutBtn: { height: 50, borderRadius: 16, borderWidth: 1, borderColor: '#F6C7BE', backgroundColor: '#FFF6F4', alignItems: 'center', justifyContent: 'center' },
+  logoutText: { fontSize: 15, fontWeight: '800', color: '#B4301B' },
+  deleteAccountBtn: { height: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: -4 },
+  deleteAccountText: { fontSize: 13, fontWeight: '700', color: '#B4301B' },
   targetBox: { padding: 12, paddingHorizontal: 14, borderRadius: 14, backgroundColor: '#EEF4FF', borderWidth: 1, borderColor: '#C7D5FA', gap: 2 },
   targetTitle: { fontSize: 13, fontWeight: '800', color: '#1A3FB8' },
   targetText: { fontSize: 13, color: C.ink2, lineHeight: 18 },
