@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ScrollViewInstance } from 'react-native';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Modal, TextInput, Platform, BackHandler, KeyboardAvoidingView, Keyboard, FlatList, Dimensions, Share } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import ZoomableImage from '../components/ZoomableImage';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 import CommunityScreenContent from '../components/CommunityScreenContent';
@@ -98,6 +99,92 @@ const AccessSection = React.memo(function AccessSection({ realAccess, t }: { rea
     </View>
   );
 });
+
+// One task card. Memoised: the home re-renders on every tab switch, banner slide and
+// keystroke, and redrawing hundreds of cards with photos is what made taps lag.
+type TaskCardProps = {
+  item: any;
+  t: (k: string, o?: any) => string;
+  onOpen: (id: string) => void;
+  onImage: (uri: string) => void;
+  onStatus: (id: string) => void;
+  onShare: (item: any) => void;
+};
+const TaskCard = React.memo(function TaskCard({ item, t, onOpen, onImage, onStatus, onShare }: TaskCardProps) {
+  const st = STATUS_META[item.status] || { label: String(item.status || '').replace('_', ' '), color: C.muted };
+  const pr = PRIORITY_META[item.priority] || PRIORITY_META.Low;
+  const isOpen = item.status !== 'DONE' && item.status !== 'RESOLVED';
+  const highlight = item.is_escalated ? '#F2A49C' : (item.priority === 'High' || item.priority === 'Urgent') && isOpen ? '#F6C7BE' : C.line2;
+  const code = item.complaint_id || `#AH-${item._id?.slice(-5).toUpperCase()}`;
+  return (
+    <View style={[styles.taskCard, { borderColor: highlight }, item.is_escalated && { borderWidth: 1.5 }]}>
+      <TouchableOpacity activeOpacity={0.85} onPress={() => onOpen(item._id)} style={{ gap: 8 }}>
+        {item.is_escalated && (
+          <View style={styles.escalatedRow}>
+            <Ionicons name="flame" size={15} color="#DC2626" />
+            <Text style={styles.escalatedText}>ESCALATED</Text>
+            {(item.escalated_by_name || item.escalated_by?.name) && (
+              <Text style={styles.escalatedBy} numberOfLines={1}>
+                By: {item.escalated_by_name || item.escalated_by?.name}
+              </Text>
+            )}
+          </View>
+        )}
+        <View style={styles.cardMetaRow}>
+          <View style={styles.idPill}><Text style={styles.idPillText}>{code}</Text></View>
+          {item.priority ? (
+            <View style={[styles.prPill, { backgroundColor: pr[0] }]}>
+              <Text style={[styles.prPillText, { color: pr[1] }]}>{item.priority}</Text>
+            </View>
+          ) : null}
+          <View style={styles.statusWrap}>
+            <View style={[styles.statusDot, { backgroundColor: st.color }]} />
+            <Text style={[styles.statusCaps, { color: st.color }]}>{st.label}</Text>
+          </View>
+        </View>
+        <Text style={styles.taskTitle}>{t(`categories.${item.title}`, { defaultValue: item.title })}</Text>
+        {item.location ? (
+          <View style={styles.addrRow}>
+            <Ionicons name="location-outline" size={14} color={C.ink3} style={{ marginTop: 1 }} />
+            <Text style={styles.addrText}>{item.location}</Text>
+          </View>
+        ) : null}
+        {item.description ? <Text style={styles.taskDesc}>{item.description}</Text> : null}
+      </TouchableOpacity>
+
+      {item.before_image ? (
+        <TouchableOpacity activeOpacity={0.85} onPress={() => onImage(item.before_image)} style={styles.taskPhoto}>
+          <ExpoImage
+            source={{ uri: item.before_image }}
+            style={{ width: '100%', height: '100%' }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={item._id}
+            transition={120}
+          />
+        </TouchableOpacity>
+      ) : null}
+
+      <View style={styles.cardActions}>
+        <TouchableOpacity activeOpacity={0.8} style={styles.updateBtn} onPress={() => onStatus(item._id)}>
+          <Text style={styles.updateBtnText}>{t('staff.updateStatus', { defaultValue: 'Update Status' })}</Text>
+          <Ionicons name="chevron-down" size={18} color={C.ink} />
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityLabel={`Share ${code}`}
+          activeOpacity={0.8}
+          style={styles.shareBtn}
+          onPress={() => onShare(item)}
+        >
+          <Ionicons name="share-outline" size={19} color={C.ink} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+});
+
+// Cards drawn at first; more are added as the list nears the bottom (like a feed)
+const TASK_PAGE = 15;
 
 export default function StaffScreen() {
   const { start } = useCopilot();
@@ -429,8 +516,11 @@ export default function StaffScreen() {
 
   useEffect(() => {
     const socket = io(SOCKET_URL, { ...socketAuth, transports: ['websocket', 'polling'] });
+    // Several changes often arrive together (resolve + reply): reload the list once
+    let complaintTimer: ReturnType<typeof setTimeout> | null = null;
     socket.on('complaint_changed', () => {
-      fetchComplaints();
+      if (complaintTimer) clearTimeout(complaintTimer);
+      complaintTimer = setTimeout(() => fetchComplaints(), 1500);
     });
     socket.on('announcement_changed', () => {
       fetchAnnouncements();
@@ -442,6 +532,7 @@ export default function StaffScreen() {
       fetchBanners();
     });
     return () => {
+      if (complaintTimer) clearTimeout(complaintTimer);
       socket.disconnect();
     };
   }, []);
@@ -604,6 +695,13 @@ export default function StaffScreen() {
   const onScroll = (e: any) => {
     const sc = e.nativeEvent.contentOffset.y > 8;
     if (sc !== scrolled) setScrolled(sc);
+    // Near the bottom of the Tasks list: draw the next page of cards
+    if (isTasks) {
+      const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+      if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 900) {
+        setTaskLimit(l => (l < complaintsCountRef.current ? l + TASK_PAGE : l));
+      }
+    }
   };
 
   // On open: let the banner show for ~3.5 s, then glide the counts up under the pinned top bar.
@@ -623,10 +721,19 @@ export default function StaffScreen() {
     return () => clearTimeout(timer);
   }, [isTasks, !!user]);
 
+  // Tabs opened at least once stay mounted (hidden), so coming back needs no rebuild
+  const [visitedTabs, setVisitedTabs] = useState({ Community: false, Announcements: false });
+  useEffect(() => {
+    if (isCommunity && !visitedTabs.Community) setVisitedTabs(v => ({ ...v, Community: true }));
+    if (isAnnSection && !visitedTabs.Announcements) setVisitedTabs(v => ({ ...v, Announcements: true }));
+  }, [isCommunity, isAnnSection]);
+
   const switchTab = (tab: 'Tasks' | 'Broadcasts' | 'Announcements' | 'Community') => {
     if (tab !== 'Community') setStaffChatOpen(false);
+    if (tab === activeTab) return;
     setActiveTab(tab);
     setScrolled(false);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
   };
 
   const pickStatusFilter = (status: string) => {
@@ -932,70 +1039,21 @@ export default function StaffScreen() {
     );
   };
 
-  const renderTaskCard = (item: any) => {
-    const st = STATUS_META[item.status] || { label: String(item.status || '').replace('_', ' '), color: C.muted };
-    const pr = PRIORITY_META[item.priority] || PRIORITY_META.Low;
-    const isOpen = item.status !== 'DONE' && item.status !== 'RESOLVED';
-    const highlight = item.is_escalated ? '#F2A49C' : (item.priority === 'High' || item.priority === 'Urgent') && isOpen ? '#F6C7BE' : C.line2;
-    return (
-      <View key={item._id} style={[styles.taskCard, { borderColor: highlight }, item.is_escalated && { borderWidth: 1.5 }]}>
-        <TouchableOpacity activeOpacity={0.85} onPress={() => router.push(`/task-details?id=${item._id}`)} style={{ gap: 8 }}>
-          {item.is_escalated && (
-            <View style={styles.escalatedRow}>
-              <Ionicons name="flame" size={15} color="#DC2626" />
-              <Text style={styles.escalatedText}>ESCALATED</Text>
-              {(item.escalated_by_name || item.escalated_by?.name) && (
-                <Text style={styles.escalatedBy} numberOfLines={1}>
-                  By: {item.escalated_by_name || item.escalated_by?.name}
-                </Text>
-              )}
-            </View>
-          )}
-          <View style={styles.cardMetaRow}>
-            <View style={styles.idPill}><Text style={styles.idPillText}>{complaintCode(item)}</Text></View>
-            {item.priority ? (
-              <View style={[styles.prPill, { backgroundColor: pr[0] }]}>
-                <Text style={[styles.prPillText, { color: pr[1] }]}>{item.priority}</Text>
-              </View>
-            ) : null}
-            <View style={styles.statusWrap}>
-              <View style={[styles.statusDot, { backgroundColor: st.color }]} />
-              <Text style={[styles.statusCaps, { color: st.color }]}>{st.label}</Text>
-            </View>
-          </View>
-          <Text style={styles.taskTitle}>{t(`categories.${item.title}`, { defaultValue: item.title })}</Text>
-          {item.location ? (
-            <View style={styles.addrRow}>
-              <Ionicons name="location-outline" size={14} color={C.ink3} style={{ marginTop: 1 }} />
-              <Text style={styles.addrText}>{item.location}</Text>
-            </View>
-          ) : null}
-          {item.description ? <Text style={styles.taskDesc}>{item.description}</Text> : null}
-        </TouchableOpacity>
+  // Stable card handlers (they read the latest functions through a ref), so memoised
+  // TaskCards are not redrawn when the home re-renders
+  const cardFnsRef = React.useRef({ openStatusDropdown, shareComplaint });
+  cardFnsRef.current = { openStatusDropdown, shareComplaint };
+  const onOpenTask = React.useCallback((id: string) => router.push(`/task-details?id=${id}`), [router]);
+  const onTaskImage = React.useCallback((uri: string) => setFullScreenImage(uri), []);
+  const onTaskStatus = React.useCallback((id: string) => cardFnsRef.current.openStatusDropdown(id), []);
+  const onTaskShare = React.useCallback((item: any) => cardFnsRef.current.shareComplaint(item), []);
 
-        {item.before_image ? (
-          <TouchableOpacity activeOpacity={0.85} onPress={() => setFullScreenImage(item.before_image)} style={styles.taskPhoto}>
-            <Image source={{ uri: item.before_image }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
-          </TouchableOpacity>
-        ) : null}
-
-        <View style={styles.cardActions}>
-          <TouchableOpacity activeOpacity={0.8} style={styles.updateBtn} onPress={() => openStatusDropdown(item._id)}>
-            <Text style={styles.updateBtnText}>{t('staff.updateStatus', { defaultValue: 'Update Status' })}</Text>
-            <Ionicons name="chevron-down" size={18} color={C.ink} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            accessibilityLabel={`Share ${complaintCode(item)}`}
-            activeOpacity={0.8}
-            style={styles.shareBtn}
-            onPress={() => shareComplaint(item)}
-          >
-            <Ionicons name="share-outline" size={19} color={C.ink} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    );
-  };
+  // Feed-style paging: draw TASK_PAGE cards, add more near the bottom of the list
+  const [taskLimit, setTaskLimit] = useState(TASK_PAGE);
+  useEffect(() => { setTaskLimit(TASK_PAGE); }, [complaints]);
+  const complaintsCountRef = React.useRef(0);
+  complaintsCountRef.current = complaints.length;
+  const visibleTasks = React.useMemo(() => complaints.slice(0, taskLimit), [complaints, taskLimit]);
 
   const renderAnnouncementCard = (item: any, mine: boolean) => {
     const aud = audienceLabel(item.targetAudience);
@@ -1096,8 +1154,8 @@ export default function StaffScreen() {
 
         {/* 1: page content */}
         <View style={{ gap: 16 }} onLayout={(e) => { layoutRef.current.content = e.nativeEvent.layout.y; }}>
-          {isTasks ? (
-            <>
+          {/* Each tab stays mounted once opened and is only hidden, so switching is instant */}
+          <View style={[styles.tabPane, !isTasks && styles.paneHidden]}>
               {renderHero()}
               {user && (
                 <View onLayout={(e) => { layoutRef.current.stats = e.nativeEvent.layout.y; }}>
@@ -1182,11 +1240,14 @@ export default function StaffScreen() {
               ) : complaints.length === 0 ? (
                 renderEmpty('checkmark-circle-outline', t('staff.noTasks', { defaultValue: 'No tasks here.' }))
               ) : (
-                complaints.map(renderTaskCard)
+                visibleTasks.map((item: any) => (
+                  <TaskCard key={item._id} item={item} t={t} onOpen={onOpenTask} onImage={onTaskImage} onStatus={onTaskStatus} onShare={onTaskShare} />
+                ))
               )}
-            </>
-          ) : isCommunity ? (
-            <>
+          </View>
+
+          {(visitedTabs.Community || isCommunity) && (
+          <View style={[styles.tabPane, !isCommunity && styles.paneHidden]}>
               <View style={{ gap: 2, marginTop: 4 }}>
                 <Text style={styles.secKicker}>{t('staff.portal', { defaultValue: 'Staff Portal' })}</Text>
                 <Text style={styles.secTitle}>{t('staff.communityTab', { defaultValue: 'Community' })}</Text>
@@ -1236,9 +1297,11 @@ export default function StaffScreen() {
               ) : (
                 renderEmpty('chatbubbles-outline', t('staff.noStaffChat', { defaultValue: 'Staff chat is not set up yet' }), t('staff.noStaffChatSub', { defaultValue: 'Your RWA admin can create it from the admin panel.' }))
               )}
-            </>
-          ) : (
-            <>
+          </View>
+          )}
+
+          {(visitedTabs.Announcements || isAnnSection) && (
+          <View style={[styles.tabPane, !isAnnSection && styles.paneHidden]}>
               <View style={{ gap: 2, marginTop: 4 }}>
                 <Text style={styles.secKicker}>{t('staff.portal', { defaultValue: 'Staff Portal' })}</Text>
                 <Text style={styles.secTitle}>{t('resident.announcements', { defaultValue: 'Announcements' })}</Text>
@@ -1274,7 +1337,7 @@ export default function StaffScreen() {
                   ? renderEmpty('megaphone-outline', t('staff.noBroadcasts', { defaultValue: 'No broadcasts sent yet.' }), t('staff.noBroadcastsSub', { defaultValue: "You haven't sent any messages to the residents. Tap the button below to send your first message." }))
                   : myAnnouncements.map((a) => renderAnnouncementCard(a, true))
               )}
-            </>
+          </View>
           )}
         </View>
       </ScrollView>
@@ -1634,6 +1697,8 @@ const styles = StyleSheet.create({
 
   // Announcements
   chatOverlay: { position: 'absolute', left: 0, right: 0, bottom: 0 },
+  tabPane: { gap: 16 },
+  paneHidden: { display: 'none' },
   storiesHead: { fontSize: 18, fontWeight: '800', color: C.ink, marginTop: 18, marginBottom: 4 },
   chatHead: { fontSize: 18, fontWeight: '800', color: C.ink, marginTop: 18, marginBottom: 10 },
   chatCard: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 22, borderWidth: 1, borderColor: C.line, padding: 14, shadowColor: C.ink, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.04, shadowRadius: 14, elevation: 2 },

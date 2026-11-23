@@ -600,8 +600,11 @@ router.get('/', auth, async (req, res) => {
     }
     
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
+    // Reply photos are only shown on the details screen. Older ones are stored as
+    // base64 inside the document, so loading them for every list item ran the
+    // server out of memory. The list only needs the reply count and roles.
     let complaintsQuery = Complaint.find(query)
-      .select('-__v')
+      .select('-__v -replies.image')
       .populate('user', 'name phone_number address room_number phase relation role designation member_id')
       .populate('assigned_staff', 'name phone_number address room_number phase')
       .populate('resolved_by', 'name phone_number role phase')
@@ -999,10 +1002,24 @@ router.post('/:id/reply', auth, async (req, res) => {
       return res.status(400).json({ message: 'Reply must include text or an image' });
     }
     
+    // Store reply photos on Cloudinary, not as base64 inside the complaint
+    let replyImage = req.body.image || null;
+    if (replyImage && replyImage.startsWith('data:image')) {
+      try {
+        const result = await cloudinary.uploader.upload(replyImage, {
+          folder: 'anytime_help/complaint_replies',
+          transformation: [{ quality: 'auto', fetch_format: 'auto', width: 800, crop: 'limit' }]
+        });
+        replyImage = result.secure_url;
+      } catch (err) {
+        console.error('Cloudinary upload error (reply):', err);
+      }
+    }
+
     complaint.replies.push({
       user: req.user.id,
       text: req.body.text ? req.body.text.trim() : '',
-      image: req.body.image || null,
+      image: replyImage,
       role: role
     });
     

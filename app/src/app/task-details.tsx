@@ -67,6 +67,16 @@ const cleanName = (name?: string) => {
   return n.replace(/[()[\]{}|]/g, ' ').replace(/\s+/g, ' ').trim();
 };
 
+// Toast text that says why a request failed (no internet, server down, or the server's own message)
+const describeError = (err: any, fallback: string) => {
+  const status = err?.response?.status;
+  if (!err?.response) return `${fallback}: no internet or server not reachable`;
+  if (status === 404) return `${fallback}: task not found (it may be in another area or deleted)`;
+  if (status === 502 || status === 503 || status === 504) return `${fallback}: server is restarting, try again in a minute`;
+  const msg = err.response.data?.message || err.response.data?.msg;
+  return msg ? `${fallback} (${status}): ${msg}` : `${fallback} (${status})`;
+};
+
 export default function TaskDetailsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -123,9 +133,9 @@ export default function TaskDetailsScreen() {
       } else {
         Toast.show({ type: 'error', text1: 'Error', text2: 'Task not found in your list' });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Fetch complaint details error:', err);
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Could not fetch task details' });
+      Toast.show({ type: 'error', text1: 'Error', text2: describeError(err, 'Could not fetch task details') });
     } finally {
       setLoading(false);
     }
@@ -274,7 +284,7 @@ export default function TaskDetailsScreen() {
       Toast.show({ type: 'success', text1: 'Reply sent', text2: 'The resident has been notified' });
     } catch (err: any) {
       console.error(err);
-      Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to send reply' });
+      Toast.show({ type: 'error', text1: 'Error', text2: describeError(err, 'Failed to send reply') });
     } finally {
       setIsReplying(false);
     }
@@ -297,7 +307,14 @@ export default function TaskDetailsScreen() {
         <StatusBar barStyle="dark-content" />
         {renderHeader()}
         <View style={styles.centerContainer}>
-          {loading ? <ActivityIndicator size="large" color={C.primary} /> : <Text style={styles.errorText}>Task not found.</Text>}
+          {loading ? <ActivityIndicator size="large" color={C.primary} /> : (
+            <>
+              <Text style={styles.errorText}>Task not found.</Text>
+              <TouchableOpacity onPress={fetchComplaintDetails} style={{ marginTop: 16, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 10, backgroundColor: C.primary }}>
+                <Text style={{ color: '#fff', fontWeight: '700' }}>Try again</Text>
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </SafeAreaView>
     );

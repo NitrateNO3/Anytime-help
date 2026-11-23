@@ -288,7 +288,7 @@ function TypingIndicator({ typingUsers }: { typingUsers: string[] }) {
   );
 }
 
-export default function CommunityScreenContent({ 
+function CommunityScreenContent({ 
   backRoute, 
   headerThemeColor = '#0F172A',
   hasTabBar = true,
@@ -1334,6 +1334,9 @@ export default function CommunityScreenContent({
     </SafeAreaView>
   );
 }
+
+// Memoised: the staff home keeps this mounted (hidden), so its own tab switches skip it
+export default React.memo(CommunityScreenContent);
 
 const styles = StyleSheet.create({
   safeArea: { 
