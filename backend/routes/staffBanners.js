@@ -10,7 +10,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Helper to upload to S3
-const streamUpload = (fileBuffer) => uploadToS3(fileBuffer, 'staffbanners');
+const streamUpload = (fileBuffer) => uploadToS3(fileBuffer, 'staff-banners');
 
 const normalizeAudience = (raw) => {
   if (!raw) return 'Staff';

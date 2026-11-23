@@ -77,7 +77,15 @@ async function uploadToS3(fileInput, folder = 'general', options = {}) {
   }
 
   const { mime, ext } = resolveMimeAndExt(fileInput, mimeHint);
-  const cleanFolder = folder.replace(/^\/+|\/+$/g, '').replace(/^anytime_help\/?/, '');
+  const rawFolder = folder.replace(/^\/+|\/+$/g, '').replace(/^anytime_help\/?/, '');
+  const FOLDER_MAP = {
+    'bottombanners': 'bottom-banners',
+    'bottom_banners': 'bottom-banners',
+    'staffbanners': 'staff-banners',
+    'staff_banners': 'staff-banners',
+    'complaints_resolved': 'complaints',
+  };
+  const cleanFolder = FOLDER_MAP[rawFolder] || rawFolder;
   const uniqueName = `${Date.now()}_${crypto.randomBytes(6).toString('hex')}.${ext}`;
   const key = cleanFolder ? `${cleanFolder}/${uniqueName}` : uniqueName;
 

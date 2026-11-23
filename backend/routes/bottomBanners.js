@@ -10,7 +10,7 @@ const User = require('../models/User');
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-const streamUpload = (fileBuffer) => uploadToS3(fileBuffer, 'bottombanners');
+const streamUpload = (fileBuffer) => uploadToS3(fileBuffer, 'bottom-banners');
 
 const normalizeAudience = (raw) => {
   if (!raw) return 'All';
@@ -111,7 +111,7 @@ const handleCreateBanner = async (req, res) => {
       url = result.secure_url;
       public_id = result.public_id;
     } else if (imgPayload && imgPayload.startsWith('data:image')) {
-      const result = await uploadToS3(imgPayload, 'bottombanners');
+      const result = await uploadToS3(imgPayload, 'bottom-banners');
       url = result.secure_url;
       public_id = result.public_id;
     } else if (imgPayload && (imgPayload.startsWith('http://') || imgPayload.startsWith('https://'))) {
@@ -191,7 +191,7 @@ router.post('/bulk-upload', optionalAuth, upload.array('images', 20), async (req
         const imgStr = typeof item === 'string' ? item : item?.url || item?.image;
 
         if (imgStr && imgStr.startsWith('data:image')) {
-          const result = await uploadToS3(imgStr, 'bottombanners');
+          const result = await uploadToS3(imgStr, 'bottom-banners');
           url = result.secure_url;
           public_id = result.public_id;
         } else if (imgStr && (imgStr.startsWith('http://') || imgStr.startsWith('https://'))) {
@@ -252,7 +252,7 @@ router.put('/:id', optionalAuth, upload.single('image'), async (req, res) => {
       if (banner.public_id) {
         await deleteFromS3(banner.public_id);
       }
-      const result = await uploadToS3(imgPayload, 'bottombanners');
+      const result = await uploadToS3(imgPayload, 'bottom-banners');
       banner.url = result.secure_url;
       banner.public_id = result.public_id;
     } else if (imgPayload && (imgPayload.startsWith('http://') || imgPayload.startsWith('https://'))) {
