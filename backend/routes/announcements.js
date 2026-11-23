@@ -3,13 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const Announcement = require('../models/Announcement');
 const User = require('../models/User');
-const cloudinary = require('cloudinary').v2;
-
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
-});
+const { uploadToS3 } = require('../utils/s3Uploader');
 
 // @route   GET api/announcements
 // @desc    Get all active announcements
@@ -503,13 +497,10 @@ router.post('/', auth, async (req, res) => {
     let imageUrl = null;
     if (image && image.startsWith('data:image')) {
       try {
-        const result = await cloudinary.uploader.upload(image, {
-          folder: 'anytime_help/announcements',
-          transformation: [{ quality: 'auto', fetch_format: 'auto', width: 800, crop: 'limit' }]
-        });
+        const result = await uploadToS3(image, 'announcements');
         imageUrl = result.secure_url;
       } catch (err) {
-        console.error('Cloudinary upload error:', err);
+        console.error('S3 upload error:', err);
         imageUrl = image; // fallback
       }
     } else if (image) {
@@ -812,13 +803,10 @@ router.put('/:id', auth, async (req, res) => {
     if (image !== undefined) {
       if (image && image.startsWith('data:image')) {
         try {
-          const result = await cloudinary.uploader.upload(image, {
-            folder: 'anytime_help/announcements',
-            transformation: [{ quality: 'auto', fetch_format: 'auto', width: 800, crop: 'limit' }]
-          });
+          const result = await uploadToS3(image, 'announcements');
           announcement.image = result.secure_url;
         } catch (uploadErr) {
-          console.error('Cloudinary update upload error:', uploadErr);
+          console.error('S3 update upload error:', uploadErr);
           announcement.image = image;
         }
       } else {

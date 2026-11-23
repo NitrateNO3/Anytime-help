@@ -160,30 +160,20 @@ router.post('/:id/unfollow', auth, setFollow(false));
 // OFFICIAL POSTS (updates on an official's page)
 // ==========================================
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const OfficialPost = require('../models/OfficialPost');
 const User = require('../models/User');
 const { runUnscoped } = require('../utils/areaContext');
 const { sendPushNotifications } = require('../utils/push');
 
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
-});
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
-const CLOUD_OPTS = { folder: 'anytime_help/official_posts', quality: 'auto', fetch_format: 'auto', width: 1200, crop: 'limit' };
 
 const uploadImage = (req) => {
   if (req.file) {
-    return new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(CLOUD_OPTS, (err, result) => (result ? resolve(result) : reject(err)));
-      streamifier.createReadStream(req.file.buffer).pipe(stream);
-    });
+    return uploadToS3(req.file.buffer, 'official_posts');
   }
   const dataUri = typeof req.body.image === 'string' && req.body.image.startsWith('data:image/') ? req.body.image : null;
-  return dataUri ? cloudinary.uploader.upload(dataUri, CLOUD_OPTS) : Promise.resolve(null);
+  return dataUri ? uploadToS3(dataUri, 'official_posts') : Promise.resolve(null);
 };
 
 const REACTIONS = ['like', 'love'];
@@ -279,7 +269,7 @@ router.delete('/posts/:postId', auth, async (req, res) => {
     if (!post) return res.status(404).json({ msg: 'Post not found' });
     const official = await Official.findById(post.official).lean();
     if (!canPostAs(req, official)) return res.status(403).json({ msg: 'Not allowed' });
-    if (post.public_id) cloudinary.uploader.destroy(post.public_id).catch(() => {});
+    if (post.public_id) deleteFromS3(post.public_id).catch(() => {});
     await OfficialPost.deleteOne({ _id: post._id });
     emitPostChange(req, post.official);
     res.json({ ok: true });

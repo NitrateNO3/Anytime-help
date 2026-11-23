@@ -1,17 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const Banner = require('../models/Banner');
 const { cache, clearCachePrefix } = require('../middleware/cache');
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
-});
 
 // Configure Multer (memory storage for stream to Cloudinary)
 const storage = multer.memoryStorage();
@@ -57,30 +49,7 @@ router.post('/upload', upload.single('image'), async (req, res) => {
       return res.status(400).json({ msg: 'No image file provided' });
     }
 
-    // Upload to Cloudinary using a stream (most efficient for memory)
-    const streamUpload = (req) => {
-      return new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          {
-            folder: 'anytime_help/banners',
-            quality: 'auto',
-            fetch_format: 'auto',
-            width: 800,
-            crop: 'limit',
-          },
-          (error, result) => {
-            if (result) {
-              resolve(result);
-            } else {
-              reject(error);
-            }
-          }
-        );
-        streamifier.createReadStream(req.file.buffer).pipe(stream);
-      });
-    };
-
-    const result = await streamUpload(req);
+    const result = await uploadToS3(req.file.buffer, 'banners');
 
     // Save banner in database
     const newBanner = new Banner({
@@ -107,8 +76,8 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ msg: 'Banner not found' });
     }
 
-    // Delete from Cloudinary
-    await cloudinary.uploader.destroy(banner.public_id);
+    // Delete from S3
+    await deleteFromS3(banner.public_id);
 
     // Delete from database
     await Banner.findByIdAndDelete(req.params.id);

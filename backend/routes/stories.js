@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const auth = require('../middleware/auth');
 const Story = require('../models/Story');
 const Category = require('../models/Category');
@@ -35,21 +34,9 @@ const channelAuthorName = async (req) => {
 const sectionVerified = (sec) =>
   sec.verified !== undefined && sec.verified !== null ? !!sec.verified : sec.section_type === 'announcement';
 
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
-});
-
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
 
-const streamUpload = (fileBuffer) => new Promise((resolve, reject) => {
-  const stream = cloudinary.uploader.upload_stream(
-    { folder: 'anytime_help/stories', quality: 'auto', fetch_format: 'auto', width: 1080, crop: 'limit' },
-    (error, result) => (result ? resolve(result) : reject(error))
-  );
-  streamifier.createReadStream(fileBuffer).pipe(stream);
-});
+const streamUpload = (fileBuffer) => uploadToS3(fileBuffer, 'stories');
 
 const splitCats = (account) => {
   const raw = (account.assigned_categories && account.assigned_categories.length > 0)
@@ -307,9 +294,7 @@ router.post('/', auth, upload.single('image'), async (req, res) => {
     if (req.file || dataUri) {
       const result = req.file
         ? await streamUpload(req.file.buffer)
-        : await cloudinary.uploader.upload(dataUri, {
-          folder: 'anytime_help/stories', quality: 'auto', fetch_format: 'auto', width: 1080, crop: 'limit',
-        });
+        : await uploadToS3(dataUri, 'stories');
       story.media_type = 'image';
       story.media_url = result.secure_url;
       story.public_id = result.public_id;
@@ -451,7 +436,7 @@ router.delete('/:id', auth, async (req, res) => {
     if (!isAuthor && !isSuperAdmin(req) && !isAreaAdmin) return res.status(403).json({ msg: 'Not allowed' });
 
     if (story.public_id) {
-      cloudinary.uploader.destroy(story.public_id).catch(() => {});
+      deleteFromS3(story.public_id).catch(() => {});
     }
     await runUnscoped(async () => Story.deleteOne({ _id: story._id }).exec());
     emitChange(req, { action: 'delete', category: story.category, id: story._id }, !!story.official);

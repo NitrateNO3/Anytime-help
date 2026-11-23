@@ -1,18 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const Category = require('../models/Category');
 const auth = require('../middleware/auth');
 const { cache, clearCachePrefix } = require('../middleware/cache');
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
-});
 
 // Configure Multer (memory storage for stream to Cloudinary)
 const storage = multer.memoryStorage();
@@ -219,28 +211,8 @@ router.get('/', cache(300), async (req, res) => {
   }
 });
 
-// Helper for Cloudinary upload
-const streamUpload = (req) => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: 'anytime_help/categories',
-        quality: 'auto',
-        fetch_format: 'auto',
-        width: 800,
-        crop: 'limit',
-      },
-      (error, result) => {
-        if (result) {
-          resolve(result);
-        } else {
-          reject(error);
-        }
-      }
-    );
-    streamifier.createReadStream(req.file.buffer).pipe(stream);
-  });
-};
+// Helper for S3 upload
+const streamUpload = (req) => uploadToS3(req.file.buffer, 'categories');
 
 // @route   POST /api/categories
 // @desc    Create a category
@@ -364,14 +336,14 @@ router.put('/:id', [auth, upload.single('image')], async (req, res) => {
 
     if (req.body.removeImage === 'true') {
       if (category.public_id) {
-        await cloudinary.uploader.destroy(category.public_id);
+        await deleteFromS3(category.public_id);
       }
       category.image = '';
       category.public_id = '';
     } else if (req.file) {
       // Delete old image if it exists
       if (category.public_id) {
-        await cloudinary.uploader.destroy(category.public_id);
+        await deleteFromS3(category.public_id);
       }
       
       const result = await streamUpload(req);
@@ -399,7 +371,7 @@ router.delete('/:id', auth, async (req, res) => {
     if (!category) return res.status(404).json({ msg: 'Category not found' });
 
     if (category.public_id) {
-      await cloudinary.uploader.destroy(category.public_id);
+      await deleteFromS3(category.public_id);
     }
 
     await Category.findByIdAndDelete(req.params.id);

@@ -4,13 +4,7 @@ const Complaint = require('../models/Complaint');
 const Category = require('../models/Category');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
-const cloudinary = require('cloudinary').v2;
-
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
-});
+const { uploadToS3 } = require('../utils/s3Uploader');
 
 // POST /api/complaints
 router.post('/', auth, async (req, res) => {
@@ -81,13 +75,10 @@ router.post('/', auth, async (req, res) => {
     let imageUrl = '';
     if (before_image && before_image.startsWith('data:image')) {
       try {
-        const result = await cloudinary.uploader.upload(before_image, {
-          folder: 'anytime_help/complaints',
-          transformation: [{ quality: 'auto', fetch_format: 'auto', width: 800, crop: 'limit' }]
-        });
+        const result = await uploadToS3(before_image, 'complaints');
         imageUrl = result.secure_url;
       } catch (err) {
-        console.error('Cloudinary upload error:', err);
+        console.error('S3 upload error:', err);
         imageUrl = before_image; // fallback to base64 if it fails
       }
     } else if (before_image) {
@@ -1191,13 +1182,10 @@ router.patch('/:id', auth, async (req, res) => {
     if (after_image) {
       if (after_image.startsWith('data:image')) {
         try {
-          const result = await cloudinary.uploader.upload(after_image, {
-            folder: 'anytime_help/complaints_resolved',
-            transformation: [{ quality: 'auto', fetch_format: 'auto', width: 800, crop: 'limit' }]
-          });
+          const result = await uploadToS3(after_image, 'complaints_resolved');
           complaint.after_image = result.secure_url;
         } catch (err) {
-          console.error('Cloudinary upload error:', err);
+          console.error('S3 upload error:', err);
           complaint.after_image = after_image;
         }
       } else {

@@ -1,44 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const StaffBanner = require('../models/StaffBanner');
 const { cache, clearCachePrefix } = require('../middleware/cache');
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
-});
 
 // Configure Multer
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// Helper to stream upload to Cloudinary
-const streamUpload = (fileBuffer) => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: 'anytime_help/staff_banners',
-        quality: 'auto',
-        fetch_format: 'auto',
-        width: 1200,
-        crop: 'limit',
-      },
-      (error, result) => {
-        if (result) {
-          resolve(result);
-        } else {
-          reject(error);
-        }
-      }
-    );
-    streamifier.createReadStream(fileBuffer).pipe(stream);
-  });
-};
+// Helper to upload to S3
+const streamUpload = (fileBuffer) => uploadToS3(fileBuffer, 'staffbanners');
 
 const normalizeAudience = (raw) => {
   if (!raw) return 'Staff';
@@ -157,7 +129,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     if (req.file) {
       if (banner.public_id) {
         try {
-          await cloudinary.uploader.destroy(banner.public_id);
+          await deleteFromS3(banner.public_id);
         } catch (destroyErr) {
           console.error('Error destroying old Cloudinary image:', destroyErr);
         }
@@ -197,7 +169,7 @@ router.delete('/:id', async (req, res) => {
 
     if (banner.public_id) {
       try {
-        await cloudinary.uploader.destroy(banner.public_id);
+        await deleteFromS3(banner.public_id);
       } catch (destroyErr) {
         console.error('Error destroying Cloudinary image:', destroyErr);
       }

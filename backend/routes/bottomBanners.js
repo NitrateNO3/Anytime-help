@@ -1,44 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const cloudinary = require('cloudinary').v2;
-const streamifier = require('streamifier');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const jwt = require('jsonwebtoken');
 const BottomBanner = require('../models/BottomBanner');
 const User = require('../models/User');
-
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
-});
 
 // Configure Multer (memory storage for buffer)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-const streamUpload = (fileBuffer) => {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: 'anytime_help/bottom_banners',
-        quality: 'auto',
-        fetch_format: 'auto',
-        width: 1200,
-        crop: 'limit',
-      },
-      (error, result) => {
-        if (result) {
-          resolve(result);
-        } else {
-          reject(error);
-        }
-      }
-    );
-    streamifier.createReadStream(fileBuffer).pipe(stream);
-  });
-};
+const streamUpload = (fileBuffer) => uploadToS3(fileBuffer, 'bottombanners');
 
 const normalizeAudience = (raw) => {
   if (!raw) return 'All';
@@ -139,10 +111,7 @@ const handleCreateBanner = async (req, res) => {
       url = result.secure_url;
       public_id = result.public_id;
     } else if (imgPayload && imgPayload.startsWith('data:image')) {
-      const result = await cloudinary.uploader.upload(imgPayload, {
-        folder: 'anytime_help/bottom_banners',
-        transformation: [{ quality: 'auto', fetch_format: 'auto', width: 1200, crop: 'limit' }]
-      });
+      const result = await uploadToS3(imgPayload, 'bottombanners');
       url = result.secure_url;
       public_id = result.public_id;
     } else if (imgPayload && (imgPayload.startsWith('http://') || imgPayload.startsWith('https://'))) {
@@ -222,10 +191,7 @@ router.post('/bulk-upload', optionalAuth, upload.array('images', 20), async (req
         const imgStr = typeof item === 'string' ? item : item?.url || item?.image;
 
         if (imgStr && imgStr.startsWith('data:image')) {
-          const result = await cloudinary.uploader.upload(imgStr, {
-            folder: 'anytime_help/bottom_banners',
-            transformation: [{ quality: 'auto', fetch_format: 'auto', width: 1200, crop: 'limit' }]
-          });
+          const result = await uploadToS3(imgStr, 'bottombanners');
           url = result.secure_url;
           public_id = result.public_id;
         } else if (imgStr && (imgStr.startsWith('http://') || imgStr.startsWith('https://'))) {
@@ -277,27 +243,16 @@ router.put('/:id', optionalAuth, upload.single('image'), async (req, res) => {
 
     if (req.file) {
       if (banner.public_id) {
-        try {
-          await cloudinary.uploader.destroy(banner.public_id);
-        } catch (e) {
-          console.log('Error destroying old image:', e);
-        }
+        await deleteFromS3(banner.public_id);
       }
       const result = await streamUpload(req.file.buffer);
       banner.url = result.secure_url;
       banner.public_id = result.public_id;
     } else if (imgPayload && imgPayload.startsWith('data:image')) {
       if (banner.public_id) {
-        try {
-          await cloudinary.uploader.destroy(banner.public_id);
-        } catch (e) {
-          console.log('Error destroying old image:', e);
-        }
+        await deleteFromS3(banner.public_id);
       }
-      const result = await cloudinary.uploader.upload(imgPayload, {
-        folder: 'anytime_help/bottom_banners',
-        transformation: [{ quality: 'auto', fetch_format: 'auto', width: 1200, crop: 'limit' }]
-      });
+      const result = await uploadToS3(imgPayload, 'bottombanners');
       banner.url = result.secure_url;
       banner.public_id = result.public_id;
     } else if (imgPayload && (imgPayload.startsWith('http://') || imgPayload.startsWith('https://'))) {
@@ -355,11 +310,7 @@ router.delete('/:id', optionalAuth, async (req, res) => {
     }
 
     if (banner.public_id) {
-      try {
-        await cloudinary.uploader.destroy(banner.public_id);
-      } catch (e) {
-        console.error('Cloudinary destroy error:', e);
-      }
+      await deleteFromS3(banner.public_id);
     }
 
     await BottomBanner.findByIdAndDelete(banner._id);
@@ -385,14 +336,10 @@ const handleBulkDelete = async (req, res) => {
 
     const banners = await BottomBanner.find({ _id: { $in: ids } });
 
-    // Destroy Cloudinary images
+    // Destroy S3 images
     for (const banner of banners) {
       if (banner.public_id) {
-        try {
-          await cloudinary.uploader.destroy(banner.public_id);
-        } catch (e) {
-          console.error('Cloudinary destroy error for', banner.public_id, e);
-        }
+        await deleteFromS3(banner.public_id);
       }
     }
 
