@@ -54,12 +54,10 @@ const normalizeAudience = (raw) => {
 router.get('/', cache(60), async (req, res) => {
   try {
     const target = normalizeAudience(req.query.target || req.query.audience);
-    const query = {
-      $or: [
-        { audience: target },
-        ...(target === 'Staff' ? [{ audience: { $exists: false } }] : [])
-      ]
-    };
+    // Residents and Members share one banner pool
+    const query = target === 'Staff'
+      ? { $or: [{ audience: 'Staff' }, { audience: { $exists: false } }] }
+      : { audience: { $in: ['Resident', 'Member'] } };
     if (req.query.all !== 'true') {
       query.isActive = true;
       query.$and = [

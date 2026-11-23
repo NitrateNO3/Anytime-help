@@ -53,6 +53,10 @@ interface BottomBannersProps {
   embedded?: boolean;
 }
 
+// Residents and Members share one banner pool, so 'Resident' covers both apps
+const isCommunity = (aud?: string) => aud === 'Resident' || aud === 'Member';
+const audienceText = (aud?: string) => (isCommunity(aud) ? 'Residents & Members' : aud === 'Staff' ? 'Staff' : 'All');
+
 export default function BottomBanners({ embedded = false }: BottomBannersProps) {
   const [banners, setBanners] = useState<BottomBannerItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -413,7 +417,7 @@ export default function BottomBanners({ embedded = false }: BottomBannersProps) 
     setEditingBanner(banner);
     setEditTitle(banner.title || '');
     setEditLink(banner.link || '');
-    setEditAudience(banner.targetAudience || 'All');
+    setEditAudience(banner.targetAudience === 'Member' ? 'Resident' : (banner.targetAudience || 'All'));
     setEditDuration(banner.duration || 4);
     setEditOrder(banner.order || 0);
     setEditIsActive(banner.isActive);
@@ -441,6 +445,7 @@ export default function BottomBanners({ embedded = false }: BottomBannersProps) 
 
   const filteredBanners = banners.filter((b) => {
     if (activeAudience === 'All') return true;
+    if (isCommunity(activeAudience)) return isCommunity(b.targetAudience) || b.targetAudience === 'All';
     return b.targetAudience === activeAudience || b.targetAudience === 'All';
   });
 
@@ -534,7 +539,7 @@ export default function BottomBanners({ embedded = false }: BottomBannersProps) 
             </div>
             <div>
               <h1 className="page-title" style={{ fontSize: embedded ? 20 : 26, margin: 0 }}>
-                Bottom Banners (App Slider)
+                Bottom Banners (Featured Slider)
               </h1>
               <p className="page-subtitle" style={{ margin: '4px 0 0 0', fontSize: 13 }}>
                 Upload & manage multi-slide auto-scroll banners shown at the bottom of Resident & Member home screens.
@@ -624,10 +629,10 @@ export default function BottomBanners({ embedded = false }: BottomBannersProps) 
 
       {/* Audience Filter Tabs */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 24, flexWrap: 'wrap' }}>
-        {(['All', 'Resident', 'Member', 'Staff'] as const).map((aud) => {
+        {(['All', 'Resident', 'Staff'] as const).map((aud) => {
           const count = aud === 'All' 
             ? banners.length 
-            : banners.filter((b) => b.targetAudience === aud || b.targetAudience === 'All').length;
+            : banners.filter((b) => b.targetAudience === 'All' || (aud === 'Resident' ? isCommunity(b.targetAudience) : b.targetAudience === aud)).length;
           const isSelected = activeAudience === aud;
 
           return (
@@ -650,7 +655,7 @@ export default function BottomBanners({ embedded = false }: BottomBannersProps) 
                 boxShadow: isSelected ? '0 4px 12px rgba(29, 78, 216, 0.25)' : 'none',
               }}
             >
-              {aud === 'All' ? 'All Audiences' : `${aud} App`}
+              {aud === 'All' ? 'All Audiences' : `${audienceText(aud)} App`}
               <span
                 style={{
                   fontSize: 11,
@@ -941,7 +946,7 @@ export default function BottomBanners({ embedded = false }: BottomBannersProps) 
                         backdropFilter: 'blur(4px)',
                       }}
                     >
-                      {banner.targetAudience || 'All'}
+                      {audienceText(banner.targetAudience)}
                     </span>
                   </div>
 
@@ -1381,8 +1386,7 @@ export default function BottomBanners({ embedded = false }: BottomBannersProps) 
                       style={{ fontSize: 13 }}
                     >
                       <option value="All">All Users</option>
-                      <option value="Resident">Residents Only</option>
-                      <option value="Member">Members Only</option>
+                      <option value="Resident">Residents & Members</option>
                       <option value="Staff">Staff Only</option>
                     </select>
                   </div>
@@ -1576,8 +1580,7 @@ export default function BottomBanners({ embedded = false }: BottomBannersProps) 
                     className="form-control"
                   >
                     <option value="All">All Users</option>
-                    <option value="Resident">Residents Only</option>
-                    <option value="Member">Members Only</option>
+                    <option value="Resident">Residents & Members</option>
                     <option value="Staff">Staff Only</option>
                   </select>
                 </div>

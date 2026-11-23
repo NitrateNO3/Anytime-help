@@ -6,7 +6,7 @@ import '../index.css';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
 
-export default function Banners() {
+export default function Banners({ embedded = false }: { embedded?: boolean }) {
   const [banners, setBanners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -79,10 +79,10 @@ export default function Banners() {
   };
 
   return (
-    <div className="page-container fade-in">
+    <div className={embedded ? '' : 'page-container fade-in'}>
       <header className="page-header">
         <div>
-          <h1 className="page-title">Manage Banners</h1>
+          <h1 className="page-title" style={embedded ? { fontSize: 20 } : undefined}>Login Screen Banners</h1>
           <p className="page-subtitle">Upload and manage banners for the app login screen</p>
         </div>
         

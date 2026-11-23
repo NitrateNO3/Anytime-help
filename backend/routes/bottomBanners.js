@@ -92,7 +92,10 @@ router.get('/', async (req, res) => {
     }
 
     if (rawTarget && target !== 'All') {
-      query.targetAudience = { $in: [target, 'All'] };
+      // Residents and Members share one banner pool
+      query.targetAudience = (target === 'Resident' || target === 'Member')
+        ? { $in: ['Resident', 'Member', 'All'] }
+        : { $in: [target, 'All'] };
     }
 
     const banners = await BottomBanner.find(query).sort({ order: 1, createdAt: -1 });

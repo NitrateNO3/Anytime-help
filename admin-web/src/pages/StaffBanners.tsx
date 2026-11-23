@@ -13,7 +13,6 @@ import {
   Smartphone,
   Users,
   Home,
-  ShieldCheck,
   Clock,
   Calendar
 } from 'lucide-react';
@@ -38,7 +37,10 @@ interface BannerItem {
   updatedAt: string;
 }
 
-export default function StaffBanners() {
+// Residents and Members share one banner pool, so 'Resident' stands for both
+const audienceLabel = (aud?: AudienceType) => (aud === 'Staff' ? 'Staff' : 'Residents & Members');
+
+export default function StaffBanners({ embedded = false }: { embedded?: boolean }) {
   const [activeTab, setActiveTab] = useState<AudienceType>('Staff');
   const [banners, setBanners] = useState<BannerItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,7 +133,7 @@ export default function StaffBanners() {
   const handleOpenEditModal = (banner: BannerItem) => {
     setEditingBanner(banner);
     setEditTitle(banner.title || '');
-    setEditAudience(banner.audience || activeTab);
+    setEditAudience(banner.audience === 'Member' ? 'Resident' : (banner.audience || activeTab));
     setEditIsActive(banner.isActive !== false);
     setEditDuration(banner.duration || 4);
     setEditExpiresAt(banner.expiresAt ? new Date(banner.expiresAt).toISOString().split('T')[0] : '');
@@ -156,7 +158,7 @@ export default function StaffBanners() {
     }
 
     setUploading(true);
-    const loadingToast = toast.loading(`Uploading ${newAudience} banner...`);
+    const loadingToast = toast.loading(`Uploading ${audienceLabel(newAudience)} banner...`);
 
     try {
       const formData = new FormData();
@@ -173,7 +175,7 @@ export default function StaffBanners() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      toast.success(`${newAudience} banner uploaded successfully!`, { id: loadingToast });
+      toast.success(`${audienceLabel(newAudience)} banner uploaded successfully!`, { id: loadingToast });
       handleCloseAddModal();
       if (newAudience === activeTab) {
         fetchBanners(activeTab);
@@ -262,17 +264,11 @@ export default function StaffBanners() {
           icon: <Users size={18} />,
           desc: 'Appears directly on the Staff dashboard under the greeting. Auto-slides smoothly for staff members.'
         };
-      case 'Resident':
+      default:
         return {
-          label: 'Resident Portal',
+          label: 'Resident & Member Portal',
           icon: <Home size={18} />,
-          desc: 'Appears directly on the Resident home screen above the complaints and services grid.'
-        };
-      case 'Member':
-        return {
-          label: 'Member Portal',
-          icon: <ShieldCheck size={18} />,
-          desc: 'Appears on the RWA Committee Members dashboard for announcements and member updates.'
+          desc: 'Same banners appear on both the Resident home screen and the RWA Member dashboard (top header slider).'
         };
     }
   };
@@ -280,11 +276,11 @@ export default function StaffBanners() {
   const portalInfo = getPortalInfo();
 
   return (
-    <div className="page-container fade-in">
+    <div className={embedded ? '' : 'page-container fade-in'}>
       <header className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 className="page-title" style={{ margin: 0 }}>All Banners</h1>
+            <h1 className="page-title" style={{ margin: 0, fontSize: embedded ? 20 : undefined }}>Home Top Banners</h1>
             <span style={{ 
               fontSize: 12, 
               padding: '3px 10px', 
@@ -297,7 +293,7 @@ export default function StaffBanners() {
             </span>
           </div>
           <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
-            Upload, modify, and manage dynamic banners for Staff, Residents, and Members
+            Header slider banners. Residents and Members see the same banners.
           </p>
         </div>
 
@@ -309,13 +305,13 @@ export default function StaffBanners() {
               style={{ display: 'flex', alignItems: 'center', gap: 8 }}
             >
               <Plus size={18} />
-              Add {activeTab} Banner
+              Add {audienceLabel(activeTab)} Banner
             </button>
           )}
         </div>
       </header>
 
-      {/* 3 Navigation Tabs */}
+      {/* Audience Tabs */}
       <div style={{ 
         display: 'flex', 
         gap: 8, 
@@ -363,30 +359,9 @@ export default function StaffBanners() {
           }}
         >
           <Home size={18} />
-          Resident Banners
+          Residents & Members
         </button>
 
-        <button
-          onClick={() => setActiveTab('Member')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '12px 20px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'Member' ? '3px solid #2563EB' : '3px solid transparent',
-            color: activeTab === 'Member' ? '#2563EB' : '#64748B',
-            fontWeight: activeTab === 'Member' ? 700 : 500,
-            fontSize: 15,
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-            marginBottom: -2
-          }}
-        >
-          <ShieldCheck size={18} />
-          Member Banners
-        </button>
       </div>
 
       {/* Info Notice Box */}
@@ -433,14 +408,14 @@ export default function StaffBanners() {
               <div style={{ width: 64, height: 64, borderRadius: 32, background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
                 <ImageIcon size={32} color="#94A3B8" />
               </div>
-              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E293B', marginBottom: 8 }}>No {activeTab} Banners Found</h3>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: '#1E293B', marginBottom: 8 }}>No {audienceLabel(activeTab)} Banners Found</h3>
               <p style={{ color: '#64748B', maxWidth: 440, margin: '0 auto 20px', fontSize: 14 }}>
-                You haven&apos;t added any custom banners for the {activeTab} portal yet. Click &quot;Add {activeTab} Banner&quot; to upload your first banner.
+                You haven&apos;t added any custom banners for the {audienceLabel(activeTab)} portal yet. Click &quot;Add {audienceLabel(activeTab)} Banner&quot; to upload your first banner.
               </p>
               {!isSubAdmin && (
                 <button className="btn btn-primary" onClick={handleOpenAddModal} style={{ margin: '0 auto' }}>
                   <Plus size={18} />
-                  Add {activeTab} Banner Now
+                  Add {audienceLabel(activeTab)} Banner Now
                 </button>
               )}
             </div>
@@ -462,7 +437,7 @@ export default function StaffBanners() {
                 <div style={{ position: 'relative', width: '100%', height: '170px', background: '#0F172A' }}>
                   <img 
                     src={banner.url} 
-                    alt={banner.title || `${activeTab} Banner`} 
+                    alt={banner.title || `${audienceLabel(activeTab)} Banner`} 
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                   />
                   
@@ -501,7 +476,7 @@ export default function StaffBanners() {
                 <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 12, flex: 1, justifyContent: 'space-between' }}>
                   <div>
                     <h3 style={{ fontSize: 16, fontWeight: 700, color: '#1E293B', margin: '0 0 4px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                      {banner.title || `Untitled ${activeTab} Banner`}
+                      {banner.title || `Untitled ${audienceLabel(activeTab)} Banner`}
                     </h3>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
                       Added on {new Date(banner.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -611,7 +586,7 @@ export default function StaffBanners() {
             <div className="modal-header">
               <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Upload size={20} color="#2563EB" />
-                Add {newAudience} Banner
+                Add {audienceLabel(newAudience)} Banner
               </h2>
               <button className="btn btn-icon" onClick={handleCloseAddModal}>
                 <X size={18} />
@@ -626,7 +601,7 @@ export default function StaffBanners() {
                     Target Portal
                   </label>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    {(['Staff', 'Resident', 'Member'] as AudienceType[]).map((aud) => (
+                    {(['Staff', 'Resident'] as AudienceType[]).map((aud) => (
                       <button
                         key={aud}
                         type="button"
@@ -643,7 +618,7 @@ export default function StaffBanners() {
                           cursor: 'pointer'
                         }}
                       >
-                        {aud}
+                        {audienceLabel(aud)}
                       </button>
                     ))}
                   </div>
@@ -783,7 +758,7 @@ export default function StaffBanners() {
                     style={{ width: 18, height: 18, cursor: 'pointer' }}
                   />
                   <label htmlFor="newIsActive" style={{ fontSize: 14, fontWeight: 500, color: '#1E293B', cursor: 'pointer' }}>
-                    Make banner active immediately in {newAudience} portal
+                    Make banner active immediately in {audienceLabel(newAudience)} portal
                   </label>
                 </div>
               </div>
@@ -823,7 +798,7 @@ export default function StaffBanners() {
                     Target Portal
                   </label>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    {(['Staff', 'Resident', 'Member'] as AudienceType[]).map((aud) => (
+                    {(['Staff', 'Resident'] as AudienceType[]).map((aud) => (
                       <button
                         key={aud}
                         type="button"
@@ -840,7 +815,7 @@ export default function StaffBanners() {
                           cursor: 'pointer'
                         }}
                       >
-                        {aud}
+                        {audienceLabel(aud)}
                       </button>
                     ))}
                   </div>
@@ -974,7 +949,7 @@ export default function StaffBanners() {
                     style={{ width: 18, height: 18, cursor: 'pointer' }}
                   />
                   <label htmlFor="editIsActive" style={{ fontSize: 14, fontWeight: 500, color: '#1E293B', cursor: 'pointer' }}>
-                    Active (Show in {editAudience} Portal)
+                    Active (Show in {audienceLabel(editAudience)} Portal)
                   </label>
                 </div>
               </div>

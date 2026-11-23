@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, Sliders, MapPin, BadgeCheck, Wrench } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, MapPin, BadgeCheck, Wrench } from 'lucide-react';
 import { API_URL, getSelectedArea, setSelectedArea } from '../lib/area';
 import logoImg from '../assets/logo.png';
 
@@ -182,24 +182,10 @@ export default function AdminLayout() {
             </Link>
           )}
           
-          {hasAccess('Banners') && (
+          {(hasAccess('Banners') || hasAccess('Staff Banner') || hasAccess('Staff Banners') || hasAccess('Announcements')) && (
             <Link to="/banners" className={`nav-link ${location.pathname === '/banners' ? 'active' : ''}`}>
               <ImageIcon size={20} />
               Banners
-            </Link>
-          )}
-
-          {(hasAccess('Staff Banner') || hasAccess('Staff Banners') || hasAccess('Banners')) && (
-            <Link to="/staff-banners" className={`nav-link ${location.pathname === '/staff-banners' ? 'active' : ''}`}>
-              <ImageIcon size={20} />
-              All Banners
-            </Link>
-          )}
-
-          {(hasAccess('Banners') || hasAccess('Announcements')) && (
-            <Link to="/bottom-banners" className={`nav-link ${location.pathname === '/bottom-banners' ? 'active' : ''}`}>
-              <Sliders size={20} />
-              Bottom Banners
             </Link>
           )}
           

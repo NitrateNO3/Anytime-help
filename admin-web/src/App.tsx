@@ -7,17 +7,15 @@ import Staff from './pages/Staff';
 import Categories from './pages/Categories';
 import Announcements from './pages/Announcements';
 import AdminLayout from './layouts/AdminLayout';
-import Banners from './pages/Banners';
+import BannersHub from './pages/BannersHub';
 import Residents from './pages/Residents';
 import Directory from './pages/Directory';
 import Officials from './pages/Officials';
 import Maintenance from './pages/Maintenance';
 import Members from './pages/Members';
 import SubAdmins from './pages/SubAdmins';
-import StaffBanners from './pages/StaffBanners';
 import ChatGroups from './pages/ChatGroups';
 import Communities from './pages/Communities';
-import BottomBanners from './pages/BottomBanners';
 import Areas from './pages/Areas';
 import { areaHeaders } from './lib/area';
 import { ConfirmHost } from './components/ConfirmDialog';
@@ -63,7 +61,7 @@ function IndexRedirect() {
     if (perms.includes('Committee Members')) return <Navigate to="/members" replace />;
     if (perms.includes('Announcements')) return <Navigate to="/announcements" replace />;
     if (perms.includes('Banners')) return <Navigate to="/banners" replace />;
-    if (perms.includes('Staff Banner') || perms.includes('Staff Banners')) return <Navigate to="/staff-banners" replace />;
+    if (perms.includes('Staff Banner') || perms.includes('Staff Banners')) return <Navigate to="/banners?cat=top" replace />;
     if (perms.includes('Directory')) return <Navigate to="/directory" replace />;
     return <Navigate to="/residents" replace />;
   }
@@ -86,9 +84,9 @@ function App() {
             <Route path="categories" element={<Categories />} />
             <Route path="residents" element={<Residents />} />
             <Route path="announcements" element={<Announcements />} />
-            <Route path="banners" element={<Banners />} />
-            <Route path="staff-banners" element={<StaffBanners />} />
-            <Route path="bottom-banners" element={<BottomBanners />} />
+            <Route path="banners" element={<BannersHub />} />
+            <Route path="staff-banners" element={<Navigate to="/banners?cat=top" replace />} />
+            <Route path="bottom-banners" element={<Navigate to="/banners?cat=bottom" replace />} />
             <Route path="directory" element={<Directory />} />
             <Route path="officials" element={<Officials />} />
             <Route path="maintenance" element={<Maintenance />} />
