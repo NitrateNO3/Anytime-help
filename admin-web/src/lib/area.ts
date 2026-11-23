@@ -5,7 +5,7 @@
 // unchanged. The area it is currently viewing is kept in localStorage and sent
 // to the backend on every request (x-area-id) and socket connection.
 
-export const API_URL = import.meta.env.VITE_API_URL || 'https://anytime-help.onrender.com/api';
+export const API_URL = import.meta.env.VITE_API_URL || 'https://api.anytimehelp.co.in/api';
 
 const AREA_KEY = 'selectedAreaId';
 

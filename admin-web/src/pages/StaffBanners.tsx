@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import '../index.css';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 type AudienceType = 'Staff' | 'Resident' | 'Member';
 

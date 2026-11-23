@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { Plus, Trash2, Edit2, X, ArrowUp, ArrowDown } from 'lucide-react';
 import '../index.css';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 export default function Categories() {
   const [categories, setCategories] = useState<any[]>([]);

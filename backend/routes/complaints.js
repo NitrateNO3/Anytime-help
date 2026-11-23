@@ -993,17 +993,14 @@ router.post('/:id/reply', auth, async (req, res) => {
       return res.status(400).json({ message: 'Reply must include text or an image' });
     }
     
-    // Store reply photos on Cloudinary, not as base64 inside the complaint
+    // Store reply photos on S3, not as base64 inside the complaint
     let replyImage = req.body.image || null;
     if (replyImage && replyImage.startsWith('data:image')) {
       try {
-        const result = await cloudinary.uploader.upload(replyImage, {
-          folder: 'anytime_help/complaint_replies',
-          transformation: [{ quality: 'auto', fetch_format: 'auto', width: 800, crop: 'limit' }]
-        });
+        const result = await uploadToS3(replyImage, 'complaint-replies');
         replyImage = result.secure_url;
       } catch (err) {
-        console.error('Cloudinary upload error (reply):', err);
+        console.error('S3 upload error (reply):', err);
       }
     }
 

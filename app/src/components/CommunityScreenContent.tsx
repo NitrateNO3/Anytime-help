@@ -14,8 +14,8 @@ import OfficialProfile from './OfficialProfile';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import VerifiedBadge from './VerifiedBadge';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
-const SOCKET_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in/api';
+const SOCKET_URL = 'https://api.anytimehelp.co.in';
 
 interface CommunitySectionItem {
   _id: string;

@@ -22,7 +22,7 @@ import { io } from 'socket.io-client';
 import { socketAuth } from '../lib/area';
 import '../index.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://anytime-help.onrender.com/api');
+const API_BASE = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://api.anytimehelp.co.in/api');
 const SOCKET_BASE = API_BASE.replace('/api', '');
 
 export type TargetAudience = 'All' | 'Resident' | 'Member' | 'Staff';
@@ -1747,7 +1747,7 @@ export default function BottomBanners({ embedded = false }: BottomBannersProps) 
             </div>
 
             <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 16, lineHeight: 1.5 }}>
-              Are you sure you want to delete all <strong style={{ color: 'var(--text-main)' }}>{selectedBannerIds.length} selected banners</strong>? They will be removed from Cloudinary and mobile app sliders immediately.
+              Are you sure you want to delete all <strong style={{ color: 'var(--text-main)' }}>{selectedBannerIds.length} selected banners</strong>? They will be removed from storage and mobile app sliders immediately.
             </p>
 
             {/* Thumbnail previews of selected banners */}

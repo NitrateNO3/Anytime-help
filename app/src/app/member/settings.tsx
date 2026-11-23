@@ -14,7 +14,7 @@ import { socketAuth } from '../../utils/socketAuth';
 import { getNextLanguage, getLanguageDisplayName } from '../../utils/localization';
 import DeleteAccountModal from '../../components/DeleteAccountModal';
 
-const API_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in';
 const RELATIONS = ['Spouse', 'Father', 'Mother', 'Son', 'Daughter', 'Brother', 'Sister', 'Other'];
 
 export default function SettingsScreen() {

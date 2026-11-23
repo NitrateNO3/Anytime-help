@@ -14,7 +14,7 @@ import { io } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
 import ComplaintSuccess, { ComplaintSuccessData } from '../components/ComplaintSuccess';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 export default function MemberRaiseComplaint() {
   const router = useRouter();

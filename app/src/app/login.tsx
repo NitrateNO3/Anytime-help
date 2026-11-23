@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 const bgImage = require('../../assets/images/electrician-review-response-templates-featured.webp');
 import { getNextLanguage, getLanguageBadge } from '../utils/localization';
 

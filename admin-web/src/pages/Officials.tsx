@@ -7,8 +7,8 @@ import { socketAuth, isPlatformSuperAdmin, getSelectedArea, setSelectedArea } fr
 import '../index.css';
 import { confirmDialog } from '../components/ConfirmDialog';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
-const SOCKET_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in/api';
+const SOCKET_URL = 'https://api.anytimehelp.co.in';
 
 interface Official {
   _id: string;

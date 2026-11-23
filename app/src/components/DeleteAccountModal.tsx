@@ -17,7 +17,7 @@ import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 
-const API_BASE_URL = 'https://anytime-help.onrender.com';
+const API_BASE_URL = 'https://api.anytimehelp.co.in';
 
 interface DeleteAccountModalProps {
   visible: boolean;

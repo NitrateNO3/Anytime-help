@@ -14,8 +14,8 @@ import { io } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
 import { useTranslation } from 'react-i18next';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
-const SOCKET_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in/api';
+const SOCKET_URL = 'https://api.anytimehelp.co.in';
 
 export default function StaffEditProfileScreen() {
   const router = useRouter();

@@ -14,8 +14,8 @@ import { setChatUnreadFromGroups, refreshChatUnreadSoon, useChatUnread } from '.
 import { io } from 'socket.io-client';
 import { socketAuth } from '../../utils/socketAuth';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
-const SOCKET_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in/api';
+const SOCKET_URL = 'https://api.anytimehelp.co.in';
 
 interface ChatGroupItem {
   _id: string;

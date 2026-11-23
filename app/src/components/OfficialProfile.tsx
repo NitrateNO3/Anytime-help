@@ -6,7 +6,7 @@ import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import VerifiedBadge from './VerifiedBadge';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 type ReactionType = 'like' | 'love';
 

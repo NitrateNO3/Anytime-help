@@ -10,7 +10,7 @@ import { socketAuth } from '../lib/area';
 import '../index.css';
 import './ChatGroups.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://anytime-help.onrender.com/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.anytimehelp.co.in/api';
 const SOCKET_URL = API_URL.replace('/api', '');
 
 interface MemberUser {

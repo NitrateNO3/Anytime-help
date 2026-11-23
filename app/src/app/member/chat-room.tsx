@@ -21,8 +21,8 @@ import { socketAuth } from '../../utils/socketAuth';
 import { getChatCacheUserId, chatRoomCacheKey } from '../../utils/chatCache';
 import { markChatRead, setActiveChatGroup } from '../../utils/chatUnread';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
-const SOCKET_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in/api';
+const SOCKET_URL = 'https://api.anytimehelp.co.in';
 
 const PAGE_SIZE = 30;          // messages per chunk from the server
 const CACHE_LIMIT = 60;        // newest messages kept on the phone per chat
