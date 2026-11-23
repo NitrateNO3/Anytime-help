@@ -6,14 +6,25 @@ const StaffBannerSchema = new mongoose.Schema({
     default: '',
     trim: true,
   },
+  // Image is optional for 'card' banners (text card; image then fills the side tile)
   url: {
     type: String,
-    required: true,
+    default: '',
   },
   public_id: {
     type: String,
-    required: true,
+    default: '',
   },
+  // 'image' = full picture banner, 'card' = text card (tag, title, subtitle, button, icon)
+  style: {
+    type: String,
+    enum: ['image', 'card'],
+    default: 'image',
+  },
+  tag: { type: String, default: '', trim: true },
+  subtitle: { type: String, default: '', trim: true },
+  ctaLabel: { type: String, default: '', trim: true },
+  icon: { type: String, default: '', trim: true },
   isActive: {
     type: Boolean,
     default: true,

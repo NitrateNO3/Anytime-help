@@ -369,7 +369,7 @@ export default function MemberHome() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1D4ED8']} />
         }
       >
-        {/* Blue header: brand, bell, avatar, location, search, banner slider */}
+        {/* Teal header: brand, bell, avatar, search, banner slider */}
         <View style={styles.heroBleed}>
           <HomeHeader
             user={user}
@@ -379,22 +379,6 @@ export default function MemberHome() {
             onBell={() => router.push('/member-announcements' as any)}
             onAvatar={() => router.navigate('/member/settings')}
             onBannerPress={(b) => setPreviewImage({ url: b.url, title: b.title, link: b.link })}
-            greeting
-            extra={
-              <View style={styles.badgeRow}>
-                <View style={styles.memberIdBadge}>
-                  <Ionicons name="star" size={13} color="#FBBF24" style={{ marginRight: 6 }} />
-                  <Text style={styles.memberIdText}>
-                    Member ID · {user?.member_id ? user.member_id : 'Pending'}
-                  </Text>
-                </View>
-                {user?.designation ? (
-                  <View style={styles.designationBadge}>
-                    <Text style={styles.designationText} numberOfLines={1}>{user.designation}</Text>
-                  </View>
-                ) : null}
-              </View>
-            }
           />
         </View>
 

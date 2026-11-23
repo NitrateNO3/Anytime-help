@@ -1,16 +1,19 @@
 // Home header shared by Resident and Member:
-// - HomeHeader: blue hero (brand, bell, avatar, location, search, edge-to-edge banner slider)
+// - HomeHeader: teal hero (brand, bell, avatar, search, banner slider of text cards or images)
 // - CompactHomeHeader: white bar that fades in once the hero scrolls away
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, Platform, StatusBar as RNStatusBar, Animated,
+  View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, Platform, StatusBar as RNStatusBar, Animated, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
+import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 
 const API_URL = 'https://anytime-help.onrender.com/api';
-const BLUE = '#2347E0';
+const HERO_TOP = '#0D3346';
+const HERO_BOTTOM = '#1C6A66';
+const CARD_H = 196;
 // Banner height follows the image shape so nothing gets cropped
 const DEFAULT_RATIO = 16 / 9;
 const MIN_RATIO = 1.2;   // never taller than this
@@ -23,25 +26,22 @@ const comingSoon = () =>
 export const initialsOf = (name?: string, fallback = 'U') =>
   (name || fallback).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
 
-// Area (RWA) name for the location line, fetched once per app session
-let areaCache: { name: string; city: string } | null = null;
-function useAreaInfo() {
-  const [area, setArea] = useState(areaCache);
-  useEffect(() => {
-    if (areaCache) return;
-    axios.get(`${API_URL}/areas/current`)
-      .then(res => {
-        if (res.data?.name) {
-          areaCache = { name: res.data.name, city: res.data.city || '' };
-          setArea(areaCache);
-        }
-      })
-      .catch(() => {});
-  }, []);
-  return area;
+interface Banner {
+  _id?: string; url: string; title?: string; link?: string; duration?: number;
+  // Text card banner (admin 'Text card' type)
+  style?: 'image' | 'card'; tag?: string; subtitle?: string; ctaLabel?: string; icon?: string;
 }
 
-interface Banner { _id?: string; url: string; title?: string; link?: string; duration?: number }
+const isCard = (b: Banner) => b.style === 'card' || !b.url;
+
+// Opens a banner link: web/tel/mail links outside the app, '/path' links inside it
+function openBannerLink(link?: string) {
+  const l = String(link || '').trim();
+  if (!l) return false;
+  if (l.startsWith('/')) router.push(l as any);
+  else Linking.openURL(/^[a-z]+:/i.test(l) ? l : `https://${l}`).catch(() => {});
+  return true;
+}
 
 interface HeaderProps {
   user: any;
@@ -53,22 +53,18 @@ interface HeaderProps {
   onBannerPress: (b: Banner) => void;
   // Lets a screen wrap the avatar (e.g. in a tutorial step)
   wrapAvatar?: (node: React.ReactElement) => React.ReactElement;
-  // Extra content under the location line (e.g. Member ID badges)
-  extra?: React.ReactNode;
-  // Member style: bare logo, yellow portal pill and "Hello, <name>" instead of the location line
-  greeting?: boolean;
 }
 
-export default function HomeHeader({ user, portalLabel, unreadCount, banners, onBell, onAvatar, onBannerPress, wrapAvatar, extra, greeting }: HeaderProps) {
-  const area = useAreaInfo();
+export default function HomeHeader({ user, portalLabel, unreadCount, banners, onBell, onAvatar, onBannerPress, wrapAvatar }: HeaderProps) {
   const width = Dimensions.get('window').width;
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList<Banner>>(null);
   const [ratio, setRatio] = useState(DEFAULT_RATIO);
 
-  // Read the first banner's real size; all slides use that height and 'contain',
-  // so banners of a different shape are letterboxed instead of cut
-  const firstUrl = banners[0]?.url;
+  // Image-only sliders size to the first picture's real shape ('contain', never cut);
+  // as soon as one text card is present every slide uses the card height
+  const hasCard = banners.some(isCard);
+  const firstUrl = hasCard ? undefined : banners[0]?.url;
   useEffect(() => {
     if (!firstUrl) return;
     let alive = true;
@@ -77,7 +73,7 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
     }, () => {});
     return () => { alive = false; };
   }, [firstUrl]);
-  const bannerH = Math.round(width / ratio);
+  const bannerH = hasCard ? CARD_H : Math.round(width / ratio);
 
   // Auto-advance using each banner's own duration (seconds, default 4)
   useEffect(() => {
@@ -93,32 +89,29 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
 
   useEffect(() => { if (index >= banners.length) setIndex(0); }, [banners.length, index]);
 
-  const addressLine = [
-    [user?.house_no || user?.room_number, user?.block ? `Block ${user.block}` : ''].filter(Boolean).join(', '),
-    [user?.phase, area?.city].filter(Boolean).join(', '),
-  ].filter(Boolean).join(' · ');
-
   const avatar = (
     <TouchableOpacity style={s.avatar} onPress={onAvatar} activeOpacity={0.8}>
       <Text style={s.avatarText}>{initialsOf(user?.name)}</Text>
     </TouchableOpacity>
   );
 
+  const pressBanner = (b: Banner) => {
+    if (openBannerLink(b.link)) return;
+    if (b.url) onBannerPress(b);
+  };
+
   return (
-    <View style={s.hero}>
-      <View style={s.glow} />
+    <LinearGradient colors={[HERO_TOP, HERO_BOTTOM]} start={{ x: 0, y: 0 }} end={{ x: 0.4, y: 1 }} style={s.hero}>
+      {/* Soft rings in the background */}
+      <View style={[s.ring, { width: 300, height: 300, borderRadius: 150, top: 90, right: -80 }]} />
+      <View style={[s.ring, { width: 170, height: 170, borderRadius: 85, top: 235, right: 0, borderWidth: 14, borderColor: 'rgba(255,255,255,0.05)' }]} />
+
       <View style={s.topRow}>
-        {greeting ? (
-          <Image source={require('../../../assets/images/logo.png')} style={{ width: 54, height: 54 }} resizeMode="contain" />
-        ) : (
-          <View style={s.logoBox}>
-            <Image source={require('../../../assets/images/logo.png')} style={{ width: 38, height: 38 }} resizeMode="contain" />
-          </View>
-        )}
-        <View style={{ flex: 1, marginLeft: 12 }}>
+        <Image source={require('../../../assets/images/logo.png')} style={{ width: 56, height: 56 }} resizeMode="contain" />
+        <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={s.brand}>ANYTIME HELP</Text>
-          <View style={[s.portalPill, greeting && s.portalPillGold]}>
-            <Text style={[s.portalText, greeting && s.portalTextGold]}>{portalLabel}</Text>
+          <View style={s.portalPill}>
+            <Text style={s.portalText}>{portalLabel}</Text>
           </View>
         </View>
         <TouchableOpacity style={s.bell} onPress={onBell} activeOpacity={0.8}>
@@ -128,27 +121,13 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
         {wrapAvatar ? wrapAvatar(avatar) : avatar}
       </View>
 
-      {greeting ? (
-        <Text style={s.hello} numberOfLines={1}>Hello, {(user?.name || 'there').trim().split(/\s+/)[0]}</Text>
-      ) : (
-      <View style={s.locRow}>
-        <Ionicons name="location-sharp" size={20} color="#FFFFFF" style={{ marginTop: 1 }} />
-        <View style={{ flex: 1, marginLeft: 8 }}>
-          <Text style={s.locTitle} numberOfLines={1}>{area?.name || user?.phase || 'Your society'}</Text>
-          {!!addressLine && <Text style={s.locSub} numberOfLines={1}>{addressLine}</Text>}
-        </View>
-      </View>
-      )}
-
-      {!!extra && <View style={s.extra}>{extra}</View>}
-
       <TouchableOpacity style={s.search} activeOpacity={0.85} onPress={comingSoon}>
-        <Ionicons name="search" size={20} color="rgba(255,255,255,0.85)" />
+        <Ionicons name="search" size={20} color="rgba(255,255,255,0.7)" />
         <Text style={s.searchText} numberOfLines={1}>Search 'doctor', 'grocery', 'salon'…</Text>
       </TouchableOpacity>
 
       {banners.length > 0 && (
-        <View style={{ marginTop: 16 }}>
+        <View style={{ marginTop: 18 }}>
           <FlatList
             ref={listRef}
             data={banners}
@@ -158,8 +137,34 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
             keyExtractor={(b, i) => b._id || `hb-${i}`}
             getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
             onMomentumScrollEnd={e => setIndex(Math.max(0, Math.min(Math.round(e.nativeEvent.contentOffset.x / width), banners.length - 1)))}
-            renderItem={({ item }) => (
-              <TouchableOpacity activeOpacity={0.92} onPress={() => onBannerPress(item)} style={{ width, height: bannerH }}>
+            renderItem={({ item }) => isCard(item) ? (
+              <TouchableOpacity activeOpacity={0.92} onPress={() => pressBanner(item)} style={[s.card, { width, height: bannerH }]}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  {!!item.tag && (
+                    <View style={s.tagPill}><Text style={s.tagText} numberOfLines={1}>{item.tag.toUpperCase()}</Text></View>
+                  )}
+                  <Text style={s.cardTitle} numberOfLines={2}>{item.title}</Text>
+                  {!!item.subtitle && <Text style={s.cardSub} numberOfLines={2}>{item.subtitle}</Text>}
+                  {!!item.ctaLabel && (
+                    <View style={s.cta}>
+                      <Text style={s.ctaText}>{item.ctaLabel}</Text>
+                      <Ionicons name="chevron-forward" size={14} color="#0D3346" />
+                    </View>
+                  )}
+                </View>
+                <View>
+                  <View style={s.tile}>
+                    {item.url ? (
+                      <Image source={{ uri: item.url }} style={s.tileImg} resizeMode="cover" />
+                    ) : (
+                      <Ionicons name={(item.icon || 'sparkles-outline') as any} size={46} color="#FFFFFF" />
+                    )}
+                  </View>
+                  <View style={s.cardAd}><Text style={s.adTagText}>AD</Text></View>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity activeOpacity={0.92} onPress={() => pressBanner(item)} style={{ width, height: bannerH }}>
                 <Image source={{ uri: item.url }} style={StyleSheet.absoluteFill} resizeMode="contain" />
                 <View style={s.adTag}><Text style={s.adTagText}>AD</Text></View>
               </TouchableOpacity>
@@ -172,8 +177,10 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
           )}
         </View>
       )}
-      {banners.length === 0 && <View style={{ height: 16 }} />}
-    </View>
+
+      {/* White sheet edge the page content starts on */}
+      <View style={[s.sheetLip, banners.length === 0 && { marginTop: 22 }, banners.length === 1 && { marginTop: 14 }]} />
+    </LinearGradient>
   );
 }
 
@@ -199,40 +206,50 @@ export function CompactHomeHeader({ user, opacity, visible, onAvatar }: {
 }
 
 const s = StyleSheet.create({
-  hero: { backgroundColor: BLUE, paddingTop: TOP_PAD, overflow: 'hidden' },
-  glow: { position: 'absolute', top: -80, right: -60, width: 260, height: 260, borderRadius: 130, backgroundColor: 'rgba(255,255,255,0.06)' },
+  hero: { paddingTop: TOP_PAD, overflow: 'hidden' },
+  ring: { position: 'absolute', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.07)' },
   topRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
-  logoBox: { width: 50, height: 50, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   brand: { color: '#FFFFFF', fontSize: 19, fontWeight: '900', letterSpacing: 0.6 },
-  portalPill: { alignSelf: 'flex-start', marginTop: 3, backgroundColor: 'rgba(255,255,255,0.18)', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
-  portalText: { color: '#FFFFFF', fontSize: 10.5, fontWeight: '800', letterSpacing: 1 },
-  portalPillGold: { backgroundColor: '#FCD34D', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3 },
-  portalTextGold: { color: '#78350F', fontSize: 11.5, fontWeight: '900' },
-  hello: { color: '#FFFFFF', fontSize: 26, fontWeight: '800', letterSpacing: -0.3, paddingHorizontal: 16, marginTop: 18 },
+  portalPill: { alignSelf: 'flex-start', marginTop: 4, backgroundColor: '#FCD34D', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3 },
+  portalText: { color: '#78350F', fontSize: 11.5, fontWeight: '900', letterSpacing: 1 },
   bell: {
-    width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+    width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(5,20,30,0.35)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
-  bellDot: { position: 'absolute', top: 10, right: 11, width: 9, height: 9, borderRadius: 5, backgroundColor: '#EF4444', borderWidth: 1.5, borderColor: BLUE },
+  bellDot: { position: 'absolute', top: 10, right: 12, width: 9, height: 9, borderRadius: 5, backgroundColor: '#F87171', borderWidth: 1.5, borderColor: HERO_TOP },
   avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: '#1D4ED8', fontSize: 16, fontWeight: '900' },
 
-  locRow: { flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, marginTop: 16 },
-  locTitle: { color: '#FFFFFF', fontSize: 17, fontWeight: '800', letterSpacing: -0.2 },
-  extra: { paddingHorizontal: 16, marginTop: 12 },
-  locSub: { color: 'rgba(255,255,255,0.85)', fontSize: 13, marginTop: 2 },
-
   search: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 14, height: 52, borderRadius: 16,
-    backgroundColor: 'rgba(15,23,80,0.22)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 18, height: 52, borderRadius: 16,
+    backgroundColor: 'rgba(5,20,30,0.28)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 16,
   },
-  searchText: { flex: 1, color: 'rgba(255,255,255,0.7)', fontSize: 15 },
+  searchText: { flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: 15 },
+
+  // Text card banner
+  card: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
+  tagPill: { alignSelf: 'flex-start', backgroundColor: '#5EE9C9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 10 },
+  tagText: { color: '#064E3B', fontSize: 10.5, fontWeight: '900', letterSpacing: 0.8 },
+  cardTitle: { color: '#FFFFFF', fontSize: 24, lineHeight: 29, fontWeight: '800', letterSpacing: -0.4 },
+  cardSub: { color: 'rgba(255,255,255,0.88)', fontSize: 12.5, marginTop: 6 },
+  cta: {
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 2, marginTop: 14,
+    backgroundColor: '#EEF2F6', borderRadius: 999, paddingHorizontal: 16, height: 38,
+  },
+  ctaText: { color: '#0D3346', fontSize: 14, fontWeight: '800' },
+  tile: {
+    width: 92, height: 100, borderRadius: 24, overflow: 'hidden', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.3)',
+  },
+  tileImg: { width: '100%', height: '100%' },
+  cardAd: { position: 'absolute', bottom: -10, right: -2, backgroundColor: 'rgba(8,30,40,0.85)', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2 },
 
   adTag: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(15,23,42,0.55)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   adTagText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
-  dots: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, paddingVertical: 10 },
+  dots: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
-  dotOn: { width: 20, backgroundColor: '#FFFFFF' },
+  dotOn: { width: 22, backgroundColor: '#FFFFFF' },
+  sheetLip: { height: 24, backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26 },
 
   compact: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', alignItems: 'center', gap: 10,

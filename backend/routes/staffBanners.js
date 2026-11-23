@@ -56,18 +56,27 @@ router.get('/', cache(60), async (req, res) => {
 // @access  Public (admin)
 router.post('/upload', upload.single('image'), async (req, res) => {
   try {
-    if (!req.file) {
+    const audience = normalizeAudience(req.body.audience || req.body.target);
+    const style = req.body.style === 'card' ? 'card' : 'image';
+    if (!req.file && style !== 'card') {
       return res.status(400).json({ msg: 'No image file provided' });
     }
+    if (style === 'card' && !String(req.body.title || '').trim()) {
+      return res.status(400).json({ msg: 'Card banners need a title' });
+    }
 
-    const result = await streamUpload(req.file.buffer);
-    const audience = normalizeAudience(req.body.audience || req.body.target);
+    const result = req.file ? await streamUpload(req.file.buffer) : { secure_url: '', public_id: '' };
 
     const newBanner = new StaffBanner({
       title: req.body.title || '',
       url: result.secure_url,
       public_id: result.public_id,
       audience: audience,
+      style,
+      tag: req.body.tag || '',
+      subtitle: req.body.subtitle || '',
+      ctaLabel: req.body.ctaLabel || '',
+      icon: req.body.icon || '',
       isActive: req.body.isActive === undefined ? true : (req.body.isActive === 'true' || req.body.isActive === true),
       link: req.body.link || '',
       order: req.body.order ? Number(req.body.order) : 0,
@@ -114,6 +123,18 @@ router.put('/:id', upload.single('image'), async (req, res) => {
     }
     if (req.body.link !== undefined) {
       banner.link = req.body.link;
+    }
+    if (req.body.style !== undefined) {
+      banner.style = req.body.style === 'card' ? 'card' : 'image';
+    }
+    for (const f of ['tag', 'subtitle', 'ctaLabel', 'icon']) {
+      if (req.body[f] !== undefined) banner[f] = req.body[f];
+    }
+    // Card banners can drop their side image
+    if (req.body.removeImage === 'true' && !req.file && banner.public_id) {
+      try { await deleteFromS3(banner.public_id); } catch (e) { console.error('Error deleting banner image:', e); }
+      banner.url = '';
+      banner.public_id = '';
     }
     if (req.body.order !== undefined) {
       banner.order = Number(req.body.order);

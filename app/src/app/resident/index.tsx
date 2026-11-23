@@ -331,7 +331,7 @@ export default function ResidentHome() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#1D4ED8']} />
         }
       >
-        {/* Blue header: brand, bell, avatar, location, search, banner slider */}
+        {/* Teal header: brand, bell, avatar, search, banner slider */}
         <View style={styles.heroBleed}>
           <HomeHeader
             user={user}

@@ -33,8 +33,54 @@ interface BannerItem {
   order?: number;
   duration?: number;
   expiresAt?: string | null;
+  style?: 'image' | 'card';
+  tag?: string;
+  subtitle?: string;
+  ctaLabel?: string;
+  icon?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// Text card banners (Residents & Members home): text on the teal header, icon or small image on the right
+type CardForm = { style: 'image' | 'card'; tag: string; subtitle: string; ctaLabel: string; icon: string; link: string };
+const EMPTY_CARD: CardForm = { style: 'card', tag: '', subtitle: '', ctaLabel: '', icon: 'sparkles-outline', link: '' };
+const CARD_ICONS: { value: string; label: string }[] = [
+  { value: 'sparkles-outline', label: 'Sparkles' },
+  { value: 'medkit-outline', label: 'Health / Clinic' },
+  { value: 'fitness-outline', label: 'Fitness' },
+  { value: 'cart-outline', label: 'Shopping' },
+  { value: 'basket-outline', label: 'Grocery' },
+  { value: 'restaurant-outline', label: 'Food' },
+  { value: 'cut-outline', label: 'Salon' },
+  { value: 'construct-outline', label: 'Repairs' },
+  { value: 'water-outline', label: 'Water' },
+  { value: 'flash-outline', label: 'Electricity' },
+  { value: 'car-outline', label: 'Vehicle' },
+  { value: 'school-outline', label: 'Education' },
+  { value: 'gift-outline', label: 'Offer / Gift' },
+  { value: 'pricetag-outline', label: 'Discount' },
+  { value: 'calendar-outline', label: 'Event' },
+  { value: 'megaphone-outline', label: 'Announcement' },
+  { value: 'leaf-outline', label: 'Green / Garden' },
+  { value: 'paw-outline', label: 'Pets' },
+  { value: 'home-outline', label: 'Home' },
+];
+
+function CardPreview({ title, card, image }: { title: string; card: CardForm; image?: string | null }) {
+  return (
+    <div style={{ background: 'linear-gradient(160deg, #0D3346, #1C6A66)', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', gap: 12, minHeight: 150, height: '100%', boxSizing: 'border-box' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {card.tag && <span style={{ display: 'inline-block', background: '#5EE9C9', color: '#064E3B', fontSize: 10, fontWeight: 900, letterSpacing: 0.8, borderRadius: 999, padding: '3px 9px', marginBottom: 8 }}>{card.tag.toUpperCase()}</span>}
+        <div style={{ color: '#fff', fontSize: 19, fontWeight: 800, lineHeight: 1.2 }}>{title || 'Banner title'}</div>
+        {card.subtitle && <div style={{ color: 'rgba(255,255,255,0.88)', fontSize: 12, marginTop: 4 }}>{card.subtitle}</div>}
+        {card.ctaLabel && <span style={{ display: 'inline-block', marginTop: 10, background: '#EEF2F6', color: '#0D3346', fontWeight: 800, fontSize: 13, borderRadius: 999, padding: '6px 14px' }}>{card.ctaLabel} &rsaquo;</span>}
+      </div>
+      <div style={{ width: 72, height: 78, borderRadius: 18, background: 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.3)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 10, textAlign: 'center', flexShrink: 0 }}>
+        {image ? <img src={image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (CARD_ICONS.find(i => i.value === card.icon)?.label || 'Icon')}
+      </div>
+    </div>
+  );
 }
 
 // Residents and Members share one banner pool, so 'Resident' stands for both
@@ -69,6 +115,19 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
   const [editExpiresAt, setEditExpiresAt] = useState<string>('');
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [editRemoveImage, setEditRemoveImage] = useState(false);
+
+  // Text card fields, shared by whichever modal is open
+  const [cardForm, setCardForm] = useState<CardForm>(EMPTY_CARD);
+  const setCard = (patch: Partial<CardForm>) => setCardForm(prev => ({ ...prev, ...patch }));
+  const appendCardFields = (fd: FormData) => {
+    fd.append('style', cardForm.style);
+    fd.append('tag', cardForm.tag.trim());
+    fd.append('subtitle', cardForm.subtitle.trim());
+    fd.append('ctaLabel', cardForm.ctaLabel.trim());
+    fd.append('icon', cardForm.icon);
+    fd.append('link', cardForm.link.trim());
+  };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
@@ -107,6 +166,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
       const file = e.target.files[0];
       setEditImageFile(file);
       setEditImagePreview(URL.createObjectURL(file));
+      setEditRemoveImage(false);
     }
   };
 
@@ -118,6 +178,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
     setNewExpiresAt('');
     setNewImageFile(null);
     setNewImagePreview(null);
+    setCardForm(EMPTY_CARD);
     setIsAddModalOpen(true);
   };
 
@@ -138,7 +199,16 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
     setEditDuration(banner.duration || 4);
     setEditExpiresAt(banner.expiresAt ? new Date(banner.expiresAt).toISOString().split('T')[0] : '');
     setEditImageFile(null);
-    setEditImagePreview(banner.url);
+    setEditImagePreview(banner.url || null);
+    setEditRemoveImage(false);
+    setCardForm({
+      style: banner.style === 'card' ? 'card' : 'image',
+      tag: banner.tag || '',
+      subtitle: banner.subtitle || '',
+      ctaLabel: banner.ctaLabel || '',
+      icon: banner.icon || 'sparkles-outline',
+      link: banner.link || '',
+    });
   };
 
   const handleCloseEditModal = () => {
@@ -152,7 +222,12 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
   // Add / Upload New Banner
   const handleCreateBanner = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newImageFile) {
+    const newIsCard = newAudience !== 'Staff' && cardForm.style === 'card';
+    if (newIsCard && !newTitle.trim()) {
+      toast.error('Please enter a title for the text card');
+      return;
+    }
+    if (!newIsCard && !newImageFile) {
       toast.error('Please select an image for the banner');
       return;
     }
@@ -162,9 +237,10 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
 
     try {
       const formData = new FormData();
-      formData.append('image', newImageFile);
+      if (newImageFile) formData.append('image', newImageFile);
       formData.append('title', newTitle.trim());
       formData.append('audience', newAudience);
+      if (newAudience !== 'Staff') appendCardFields(formData);
       formData.append('isActive', String(newIsActive));
       formData.append('duration', String(newDuration || 4));
       if (newExpiresAt) {
@@ -194,6 +270,15 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
   const handleUpdateBanner = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBanner) return;
+    const editIsCard = editAudience !== 'Staff' && cardForm.style === 'card';
+    if (editIsCard && !editTitle.trim()) {
+      toast.error('Please enter a title for the text card');
+      return;
+    }
+    if (!editIsCard && !editImageFile && (!editingBanner.url || editRemoveImage)) {
+      toast.error('Image banners need an image');
+      return;
+    }
 
     setSavingEdit(true);
     const loadingToast = toast.loading('Updating banner...');
@@ -207,6 +292,12 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
       formData.append('expiresAt', editExpiresAt || '');
       if (editImageFile) {
         formData.append('image', editImageFile);
+      }
+      if (editAudience !== 'Staff') {
+        appendCardFields(formData);
+        if (editRemoveImage && !editImageFile) formData.append('removeImage', 'true');
+      } else {
+        formData.append('style', 'image');
       }
 
       await axios.put(`${API_URL}/staff-banners/${editingBanner._id}`, formData, {
@@ -435,11 +526,19 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
               >
                 {/* Banner Image Preview */}
                 <div style={{ position: 'relative', width: '100%', height: '170px', background: '#0F172A' }}>
-                  <img 
-                    src={banner.url} 
-                    alt={banner.title || `${audienceLabel(activeTab)} Banner`} 
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                  {banner.style === 'card' || !banner.url ? (
+                    <CardPreview
+                      title={banner.title || ''}
+                      image={banner.url}
+                      card={{ style: 'card', tag: banner.tag || '', subtitle: banner.subtitle || '', ctaLabel: banner.ctaLabel || '', icon: banner.icon || '', link: banner.link || '' }}
+                    />
+                  ) : (
+                  <img
+                    src={banner.url}
+                    alt={banner.title || `${audienceLabel(activeTab)} Banner`}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
+                  )}
                   
                   {/* Status Badge */}
                   <div style={{ 
@@ -624,10 +723,70 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                   </div>
                 </div>
 
+                {/* Banner type + text card fields (Residents & Members only) */}
+                {newAudience !== 'Staff' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>Banner Type</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {([['card', 'Text card'], ['image', 'Full image']] as const).map(([val, lbl]) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setCard({ style: val })}
+                            style={{
+                              flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
+                              border: cardForm.style === val ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                              background: cardForm.style === val ? '#EFF6FF' : '#FFFFFF',
+                              color: cardForm.style === val ? '#1D4ED8' : '#475569',
+                              fontWeight: cardForm.style === val ? 700 : 500,
+                            }}
+                          >
+                            {lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {cardForm.style === 'card' && (
+                      <>
+                        <CardPreview title={newTitle} card={cardForm} image={newImagePreview} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div>
+                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Tag line</label>
+                            <input type="text" className="form-input" placeholder="e.g. Happydent · Sector 52" value={cardForm.tag} onChange={(e) => setCard({ tag: e.target.value })} style={{ width: '100%' }} />
+                          </div>
+                          <div>
+                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Button text</label>
+                            <input type="text" className="form-input" placeholder="e.g. Book now" value={cardForm.ctaLabel} onChange={(e) => setCard({ ctaLabel: e.target.value })} style={{ width: '100%' }} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Subtitle</label>
+                          <input type="text" className="form-input" placeholder="e.g. Cleaning, X-ray & consultation · this month" value={cardForm.subtitle} onChange={(e) => setCard({ subtitle: e.target.value })} style={{ width: '100%' }} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div>
+                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Icon (used when no image)</label>
+                            <select className="form-input" value={cardForm.icon} onChange={(e) => setCard({ icon: e.target.value })} style={{ width: '100%' }}>
+                              {CARD_ICONS.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Link on tap (optional)</label>
+                            <input type="text" className="form-input" placeholder="https://... or tel:..." value={cardForm.link} onChange={(e) => setCard({ link: e.target.value })} style={{ width: '100%' }} />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {/* Image Picker Box */}
                 <div>
                   <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
-                    Banner Image <span style={{ color: 'var(--danger)' }}>*</span>
+                    {newAudience !== 'Staff' && cardForm.style === 'card'
+                      ? 'Side tile image (optional, replaces the icon)'
+                      : <>Banner Image <span style={{ color: 'var(--danger)' }}>*</span></>}
                   </label>
                   
                   {newImagePreview ? (
@@ -686,7 +845,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                 {/* Banner Title */}
                 <div>
                   <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
-                    Banner Title (Optional)
+                    {newAudience !== 'Staff' && cardForm.style === 'card' ? <>Title <span style={{ color: 'var(--danger)' }}>*</span></> : 'Banner Title (Optional)'}
                   </label>
                   <input 
                     type="text" 
@@ -821,19 +980,90 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                   </div>
                 </div>
 
+                {/* Banner type + text card fields (Residents & Members only) */}
+                {editAudience !== 'Staff' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>Banner Type</label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {([['card', 'Text card'], ['image', 'Full image']] as const).map(([val, lbl]) => (
+                          <button
+                            key={val}
+                            type="button"
+                            onClick={() => setCard({ style: val })}
+                            style={{
+                              flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
+                              border: cardForm.style === val ? '2px solid #2563EB' : '1px solid #CBD5E1',
+                              background: cardForm.style === val ? '#EFF6FF' : '#FFFFFF',
+                              color: cardForm.style === val ? '#1D4ED8' : '#475569',
+                              fontWeight: cardForm.style === val ? 700 : 500,
+                            }}
+                          >
+                            {lbl}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {cardForm.style === 'card' && (
+                      <>
+                        <CardPreview title={editTitle} card={cardForm} image={editRemoveImage ? null : editImagePreview} />
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div>
+                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Tag line</label>
+                            <input type="text" className="form-input" placeholder="e.g. Happydent · Sector 52" value={cardForm.tag} onChange={(e) => setCard({ tag: e.target.value })} style={{ width: '100%' }} />
+                          </div>
+                          <div>
+                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Button text</label>
+                            <input type="text" className="form-input" placeholder="e.g. Book now" value={cardForm.ctaLabel} onChange={(e) => setCard({ ctaLabel: e.target.value })} style={{ width: '100%' }} />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Subtitle</label>
+                          <input type="text" className="form-input" placeholder="e.g. Cleaning, X-ray & consultation · this month" value={cardForm.subtitle} onChange={(e) => setCard({ subtitle: e.target.value })} style={{ width: '100%' }} />
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                          <div>
+                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Icon (used when no image)</label>
+                            <select className="form-input" value={cardForm.icon} onChange={(e) => setCard({ icon: e.target.value })} style={{ width: '100%' }}>
+                              {CARD_ICONS.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Link on tap (optional)</label>
+                            <input type="text" className="form-input" placeholder="https://... or tel:..." value={cardForm.link} onChange={(e) => setCard({ link: e.target.value })} style={{ width: '100%' }} />
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {/* Banner Image Preview / Replace */}
                 <div>
                   <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
-                    Banner Image
+                    {editAudience !== 'Staff' && cardForm.style === 'card' ? 'Side tile image (optional, replaces the icon)' : 'Banner Image'}
                   </label>
-                  
+
                   <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', height: 160, background: '#0F172A', border: '1px solid #CBD5E1' }}>
-                    <img 
-                      src={editImagePreview || editingBanner.url} 
-                      alt="Banner Preview" 
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    {editImagePreview && !editRemoveImage ? (
+                    <img
+                      src={editImagePreview}
+                      alt="Banner Preview"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                     />
-                    
+                    ) : (
+                      <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: 13 }}>No image</div>
+                    )}
+                    {editAudience !== 'Staff' && cardForm.style === 'card' && editImagePreview && !editRemoveImage && (
+                      <button
+                        type="button"
+                        onClick={() => { setEditRemoveImage(true); setEditImageFile(null); }}
+                        style={{ position: 'absolute', bottom: 8, left: 8, background: 'rgba(220, 38, 38, 0.9)', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 12px', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+                      >
+                        Remove Image
+                      </button>
+                    )}
+
                     <button 
                       type="button" 
                       onClick={() => editFileInputRef.current?.click()}
