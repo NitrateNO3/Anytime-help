@@ -304,7 +304,11 @@ export default function StaffScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [isOffline, setIsOffline] = useState(false);
-  
+
+  // Latest filters, so a live update reloads the list the staff is looking at
+  const filtersRef = React.useRef({ searchQuery, selectedCategory, selectedStatus });
+  filtersRef.current = { searchQuery, selectedCategory, selectedStatus };
+
   const mounted = React.useRef(false);
 
   React.useEffect(() => {
@@ -520,7 +524,10 @@ export default function StaffScreen() {
     let complaintTimer: ReturnType<typeof setTimeout> | null = null;
     socket.on('complaint_changed', () => {
       if (complaintTimer) clearTimeout(complaintTimer);
-      complaintTimer = setTimeout(() => fetchComplaints(), 1500);
+      complaintTimer = setTimeout(() => {
+        const f = filtersRef.current;
+        fetchComplaints(f.searchQuery, f.selectedCategory, f.selectedStatus);
+      }, 1500);
     });
     socket.on('announcement_changed', () => {
       fetchAnnouncements();
