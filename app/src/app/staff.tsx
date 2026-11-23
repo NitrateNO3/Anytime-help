@@ -183,8 +183,9 @@ const TaskCard = React.memo(function TaskCard({ item, t, onOpen, onImage, onStat
   );
 });
 
-// Cards drawn at first; more are added as the list nears the bottom (like a feed)
-const TASK_PAGE = 15;
+// Tasks come from the server one page at a time; the next page loads near the bottom (like a feed)
+const TASK_PAGE = 20;
+const TASK_MAX_LIMIT = 100; // server caps one request at 100
 
 export default function StaffScreen() {
   const { start } = useCopilot();
@@ -309,6 +310,16 @@ export default function StaffScreen() {
   const filtersRef = React.useRef({ searchQuery, selectedCategory, selectedStatus });
   filtersRef.current = { searchQuery, selectedCategory, selectedStatus };
 
+  // Task paging
+  const [loadingMore, setLoadingMore] = useState(false);
+  const taskPageRef = React.useRef(1);
+  const taskHasMoreRef = React.useRef(false);
+  const taskLoadingMoreRef = React.useRef(false);
+  const taskReqIdRef = React.useRef(0);
+  const complaintsCountRef = React.useRef(0);
+  complaintsCountRef.current = complaints.length;
+  const loadMoreRef = React.useRef<() => void>(() => {});
+
   const mounted = React.useRef(false);
 
   React.useEffect(() => {
@@ -337,7 +348,13 @@ export default function StaffScreen() {
     }
   };
 
-  const fetchComplaints = async (currentSearch = searchQuery, currentCategory = selectedCategory, currentStatus = selectedStatus) => {
+  const complaintsQuery = (page: number, limit: number, s: string, c: string, st: string) =>
+    `${API_URL}/complaints?page=${page}&limit=${limit}&stats=true${s ? `&search=${encodeURIComponent(s)}` : ''}${c ? `&category=${encodeURIComponent(c)}` : ''}${st !== 'ALL' ? `&status=${st}` : ''}`;
+
+  // `keepLoaded`: reload as many tasks as are already on screen (live updates), so
+  // a staff member who scrolled down does not lose their place
+  const fetchComplaints = async (currentSearch = searchQuery, currentCategory = selectedCategory, currentStatus = selectedStatus, keepLoaded = false) => {
+    const reqId = ++taskReqIdRef.current;
     try {
       const token = await SecureStore.getItemAsync('userToken');
       const userDataStr = await SecureStore.getItemAsync('userData');
@@ -346,10 +363,15 @@ export default function StaffScreen() {
         userData = JSON.parse(userDataStr);
         setUser(userData);
       }
-      const res = await axios.get(`${API_URL}/complaints?all=true&stats=true${currentSearch ? `&search=${encodeURIComponent(currentSearch)}` : ''}${currentCategory ? `&category=${encodeURIComponent(currentCategory)}` : ''}${currentStatus !== 'ALL' ? `&status=${currentStatus}` : ''}`, {
+      const loadedPages = keepLoaded ? Math.ceil(complaintsCountRef.current / TASK_PAGE) : 1;
+      const pages = Math.min(Math.max(loadedPages, 1), TASK_MAX_LIMIT / TASK_PAGE);
+      const res = await axios.get(complaintsQuery(1, pages * TASK_PAGE, currentSearch, currentCategory, currentStatus), {
         headers: { 'x-auth-token': token }
       });
-      
+      if (reqId !== taskReqIdRef.current) return; // a newer request (filter change) took over
+      taskPageRef.current = pages;
+      taskHasMoreRef.current = !!res.data?.hasMore;
+
       const sortComplaints = (list: any[]) => {
         return [...list].sort((a, b) => {
           // Only active escalated complaints (NOT DONE / NOT RESOLVED) show first
@@ -405,6 +427,8 @@ export default function StaffScreen() {
       setIsOffline(false);
     } catch (err) {
       console.error('Fetch complaints error:', err);
+      if (reqId !== taskReqIdRef.current) return;
+      taskHasMoreRef.current = false;
       const cachedStr = await AsyncStorage.getItem('cached_staff_complaints');
       const cachedStatsStr = await AsyncStorage.getItem('cached_staff_stats');
       if (cachedStatsStr) {
@@ -422,8 +446,41 @@ export default function StaffScreen() {
         setComplaints([]);
       }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (reqId === taskReqIdRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  };
+
+  // Next page of tasks, added under the ones already shown
+  const loadMoreComplaints = async () => {
+    if (taskLoadingMoreRef.current || !taskHasMoreRef.current) return;
+    taskLoadingMoreRef.current = true;
+    setLoadingMore(true);
+    const reqId = taskReqIdRef.current;
+    const { searchQuery: s, selectedCategory: c, selectedStatus: st } = filtersRef.current;
+    try {
+      const token = await SecureStore.getItemAsync('userToken');
+      const nextPage = taskPageRef.current + 1;
+      const res = await axios.get(complaintsQuery(nextPage, TASK_PAGE, s, c, st), {
+        headers: { 'x-auth-token': token }
+      });
+      if (reqId !== taskReqIdRef.current) return; // list was reloaded meanwhile
+      const more: any[] = res.data?.complaints || [];
+      taskPageRef.current = nextPage;
+      taskHasMoreRef.current = !!res.data?.hasMore && more.length > 0;
+      if (res.data?.stats) setStats(res.data.stats);
+      // New tasks can shift pages on the server: skip any already in the list
+      setComplaints(prev => {
+        const seen = new Set(prev.map((x) => x._id));
+        return [...prev, ...more.filter((x) => !seen.has(x._id))];
+      });
+    } catch (err) {
+      console.error('Load more complaints error:', err);
+    } finally {
+      taskLoadingMoreRef.current = false;
+      setLoadingMore(false);
     }
   };
 
@@ -526,7 +583,7 @@ export default function StaffScreen() {
       if (complaintTimer) clearTimeout(complaintTimer);
       complaintTimer = setTimeout(() => {
         const f = filtersRef.current;
-        fetchComplaints(f.searchQuery, f.selectedCategory, f.selectedStatus);
+        fetchComplaints(f.searchQuery, f.selectedCategory, f.selectedStatus, true);
       }, 1500);
     });
     socket.on('announcement_changed', () => {
@@ -588,7 +645,7 @@ export default function StaffScreen() {
         text1: 'Status Updated',
         text2: `Task marked as ${newStatus.replace('_', ' ')}`
       });
-      fetchComplaints(); // Refresh list after update
+      fetchComplaints(searchQuery, selectedCategory, selectedStatus, true); // Refresh list after update, keep scroll place
     } catch (err) {
       console.error('Update status error:', err);
       Toast.show({
@@ -702,11 +759,11 @@ export default function StaffScreen() {
   const onScroll = (e: any) => {
     const sc = e.nativeEvent.contentOffset.y > 8;
     if (sc !== scrolled) setScrolled(sc);
-    // Near the bottom of the Tasks list: draw the next page of cards
+    // Near the bottom of the Tasks list: load the next page from the server
     if (isTasks) {
       const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
       if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 900) {
-        setTaskLimit(l => (l < complaintsCountRef.current ? l + TASK_PAGE : l));
+        loadMoreRef.current();
       }
     }
   };
@@ -1055,12 +1112,7 @@ export default function StaffScreen() {
   const onTaskStatus = React.useCallback((id: string) => cardFnsRef.current.openStatusDropdown(id), []);
   const onTaskShare = React.useCallback((item: any) => cardFnsRef.current.shareComplaint(item), []);
 
-  // Feed-style paging: draw TASK_PAGE cards, add more near the bottom of the list
-  const [taskLimit, setTaskLimit] = useState(TASK_PAGE);
-  useEffect(() => { setTaskLimit(TASK_PAGE); }, [complaints]);
-  const complaintsCountRef = React.useRef(0);
-  complaintsCountRef.current = complaints.length;
-  const visibleTasks = React.useMemo(() => complaints.slice(0, taskLimit), [complaints, taskLimit]);
+  loadMoreRef.current = loadMoreComplaints;
 
   const renderAnnouncementCard = (item: any, mine: boolean) => {
     const aud = audienceLabel(item.targetAudience);
@@ -1247,9 +1299,12 @@ export default function StaffScreen() {
               ) : complaints.length === 0 ? (
                 renderEmpty('checkmark-circle-outline', t('staff.noTasks', { defaultValue: 'No tasks here.' }))
               ) : (
-                visibleTasks.map((item: any) => (
-                  <TaskCard key={item._id} item={item} t={t} onOpen={onOpenTask} onImage={onTaskImage} onStatus={onTaskStatus} onShare={onTaskShare} />
-                ))
+                <>
+                  {complaints.map((item: any) => (
+                    <TaskCard key={item._id} item={item} t={t} onOpen={onOpenTask} onImage={onTaskImage} onStatus={onTaskStatus} onShare={onTaskShare} />
+                  ))}
+                  {loadingMore && <ActivityIndicator size="small" color={C.primary} style={{ marginVertical: 16 }} />}
+                </>
               )}
           </View>
 
