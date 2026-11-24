@@ -152,7 +152,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
         try {
           await deleteFromS3(banner.public_id);
         } catch (destroyErr) {
-          console.error('Error destroying old Cloudinary image:', destroyErr);
+          console.error('Error deleting old S3 image:', destroyErr);
         }
       }
       const result = await streamUpload(req.file.buffer);
@@ -192,7 +192,7 @@ router.delete('/:id', async (req, res) => {
       try {
         await deleteFromS3(banner.public_id);
       } catch (destroyErr) {
-        console.error('Error destroying Cloudinary image:', destroyErr);
+        console.error('Error destroying S3 image:', destroyErr);
       }
     }
 

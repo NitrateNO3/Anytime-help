@@ -5,7 +5,7 @@ const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const Banner = require('../models/Banner');
 const { cache, clearCachePrefix } = require('../middleware/cache');
 
-// Configure Multer (memory storage for stream to Cloudinary)
+// Configure Multer (memory storage for upload to S3)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 

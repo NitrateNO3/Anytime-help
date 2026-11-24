@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import Toast from 'react-native-toast-message';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 const HERO_TOP = '#0D3346';
 const HERO_BOTTOM = '#1C6A66';
 const CARD_H = 196;

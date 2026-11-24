@@ -19,7 +19,7 @@ import axios from 'axios';
 import Toast from 'react-native-toast-message';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 export const VALID_PHASES = ['Sushant Lok 2', 'Sushant Lok 3'] as const;
 

@@ -19,8 +19,8 @@ import { socketAuth } from '../utils/socketAuth';
 import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
-const SOCKET_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in/api';
+const SOCKET_URL = 'https://api.anytimehelp.co.in';
 
 import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';

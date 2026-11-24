@@ -40,7 +40,7 @@ const complaintSchema = new mongoose.Schema({
     required: true,
   },
   before_image: {
-    type: String, // Base64 string for now since we skipped Cloudinary
+    type: String, // S3 URL or Base64 string
     required: false,
   },
   after_image: {

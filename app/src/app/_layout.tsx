@@ -37,7 +37,7 @@ try {
   // Gracefully ignored in Expo Go
 }
 
-const API_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in';
 
 export default function RootLayout() {
   const router = useRouter();

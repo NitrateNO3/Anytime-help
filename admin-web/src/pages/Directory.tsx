@@ -6,8 +6,8 @@ import { io } from 'socket.io-client';
 import { socketAuth } from '../lib/area';
 import '../index.css';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
-const SOCKET_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in/api';
+const SOCKET_URL = 'https://api.anytimehelp.co.in';
 
 export default function Directory() {
   const [contacts, setContacts] = useState<any[]>([]);

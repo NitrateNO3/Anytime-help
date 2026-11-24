@@ -29,7 +29,7 @@ try {
   // Ignored in Expo Go or if native module not ready
 }
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 /**
  * Request permissions and get the Expo Push Token for this device.

@@ -11,7 +11,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getNextLanguage, getLanguageBadge } from '../utils/localization';
 import RegisterTermsModal, { REGISTER_TERMS_VERSION } from '../components/RegisterTermsModal';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 const FocusableInput = ({ icon, label, prefix, ...props }: any) => {
   const [isFocused, setIsFocused] = useState(false);

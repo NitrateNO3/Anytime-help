@@ -7,7 +7,7 @@ import { ExportButtons } from '../components/ExportButtons';
 import { io } from 'socket.io-client';
 import { socketAuth } from '../lib/area';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 export default function Members() {
   const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');

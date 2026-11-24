@@ -12,7 +12,7 @@ import { socketAuth } from '../utils/socketAuth';
 import { getNextLanguage, getLanguageDisplayName } from '../utils/localization';
 import DeleteAccountModal from '../components/DeleteAccountModal';
 
-const API_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -81,7 +81,7 @@ export default function SettingsScreen() {
       const userData = await SecureStore.getItemAsync('userData');
       if (userData) {
         const parsed = JSON.parse(userData);
-        await fetch('https://anytime-help.onrender.com/api/auth/logout', {
+        await fetch('https://api.anytimehelp.co.in/api/auth/logout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ userId: parsed.id })

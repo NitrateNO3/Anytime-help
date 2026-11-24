@@ -15,7 +15,7 @@ import { confirmDialog } from '../components/ConfirmDialog';
 import ChannelStoriesModal from '../components/ChannelStoriesModal';
 
 const getInitialApiUrl = () => {
-  return import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://anytime-help.onrender.com/api');
+  return import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : 'https://api.anytimehelp.co.in/api');
 };
 
 let API_URL = getInitialApiUrl();
@@ -317,7 +317,7 @@ export default function Communities() {
       } catch (err: any) {
         if (err.response?.status === 404 || !err.response) {
           const altUrl = API_URL.includes('localhost') 
-            ? 'https://anytime-help.onrender.com/api' 
+            ? 'https://api.anytimehelp.co.in/api' 
             : 'http://localhost:5000/api';
           res = await axios.get(`${altUrl}/community?include_sections=true`, getHeaders());
           API_URL = altUrl;
@@ -345,7 +345,7 @@ export default function Communities() {
       } catch (err: any) {
         if (err.response?.status === 404 || !err.response) {
           const altUrl = API_URL.includes('localhost') 
-            ? 'https://anytime-help.onrender.com/api' 
+            ? 'https://api.anytimehelp.co.in/api' 
             : 'http://localhost:5000/api';
           res = await axios.get(`${altUrl}/users/members?all=true`, getHeaders());
           API_URL = altUrl;
@@ -384,7 +384,7 @@ export default function Communities() {
       } catch (err: any) {
         if (err.response?.status === 404 || !err.response) {
           const altUrl = API_URL.includes('localhost') 
-            ? 'https://anytime-help.onrender.com/api' 
+            ? 'https://api.anytimehelp.co.in/api' 
             : 'http://localhost:5000/api';
           res = await axios.get(`${altUrl}/community/${communityId}/sections`, getHeaders());
           API_URL = altUrl;

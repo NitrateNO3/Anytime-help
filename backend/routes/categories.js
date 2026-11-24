@@ -6,7 +6,7 @@ const Category = require('../models/Category');
 const auth = require('../middleware/auth');
 const { cache, clearCachePrefix } = require('../middleware/cache');
 
-// Configure Multer (memory storage for stream to Cloudinary)
+// Configure Multer (memory storage for upload to S3)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 

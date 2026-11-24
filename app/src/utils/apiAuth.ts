@@ -8,7 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 // passing the token themselves; without it those requests are not scoped to
 // the user's area and return data from every area. Requests that already set
 // x-auth-token are left untouched.
-const API_HOST = 'anytime-help.onrender.com';
+const API_HOST = 'api.anytimehelp.co.in';
 
 axios.interceptors.request.use(async (config) => {
   try {

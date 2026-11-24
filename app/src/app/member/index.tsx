@@ -22,7 +22,7 @@ import useImageRatio from '../../utils/useImageRatio';
 
 // Scroll offset after which the compact white header replaces the blue one
 const COMPACT_AT = 260;
-const NOTICE_FALLBACK_IMAGE = 'https://res.cloudinary.com/dpajfmfl/image/upload/v1792147978/anytime_help/staff_banners/puhwnrswyjr1mrvqrobe.jpg';
+const NOTICE_FALLBACK_IMAGE = 'https://anytimehelp-media.s3.ap-southeast-2.amazonaws.com/announcements/1794924123387_nmj7fw1ztnpinocv97rd.jpg';
 
 const comingSoon = () =>
   Toast.show({ type: 'info', text1: 'Coming soon', text2: 'This feature will be live shortly.', position: 'bottom', visibilityTime: 2000 });
@@ -30,7 +30,7 @@ const comingSoon = () =>
 // Featured updates: cards peek so the next one is visible
 const FEATURED_GAP = 12;
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 const WalkthroughableView = walkthroughable(View);
 

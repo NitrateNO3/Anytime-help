@@ -13,7 +13,7 @@ import { getLocalizedCategoryTitle, getLocalizedSubCategoryTitle } from '../util
 import { io } from 'socket.io-client';
 import { socketAuth } from '../utils/socketAuth';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 export default function StaffRaiseComplaint() {
   const router = useRouter();

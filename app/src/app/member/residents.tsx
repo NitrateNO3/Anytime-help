@@ -9,7 +9,7 @@ import Toast from 'react-native-toast-message';
 import { useTranslation } from 'react-i18next';
 import { getLocalizedAddress } from '../../utils/localization';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 export default function ResidentsScreen() {
   const router = useRouter();

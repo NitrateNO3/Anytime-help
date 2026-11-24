@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import axios from 'axios';
 import useImageRatio from '../utils/useImageRatio';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 const AD_INTERVAL_MS = 3500;
 
 export interface ComplaintSuccessData {

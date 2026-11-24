@@ -13,7 +13,7 @@ import { socketAuth } from '../../utils/socketAuth';
 import * as ImagePicker from 'expo-image-picker';
 import AnnouncementImage from '../../components/AnnouncementImage';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 export default function Announcements() {
   const router = useRouter();

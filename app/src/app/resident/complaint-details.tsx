@@ -14,8 +14,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { io } from 'socket.io-client';
 import { socketAuth } from '../../utils/socketAuth';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
-const SOCKET_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in/api';
+const SOCKET_URL = 'https://api.anytimehelp.co.in';
 
 const SkeletonDetail = () => {
   const animatedValue = React.useRef(new Animated.Value(0.3)).current;

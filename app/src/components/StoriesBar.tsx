@@ -12,8 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import VerifiedBadge from './VerifiedBadge';
 import Toast from 'react-native-toast-message';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
-const SOCKET_URL = 'https://anytime-help.onrender.com';
+const API_URL = 'https://api.anytimehelp.co.in/api';
+const SOCKET_URL = 'https://api.anytimehelp.co.in';
 
 const STORY_DURATION_MS = 5000;
 

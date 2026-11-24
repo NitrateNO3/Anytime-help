@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { Trash2, Upload, Image as ImageIcon } from 'lucide-react';
 import '../index.css';
 
-const API_URL = 'https://anytime-help.onrender.com/api';
+const API_URL = 'https://api.anytimehelp.co.in/api';
 
 export default function Banners({ embedded = false }: { embedded?: boolean }) {
   const [banners, setBanners] = useState<any[]>([]);
