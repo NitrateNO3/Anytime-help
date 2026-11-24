@@ -4,6 +4,10 @@ const multer = require('multer');
 const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const StaffBanner = require('../models/StaffBanner');
 const { cache, clearCachePrefix } = require('../middleware/cache');
+const bannerAdmin = require('../middleware/bannerAdmin');
+
+// Who may change these banners
+const canManage = bannerAdmin(['Banners', 'Staff Banner', 'Staff Banners']);
 
 // Configure Multer
 const storage = multer.memoryStorage();
@@ -54,7 +58,7 @@ router.get('/', cache(60), async (req, res) => {
 // @route   POST /api/staff-banners/upload
 // @desc    Upload a new banner for Staff, Resident, or Member
 // @access  Public (admin)
-router.post('/upload', upload.single('image'), async (req, res) => {
+router.post('/upload', canManage, upload.single('image'), async (req, res) => {
   try {
     const audience = normalizeAudience(req.body.audience || req.body.target);
     const style = req.body.style === 'card' ? 'card' : 'image';
@@ -105,7 +109,7 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 // @route   PUT /api/staff-banners/:id
 // @desc    Update/modify a banner
 // @access  Public (admin)
-router.put('/:id', upload.single('image'), async (req, res) => {
+router.put('/:id', canManage, upload.single('image'), async (req, res) => {
   try {
     const banner = await StaffBanner.findById(req.params.id);
     if (!banner) {
@@ -181,7 +185,7 @@ router.put('/:id', upload.single('image'), async (req, res) => {
 // @route   DELETE /api/staff-banners/:id
 // @desc    Delete a banner
 // @access  Public (admin)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', canManage, async (req, res) => {
   try {
     const banner = await StaffBanner.findById(req.params.id);
     if (!banner) {

@@ -4,6 +4,10 @@ const multer = require('multer');
 const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const Banner = require('../models/Banner');
 const { cache, clearCachePrefix } = require('../middleware/cache');
+const bannerAdmin = require('../middleware/bannerAdmin');
+
+// Who may change these banners
+const canManage = bannerAdmin(['Banners']);
 
 // Configure Multer (memory storage for upload to S3)
 const storage = multer.memoryStorage();
@@ -43,7 +47,7 @@ router.get('/staff', cache(120), async (req, res) => {
 // @route   POST api/banners/upload
 // @desc    Upload a new banner
 // @access  Public (can add admin middleware later)
-router.post('/upload', upload.single('image'), async (req, res) => {
+router.post('/upload', canManage, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ msg: 'No image file provided' });
@@ -69,7 +73,7 @@ router.post('/upload', upload.single('image'), async (req, res) => {
 // @route   DELETE api/banners/:id
 // @desc    Delete a banner
 // @access  Public (can add admin middleware later)
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', canManage, async (req, res) => {
   try {
     const banner = await Banner.findById(req.params.id);
     if (!banner) {

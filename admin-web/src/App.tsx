@@ -23,9 +23,20 @@ import { ConfirmHost } from './components/ConfirmDialog';
 // Multi-area: a platform Super Admin's requests are scoped to the area picked
 // in the sidebar switcher. Area admins are always scoped to their own area
 // by the backend, so nothing is added for them.
+// The login token only goes to our own API, never to another site
+const OWN_API_HOSTS = new Set(['api.anytimehelp.co.in', 'localhost', '127.0.0.1']);
+try { if (import.meta.env.VITE_API_URL) OWN_API_HOSTS.add(new URL(import.meta.env.VITE_API_URL).hostname); } catch { /* ignore */ }
+const isOwnApi = (url?: string) => {
+  try { return OWN_API_HOSTS.has(new URL(url || '', window.location.origin).hostname); } catch { return false; }
+};
+
 axios.interceptors.request.use((config) => {
   const headers = areaHeaders();
   for (const [k, v] of Object.entries(headers)) config.headers.set(k, v);
+  // Send the admin login token on every request (banner and other admin
+  // routes require it); a header set by the caller is left as is
+  const token = localStorage.getItem('adminToken');
+  if (token && isOwnApi(config.url) && !config.headers.has('x-auth-token')) config.headers.set('x-auth-token', token);
   return config;
 });
 

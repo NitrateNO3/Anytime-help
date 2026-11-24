@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
-const jwt = require('jsonwebtoken');
 const BottomBanner = require('../models/BottomBanner');
-const User = require('../models/User');
+const bannerAdmin = require('../middleware/bannerAdmin');
+
+// Who may change these banners
+const canManage = bannerAdmin(['Banners', 'Announcements']);
 
 // Configure Multer (memory storage for buffer)
 const storage = multer.memoryStorage();
@@ -30,23 +32,6 @@ const notifySocket = (req) => {
   } catch (e) {
     console.error('Socket emit error:', e);
   }
-};
-
-// Optional auth helper: populates req.user if valid token provided, but doesn't hard-fail
-const optionalAuth = async (req, res, next) => {
-  const token = req.header('x-auth-token') || req.header('authorization')?.replace('Bearer ', '');
-  if (token && process.env.JWT_SECRET) {
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      if (decoded?.user?.id) {
-        const user = await User.findById(decoded.user.id);
-        if (user) req.user = user;
-      }
-    } catch (e) {
-      // lenient - proceed as public/admin client
-    }
-  }
-  next();
 };
 
 // @route   GET /api/bottom-banners
@@ -81,7 +66,7 @@ router.get('/', async (req, res) => {
 // @route   GET /api/bottom-banners/all
 // @desc    Get all bottom banners for admin management
 // @access  Public / Admin
-router.get('/all', optionalAuth, async (req, res) => {
+router.get('/all', canManage, async (req, res) => {
   try {
     const rawTarget = req.query.target || req.query.audience;
     const query = {};
@@ -144,13 +129,13 @@ const handleCreateBanner = async (req, res) => {
   }
 };
 
-router.post('/upload', optionalAuth, upload.single('image'), handleCreateBanner);
-router.post('/', optionalAuth, upload.single('image'), handleCreateBanner);
+router.post('/upload', canManage, upload.single('image'), handleCreateBanner);
+router.post('/', canManage, upload.single('image'), handleCreateBanner);
 
 // @route   POST /api/bottom-banners/bulk-upload
 // @desc    Upload multiple bottom banners at once (files or URLs)
 // @access  Admin
-router.post('/bulk-upload', optionalAuth, upload.array('images', 20), async (req, res) => {
+router.post('/bulk-upload', canManage, upload.array('images', 20), async (req, res) => {
   try {
     const { targetAudience, audience, duration, isActive, baseOrder } = req.body;
     const finalAudience = normalizeAudience(targetAudience || audience || 'All');
@@ -232,7 +217,7 @@ router.post('/bulk-upload', optionalAuth, upload.array('images', 20), async (req
 // @route   PUT /api/bottom-banners/:id
 // @desc    Update bottom banner
 // @access  Admin
-router.put('/:id', optionalAuth, upload.single('image'), async (req, res) => {
+router.put('/:id', canManage, upload.single('image'), async (req, res) => {
   try {
     const banner = await BottomBanner.findById(req.params.id);
     if (!banner) {
@@ -281,7 +266,7 @@ router.put('/:id', optionalAuth, upload.single('image'), async (req, res) => {
 // @route   PATCH /api/bottom-banners/:id/toggle
 // @desc    Toggle active state of bottom banner
 // @access  Admin
-router.patch('/:id/toggle', optionalAuth, async (req, res) => {
+router.patch('/:id/toggle', canManage, async (req, res) => {
   try {
     const banner = await BottomBanner.findById(req.params.id);
     if (!banner) {
@@ -302,7 +287,7 @@ router.patch('/:id/toggle', optionalAuth, async (req, res) => {
 // @route   DELETE /api/bottom-banners/:id
 // @desc    Delete bottom banner
 // @access  Admin
-router.delete('/:id', optionalAuth, async (req, res) => {
+router.delete('/:id', canManage, async (req, res) => {
   try {
     const banner = await BottomBanner.findById(req.params.id);
     if (!banner) {
@@ -357,7 +342,7 @@ const handleBulkDelete = async (req, res) => {
   }
 };
 
-router.post('/bulk-delete', optionalAuth, handleBulkDelete);
-router.delete('/bulk', optionalAuth, handleBulkDelete);
+router.post('/bulk-delete', canManage, handleBulkDelete);
+router.delete('/bulk', canManage, handleBulkDelete);
 
 module.exports = router;
