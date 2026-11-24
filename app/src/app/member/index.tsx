@@ -350,6 +350,7 @@ export default function MemberHome() {
         opacity={scrollY.interpolate({ inputRange: [COMPACT_AT - 60, COMPACT_AT], outputRange: [0, 1], extrapolate: 'clamp' })}
         visible={compactVisible}
         onAvatar={() => router.navigate('/member/settings')}
+        onSearch={() => router.push('/member-search' as any)}
       />
 
       {/* Main Content Body */}
@@ -378,6 +379,7 @@ export default function MemberHome() {
             banners={banners}
             onBell={() => router.push('/member-announcements' as any)}
             onAvatar={() => router.navigate('/member/settings')}
+            onSearch={() => router.push('/member-search' as any)}
             onBannerPress={(b) => setPreviewImage({ url: b.url, title: b.title, link: b.link })}
           />
         </View>

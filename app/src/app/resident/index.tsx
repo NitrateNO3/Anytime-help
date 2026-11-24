@@ -312,6 +312,7 @@ export default function ResidentHome() {
         opacity={scrollY.interpolate({ inputRange: [COMPACT_AT - 60, COMPACT_AT], outputRange: [0, 1], extrapolate: 'clamp' })}
         visible={compactVisible}
         onAvatar={() => router.navigate('/resident/settings')}
+        onSearch={() => router.push('/resident-search' as any)}
       />
 
       {/* Main Content Body */}
@@ -340,6 +341,7 @@ export default function ResidentHome() {
             banners={banners}
             onBell={() => router.push('/resident-announcements' as any)}
             onAvatar={() => router.navigate('/resident/settings')}
+            onSearch={() => router.push('/resident-search' as any)}
             onBannerPress={(b) => setPreviewImage({ url: b.url, title: b.title, link: b.link })}
             wrapAvatar={(node) => (
               <CopilotStep text="यहाँ से आप अपनी प्रोफ़ाइल, सेटिंग्स मैनेज कर सकते हैं और ट्यूटोरियल देख सकते हैं।" order={5} name="profile_avatar">

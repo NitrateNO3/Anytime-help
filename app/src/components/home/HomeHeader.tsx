@@ -8,7 +8,6 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import Toast from 'react-native-toast-message';
 
 const API_URL = 'https://api.anytimehelp.co.in/api';
 const HERO_TOP = '#0D3346';
@@ -23,8 +22,6 @@ const TOP_PAD = Platform.OS === 'android' ? (RNStatusBar.currentHeight || 24) + 
 // Height of the logo row + search bar that sit on top of the banner
 const TOP_PART = TOP_PAD + 56 + 18 + 52;
 
-const comingSoon = () =>
-  Toast.show({ type: 'info', text1: 'Coming soon', text2: 'This feature will be live shortly.', position: 'bottom', visibilityTime: 2000 });
 
 export const initialsOf = (name?: string, fallback = 'U') =>
   (name || fallback).split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -54,11 +51,12 @@ interface HeaderProps {
   onBell: () => void;
   onAvatar: () => void;
   onBannerPress: (b: Banner) => void;
+  onSearch: () => void;
   // Lets a screen wrap the avatar (e.g. in a tutorial step)
   wrapAvatar?: (node: React.ReactElement) => React.ReactElement;
 }
 
-export default function HomeHeader({ user, portalLabel, unreadCount, banners, onBell, onAvatar, onBannerPress, wrapAvatar }: HeaderProps) {
+export default function HomeHeader({ user, portalLabel, unreadCount, banners, onBell, onAvatar, onBannerPress, onSearch, wrapAvatar }: HeaderProps) {
   const width = Dimensions.get('window').width;
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList<Banner>>(null);
@@ -107,7 +105,7 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
         {wrapAvatar ? wrapAvatar(avatar) : avatar}
       </View>
 
-      <TouchableOpacity style={s.search} activeOpacity={0.85} onPress={comingSoon}>
+      <TouchableOpacity style={s.search} activeOpacity={0.85} onPress={onSearch}>
         <Ionicons name="search" size={20} color="rgba(255,255,255,0.7)" />
         <Text style={s.searchText} numberOfLines={1}>Search 'doctor', 'grocery', 'salon'…</Text>
       </TouchableOpacity>
@@ -201,16 +199,17 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
 }
 
 /* Compact white header shown after the hero scrolls out of view */
-export function CompactHomeHeader({ user, opacity, visible, onAvatar }: {
+export function CompactHomeHeader({ user, opacity, visible, onAvatar, onSearch }: {
   user: any;
   opacity: Animated.AnimatedInterpolation<number>;
   visible: boolean;
   onAvatar: () => void;
+  onSearch: () => void;
 }) {
   return (
     <Animated.View style={[s.compact, { opacity }]} pointerEvents={visible ? 'auto' : 'none'}>
       <Image source={require('../../../assets/images/logo.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
-      <TouchableOpacity style={s.compactSearch} activeOpacity={0.8} onPress={comingSoon}>
+      <TouchableOpacity style={s.compactSearch} activeOpacity={0.8} onPress={onSearch}>
         <Ionicons name="search" size={18} color="#475569" />
         <Text style={s.compactSearchText} numberOfLines={1}>Search 'doctor', 'grocery'…</Text>
       </TouchableOpacity>

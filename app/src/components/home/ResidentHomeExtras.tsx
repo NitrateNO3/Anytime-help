@@ -61,7 +61,7 @@ export function PartnerPromoCard() {
 
 /* ------------------------------ Partner hospitals ------------------------------ */
 
-const HOSPITALS = [
+export const HOSPITALS = [
   { name: 'Artemis Hospitals', tags: 'Multi-speciality · Cardiology · Orthopaedics · Paediatrics', place: 'Sector 51, Gurugram', off: '25 % OFF', rating: '4.6', from: '₹750', icon: 'add', bg: '#EFF6FF', fg: '#1D4ED8' },
   { name: 'HappyDent Dental', tags: 'Check-ups & cleaning · Emergency dentistry', place: 'Artemis Hospital Road', off: '20 % OFF', rating: '4.8', from: '₹499', icon: 'happy-outline', bg: '#ECFEFF', fg: '#0891B2' },
   { name: 'Medilane Diagnostics', tags: 'Blood tests · X-ray · Full-body check-ups', place: 'Sector 56 · 2.6 km', off: '25 % OFF', rating: '4.5', from: '₹900', icon: 'flask-outline', bg: '#ECFDF5', fg: '#059669' },
@@ -193,7 +193,7 @@ const FILTERS = [
   { key: 'Services', icon: 'construct-outline' },
 ] as const;
 
-const BUSINESSES = [
+export const BUSINESSES = [
   { name: 'Fresh Basket Supermart', cat: 'Grocery', meta: 'Grocery · Open till 10 PM', offer: '10% off on orders above ₹500', km: '0.6 km', rating: '4.4', icon: 'basket-outline', bg: '#FEF3C7', fg: '#92400E' },
   { name: 'Wellness Plus Pharmacy', cat: 'Pharmacy', meta: 'Pharmacy · Open 24×7', offer: '12% off on medicines', km: '0.4 km', rating: '4.6', icon: 'medical-outline', bg: '#DCFCE7', fg: '#166534' },
   { name: 'Ghar Ka Khana Tiffins', cat: 'Food', meta: 'Home-style tiffin · Lunch & dinner', offer: 'First week at ₹99 per meal', km: '0.8 km', rating: '4.7', icon: 'restaurant-outline', bg: '#FFE4E6', fg: '#9F1239' },
