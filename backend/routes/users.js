@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const Area = require('../models/Area');
 const auth = require('../middleware/auth');
 const { runUnscoped } = require('../utils/areaContext');
 
@@ -122,16 +123,18 @@ router.delete('/me', auth, async (req, res) => {
 // @access  Admin Private
 router.get('/phases', auth, async (req, res) => {
   try {
+    // The current area's own groups first (Areas page), then any other group names
+    // already used by people in this area (both lists are limited to this area)
+    const area = req.areaId ? await Area.findById(req.areaId).select('phases').lean() : null;
+    const areaPhases = (area?.phases || []).map(p => p && p.name).filter(Boolean);
     const phases = await User.distinct('phase', { phase: { $exists: true, $ne: null } });
-    const canonicalPhases = ['Sushant Lok 2', 'Sushant Lok 3'];
-    const customPhases = (phases || []).filter(p => 
-      typeof p === 'string' && 
-      p.trim() !== '' && 
+    const customPhases = (phases || []).filter(p =>
+      typeof p === 'string' &&
+      p.trim() !== '' &&
       !['Universal', 'All', 'All Groups', 'All Groups (Universal)', 'Unassigned'].includes(p) &&
-      !p.toLowerCase().includes('sushant lok') &&
       !p.includes(',') && !p.toLowerCase().includes('option') && !p.includes(' - ')
     );
-    const combined = [...new Set([...canonicalPhases, ...customPhases])];
+    const combined = [...new Set([...areaPhases, ...customPhases])];
     res.json(combined);
   } catch (error) {
     res.status(500).json({ message: error.message });

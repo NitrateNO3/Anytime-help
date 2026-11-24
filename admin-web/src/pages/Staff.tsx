@@ -14,7 +14,10 @@ const defaultCategories = [
   'Rainwater drainage', 'Tree cutting', 'Street light', 'Water service'
 ];
 
-const defaultPhases = ['All', 'Universal', 'Sushant Lok 2', 'Sushant Lok 3'];
+// Phases and blocks come from the area being managed (Areas page), never hardcoded
+const defaultPhases = ['All', 'Universal'];
+const UNIVERSAL_GROUP = 'All Groups (Universal)';
+const universalLocation = (): LocationAssignment => ({ phase: UNIVERSAL_GROUP, blocks: ['ALL'] });
 
 export interface LocationAssignment {
   phase: string;
@@ -50,7 +53,8 @@ function LocationAssignmentSection({
     const available = Object.keys(dynamicEntityBlocks).filter(
       k => k !== 'All Groups (Universal)' && !locations.some(l => l.phase === k)
     );
-    const newPhase = available[0] || 'Sushant Lok 3';
+    const newPhase = available[0];
+    if (!newPhase) return; // every group of this area is already added
     const defaultBlocks = dynamicEntityBlocks[newPhase] && dynamicEntityBlocks[newPhase].length > 0
       ? [dynamicEntityBlocks[newPhase][0]]
       : ['ALL'];
@@ -405,7 +409,7 @@ function LocationAssignmentSection({
         onMouseOver={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.08)'}
         onMouseOut={(e) => e.currentTarget.style.background = 'rgba(59, 130, 246, 0.04)'}
       >
-        <Plus size={16} /> + Add Another Society / Phase (e.g. Sushant Lok 3)
+        <Plus size={16} /> Add another group / phase
       </button>
     </div>
   );
@@ -468,9 +472,11 @@ export default function Staff() {
   }, [search]);
 
   // Form State
-  const [assignedLocations, setAssignedLocations] = useState<LocationAssignment[]>([
-    { phase: 'Sushant Lok 2', blocks: ['C'] }
-  ]);
+  // Default for new staff: first group of this area, all blocks (set once the area loads)
+  const [areaPhases, setAreaPhases] = useState<{ name: string; blocks: string[] }[]>([]);
+  const defaultLocation = (): LocationAssignment =>
+    areaPhases[0] ? { phase: areaPhases[0].name, blocks: ['ALL'] } : universalLocation();
+  const [assignedLocations, setAssignedLocations] = useState<LocationAssignment[]>([universalLocation()]);
   const [editLocations, setEditLocations] = useState<LocationAssignment[]>([]);
   const [staffPersonalName, setStaffPersonalName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -483,9 +489,7 @@ export default function Staff() {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [phases, setPhases] = useState<string[]>(defaultPhases);
   const [dynamicEntityBlocks, setDynamicEntityBlocks] = useState<Record<string, string[]>>({
-    'All Groups (Universal)': ['All Blocks (Entire Society)'],
-    'Sushant Lok 2': ['C', 'D', 'E', 'F', 'G'],
-    'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
+    [UNIVERSAL_GROUP]: ['All Blocks (Entire Society)'],
   });
   
   
@@ -519,29 +523,31 @@ export default function Staff() {
 
   const fetchDynamicPhases = () => {
     const token = localStorage.getItem('adminToken');
-    axios.get(`${API_URL}/users/phases`, { headers: { 'x-auth-token': token } })
-      .then(res => {
-        if (res.data && Array.isArray(res.data)) {
-          const newPhases = [...new Set([...defaultPhases, ...res.data])];
-          setPhases(newPhases);
-          
-          // Build dynamic entityBlocks mapping
-          const newEntityBlocks: Record<string, string[]> = {
-            'All Groups (Universal)': ['All Blocks (Entire Society)'],
-            'Sushant Lok 2': ['C', 'D', 'E', 'F', 'G'],
-            'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
-          };
-          res.data.forEach((p: string) => {
-            if (!newEntityBlocks[p]) {
-              newEntityBlocks[p] = [];
-            }
-          });
-          setDynamicEntityBlocks(newEntityBlocks);
-        }
-      })
-      .catch(err => {
-        console.error('Error fetching phases:', err);
-      });
+    const headers = { headers: { 'x-auth-token': token } };
+    Promise.all([
+      axios.get(`${API_URL}/areas/current`, headers).then(r => r.data).catch(() => null),
+      axios.get(`${API_URL}/users/phases`, headers).then(r => (Array.isArray(r.data) ? r.data : [])).catch(() => []),
+    ]).then(([area, extra]: [any, string[]]) => {
+      // Groups (phases) and blocks of the current area, as set on the Areas page
+      const fromArea: { name: string; blocks: string[] }[] = Array.isArray(area?.phases)
+        ? area.phases.filter((p: any) => p && p.name).map((p: any) => ({ name: String(p.name), blocks: Array.isArray(p.blocks) ? p.blocks : [] }))
+        : [];
+      setAreaPhases(fromArea);
+
+      const names = [...new Set([...fromArea.map(p => p.name), ...extra])];
+      setPhases([...new Set([...defaultPhases, ...names])]);
+
+      const newEntityBlocks: Record<string, string[]> = { [UNIVERSAL_GROUP]: ['All Blocks (Entire Society)'] };
+      fromArea.forEach(p => { newEntityBlocks[p.name] = p.blocks; });
+      extra.forEach((p: string) => { if (!newEntityBlocks[p]) newEntityBlocks[p] = []; });
+      setDynamicEntityBlocks(newEntityBlocks);
+
+      // New-staff form still on the placeholder: start on this area's first group
+      if (fromArea[0]) {
+        setAssignedLocations(prev =>
+          prev.length === 1 && prev[0].phase === UNIVERSAL_GROUP ? [{ phase: fromArea[0].name, blocks: ['ALL'] }] : prev);
+      }
+    });
   };
 
   useEffect(() => {
@@ -725,7 +731,7 @@ export default function Staff() {
       setStaffPersonalName('');
       setPhoneNumber('');
       setStaffPermissions([]);
-      setAssignedLocations([{ phase: 'Sushant Lok 2', blocks: ['C'] }]);
+      setAssignedLocations([defaultLocation()]);
       
       // Auto switch back to list
       setActiveTab('list');
@@ -1201,7 +1207,7 @@ export default function Staff() {
                                       initialLocs = [{ phase: member.phase, blocks: member.block ? [member.block] : ['ALL'] }];
                                     }
                                   } else {
-                                    initialLocs = [{ phase: 'Sushant Lok 2', blocks: ['C'] }];
+                                    initialLocs = [defaultLocation()];
                                   }
                                   setEditLocations(initialLocs);
                                 }}
