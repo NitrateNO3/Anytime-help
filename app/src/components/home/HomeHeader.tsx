@@ -14,11 +14,14 @@ const API_URL = 'https://anytime-help.onrender.com/api';
 const HERO_TOP = '#0D3346';
 const HERO_BOTTOM = '#1C6A66';
 const CARD_H = 196;
-// Banner height follows the image shape so nothing gets cropped
-const DEFAULT_RATIO = 16 / 9;
-const MIN_RATIO = 1.2;   // never taller than this
-const MAX_RATIO = 3.5;   // never thinner than this
+// Full-bleed hero banner: the picture fills the whole top area (behind the status bar,
+// logo and search) at a fixed 9:10 shape, so a 1080 x 1200 image fits every phone
+const HERO_RATIO = 10 / 9;
+const LIP_H = 24;
+const DOTS_H = 26;
 const TOP_PAD = Platform.OS === 'android' ? (RNStatusBar.currentHeight || 24) + 8 : 48;
+// Height of the logo row + search bar that sit on top of the banner
+const TOP_PART = TOP_PAD + 56 + 18 + 52;
 
 const comingSoon = () =>
   Toast.show({ type: 'info', text1: 'Coming soon', text2: 'This feature will be live shortly.', position: 'bottom', visibilityTime: 2000 });
@@ -59,21 +62,8 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
   const width = Dimensions.get('window').width;
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList<Banner>>(null);
-  const [ratio, setRatio] = useState(DEFAULT_RATIO);
-
-  // Image-only sliders size to the first picture's real shape ('contain', never cut);
-  // as soon as one text card is present every slide uses the card height
-  const hasCard = banners.some(isCard);
-  const firstUrl = hasCard ? undefined : banners[0]?.url;
-  useEffect(() => {
-    if (!firstUrl) return;
-    let alive = true;
-    Image.getSize(firstUrl, (w, h) => {
-      if (alive && w > 0 && h > 0) setRatio(Math.min(MAX_RATIO, Math.max(MIN_RATIO, w / h)));
-    }, () => {});
-    return () => { alive = false; };
-  }, [firstUrl]);
-  const bannerH = hasCard ? CARD_H : Math.round(width / ratio);
+  const hasBanners = banners.length > 0;
+  const heroH = Math.max(Math.round(width * HERO_RATIO), TOP_PART + CARD_H + DOTS_H + LIP_H);
 
   // Auto-advance using each banner's own duration (seconds, default 4)
   useEffect(() => {
@@ -100,12 +90,8 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
     if (b.url) onBannerPress(b);
   };
 
-  return (
-    <LinearGradient colors={[HERO_TOP, HERO_BOTTOM]} start={{ x: 0, y: 0 }} end={{ x: 0.4, y: 1 }} style={s.hero}>
-      {/* Soft rings in the background */}
-      <View style={[s.ring, { width: 300, height: 300, borderRadius: 150, top: 90, right: -80 }]} />
-      <View style={[s.ring, { width: 170, height: 170, borderRadius: 85, top: 235, right: 0, borderWidth: 14, borderColor: 'rgba(255,255,255,0.05)' }]} />
-
+  const topBar = (
+    <>
       <View style={s.topRow}>
         <Image source={require('../../../assets/images/logo.png')} style={{ width: 56, height: 56 }} resizeMode="contain" />
         <View style={{ flex: 1, marginLeft: 10 }}>
@@ -125,20 +111,33 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
         <Ionicons name="search" size={20} color="rgba(255,255,255,0.7)" />
         <Text style={s.searchText} numberOfLines={1}>Search 'doctor', 'grocery', 'salon'…</Text>
       </TouchableOpacity>
+    </>
+  );
 
-      {banners.length > 0 && (
-        <View style={{ marginTop: 18 }}>
+  return (
+    <LinearGradient
+      colors={[HERO_TOP, HERO_BOTTOM]} start={{ x: 0, y: 0 }} end={{ x: 0.4, y: 1 }}
+      style={[s.hero, hasBanners && { height: heroH, paddingTop: 0 }]}
+    >
+      {/* Soft rings in the background */}
+      <View style={[s.ring, { width: 300, height: 300, borderRadius: 150, top: 90, right: -80 }]} />
+      <View style={[s.ring, { width: 170, height: 170, borderRadius: 85, top: 235, right: 0, borderWidth: 14, borderColor: 'rgba(255,255,255,0.05)' }]} />
+
+      {hasBanners ? (
+        <>
+          {/* Whole-hero slider: every slide covers the full top area and slides as one piece */}
           <FlatList
             ref={listRef}
             data={banners}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
+            style={StyleSheet.absoluteFill}
             keyExtractor={(b, i) => b._id || `hb-${i}`}
             getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
             onMomentumScrollEnd={e => setIndex(Math.max(0, Math.min(Math.round(e.nativeEvent.contentOffset.x / width), banners.length - 1)))}
             renderItem={({ item }) => isCard(item) ? (
-              <TouchableOpacity activeOpacity={0.92} onPress={() => pressBanner(item)} style={[s.card, { width, height: bannerH }]}>
+              <TouchableOpacity activeOpacity={0.92} onPress={() => pressBanner(item)} style={[s.card, { width, height: heroH }]}>
                 <View style={{ flex: 1, paddingRight: 12 }}>
                   {!!item.tag && (
                     <View style={s.tagPill}><Text style={s.tagText} numberOfLines={1}>{item.tag.toUpperCase()}</Text></View>
@@ -164,22 +163,39 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
                 </View>
               </TouchableOpacity>
             ) : (
-              <TouchableOpacity activeOpacity={0.92} onPress={() => pressBanner(item)} style={{ width, height: bannerH }}>
-                <Image source={{ uri: item.url }} style={StyleSheet.absoluteFill} resizeMode="contain" />
+              <TouchableOpacity activeOpacity={0.95} onPress={() => pressBanner(item)} style={{ width, height: heroH }}>
+                <Image source={{ uri: item.url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                {/* Dark fade at the top keeps the logo, bell and search readable on any picture */}
+                <LinearGradient
+                  colors={['rgba(0,0,0,0.45)', 'rgba(0,0,0,0)']}
+                  style={{ position: 'absolute', top: 0, left: 0, right: 0, height: TOP_PART + 24 }}
+                  pointerEvents="none"
+                />
                 <View style={s.adTag}><Text style={s.adTagText}>AD</Text></View>
               </TouchableOpacity>
             )}
           />
+
+          {/* Logo row + search float above the slider; empty space passes swipes through */}
+          <View style={{ paddingTop: TOP_PAD }} pointerEvents="box-none">
+            {topBar}
+          </View>
+
           {banners.length > 1 && (
-            <View style={s.dots}>
+            <View style={s.dots} pointerEvents="none">
               {banners.map((_, i) => <View key={i} style={[s.dot, i === index && s.dotOn]} />)}
             </View>
           )}
-        </View>
-      )}
 
-      {/* White sheet edge the page content starts on */}
-      <View style={[s.sheetLip, banners.length === 0 && { marginTop: 22 }, banners.length === 1 && { marginTop: 14 }]} />
+          {/* White sheet edge the page content starts on */}
+          <View style={[s.sheetLip, s.sheetLipAbs]} pointerEvents="none" />
+        </>
+      ) : (
+        <>
+          {topBar}
+          <View style={[s.sheetLip, { marginTop: 22 }]} />
+        </>
+      )}
     </LinearGradient>
   );
 }
@@ -227,7 +243,7 @@ const s = StyleSheet.create({
   searchText: { flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: 15 },
 
   // Text card banner
-  card: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
+  card: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: TOP_PART + 4, paddingBottom: DOTS_H + LIP_H },
   tagPill: { alignSelf: 'flex-start', backgroundColor: '#5EE9C9', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4, marginBottom: 10 },
   tagText: { color: '#064E3B', fontSize: 10.5, fontWeight: '900', letterSpacing: 0.8 },
   cardTitle: { color: '#FFFFFF', fontSize: 24, lineHeight: 29, fontWeight: '800', letterSpacing: -0.4 },
@@ -244,12 +260,13 @@ const s = StyleSheet.create({
   tileImg: { width: '100%', height: '100%' },
   cardAd: { position: 'absolute', bottom: -10, right: -2, backgroundColor: 'rgba(8,30,40,0.85)', borderRadius: 7, paddingHorizontal: 7, paddingVertical: 2 },
 
-  adTag: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(15,23,42,0.55)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
+  adTag: { position: 'absolute', bottom: LIP_H + 10, right: 14, backgroundColor: 'rgba(15,23,42,0.55)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   adTagText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
-  dots: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 14 },
+  dots: { position: 'absolute', left: 16, bottom: LIP_H + 10, flexDirection: 'row', alignItems: 'center', gap: 5 },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.45)' },
   dotOn: { width: 22, backgroundColor: '#FFFFFF' },
-  sheetLip: { height: 24, backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26 },
+  sheetLip: { height: LIP_H, backgroundColor: '#FFFFFF', borderTopLeftRadius: 26, borderTopRightRadius: 26 },
+  sheetLipAbs: { position: 'absolute', left: 0, right: 0, bottom: 0 },
 
   compact: {
     position: 'absolute', top: 0, left: 0, right: 0, zIndex: 20, flexDirection: 'row', alignItems: 'center', gap: 10,

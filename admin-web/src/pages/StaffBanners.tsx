@@ -359,7 +359,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
         return {
           label: 'Resident & Member Portal',
           icon: <Home size={18} />,
-          desc: 'Same banners appear on both the Resident home screen and the RWA Member dashboard (top header slider).'
+          desc: 'Same banners appear on both the Resident home screen and the RWA Member dashboard. Image banners fill the whole top area: upload 1080 x 1200 px (9:10). Keep the top 480 px plain (logo and search sit there) and the bottom 120 px free.'
         };
     }
   };
