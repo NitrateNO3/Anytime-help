@@ -44,7 +44,7 @@ interface BannerItem {
 
 // Text card banners (Residents & Members home): text on the teal header, icon or small image on the right
 type CardForm = { style: 'image' | 'card'; tag: string; subtitle: string; ctaLabel: string; icon: string; link: string };
-const EMPTY_CARD: CardForm = { style: 'card', tag: '', subtitle: '', ctaLabel: '', icon: 'sparkles-outline', link: '' };
+const EMPTY_CARD: CardForm = { style: 'image', tag: '', subtitle: '', ctaLabel: '', icon: 'sparkles-outline', link: '' };
 const CARD_ICONS: { value: string; label: string }[] = [
   { value: 'sparkles-outline', label: 'Sparkles' },
   { value: 'medkit-outline', label: 'Health / Clinic' },
@@ -119,7 +119,6 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
 
   // Text card fields, shared by whichever modal is open
   const [cardForm, setCardForm] = useState<CardForm>(EMPTY_CARD);
-  const setCard = (patch: Partial<CardForm>) => setCardForm(prev => ({ ...prev, ...patch }));
   const appendCardFields = (fd: FormData) => {
     fd.append('style', cardForm.style);
     fd.append('tag', cardForm.tag.trim());
@@ -202,7 +201,8 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
     setEditImagePreview(banner.url || null);
     setEditRemoveImage(false);
     setCardForm({
-      style: banner.style === 'card' ? 'card' : 'image',
+      // Admin only uploads ready-made image banners now
+      style: 'image',
       tag: banner.tag || '',
       subtitle: banner.subtitle || '',
       ctaLabel: banner.ctaLabel || '',
@@ -723,64 +723,6 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                   </div>
                 </div>
 
-                {/* Banner type + text card fields (Residents & Members only) */}
-                {newAudience !== 'Staff' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>Banner Type</label>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {([['card', 'Text card'], ['image', 'Full image']] as const).map(([val, lbl]) => (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setCard({ style: val })}
-                            style={{
-                              flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
-                              border: cardForm.style === val ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                              background: cardForm.style === val ? '#EFF6FF' : '#FFFFFF',
-                              color: cardForm.style === val ? '#1D4ED8' : '#475569',
-                              fontWeight: cardForm.style === val ? 700 : 500,
-                            }}
-                          >
-                            {lbl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {cardForm.style === 'card' && (
-                      <>
-                        <CardPreview title={newTitle} card={cardForm} image={newImagePreview} />
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                          <div>
-                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Tag line</label>
-                            <input type="text" className="form-input" placeholder="e.g. Happydent · Sector 52" value={cardForm.tag} onChange={(e) => setCard({ tag: e.target.value })} style={{ width: '100%' }} />
-                          </div>
-                          <div>
-                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Button text</label>
-                            <input type="text" className="form-input" placeholder="e.g. Book now" value={cardForm.ctaLabel} onChange={(e) => setCard({ ctaLabel: e.target.value })} style={{ width: '100%' }} />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Subtitle</label>
-                          <input type="text" className="form-input" placeholder="e.g. Cleaning, X-ray & consultation · this month" value={cardForm.subtitle} onChange={(e) => setCard({ subtitle: e.target.value })} style={{ width: '100%' }} />
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                          <div>
-                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Icon (used when no image)</label>
-                            <select className="form-input" value={cardForm.icon} onChange={(e) => setCard({ icon: e.target.value })} style={{ width: '100%' }}>
-                              {CARD_ICONS.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Link on tap (optional)</label>
-                            <input type="text" className="form-input" placeholder="https://... or tel:..." value={cardForm.link} onChange={(e) => setCard({ link: e.target.value })} style={{ width: '100%' }} />
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
                 {/* Image Picker Box */}
                 <div>
                   <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
@@ -791,7 +733,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                   
                   {newImagePreview ? (
                     <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden', height: 160, background: '#0F172A', border: '1px solid #CBD5E1' }}>
-                      <img src={newImagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={newImagePreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                       <button 
                         type="button" 
                         onClick={() => { setNewImageFile(null); setNewImagePreview(null); }}
@@ -829,7 +771,9 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                     >
                       <ImageIcon size={36} color="#94A3B8" style={{ margin: '0 auto 8px' }} />
                       <div style={{ fontWeight: 600, color: '#334155', fontSize: 14 }}>Click to choose banner image</div>
-                      <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>Supports JPG, PNG, WEBP (Recommended horizontal ~1200x675)</div>
+                      <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>
+                        Supports JPG, PNG, WEBP ({newAudience === 'Staff' ? 'Recommended horizontal ~1200x675' : 'Full image: 1080 x 1200 px'})
+                      </div>
                     </div>
                   )}
 
@@ -842,84 +786,6 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                   />
                 </div>
 
-                {/* Banner Title */}
-                <div>
-                  <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
-                    {newAudience !== 'Staff' && cardForm.style === 'card' ? <>Title <span style={{ color: 'var(--danger)' }}>*</span></> : 'Banner Title (Optional)'}
-                  </label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="e.g. Society Notice / Event Update"
-                    value={newTitle}
-                    onChange={(e) => setNewTitle(e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Duration & Expiry Settings */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div>
-                    <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>
-                      Slide Duration (Seconds)
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input 
-                        type="number" 
-                        min={1}
-                        max={120}
-                        className="form-input" 
-                        placeholder="e.g. 5"
-                        value={newDuration}
-                        onChange={(e) => setNewDuration(e.target.value)}
-                        onBlur={() => {
-                          const val = parseInt(String(newDuration), 10);
-                          if (isNaN(val) || val < 1) setNewDuration(4);
-                          else if (val > 120) setNewDuration(120);
-                          else setNewDuration(val);
-                        }}
-                        style={{ width: '100%', paddingLeft: 34 }}
-                      />
-                      <Clock size={16} color="#64748B" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-                    </div>
-                    <span style={{ fontSize: 11, color: '#64748B', marginTop: 4, display: 'block' }}>
-                      App me kitne sec show hoga (default: 4s)
-                    </span>
-                  </div>
-
-                  <div>
-                    <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>
-                      Expiry Date (Optional)
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input 
-                        type="date" 
-                        className="form-input" 
-                        value={newExpiresAt}
-                        onChange={(e) => setNewExpiresAt(e.target.value)}
-                        style={{ width: '100%', paddingLeft: 34 }}
-                      />
-                      <Calendar size={16} color="#64748B" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-                    </div>
-                    <span style={{ fontSize: 11, color: '#64748B', marginTop: 4, display: 'block' }}>
-                      Is date ke baad band ho jayega
-                    </span>
-                  </div>
-                </div>
-
-                {/* Active Checkbox */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                  <input 
-                    type="checkbox" 
-                    id="newIsActive" 
-                    checked={newIsActive}
-                    onChange={(e) => setNewIsActive(e.target.checked)}
-                    style={{ width: 18, height: 18, cursor: 'pointer' }}
-                  />
-                  <label htmlFor="newIsActive" style={{ fontSize: 14, fontWeight: 500, color: '#1E293B', cursor: 'pointer' }}>
-                    Make banner active immediately in {audienceLabel(newAudience)} portal
-                  </label>
-                </div>
               </div>
 
               <div className="modal-footer">
@@ -980,64 +846,6 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                   </div>
                 </div>
 
-                {/* Banner type + text card fields (Residents & Members only) */}
-                {editAudience !== 'Staff' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div>
-                      <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>Banner Type</label>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        {([['card', 'Text card'], ['image', 'Full image']] as const).map(([val, lbl]) => (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setCard({ style: val })}
-                            style={{
-                              flex: 1, padding: '8px 12px', borderRadius: 8, fontSize: 13, cursor: 'pointer',
-                              border: cardForm.style === val ? '2px solid #2563EB' : '1px solid #CBD5E1',
-                              background: cardForm.style === val ? '#EFF6FF' : '#FFFFFF',
-                              color: cardForm.style === val ? '#1D4ED8' : '#475569',
-                              fontWeight: cardForm.style === val ? 700 : 500,
-                            }}
-                          >
-                            {lbl}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    {cardForm.style === 'card' && (
-                      <>
-                        <CardPreview title={editTitle} card={cardForm} image={editRemoveImage ? null : editImagePreview} />
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                          <div>
-                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Tag line</label>
-                            <input type="text" className="form-input" placeholder="e.g. Happydent · Sector 52" value={cardForm.tag} onChange={(e) => setCard({ tag: e.target.value })} style={{ width: '100%' }} />
-                          </div>
-                          <div>
-                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Button text</label>
-                            <input type="text" className="form-input" placeholder="e.g. Book now" value={cardForm.ctaLabel} onChange={(e) => setCard({ ctaLabel: e.target.value })} style={{ width: '100%' }} />
-                          </div>
-                        </div>
-                        <div>
-                          <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Subtitle</label>
-                          <input type="text" className="form-input" placeholder="e.g. Cleaning, X-ray & consultation · this month" value={cardForm.subtitle} onChange={(e) => setCard({ subtitle: e.target.value })} style={{ width: '100%' }} />
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                          <div>
-                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Icon (used when no image)</label>
-                            <select className="form-input" value={cardForm.icon} onChange={(e) => setCard({ icon: e.target.value })} style={{ width: '100%' }}>
-                              {CARD_ICONS.map(i => <option key={i.value} value={i.value}>{i.label}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>Link on tap (optional)</label>
-                            <input type="text" className="form-input" placeholder="https://... or tel:..." value={cardForm.link} onChange={(e) => setCard({ link: e.target.value })} style={{ width: '100%' }} />
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-
                 {/* Banner Image Preview / Replace */}
                 <div>
                   <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
@@ -1049,7 +857,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                     <img
                       src={editImagePreview}
                       alt="Banner Preview"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                     />
                     ) : (
                       <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94A3B8', fontSize: 13 }}>No image</div>
@@ -1104,84 +912,6 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                   )}
                 </div>
 
-                {/* Banner Title */}
-                <div>
-                  <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6 }}>
-                    Banner Title
-                  </label>
-                  <input 
-                    type="text" 
-                    className="form-input" 
-                    placeholder="Banner title / description"
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                {/* Duration & Expiry Settings */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div>
-                    <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>
-                      Slide Duration (Seconds)
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input 
-                        type="number" 
-                        min={1}
-                        max={120}
-                        className="form-input" 
-                        placeholder="e.g. 5"
-                        value={editDuration}
-                        onChange={(e) => setEditDuration(e.target.value)}
-                        onBlur={() => {
-                          const val = parseInt(String(editDuration), 10);
-                          if (isNaN(val) || val < 1) setEditDuration(4);
-                          else if (val > 120) setEditDuration(120);
-                          else setEditDuration(val);
-                        }}
-                        style={{ width: '100%', paddingLeft: 34 }}
-                      />
-                      <Clock size={16} color="#64748B" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-                    </div>
-                    <span style={{ fontSize: 11, color: '#64748B', marginTop: 4, display: 'block' }}>
-                      App me kitne sec show hoga (default: 4s)
-                    </span>
-                  </div>
-
-                  <div>
-                    <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 6, fontSize: 13 }}>
-                      Expiry Date (Optional)
-                    </label>
-                    <div style={{ position: 'relative' }}>
-                      <input 
-                        type="date" 
-                        className="form-input" 
-                        value={editExpiresAt}
-                        onChange={(e) => setEditExpiresAt(e.target.value)}
-                        style={{ width: '100%', paddingLeft: 34 }}
-                      />
-                      <Calendar size={16} color="#64748B" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
-                    </div>
-                    <span style={{ fontSize: 11, color: '#64748B', marginTop: 4, display: 'block' }}>
-                      Is date ke baad band ho jayega
-                    </span>
-                  </div>
-                </div>
-
-                {/* Active Checkbox */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-                  <input 
-                    type="checkbox" 
-                    id="editIsActive" 
-                    checked={editIsActive}
-                    onChange={(e) => setEditIsActive(e.target.checked)}
-                    style={{ width: 18, height: 18, cursor: 'pointer' }}
-                  />
-                  <label htmlFor="editIsActive" style={{ fontSize: 14, fontWeight: 500, color: '#1E293B', cursor: 'pointer' }}>
-                    Active (Show in {audienceLabel(editAudience)} Portal)
-                  </label>
-                </div>
               </div>
 
               <div className="modal-footer">
