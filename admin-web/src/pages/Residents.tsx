@@ -34,34 +34,29 @@ export default function Residents() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [propertyType, setPropertyType] = useState('Owned');
   const [houseNo, setHouseNo] = useState('');
-  const STANDARD_PHASE_BLOCKS: Record<string, string[]> = {
-    'Sushant Lok 2': ['C', 'D', 'E', 'F', 'G'],
-    'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
-  };
-
-  const [phase, setPhase] = useState('Sushant Lok 2');
-  const [block, setBlock] = useState('C');
+  // Groups (phases) and blocks come from the area being managed (Areas page)
+  const [areaPhases, setAreaPhases] = useState<{ name: string; blocks: string[] }[]>([]);
+  const [phase, setPhase] = useState('');
+  const [block, setBlock] = useState('');
   const [relation, setRelation] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [showCustomPhase, setShowCustomPhase] = useState(false);
   const [showCustomBlock, setShowCustomBlock] = useState(false);
 
-  const [phases, setPhases] = useState<string[]>(['Sushant Lok 2', 'Sushant Lok 3']);
-  const [dynamicEntityBlocks, setDynamicEntityBlocks] = useState<Record<string, string[]>>({
-    'Sushant Lok 2': ['C', 'D', 'E', 'F', 'G'],
-    'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
-  });
+  const [phases, setPhases] = useState<string[]>([]);
+  const [dynamicEntityBlocks, setDynamicEntityBlocks] = useState<Record<string, string[]>>({});
 
   // Group Management State
   const [showManageGroupsModal, setShowManageGroupsModal] = useState(false);
   const [editingPhaseName, setEditingPhaseName] = useState<string | null>(null);
   const [newPhaseName, setNewPhaseName] = useState('');
 
-  const getBlockOptions = (selectedPhase: string) => {
-    if (STANDARD_PHASE_BLOCKS[selectedPhase]) {
-      return STANDARD_PHASE_BLOCKS[selectedPhase];
-    }
-    return dynamicEntityBlocks[selectedPhase] || [];
+  const getBlockOptions = (selectedPhase: string) => dynamicEntityBlocks[selectedPhase] || [];
+
+  // Add-resident form starts on the area's first group and its first block
+  const resetPhaseAndBlock = (list = areaPhases) => {
+    setPhase(list[0]?.name || '');
+    setBlock(list[0]?.blocks?.[0] || '');
   };
 
   // Debounce search query (best practice: 350ms delay)
@@ -79,30 +74,31 @@ export default function Residents() {
 
   const fetchDynamicPhases = () => {
     const token = localStorage.getItem('adminToken');
-    axios.get(`${API_URL}/users/phases`, { headers: { 'x-auth-token': token } })
-      .then(res => {
-        if (res.data && Array.isArray(res.data)) {
-          const defaultPhases = ['Sushant Lok 2', 'Sushant Lok 3'];
-          const fetchedPhases = res.data.filter(p => 
-            p && 
-            !['Universal', 'All', 'All Groups', 'All Groups (Universal)'].includes(p) &&
-            !p.includes(',') && !p.toLowerCase().includes('option') && !p.includes(' - ')
-          );
-          setPhases([...new Set([...defaultPhases, ...fetchedPhases])]);
-          
-          const newEntityBlocks: Record<string, string[]> = {
-            'Sushant Lok 2': ['C', 'D', 'E', 'F', 'G'],
-            'Sushant Lok 3': ['A', 'B', 'B1', 'C', 'D', 'E', 'F', 'G', 'H']
-          };
-          fetchedPhases.forEach((p: string) => {
-            if (!newEntityBlocks[p]) {
-              newEntityBlocks[p] = [];
-            }
-          });
-          setDynamicEntityBlocks(newEntityBlocks);
-        }
-      })
-      .catch(err => console.error('Error fetching phases:', err));
+    const headers = { headers: { 'x-auth-token': token } };
+    Promise.all([
+      axios.get(`${API_URL}/areas/current`, headers).then(r => r.data).catch(() => null),
+      axios.get(`${API_URL}/users/phases`, headers).then(r => (Array.isArray(r.data) ? r.data : [])).catch(() => []),
+    ]).then(([area, extra]: [any, string[]]) => {
+      const fromArea: { name: string; blocks: string[] }[] = Array.isArray(area?.phases)
+        ? area.phases.filter((p: any) => p && p.name).map((p: any) => ({ name: String(p.name), blocks: Array.isArray(p.blocks) ? p.blocks : [] }))
+        : [];
+      const fetchedPhases = extra.filter(p =>
+        p &&
+        !['Universal', 'All', 'All Groups', 'All Groups (Universal)'].includes(p) &&
+        !p.includes(',') && !p.toLowerCase().includes('option') && !p.includes(' - ')
+      );
+      setAreaPhases(fromArea);
+      setPhases([...new Set([...fromArea.map(p => p.name), ...fetchedPhases])]);
+
+      const newEntityBlocks: Record<string, string[]> = {};
+      fromArea.forEach(p => { newEntityBlocks[p.name] = p.blocks; });
+      fetchedPhases.forEach((p: string) => { if (!newEntityBlocks[p]) newEntityBlocks[p] = []; });
+      setDynamicEntityBlocks(newEntityBlocks);
+
+      // Form not touched yet: start on this area's first group
+      setPhase(prev => prev || fromArea[0]?.name || '');
+      setBlock(prev => prev || fromArea[0]?.blocks?.[0] || '');
+    });
   };
 
   useEffect(() => {
@@ -340,8 +336,7 @@ export default function Residents() {
       setPhoneNumber('');
       setHouseNo('');
       setRelation('');
-      setPhase('Sushant Lok 2');
-      setBlock('C');
+      resetPhaseAndBlock();
       
       // Auto switch back to list
       setActiveTab('list');
@@ -1071,12 +1066,12 @@ export default function Residents() {
             </p>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '400px', overflowY: 'auto' }}>
-              {phases.filter(p => !['Sushant Lok 2', 'Sushant Lok 3'].includes(p) && p !== 'Unassigned').length === 0 ? (
+              {phases.filter(p => !areaPhases.some(ap => ap.name === p) && p !== 'Unassigned').length === 0 ? (
                 <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '20px' }}>
                   No custom groups found.
                 </div>
               ) : (
-                phases.filter(p => !['Sushant Lok 2', 'Sushant Lok 3'].includes(p) && p !== 'Unassigned').map(phase => (
+                phases.filter(p => !areaPhases.some(ap => ap.name === p) && p !== 'Unassigned').map(phase => (
                   <div key={phase} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#F8FAFC', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
                     
                     {editingPhaseName === phase ? (

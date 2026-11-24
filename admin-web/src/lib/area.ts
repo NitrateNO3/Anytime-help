@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import axios from 'axios';
 // Multi-area helpers for the admin panel.
 //
 // A platform Super Admin (backend role 'SuperAdmin') is stored in localStorage
@@ -46,3 +48,20 @@ export const socketAuth = () => ({
     areaId: (isPlatformSuperAdmin() && getSelectedArea()) || undefined,
   },
 });
+
+// Group (phase) names of the area being managed, as set on the Areas page.
+// Used for phase pickers and filters so no page hardcodes one area's groups.
+export function useAreaPhaseNames(): string[] {
+  const [names, setNames] = useState<string[]>([]);
+  useEffect(() => {
+    let alive = true;
+    axios.get(`${API_URL}/areas/current`)
+      .then(res => {
+        const list = Array.isArray(res.data?.phases) ? res.data.phases.map((p: any) => p?.name).filter(Boolean) : [];
+        if (alive) setNames(list);
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  return names;
+}

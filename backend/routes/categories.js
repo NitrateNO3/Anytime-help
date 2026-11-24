@@ -3,108 +3,21 @@ const router = express.Router();
 const multer = require('multer');
 const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const Category = require('../models/Category');
+const { currentArea } = require('../utils/areaContext');
+
+// Changing categories: the area Admin (a Super Admin counts as Admin inside the
+// area it picked), or a SubAdmin with the 'Staff Team' section, like the admin panel
+const canManageCategories = (req, res, next) => {
+  const u = req.user;
+  if (u && (u.role === 'Admin' || (u.role === 'SubAdmin' && (u.permissions || []).includes('Staff Team')))) return next();
+  return res.status(403).json({ msg: 'Only the area admin can change categories' });
+};
 const auth = require('../middleware/auth');
 const { cache, clearCachePrefix } = require('../middleware/cache');
 
 // Configure Multer (memory storage for upload to S3)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
-
-const defaultCategories = [
-  {
-    title: 'Electricity',
-    title_hi: 'बिजली',
-    title_hinglish: 'Bijli',
-    subCategories: ['Power Outage', 'Sparking Wire', 'Meter Issue', 'Other'],
-    subCategoriesDetails: [
-      { en: 'Power Outage', hi: 'बिजली कटौती', hinglish: 'Bijli Chali Gayi' },
-      { en: 'Sparking Wire', hi: 'तार में स्पार्किंग', hinglish: 'Taar me Sparking' },
-      { en: 'Meter Issue', hi: 'मीटर समस्या', hinglish: 'Meter Problem' },
-      { en: 'Other', hi: 'अन्य', hinglish: 'Dusra Issue' }
-    ]
-  },
-  {
-    title: 'Garbage',
-    title_hi: 'कचरा',
-    title_hinglish: 'Kachra',
-    subCategories: ['Missed Pickup', 'Overflowing Bin', 'Debris Waste', 'Other'],
-    subCategoriesDetails: [
-      { en: 'Missed Pickup', hi: 'कचरा नहीं उठा', hinglish: 'Kachra Nahi Utha' },
-      { en: 'Overflowing Bin', hi: 'डस्टबिन भर गया', hinglish: 'Dustbin Overfill' },
-      { en: 'Debris Waste', hi: 'मलबा / कचरा', hinglish: 'Malba Waste' },
-      { en: 'Other', hi: 'अन्य', hinglish: 'Dusra Issue' }
-    ]
-  },
-  {
-    title: 'Sweeping',
-    title_hi: 'झाड़ू / सफाई',
-    title_hinglish: 'Safai / Jhadu',
-    subCategories: ['Road Not Swept', 'Leaves Accumulation', 'Other'],
-    subCategoriesDetails: [
-      { en: 'Road Not Swept', hi: 'सड़क पर झाड़ू नहीं लगी', hinglish: 'Sadak Safai Nahi Hui' },
-      { en: 'Leaves Accumulation', hi: 'सूखे पत्ते जमा होना', hinglish: 'Patte Jama Hona' },
-      { en: 'Other', hi: 'अन्य', hinglish: 'Dusra Issue' }
-    ]
-  },
-  {
-    title: 'Sewage cleaning',
-    title_hi: 'सीवेज सफाई',
-    title_hinglish: 'Sewage Safai',
-    subCategories: ['Blocked Drain', 'Overflowing Manhole', 'Foul Odor', 'Other'],
-    subCategoriesDetails: [
-      { en: 'Blocked Drain', hi: 'नाली जाम होना', hinglish: 'Nali Jaam Hai' },
-      { en: 'Overflowing Manhole', hi: 'मैनहोल ओवरफ्लो', hinglish: 'Manhole Overflow' },
-      { en: 'Foul Odor', hi: 'बदबू आना', hinglish: 'Badboo / Foul Smell' },
-      { en: 'Other', hi: 'अन्य', hinglish: 'Dusra Issue' }
-    ]
-  },
-  {
-    title: 'Rainwater drainage',
-    title_hi: 'वर्षा जल निकासी',
-    title_hinglish: 'Water Drainage',
-    subCategories: ['Water Logging', 'Broken Drain Cover', 'Other'],
-    subCategoriesDetails: [
-      { en: 'Water Logging', hi: 'पानी भरना (जलभराव)', hinglish: 'Paani Bhara Hai' },
-      { en: 'Broken Drain Cover', hi: 'नाली का ढक्कन टूटा', hinglish: 'Nali Cover Toota' },
-      { en: 'Other', hi: 'अन्य', hinglish: 'Dusra Issue' }
-    ]
-  },
-  {
-    title: 'Tree cutting',
-    title_hi: 'पेड़ काटना',
-    title_hinglish: 'Ped Katna',
-    subCategories: ['Fallen Tree', 'Overgrown Branches', 'Other'],
-    subCategoriesDetails: [
-      { en: 'Fallen Tree', hi: 'गिरा हुआ पेड़', hinglish: 'Ped Gir Gaya' },
-      { en: 'Overgrown Branches', hi: 'बढ़ी हुई टहनियाँ', hinglish: 'Tahniyan Jyada Badh Gayi' },
-      { en: 'Other', hi: 'अन्य', hinglish: 'Dusra Issue' }
-    ]
-  },
-  {
-    title: 'Street light',
-    title_hi: 'स्ट्रीट लाइट',
-    title_hinglish: 'Street Light',
-    subCategories: ['Not Working', 'Flickering', 'Pole Damaged', 'Other'],
-    subCategoriesDetails: [
-      { en: 'Not Working', hi: 'काम नहीं कर रही', hinglish: 'Light Band Hai' },
-      { en: 'Flickering', hi: 'लाइट टिमटिमा रही है', hinglish: 'Light Timtima Rahi Hai' },
-      { en: 'Pole Damaged', hi: 'खंभा क्षतिग्रस्त', hinglish: 'Khambha Toota Hai' },
-      { en: 'Other', hi: 'अन्य', hinglish: 'Dusra Issue' }
-    ]
-  },
-  {
-    title: 'Water service',
-    title_hi: 'जल सेवा',
-    title_hinglish: 'Paani Service',
-    subCategories: ['No Water Supply', 'Contaminated Water', 'Pipeline Leakage', 'Other'],
-    subCategoriesDetails: [
-      { en: 'No Water Supply', hi: 'पानी की आपूर्ति नहीं', hinglish: 'Paani Nahi Aa Raha' },
-      { en: 'Contaminated Water', hi: 'दूषित पानी', hinglish: 'Ganda Paani' },
-      { en: 'Pipeline Leakage', hi: 'पाइपलाइन लीकेज', hinglish: 'Pipeline Leak Ho Rahi Hai' },
-      { en: 'Other', hi: 'अन्य', hinglish: 'Dusra Issue' }
-    ]
-  }
-];
 
 const categoryHiMap = {
   'tree trimming': 'पेड़ की कटाई',
@@ -158,16 +71,15 @@ const parseBool = (v) => {
 };
 
 // @route   GET /api/categories
-// @desc    Get all categories (seeds default if empty and auto-fills translations)
+// @desc    This area's categories (auto-fills missing translations). Every area
+//          creates its own: nothing is copied from another area. A request that
+//          belongs to no area gets an empty list instead of every area's categories.
 router.get('/', cache(300), async (req, res) => {
   try {
+    if (!currentArea()) return res.json([]);
     let categories = await Category.find().sort({ order: 1, createdAt: 1 });
-    
-    // Seed default categories if DB is completely empty
-    if (categories.length === 0) {
-      await Category.insertMany(defaultCategories);
-      categories = await Category.find().sort({ order: 1, createdAt: 1 });
-    } else {
+
+    {
       // Auto-fill title_hi and subcategory translations for any category missing it
       for (let cat of categories) {
         let needsSave = false;
@@ -216,7 +128,7 @@ const streamUpload = (req) => uploadToS3(req.file.buffer, 'categories');
 
 // @route   POST /api/categories
 // @desc    Create a category
-router.post('/', [auth, upload.single('image')], async (req, res) => {
+router.post('/', [auth, canManageCategories, upload.single('image')], async (req, res) => {
   let { title, title_hi, title_hinglish, subCategories, subCategoriesDetails } = req.body;
   
   if (typeof subCategories === 'string') {
@@ -292,7 +204,7 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
 
 // @route   PUT /api/categories/:id
 // @desc    Update a category
-router.put('/:id', [auth, upload.single('image')], async (req, res) => {
+router.put('/:id', [auth, canManageCategories, upload.single('image')], async (req, res) => {
   let { title, title_hi, title_hinglish, subCategories, subCategoriesDetails, activeLanguage } = req.body;
   
   if (typeof subCategories === 'string') {
@@ -365,7 +277,7 @@ router.put('/:id', [auth, upload.single('image')], async (req, res) => {
 
 // @route   DELETE /api/categories/:id
 // @desc    Delete a category
-router.delete('/:id', auth, async (req, res) => {
+router.delete('/:id', auth, canManageCategories, async (req, res) => {
   try {
     let category = await Category.findById(req.params.id);
     if (!category) return res.status(404).json({ msg: 'Category not found' });
@@ -388,7 +300,7 @@ router.delete('/:id', auth, async (req, res) => {
 
 // @route   POST /api/categories/reorder
 // @desc    Reorder categories in bulk
-router.post('/reorder', auth, async (req, res) => {
+router.post('/reorder', auth, canManageCategories, async (req, res) => {
   const { orderedIds } = req.body;
   if (!orderedIds || !Array.isArray(orderedIds)) {
     return res.status(400).json({ msg: 'orderedIds must be an array' });

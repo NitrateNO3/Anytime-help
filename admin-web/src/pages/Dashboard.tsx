@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Activity, CheckCircle, Clock, Trash2, Search, Filter, RotateCcw, X, AlertCircle, Hash } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { io } from 'socket.io-client';
-import { socketAuth } from '../lib/area';
+import { socketAuth, useAreaPhaseNames } from '../lib/area';
 import { ExportButtons } from '../components/ExportButtons';
 
 const API_URL = 'https://api.anytimehelp.co.in/api';
@@ -23,6 +23,8 @@ const defaultCategoriesList = [
 ];
 
 export default function Dashboard() {
+  // This area's groups for the phase filter (Areas page)
+  const areaPhaseNames = useAreaPhaseNames();
   const [complaints, setComplaints] = useState<any[]>([]);
   const [stats, setStats] = useState({ pending: 0, inProgress: 0, resolved: 0 });
   const [loading, setLoading] = useState(true);
@@ -650,8 +652,7 @@ export default function Dashboard() {
               }}
             >
               <option value="ALL">All Areas / Phases</option>
-              <option value="Sushant Lok 2">Sushant Lok 2</option>
-              <option value="Sushant Lok 3">Sushant Lok 3</option>
+              {areaPhaseNames.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
 
