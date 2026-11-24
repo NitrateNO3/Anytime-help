@@ -101,6 +101,23 @@ export async function sendPushTokenToBackend(token: string) {
 }
 
 /**
+ * Logout: tell the backend to stop sending this account's notifications to this phone.
+ * Call it before the login token is deleted. Never blocks logout.
+ */
+export async function clearPushTokenOnBackend() {
+  try {
+    const authToken = await SecureStore.getItemAsync('userToken');
+    if (!authToken) return;
+    await axios.delete(`${API_URL}/users/push-token`, {
+      headers: { 'x-auth-token': authToken },
+      timeout: 5000,
+    });
+  } catch (error) {
+    console.log('Could not clear push token on logout:', error);
+  }
+}
+
+/**
  * Set the app badge count to 0 to clear it
  */
 export async function clearAppBadge() {

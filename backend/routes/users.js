@@ -3,6 +3,7 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { runUnscoped } = require('../utils/areaContext');
 
 const checkAccess = (user, section) => {
   if (user.role === 'Admin') return true;
@@ -775,6 +776,31 @@ router.delete('/:id', auth, async (req, res) => {
   }
 });
 
+// Accounts that share the signed-in person's push token: same phone number in this
+// area (the area scope limits the query), or just this account
+const pushAccountIds = async (user) => {
+  if (!user.phone_number) return [user._id];
+  const list = await User.find({ phone_number: user.phone_number }).select('_id').lean();
+  return list.length ? list.map(u => u._id) : [user._id];
+};
+
+// @route   DELETE api/users/push-token
+// @desc    Logout: stop push notifications to this phone for this person's accounts
+// @access  Private
+router.delete('/push-token', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('phone_number expoPushToken');
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.expoPushToken) {
+      const myIds = await pushAccountIds(user);
+      await User.updateMany({ _id: { $in: myIds }, expoPushToken: user.expoPushToken }, { $set: { expoPushToken: '' } });
+    }
+    res.json({ message: 'Push token cleared' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
 // @route   PUT api/users/push-token
 // @desc    Update user expo push token
 // @access  Private
@@ -790,12 +816,17 @@ router.put('/push-token', auth, async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    if (user.phone_number) {
-      await User.updateMany({ phone_number: user.phone_number }, { expoPushToken });
-    } else {
-      user.expoPushToken = expoPushToken;
-      await user.save();
-    }
+    // This person's accounts in this area (one phone can hold several, e.g. staff zones)
+    const myIds = await pushAccountIds(user);
+    await User.updateMany({ _id: { $in: myIds } }, { expoPushToken });
+
+    // A push token belongs to one phone. Take it away from every other account
+    // (any area) that used this phone before, otherwise this phone keeps getting
+    // that account's notifications, e.g. complaints from another area.
+    await runUnscoped(async () => User.updateMany(
+      { expoPushToken, _id: { $nin: myIds } },
+      { $set: { expoPushToken: '' } }
+    ).exec());
 
     res.json({ message: 'Push token updated successfully' });
   } catch (error) {

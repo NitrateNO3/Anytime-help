@@ -90,6 +90,8 @@ export default function SettingsScreen() {
     } catch (e) {
       console.error('Error logging out from server', e);
     }
+    // Stop this account's push notifications on this phone
+    await import('../services/pushNotifications').then(m => m.clearPushTokenOnBackend()).catch(() => {});
     await SecureStore.deleteItemAsync('userToken');
     await SecureStore.deleteItemAsync('userData');
     router.replace('/' as any);
