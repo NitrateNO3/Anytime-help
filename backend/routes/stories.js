@@ -104,6 +104,35 @@ const getOwnOfficials = async (req) => {
   return list.filter(o => isOwnOfficial(req, o));
 };
 
+// ---- Area official page (one per area) ----
+// Only an Admin of the area may post / pin; a Super Admin acts inside the area it picked
+// (middleware/auth presents a Super Admin as role 'Admin').
+const canManageAreaPage = (req) => req.user && req.user.role === 'Admin' && !!req.areaId;
+
+// "Until I unpin" is stored as a date far in the future so expiresAt (and the TTL
+// index that deletes old stories) keeps working unchanged
+const PIN_FOREVER = new Date('9999-12-31T00:00:00.000Z');
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// Body { pin: 'forever' } or { pin_days: <1..3650> }. Returns the end date, or null for no pin.
+const readPinEnd = (body) => {
+  if (String(body.pin || '') === 'forever') return PIN_FOREVER;
+  const days = Number(body.pin_days);
+  if (Number.isFinite(days) && days > 0 && days <= 3650) return new Date(Date.now() + days * DAY_MS);
+  return null;
+};
+
+const applyPin = (story, end) => {
+  story.pinned = true;
+  story.pinned_until = end.getTime() === PIN_FOREVER.getTime() ? null : end;
+  story.expiresAt = end;
+};
+
+const areaPageName = async (req) => {
+  const area = req.areaId ? await Area.findById(req.areaId).select('name').lean() : null;
+  return area?.name || 'Official';
+};
+
 const shapeStory = (s, me) => {
   const viewers = (s.viewers || []).map(String);
   const likes = (s.likes || []).map(String);
@@ -121,6 +150,8 @@ const shapeStory = (s, me) => {
     bg_color: s.bg_color,
     createdAt: s.createdAt,
     expiresAt: s.expiresAt,
+    pinned: !!s.pinned,
+    pinned_until: s.pinned_until || null,
     seen: viewers.includes(me),
     is_mine: mine,
     liked: likes.includes(me),
@@ -137,7 +168,7 @@ router.get('/', auth, async (req, res) => {
     const me = String(req.user._id);
     const now = new Date();
     const [stories, categories, perm, ownOfficials] = await Promise.all([
-      Story.find({ expiresAt: { $gt: now }, official: null, section: null }).sort({ createdAt: 1 }).lean(),
+      Story.find({ expiresAt: { $gt: now }, official: null, section: null, area_page: { $ne: true } }).sort({ createdAt: 1 }).lean(),
       Category.find().sort({ order: 1 }).select('title title_hi title_hinglish image order').lean(),
       getPostableCategories(req.user),
       getOwnOfficials(req),
@@ -219,6 +250,26 @@ router.get('/', auth, async (req, res) => {
       }))
       // Unseen first (newest first), then seen
       .sort((a, b) => (Number(b.has_unseen) - Number(a.has_unseen)) || (new Date(b.latest_at) - new Date(a.latest_at)));
+
+    // The area's official page always comes first (blue tick, everyone in the area)
+    if (req.areaId) {
+      const pageStories = await Story.find({ area_page: true, area: req.areaId, expiresAt: { $gt: now } })
+        .sort({ pinned: -1, createdAt: 1 }).lean();
+      if (pageStories.length) {
+        const shaped = pageStories.map(st => shapeStory(st, me));
+        result.unshift({
+          key: `area:${req.areaId}`,
+          kind: 'area',
+          category: await areaPageName(req),
+          verified: true,
+          image: '',
+          pinned: pageStories.some(st => st.pinned),
+          stories: shaped,
+          has_unseen: shaped.some(x => !x.seen && !x.is_mine),
+          latest_at: shaped[shaped.length - 1].createdAt,
+        });
+      }
+    }
 
     const postable = perm.all ? categories.map(c => c.title) : perm.cats;
     const postableOfficials = ownOfficials.map(o => ({ _id: o._id, name: o.name }));
@@ -336,6 +387,115 @@ router.get('/channel/:sectionId', auth, async (req, res) => {
     })));
   } catch (err) {
     console.error('Error fetching channel stories:', err);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+// @route GET /api/stories/area
+// @desc  Admin panel: the area official page's active stories with views, likes and pin
+router.get('/area', auth, async (req, res) => {
+  try {
+    if (!canManageAreaPage(req)) return res.status(403).json({ msg: 'Only the area admin can manage the area story' });
+    const stories = await Story.find({ area_page: true, area: req.areaId, expiresAt: { $gt: new Date() } })
+      .sort({ pinned: -1, createdAt: -1 }).lean();
+    res.json({
+      name: await areaPageName(req),
+      stories: stories.map(st => ({
+        _id: st._id,
+        media_type: st.media_type,
+        media_url: st.media_url,
+        caption: st.caption,
+        bg_color: st.bg_color,
+        createdAt: st.createdAt,
+        expiresAt: st.expiresAt,
+        pinned: !!st.pinned,
+        pinned_until: st.pinned_until || null,
+        view_count: (st.viewers || []).length,
+        like_count: (st.likes || []).length,
+      })),
+    });
+  } catch (err) {
+    console.error('Error fetching area stories:', err);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+// @route POST /api/stories/area
+// @desc  Area admin adds a story to the area official page. Photo (file or data URI)
+//        and/or caption; optional pin: { pin: 'forever' } or { pin_days: N }
+router.post('/area', auth, upload.single('image'), async (req, res) => {
+  try {
+    if (!canManageAreaPage(req)) return res.status(403).json({ msg: 'Only the area admin can post the area story' });
+    const name = await areaPageName(req);
+    const caption = String(req.body.caption || '').trim().slice(0, 700);
+    const story = new Story({
+      category: name,
+      area_page: true,
+      area: req.areaId,
+      author: req.user._id,
+      author_name: name,
+      caption,
+      bg_color: /^#[0-9a-fA-F]{6}$/.test(req.body.bg_color || '') ? req.body.bg_color : '#2563EB',
+    });
+
+    const dataUri = typeof req.body.image === 'string' && req.body.image.startsWith('data:image/') ? req.body.image : null;
+    if (req.file || dataUri) {
+      const result = req.file ? await streamUpload(req.file.buffer) : await uploadToS3(dataUri, 'stories');
+      story.media_type = 'image';
+      story.media_url = result.secure_url;
+      story.public_id = result.public_id;
+    } else {
+      if (!caption) return res.status(400).json({ msg: 'Add a photo or some text' });
+      story.media_type = 'text';
+    }
+
+    const pinEnd = readPinEnd(req.body);
+    if (pinEnd) applyPin(story, pinEnd);
+
+    const saved = await story.save();
+    emitChange(req, { action: 'create', category: name, id: saved._id });
+    res.json(saved);
+  } catch (err) {
+    console.error('Error posting area story:', err);
+    res.status(500).json({ msg: 'Could not post story' });
+  }
+});
+
+// @route POST /api/stories/area/:id/pin
+// @desc  Pin (or change the pin of) an area page story. Body { pin: 'forever' } or { pin_days: N }
+router.post('/area/:id/pin', auth, async (req, res) => {
+  try {
+    if (!canManageAreaPage(req)) return res.status(403).json({ msg: 'Only the area admin can pin the area story' });
+    const end = readPinEnd(req.body);
+    if (!end) return res.status(400).json({ msg: 'Choose how long to pin (days) or pin until removed' });
+    const story = await Story.findOne({ _id: req.params.id, area_page: true, area: req.areaId, expiresAt: { $gt: new Date() } });
+    if (!story) return res.status(404).json({ msg: 'Story not found' });
+    applyPin(story, end);
+    await story.save();
+    emitChange(req, { action: 'pin', category: story.category, id: story._id });
+    res.json({ ok: true, pinned: true, pinned_until: story.pinned_until, expiresAt: story.expiresAt });
+  } catch (err) {
+    console.error('Error pinning area story:', err);
+    res.status(500).json({ msg: 'Server Error' });
+  }
+});
+
+// @route POST /api/stories/area/:id/unpin
+// @desc  Unpin: the story goes back to the normal 24 hours from when it was posted
+//        (an older story disappears straight away)
+router.post('/area/:id/unpin', auth, async (req, res) => {
+  try {
+    if (!canManageAreaPage(req)) return res.status(403).json({ msg: 'Only the area admin can unpin the area story' });
+    const story = await Story.findOne({ _id: req.params.id, area_page: true, area: req.areaId });
+    if (!story) return res.status(404).json({ msg: 'Story not found' });
+    story.pinned = false;
+    story.pinned_until = null;
+    story.expiresAt = new Date(new Date(story.createdAt).getTime() + DAY_MS);
+    await story.save();
+    emitChange(req, { action: 'unpin', category: story.category, id: story._id });
+    res.json({ ok: true, pinned: false, expiresAt: story.expiresAt });
+  } catch (err) {
+    console.error('Error unpinning area story:', err);
     res.status(500).json({ msg: 'Server Error' });
   }
 });

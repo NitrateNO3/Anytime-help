@@ -8,6 +8,7 @@ import Categories from './pages/Categories';
 import Announcements from './pages/Announcements';
 import AdminLayout from './layouts/AdminLayout';
 import BannersHub from './pages/BannersHub';
+import AreaStory from './pages/AreaStory';
 import Residents from './pages/Residents';
 import Directory from './pages/Directory';
 import Officials from './pages/Officials';
@@ -96,6 +97,7 @@ function App() {
             <Route path="residents" element={<Residents />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="banners" element={<BannersHub />} />
+            <Route path="area-story" element={<AreaStory />} />
             <Route path="staff-banners" element={<Navigate to="/banners?cat=top" replace />} />
             <Route path="bottom-banners" element={<Navigate to="/banners?cat=bottom" replace />} />
             <Route path="directory" element={<Directory />} />

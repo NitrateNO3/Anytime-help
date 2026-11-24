@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, MapPin, BadgeCheck, Wrench } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, MapPin, BadgeCheck, Wrench, Pin } from 'lucide-react';
 import { API_URL, getSelectedArea, setSelectedArea } from '../lib/area';
 import logoImg from '../assets/logo.png';
 
@@ -189,6 +189,14 @@ export default function AdminLayout() {
             </Link>
           )}
           
+          {/* Area official page story (area Admin / Super Admin inside an area) */}
+          {isSuperAdmin && (
+            <Link to="/area-story" className={`nav-link ${location.pathname === '/area-story' ? 'active' : ''}`}>
+              <Pin size={20} />
+              Area Story
+            </Link>
+          )}
+
           {hasAccess('Directory') && (
             <Link to="/directory" className={`nav-link ${location.pathname === '/directory' ? 'active' : ''}`}>
               <BookOpen size={20} />

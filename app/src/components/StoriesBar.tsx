@@ -42,6 +42,9 @@ export interface StoryItem {
   caption: string;
   bg_color: string;
   createdAt: string;
+  // Area official page stories can be pinned past 24 hours
+  pinned?: boolean;
+  pinned_until?: string | null;
   seen: boolean;
   is_mine: boolean;
   liked?: boolean;
@@ -51,7 +54,9 @@ export interface StoryItem {
 
 export interface StoryGroup {
   key?: string;
-  kind?: 'category' | 'official' | 'channel';
+  // 'area' = the area's own official page: always first, blue tick
+  kind?: 'category' | 'official' | 'channel' | 'area';
+  pinned?: boolean;
   official_id?: string;
   section_id?: string;
   verified?: boolean;
@@ -73,10 +78,23 @@ const timeAgo = (iso: string) => {
   const mins = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000));
   if (mins < 1) return 'Just now';
   if (mins < 60) return `${mins}m ago`;
-  return `${Math.floor(mins / 60)}h ago`;
+  if (mins < 24 * 60) return `${Math.floor(mins / 60)}h ago`;
+  return `${Math.floor(mins / (24 * 60))}d ago`;
 };
 
-function CategoryAvatar({ group, size }: { group: { category: string; image?: string }; size: number }) {
+// Blue tick on officials, channels and the area's official page
+const showsTick = (g: { kind?: StoryGroup['kind']; verified?: boolean }) =>
+  (g.kind === 'official' || g.kind === 'channel' || g.kind === 'area') && !!g.verified;
+
+function CategoryAvatar({ group, size }: { group: { category: string; image?: string; kind?: StoryGroup['kind'] }; size: number }) {
+  // Area official page shows the app logo
+  if (group.kind === 'area') {
+    return (
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        <Image source={require('../../assets/images/logo.png')} style={{ width: size * 0.82, height: size * 0.82 }} resizeMode="contain" />
+      </View>
+    );
+  }
   const pal = paletteFor(group.category);
   if (group.image) {
     return <Image source={{ uri: group.image }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: pal.bg }} />;
@@ -252,7 +270,7 @@ export default function StoriesBar({ title = 'Status', style, variant = 'default
               </View>
               <View style={styles.sLabelRow}>
                 <Text style={[styles.sLabel, { flexShrink: 1 }]} numberOfLines={1}>{catLabel(g)}</Text>
-                {(g.kind === 'official' || g.kind === 'channel') && g.verified && <VerifiedBadge size={11} style={{ marginLeft: 2 }} />}
+                {showsTick(g) && <VerifiedBadge size={11} style={{ marginLeft: 2 }} />}
               </View>
             </TouchableOpacity>
           ))}
@@ -300,9 +318,9 @@ export default function StoriesBar({ title = 'Status', style, variant = 'default
             </View>
             <View style={styles.itemTitleRow}>
               <Text style={[styles.itemTitle, { marginTop: 0, flexShrink: 1 }]} numberOfLines={1}>{catLabel(g)}</Text>
-              {(g.kind === 'official' || g.kind === 'channel') && g.verified && <VerifiedBadge size={12} style={{ marginLeft: 2 }} />}
+              {showsTick(g) && <VerifiedBadge size={12} style={{ marginLeft: 2 }} />}
             </View>
-            <Text style={styles.itemSub} numberOfLines={1}>{timeAgo(g.stories[g.stories.length - 1].createdAt)}</Text>
+            <Text style={styles.itemSub} numberOfLines={1}>{g.pinned ? 'Pinned' : timeAgo(g.stories[g.stories.length - 1].createdAt)}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -537,9 +555,14 @@ function StoryViewer({ groups, startGroup, catLabel, onSeen, onLiked, onCounts, 
           <View style={styles.viewerHeader}>
             <CategoryAvatar group={group} size={38} />
             <View style={{ flex: 1, marginLeft: 10 }}>
-              <Text style={styles.viewerTitle} numberOfLines={1}>{catLabel(group)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text style={[styles.viewerTitle, { flexShrink: 1 }]} numberOfLines={1}>{catLabel(group)}</Text>
+                {showsTick(group) && <VerifiedBadge size={14} style={{ marginLeft: 4 }} />}
+              </View>
               <Text style={styles.viewerSub} numberOfLines={1}>
-                {story.author_name ? `${story.author_name} • ` : ''}{timeAgo(story.createdAt)}
+                {group.kind === 'area'
+                  ? (story.pinned ? 'Pinned' : timeAgo(story.createdAt))
+                  : <>{story.author_name ? `${story.author_name} • ` : ''}{timeAgo(story.createdAt)}</>}
               </Text>
             </View>
             {story.is_mine && (
