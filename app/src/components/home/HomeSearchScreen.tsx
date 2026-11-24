@@ -8,9 +8,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Linking, BackHandler, Keyboard,
-  Platform, StatusBar as RNStatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -20,7 +19,6 @@ import Toast from 'react-native-toast-message';
 import { HOSPITALS, BUSINESSES } from './ResidentHomeExtras';
 
 const API_URL = 'https://api.anytimehelp.co.in/api';
-const TOP_PAD = Platform.OS === 'android' ? (RNStatusBar.currentHeight || 24) + 8 : 0;
 
 type Portal = 'resident' | 'member';
 
@@ -48,7 +46,6 @@ const shortcutsFor = (p: Portal): Shortcut[] => {
   return list;
 };
 
-const SUGGESTIONS = ['Doctor', 'Grocery', 'Salon', 'Pharmacy', 'Plumber', 'Electrician', 'Complaint', 'Notice'];
 
 // Extra words people type for each kind of place
 const HOSPITAL_KEYS = 'doctor hospital clinic medical health treatment';
@@ -83,6 +80,7 @@ const openCall = (phone?: string) => {
 
 export default function HomeSearchScreen({ portal }: { portal: Portal }) {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
   const [debounced, setDebounced] = useState('');
 
@@ -179,12 +177,13 @@ export default function HomeSearchScreen({ portal }: { portal: Portal }) {
   return (
     <SafeAreaView style={st.safe} edges={['left', 'right', 'bottom']}>
       <StatusBar style="dark" />
-      <View style={st.header}>
+      {/* Status bar height from safe-area insets so the bar never slides under it */}
+      <View style={[st.header, { paddingTop: insets.top + 10 }]}>
         <TouchableOpacity onPress={() => (router.canGoBack() ? router.back() : router.replace(home as any))} style={st.back} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
           <Ionicons name="arrow-back" size={22} color="#0F172A" />
         </TouchableOpacity>
         <View style={st.box}>
-          <Ionicons name="search" size={18} color="#64748B" />
+          <Ionicons name="search" size={18} color="#64748B" style={{ marginRight: 8 }} />
           <TextInput
             style={st.input}
             placeholder="Search doctor, grocery, complaint, contact..."
@@ -196,7 +195,7 @@ export default function HomeSearchScreen({ portal }: { portal: Portal }) {
             autoFocus
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity style={st.clear} onPress={() => setQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <Ionicons name="close-circle" size={18} color="#94A3B8" />
             </TouchableOpacity>
           )}
@@ -206,15 +205,6 @@ export default function HomeSearchScreen({ portal }: { portal: Portal }) {
       <ScrollView contentContainerStyle={st.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {!res ? (
           <>
-            <Text style={st.section}>Try searching</Text>
-            <View style={st.chips}>
-              {SUGGESTIONS.map(s => (
-                <TouchableOpacity key={s} style={st.chip} onPress={() => setQuery(s)} activeOpacity={0.8}>
-                  <Text style={st.chipText}>{s}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
             <Text style={st.section}>Quick links</Text>
             <View style={st.grid}>
               {shortcuts.slice(0, 8).map(s => (
@@ -363,13 +353,13 @@ function Row({ icon, iconColor, iconBg, title, sub, onPress, right, chevron, bad
       <View style={[st.rowIcon, { backgroundColor: iconBg }]}>
         <Ionicons name={icon as any} size={20} color={iconColor} />
       </View>
-      <View style={{ flex: 1, marginRight: 8 }}>
+      <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={st.rowTitle} numberOfLines={1}>{title}</Text>
         {!!sub && <Text style={st.rowSub} numberOfLines={1}>{sub}</Text>}
       </View>
       {!!badge && <View style={st.badge}><Text style={st.badgeText}>{badge}</Text></View>}
-      {right}
-      {chevron && <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />}
+      {!!right && <View style={st.rowRight}>{right}</View>}
+      {chevron && <View style={st.chevron}><Ionicons name="chevron-forward" size={18} color="#CBD5E1" /></View>}
     </TouchableOpacity>
   );
 }
@@ -377,20 +367,18 @@ function Row({ icon, iconColor, iconBg, title, sub, onPress, right, chevron, bad
 const st = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#F8FAFC' },
   header: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 12, paddingTop: TOP_PAD || 12,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingBottom: 12,
     backgroundColor: '#FFFFFF', borderBottomWidth: 1, borderBottomColor: '#E2E8F0',
   },
   back: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', marginRight: 6 },
   box: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderRadius: 12,
+    flex: 1, flexDirection: 'row', alignItems: 'center', height: 46, borderRadius: 12,
     backgroundColor: '#F1F5F9', paddingHorizontal: 12,
   },
-  input: { flex: 1, fontSize: 15, color: '#0F172A', paddingVertical: 0, height: '100%' },
+  input: { flex: 1, minWidth: 0, fontSize: 15, color: '#0F172A', paddingVertical: 0, paddingHorizontal: 0, includeFontPadding: false },
+  clear: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center', marginLeft: 6 },
   body: { padding: 16, paddingBottom: 60 },
   section: { fontSize: 13, fontWeight: '700', color: '#64748B', letterSpacing: 0.3, marginBottom: 10, textTransform: 'uppercase' },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 22 },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 18, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E2E8F0' },
-  chipText: { fontSize: 13, fontWeight: '600', color: '#334155' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 16 },
   gridItem: { width: '25%', alignItems: 'center', paddingHorizontal: 4 },
   gridIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
@@ -400,6 +388,8 @@ const st = StyleSheet.create({
   rowIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
   rowTitle: { fontSize: 15, fontWeight: '700', color: '#0F172A' },
   rowSub: { fontSize: 12.5, color: '#64748B', marginTop: 2 },
+  rowRight: { marginLeft: 8 },
+  chevron: { width: 20, alignItems: 'flex-end', marginLeft: 6 },
   wa: { width: 34, height: 34, borderRadius: 10, backgroundColor: '#25D366', alignItems: 'center', justifyContent: 'center' },
   badge: { backgroundColor: '#DCFCE7', borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, marginRight: 4 },
   badgeText: { fontSize: 11, fontWeight: '700', color: '#166534' },
