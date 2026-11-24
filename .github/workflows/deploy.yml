@@ -1,0 +1,49 @@
+name: Deploy Backend to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to AWS EC2 via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT || 22 }}
+          script_stop: true
+          script: |
+            echo "🚀 Starting deployment on EC2..."
+            
+            # 1. Navigate to project root
+            cd ~/Anytime-help
+            
+            # 2. Pull the latest code from GitHub main
+            echo "📥 Pulling latest changes from main..."
+            git pull origin main
+            
+            # 3. Install backend dependencies
+            echo "📦 Installing backend dependencies..."
+            cd backend
+            npm install --omit=dev
+            
+            # 4. Restart PM2 processes with updated environment
+            echo "🔄 Restarting PM2 backend..."
+            pm2 restart anytime-backend --update-env
+            pm2 restart anytime-studio || true
+            
+            # 5. Verify status
+            pm2 status
+            
+            echo "✅ Deployment completed successfully!"
