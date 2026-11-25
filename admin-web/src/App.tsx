@@ -13,6 +13,7 @@ import Residents from './pages/Residents';
 import Directory from './pages/Directory';
 import Officials from './pages/Officials';
 import PartnerPromos from './pages/PartnerPromos';
+import HomePerks from './pages/HomePerks';
 import Maintenance from './pages/Maintenance';
 import Members from './pages/Members';
 import SubAdmins from './pages/SubAdmins';
@@ -104,6 +105,7 @@ function App() {
             <Route path="directory" element={<Directory />} />
             <Route path="officials" element={<Officials />} />
             <Route path="partner-promos" element={<PartnerPromos />} />
+            <Route path="home-perks" element={<HomePerks />} />
             <Route path="maintenance" element={<Maintenance />} />
             <Route path="members" element={<Members />} />
             <Route path="chat-groups" element={<ChatGroups />} />

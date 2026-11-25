@@ -16,7 +16,7 @@ import Toast from 'react-native-toast-message';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 import { isProfileBlockUpdateRequired } from '../../components/ForceBlockUpdateModal';
 import {
-  PartnerPromoCard, WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter, type PartnerPromo,
+  PartnerPromoCard, WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter, type PartnerPromo, type HomePerks,
 } from '../../components/home/ResidentHomeExtras';
 import HomeHeader, { CompactHomeHeader } from '../../components/home/HomeHeader';
 import useImageRatio from '../../utils/useImageRatio';
@@ -100,6 +100,27 @@ export default function ResidentHome() {
     } catch (e) {
       console.log('Error fetching partner promos:', e);
       setPartnerPromos(prev => prev ?? []);
+    }
+  };
+
+  // "Why residents love" section, same in every area (Super Admin: Why Residents Love)
+  const [homePerks, setHomePerks] = useState<HomePerks | null>(null);
+  const fetchHomePerks = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/home-perks`);
+      setHomePerks(res.data || null);
+    } catch (e) {
+      console.log('Error fetching home perks:', e);
+      // Backend not reachable or not updated yet: keep the original cards
+      setHomePerks(prev => prev ?? {
+        enabled: true,
+        title: 'Why residents love Anytime Help',
+        perks: [
+          { big: '15% off', sub: 'Lab tests, scans and health check-ups', icon: 'flask-outline', theme: 'green' },
+          { big: 'Priority', sub: 'OPD slots kept for residents', icon: 'time-outline', theme: 'yellow' },
+          { big: '40+ offers', sub: 'From verified shops near your society', icon: 'pricetag-outline', theme: 'pink' },
+        ],
+      });
     }
   };
 
@@ -240,6 +261,7 @@ export default function ResidentHome() {
       fetchBanners();
       fetchBottomBanners();
       fetchPartnerPromos();
+      fetchHomePerks();
       fetchStats();
 
       const socket = io(API_URL.replace('/api', ''), { ...socketAuth, transports: ['websocket', 'polling'] });
@@ -260,6 +282,9 @@ export default function ResidentHome() {
       });
       socket.on('partner_promos_changed', () => {
         fetchPartnerPromos();
+      });
+      socket.on('home_perks_changed', () => {
+        fetchHomePerks();
       });
 
       let lastBackPress = 0;
@@ -293,6 +318,7 @@ export default function ResidentHome() {
       fetchBanners(),
       fetchBottomBanners(),
       fetchPartnerPromos(),
+      fetchHomePerks(),
       fetchAnnouncementsData(),
       fetchStats()
     ]);
@@ -643,7 +669,7 @@ export default function ResidentHome() {
 
         {/* New sections: static UI until their backend is ready */}
         <PartnerPromoCard promos={partnerPromos} />
-        <WhyResidentsLove />
+        <WhyResidentsLove data={homePerks} />
         <SponsoredAds />
         <LocalBusinesses />
         <HomeFooter />

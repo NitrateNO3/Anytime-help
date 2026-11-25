@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, MapPin, BadgeCheck, Wrench, Pin, Handshake } from 'lucide-react';
+import { LayoutDashboard, Users, LogOut, Megaphone, Image as ImageIcon, Home, BookOpen, ListPlus, MessageSquare, Building2, MapPin, BadgeCheck, Wrench, Pin, Handshake, Heart } from 'lucide-react';
 import { API_URL, getSelectedArea, setSelectedArea } from '../lib/area';
 import logoImg from '../assets/logo.png';
 
 // Platform-wide pages: only in the Super Admin view, never inside an area
-const SUPER_ADMIN_ONLY = ['/officials', '/maintenance', '/partner-promos'];
+const SUPER_ADMIN_ONLY = ['/officials', '/maintenance', '/partner-promos', '/home-perks'];
 
 export default function AdminLayout() {
   const navigate = useNavigate();
@@ -118,6 +118,14 @@ export default function AdminLayout() {
             <Link to="/partner-promos" className={`nav-link ${location.pathname === '/partner-promos' ? 'active' : ''}`}>
               <Handshake size={20} />
               Partner Promo
+            </Link>
+          )}
+
+          {/* "Why residents love" home section is universal: Super Admin view only */}
+          {isPlatformAdmin && !selectedArea && (
+            <Link to="/home-perks" className={`nav-link ${location.pathname === '/home-perks' ? 'active' : ''}`}>
+              <Heart size={20} />
+              Why Residents Love
             </Link>
           )}
 

@@ -128,24 +128,44 @@ export function PartnerPromoCard({ promos }: { promos: PartnerPromo[] | null }) 
 
 /* ------------------------------ Why residents love ------------------------------ */
 
-const PERKS = [
-  { big: '15% off', sub: 'Lab tests, scans and health check-ups', icon: 'flask-outline', bg: '#ECFDF5', fg: '#047857' },
-  { big: 'Priority', sub: 'OPD slots kept for residents', icon: 'time-outline', bg: '#FEF9C3', fg: '#A16207' },
-  { big: '40+ offers', sub: 'From verified shops near your society', icon: 'pricetag-outline', bg: '#FCE7F3', fg: '#BE185D' },
-] as const;
+// Universal section edited by the Super Admin (admin: Why Residents Love).
+export type HomePerks = {
+  enabled?: boolean;
+  title?: string;
+  perks?: { big: string; sub: string; icon: string; theme: string }[];
+};
 
-export function WhyResidentsLove() {
+// Same keys and colours as the admin panel (admin-web/src/pages/HomePerks.tsx)
+const PERK_THEMES: Record<string, { bg: string; fg: string }> = {
+  green: { bg: '#ECFDF5', fg: '#047857' },
+  yellow: { bg: '#FEF9C3', fg: '#A16207' },
+  pink: { bg: '#FCE7F3', fg: '#BE185D' },
+  blue: { bg: '#EEF2FF', fg: '#1E40AF' },
+  purple: { bg: '#F3E8FF', fg: '#7E22CE' },
+  orange: { bg: '#FFEDD5', fg: '#C2410C' },
+  teal: { bg: '#CCFBF1', fg: '#0F766E' },
+  red: { bg: '#FEE2E2', fg: '#B91C1C' },
+};
+
+// data === null: still loading, render nothing
+export function WhyResidentsLove({ data }: { data: HomePerks | null }) {
+  if (!data || data.enabled === false) return null;
+  const perks = (data.perks || []).filter(p => p.big || p.sub);
+  if (perks.length === 0) return null;
   return (
     <View style={s.section}>
-      <SectionHead title="Why residents love Anytime Help" />
+      <SectionHead title={data.title || 'Why residents love Anytime Help'} />
       <View style={s.perkGrid}>
-        {PERKS.map(p => (
-          <View key={p.big} style={[s.perk, { backgroundColor: p.bg }]}>
-            <View style={s.perkIcon}><Ionicons name={p.icon as any} size={18} color={p.fg} /></View>
-            <Text style={[s.perkBig, { color: p.fg }]}>{p.big}</Text>
-            <Text style={s.perkSub}>{p.sub}</Text>
-          </View>
-        ))}
+        {perks.map((p, i) => {
+          const c = PERK_THEMES[p.theme] || PERK_THEMES.green;
+          return (
+            <View key={`${i}-${p.big}`} style={[s.perk, { backgroundColor: c.bg }]}>
+              <View style={s.perkIcon}><Ionicons name={(p.icon || 'star-outline') as any} size={18} color={c.fg} /></View>
+              <Text style={[s.perkBig, { color: c.fg }]}>{p.big}</Text>
+              <Text style={s.perkSub}>{p.sub}</Text>
+            </View>
+          );
+        })}
       </View>
     </View>
   );
