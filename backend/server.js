@@ -138,6 +138,7 @@ app.use('/api/community', require('./routes/community'));
 app.use('/api/bottom-banners', require('./routes/bottomBanners'));
 app.use('/api/partner-promos', require('./routes/partnerPromos'));
 app.use('/api/home-perks', require('./routes/homePerks'));
+app.use('/api/sponsored-ads', require('./routes/sponsoredAds'));
 app.use('/api/stories', require('./routes/stories'));
 app.use('/api/officials', require('./routes/officials'));
 

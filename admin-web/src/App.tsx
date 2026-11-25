@@ -14,6 +14,7 @@ import Directory from './pages/Directory';
 import Officials from './pages/Officials';
 import PartnerPromos from './pages/PartnerPromos';
 import HomePerks from './pages/HomePerks';
+import SponsoredAds from './pages/SponsoredAds';
 import Maintenance from './pages/Maintenance';
 import Members from './pages/Members';
 import SubAdmins from './pages/SubAdmins';
@@ -106,6 +107,7 @@ function App() {
             <Route path="officials" element={<Officials />} />
             <Route path="partner-promos" element={<PartnerPromos />} />
             <Route path="home-perks" element={<HomePerks />} />
+            <Route path="sponsored-ads" element={<SponsoredAds />} />
             <Route path="maintenance" element={<Maintenance />} />
             <Route path="members" element={<Members />} />
             <Route path="chat-groups" element={<ChatGroups />} />

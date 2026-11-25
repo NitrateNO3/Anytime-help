@@ -173,29 +173,75 @@ export function WhyResidentsLove({ data }: { data: HomePerks | null }) {
 
 /* ------------------------------ Sponsored ------------------------------ */
 
-const ADS = [
-  { title: 'Trinara Cookies & Namkeen', sub: '100% pure vegetarian · Free home delivery', icon: 'cafe-outline', colors: ['#FEF3C7', '#FDE68A'] as const, fg: '#92400E' },
-  { title: 'Explore Europe', sub: 'Holiday packages from ₹89,999', icon: 'airplane-outline', colors: ['#DBEAFE', '#BFDBFE'] as const, fg: '#1E40AF' },
-  { title: 'FitZone Gym', sub: 'First month at ₹999 for residents', icon: 'barbell-outline', colors: ['#DCFCE7', '#BBF7D0'] as const, fg: '#166534' },
+// Universal ads managed by the Super Admin (admin: Sponsored Ads).
+export type SponsoredAd = {
+  _id?: string;
+  title: string;
+  sub?: string;
+  icon?: string;
+  theme?: string;
+  link?: string;
+  url?: string;
+};
+
+// Same keys and colours as the admin panel (admin-web/src/pages/SponsoredAds.tsx)
+const AD_THEMES: Record<string, { colors: readonly [string, string]; fg: string }> = {
+  amber: { colors: ['#FEF3C7', '#FDE68A'], fg: '#92400E' },
+  blue: { colors: ['#DBEAFE', '#BFDBFE'], fg: '#1E40AF' },
+  green: { colors: ['#DCFCE7', '#BBF7D0'], fg: '#166534' },
+  pink: { colors: ['#FCE7F3', '#FBCFE8'], fg: '#9D174D' },
+  purple: { colors: ['#F3E8FF', '#E9D5FF'], fg: '#6B21A8' },
+  teal: { colors: ['#CCFBF1', '#99F6E4'], fg: '#115E59' },
+  orange: { colors: ['#FFEDD5', '#FED7AA'], fg: '#9A3412' },
+  red: { colors: ['#FEE2E2', '#FECACA'], fg: '#991B1B' },
+};
+
+// Shown until the Super Admin adds ads of their own
+const SAMPLE_ADS: SponsoredAd[] = [
+  { title: 'Trinara Cookies & Namkeen', sub: '100% pure vegetarian · Free home delivery', icon: 'cafe-outline', theme: 'amber' },
+  { title: 'Explore Europe', sub: 'Holiday packages from ₹89,999', icon: 'airplane-outline', theme: 'blue' },
+  { title: 'FitZone Gym', sub: 'First month at ₹999 for residents', icon: 'barbell-outline', theme: 'green' },
 ];
 
-export function SponsoredAds() {
+const openAd = (ad: SponsoredAd) => {
+  if (!ad.link) return comingSoon();
+  Linking.openURL(ad.link).catch(() =>
+    Toast.show({ type: 'error', text1: 'Could not open link', position: 'bottom' })
+  );
+};
+
+// ads === null: still loading, render nothing. configured: the Super Admin
+// has added ads (even if all are hidden), so never fall back to the samples.
+export function SponsoredAds({ ads, configured }: { ads: SponsoredAd[] | null; configured?: boolean }) {
+  if (ads === null) return null;
+  const list = configured ? ads : (ads.length > 0 ? ads : SAMPLE_ADS);
+  if (list.length === 0) return null;
   return (
     <View style={s.section}>
       <Text style={[s.eyebrow, { marginBottom: 8 }]}>SPONSORED</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.hScroll}>
-        {ADS.map(a => (
-          <TouchableOpacity key={a.title} activeOpacity={0.9} onPress={comingSoon}>
-            <LinearGradient colors={a.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.ad}>
-              <View style={s.adTag}><Text style={s.adTagText}>AD</Text></View>
-              <Ionicons name={a.icon as any} size={42} color={a.fg} />
-              <View style={{ flex: 1, marginLeft: 14 }}>
-                <Text style={[s.adTitle, { color: a.fg }]} numberOfLines={2}>{a.title}</Text>
-                <Text style={s.adSub} numberOfLines={2}>{a.sub}</Text>
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        ))}
+        {list.map((a, i) => {
+          const t = AD_THEMES[a.theme || ''] || AD_THEMES.amber;
+          return (
+            <TouchableOpacity key={a._id || `${i}-${a.title}`} activeOpacity={0.9} onPress={() => openAd(a)}>
+              {a.url ? (
+                <View style={[s.ad, s.adImageWrap]}>
+                  <Image source={{ uri: a.url }} style={s.adImage} resizeMode="cover" />
+                  <View style={s.adTag}><Text style={s.adTagText}>AD</Text></View>
+                </View>
+              ) : (
+                <LinearGradient colors={t.colors} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.ad}>
+                  <View style={s.adTag}><Text style={s.adTagText}>AD</Text></View>
+                  <Ionicons name={(a.icon || 'megaphone-outline') as any} size={42} color={t.fg} />
+                  <View style={{ flex: 1, marginLeft: 14 }}>
+                    <Text style={[s.adTitle, { color: t.fg }]} numberOfLines={2}>{a.title}</Text>
+                    {!!a.sub && <Text style={s.adSub} numberOfLines={2}>{a.sub}</Text>}
+                  </View>
+                </LinearGradient>
+              )}
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   );
@@ -317,6 +363,8 @@ const s = StyleSheet.create({
   perkSub: { fontSize: 12.5, color: '#334155', marginTop: 6, lineHeight: 18 },
 
   ad: { width: 290, height: 150, borderRadius: 18, padding: 16, flexDirection: 'row', alignItems: 'center' },
+  adImageWrap: { padding: 0, overflow: 'hidden', backgroundColor: '#E2E8F0' },
+  adImage: { width: '100%', height: '100%' },
   adTag: { position: 'absolute', top: 10, right: 10, backgroundColor: 'rgba(15,23,42,0.6)', borderRadius: 6, paddingHorizontal: 7, paddingVertical: 2 },
   adTagText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
   adTitle: { fontSize: 17, fontWeight: '900', lineHeight: 21 },

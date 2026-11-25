@@ -15,7 +15,7 @@ import { socketAuth } from '../../utils/socketAuth';
 import Toast from 'react-native-toast-message';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 import {
-  PartnerPromoCard, WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter, type PartnerPromo, type HomePerks,
+  PartnerPromoCard, WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter, type PartnerPromo, type HomePerks, type SponsoredAd,
 } from '../../components/home/ResidentHomeExtras';
 import HomeHeader, { CompactHomeHeader } from '../../components/home/HomeHeader';
 import useImageRatio from '../../utils/useImageRatio';
@@ -120,6 +120,20 @@ export default function MemberHome() {
           { big: '40+ offers', sub: 'From verified shops near your society', icon: 'pricetag-outline', theme: 'pink' },
         ],
       });
+    }
+  };
+
+  // Sponsored ads, same in every area (Super Admin: Sponsored Ads)
+  const [sponsoredAds, setSponsoredAds] = useState<SponsoredAd[] | null>(null);
+  const [sponsoredConfigured, setSponsoredConfigured] = useState(false);
+  const fetchSponsoredAds = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/sponsored-ads`);
+      setSponsoredConfigured(!!res.data?.configured);
+      setSponsoredAds(Array.isArray(res.data?.ads) ? res.data.ads : []);
+    } catch (e) {
+      console.log('Error fetching sponsored ads:', e);
+      setSponsoredAds(prev => prev ?? []);
     }
   };
 
@@ -274,6 +288,7 @@ export default function MemberHome() {
       fetchBottomBanners();
       fetchPartnerPromos();
       fetchHomePerks();
+      fetchSponsoredAds();
       fetchStats();
 
       const socket = io(API_URL.replace('/api', ''), { ...socketAuth, transports: ['websocket', 'polling'] });
@@ -297,6 +312,9 @@ export default function MemberHome() {
       });
       socket.on('home_perks_changed', () => {
         fetchHomePerks();
+      });
+      socket.on('sponsored_ads_changed', () => {
+        fetchSponsoredAds();
       });
       socket.on('user_updated', async (data: any) => {
         const stored = await SecureStore.getItemAsync('userData');
@@ -357,6 +375,7 @@ export default function MemberHome() {
       fetchBottomBanners(),
       fetchPartnerPromos(),
       fetchHomePerks(),
+      fetchSponsoredAds(),
       fetchAnnouncementsData(),
       fetchStats()
     ]);
@@ -745,7 +764,7 @@ export default function MemberHome() {
         {/* New sections: static UI until their backend is ready */}
         <PartnerPromoCard promos={partnerPromos} />
         <WhyResidentsLove data={homePerks} />
-        <SponsoredAds />
+        <SponsoredAds ads={sponsoredAds} configured={sponsoredConfigured} />
         <LocalBusinesses />
         <HomeFooter />
 
