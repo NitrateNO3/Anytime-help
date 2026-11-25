@@ -25,8 +25,8 @@ function SectionHead({ title, right, eyebrow }: { title: string; right?: string;
 
 /* ------------------------------ Partner promo ------------------------------ */
 
-// Partner offer cards (e.g. a partner hospital). Each area adds its own from
-// the admin panel (Banners > Partner Promo); the home screen fetches them.
+// Partner offer cards (e.g. a partner hospital). Universal: the Super Admin
+// adds them in the admin panel (Partner Promo); the home screen fetches them.
 export type PartnerPromo = {
   _id: string;
   partnerName?: string;
@@ -46,7 +46,7 @@ const callNumber = (phone: string) => {
   );
 };
 
-// The original Artemis card, shown while an area has not added promos of its own
+// The original Artemis card, shown while the Super Admin has added no promos
 function DefaultArtemisCard() {
   return (
     <View style={s.promo}>

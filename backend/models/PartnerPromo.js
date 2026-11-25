@@ -1,7 +1,8 @@
 const mongoose = require('mongoose');
 
 // Partner promo card on the resident/member home screen (e.g. a partner
-// hospital offer). Each area manages its own cards.
+// hospital offer). Universal: one set for every area, managed only by the
+// platform Super Admin. Deliberately NOT area scoped.
 const PartnerPromoSchema = new mongoose.Schema({
   partnerName: { type: String, default: '', trim: true },
   title: { type: String, required: true, trim: true },
@@ -16,7 +17,5 @@ const PartnerPromoSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 PartnerPromoSchema.index({ isActive: 1, order: 1 });
-
-PartnerPromoSchema.plugin(require('./plugins/areaScope'));
 
 module.exports = mongoose.model('PartnerPromo', PartnerPromoSchema);

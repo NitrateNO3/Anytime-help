@@ -2,18 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { io } from 'socket.io-client';
-import { Plus, Edit2, Trash2, X, Phone, Image as ImageIcon, MapPin, Check } from 'lucide-react';
-import { API_URL, socketAuth, isPlatformSuperAdmin, getSelectedArea } from '../lib/area';
+import { Plus, Edit2, Trash2, X, Phone, Image as ImageIcon, Globe, Check } from 'lucide-react';
+import { API_URL, socketAuth } from '../lib/area';
 import { confirmDialog } from '../components/ConfirmDialog';
 import '../index.css';
 
 // Partner promo cards (e.g. a partner hospital offer) on the resident/member
-// home screen. Every area manages its own: the backend stamps each promo with
-// the admin's area (or the area a Super Admin has selected).
+// home screen. Universal: the same promos show in every area, and only the
+// platform Super Admin manages them (Super Admin view, no area selected).
 
 interface Promo {
   _id: string;
-  area?: string;
   partnerName: string;
   title: string;
   description: string;
@@ -26,7 +25,6 @@ interface Promo {
 }
 
 type FormState = {
-  areaId: string;
   partnerName: string;
   title: string;
   description: string;
@@ -41,7 +39,7 @@ const POINT_SLOTS = 3;
 const padPoints = (list: string[] = []) => [...list, '', '', ''].slice(0, Math.max(POINT_SLOTS, list.length));
 
 const EMPTY: FormState = {
-  areaId: '', partnerName: '', title: '', description: '', points: padPoints(), phone: '', buttonText: '', order: '0', isActive: true,
+  partnerName: '', title: '', description: '', points: padPoints(), phone: '', buttonText: '', order: '0', isActive: true,
 };
 
 // The original Artemis card, to fill the form in one click
@@ -58,9 +56,6 @@ const BASE = `${API_URL}/partner-promos`;
 export default function PartnerPromos() {
   const [promos, setPromos] = useState<Promo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [areaName, setAreaName] = useState('');
-  const superAdmin = isPlatformSuperAdmin();
-  const [areas, setAreas] = useState<{ _id: string; name: string }[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Promo | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -83,12 +78,6 @@ export default function PartnerPromos() {
 
   useEffect(() => {
     load();
-    axios.get(`${API_URL}/areas/current`).then(r => setAreaName(r.data?.name || '')).catch(() => {});
-    if (superAdmin) {
-      axios.get(`${API_URL}/areas`)
-        .then(r => setAreas((Array.isArray(r.data) ? r.data : []).map((a: any) => ({ _id: a._id, name: a.name }))))
-        .catch(() => {});
-    }
     const socket = io(API_URL.replace('/api', ''), { ...socketAuth(), transports: ['websocket', 'polling'] });
     socket.on('partner_promos_changed', load);
     return () => { socket.disconnect(); };
@@ -98,7 +87,7 @@ export default function PartnerPromos() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ ...EMPTY, areaId: getSelectedArea() || '', order: String(promos.length) });
+    setForm({ ...EMPTY, order: String(promos.length) });
     setFile(null); setPreview(''); setRemoveImage(false);
     setOpen(true);
   };
@@ -106,7 +95,6 @@ export default function PartnerPromos() {
   const openEdit = (p: Promo) => {
     setEditing(p);
     setForm({
-      areaId: p.area || getSelectedArea() || '',
       partnerName: p.partnerName || '',
       title: p.title || '',
       description: p.description || '',
@@ -138,7 +126,6 @@ export default function PartnerPromos() {
   const useArtemis = () => setForm(f => ({ ...f, ...ARTEMIS_TEMPLATE, points: padPoints(ARTEMIS_TEMPLATE.points) }));
 
   const save = async () => {
-    if (superAdmin && !form.areaId) { toast.error('Please select an area'); return; }
     if (!form.title.trim()) { toast.error('Title is required'); return; }
     const phone = form.phone.trim();
     if (phone && !/^[+\d][\d\s-]{5,}$/.test(phone)) { toast.error('Enter a valid phone number'); return; }
@@ -148,7 +135,6 @@ export default function PartnerPromos() {
     data.append('title', form.title);
     data.append('description', form.description);
     data.append('points', JSON.stringify(form.points.map(s => s.trim()).filter(Boolean)));
-    if (superAdmin && form.areaId) data.append('areaId', form.areaId);
     data.append('phone', phone);
     data.append('buttonText', form.buttonText);
     data.append('order', form.order || '0');
@@ -160,9 +146,7 @@ export default function PartnerPromos() {
     try {
       if (editing) await axios.put(`${BASE}/${editing._id}`, data);
       else await axios.post(BASE, data);
-      const savedArea = areas.find(a => a._id === form.areaId)?.name;
-      const otherArea = superAdmin && form.areaId && form.areaId !== getSelectedArea();
-      toast.success(`${editing ? 'Promo updated' : 'Promo added'}${otherArea && savedArea ? ` in ${savedArea}` : ''}`);
+      toast.success(editing ? 'Promo updated' : 'Promo added');
       setOpen(false);
       load();
     } catch (e: any) {
@@ -199,11 +183,13 @@ export default function PartnerPromos() {
   };
 
   return (
-    <div>
+    <div className="page-container fade-in">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 18 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-muted)', fontSize: 14 }}>
-          <MapPin size={16} />
-          {areaName ? <>Showing promos for <b style={{ color: 'var(--text-main, #0F172A)' }}>{areaName}</b></> : 'Promos of the current area'}
+        <div>
+          <h1 className="page-title">Partner Promo</h1>
+          <p className="page-subtitle" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Globe size={15} /> Partner offer cards on the resident and member home screen. Same in every area.
+          </p>
         </div>
         <button className="btn btn-primary" onClick={openNew} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Plus size={18} /> Add Partner Promo
@@ -253,20 +239,9 @@ export default function PartnerPromos() {
                 </button>
               )}
 
-              {superAdmin ? (
-                <div className="form-group">
-                  <label className="form-label">Area *</label>
-                  <select className="form-input" value={form.areaId} onChange={e => set('areaId', e.target.value)}>
-                    <option value="">Select area</option>
-                    {areas.map(a => <option key={a._id} value={a._id}>{a.name}</option>)}
-                  </select>
-                </div>
-              ) : areaName ? (
-                <div className="form-group">
-                  <label className="form-label">Area</label>
-                  <input className="form-input" value={areaName} disabled />
-                </div>
-              ) : null}
+              <p style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)', margin: '0 0 14px' }}>
+                <Globe size={15} /> This promo is shown in every area.
+              </p>
 
               <div className="form-group">
                 <label className="form-label">Partner name</label>

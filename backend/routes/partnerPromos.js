@@ -3,24 +3,24 @@ const router = express.Router();
 const multer = require('multer');
 const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const PartnerPromo = require('../models/PartnerPromo');
-const bannerAdmin = require('../middleware/bannerAdmin');
-const requireAreaForPublic = require('../middleware/requireAreaForPublic');
-const Area = require('../models/Area');
-const { toObjectId } = require('../utils/areaContext');
+const auth = require('../middleware/auth');
 
-// Who may change partner promos
-const canManage = bannerAdmin(['Banners']);
+// Partner promos are universal (same in every area), so only the platform
+// Super Admin may change them. Area admins and sub-admins cannot.
+const superAdminOnly = (req, res, next) => {
+  if (!req.isSuperAdmin) return res.status(403).json({ msg: 'Only the Super Admin can manage partner promos' });
+  next();
+};
+const canManage = [auth, superAdminOnly];
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-// Tell the promo's own area (it can differ from the request's area when a
-// SuperAdmin picks another area in the form)
-const notifySocket = (req, promo) => {
+// Promos are universal: tell every connected client, not just one area.
+// (`io.emit` is area scoped by utils/areaSocket.js; `io.sockets` is not.)
+const notifySocket = (req) => {
   try {
     const io = req.app.get('io');
-    if (!io) return;
-    io.emit('partner_promos_changed');
-    if (promo && promo.area) io.to(`area_${promo.area}`).emit('partner_promos_changed');
+    if (io) io.sockets.emit('partner_promos_changed');
   } catch (e) {
     console.error('Socket emit error:', e);
   }
@@ -44,16 +44,6 @@ const parsePoints = (raw) => {
 
 const toBool = (v) => v === true || v === 'true';
 
-// A platform SuperAdmin may pick the area in the form (body.areaId); area
-// admins always save into their own area (stamped by the areaScope plugin).
-// Returns an error message, or null when fine.
-const applyArea = async (req, doc) => {
-  if (!req.isSuperAdmin || !req.body.areaId) return null;
-  const id = toObjectId(req.body.areaId);
-  if (!id || !(await Area.exists({ _id: id }))) return 'Selected area not found';
-  doc.area = id;
-  return null;
-};
 
 const applyFields = (doc, body) => {
   if (body.partnerName !== undefined) doc.partnerName = String(body.partnerName).trim();
@@ -68,9 +58,9 @@ const applyFields = (doc, body) => {
 };
 
 // @route   GET /api/partner-promos
-// @desc    Active promos of the caller's area (?all=true for admins: include inactive)
+// @desc    Active promos, same for every area (?all=true: include hidden ones)
 // @access  Public
-router.get('/', requireAreaForPublic, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const query = req.query.all === 'true' ? {} : { isActive: true };
     const promos = await PartnerPromo.find(query).sort({ order: 1, createdAt: -1 });
@@ -92,15 +82,13 @@ router.post('/', canManage, upload.single('image'), async (req, res) => {
     const promo = new PartnerPromo({});
     applyFields(promo, req.body);
     if (req.body.isActive === undefined) promo.isActive = true;
-    const areaError = await applyArea(req, promo);
-    if (areaError) return res.status(400).json({ msg: areaError });
     if (req.file) {
       const result = await uploadToS3(req.file.buffer, 'partner-promos');
       promo.url = result.secure_url;
       promo.public_id = result.public_id;
     }
     const saved = await promo.save();
-    notifySocket(req, saved);
+    notifySocket(req);
     res.status(201).json(saved);
   } catch (err) {
     console.error('Error creating partner promo:', err);
@@ -118,8 +106,6 @@ router.put('/:id', canManage, upload.single('image'), async (req, res) => {
 
     applyFields(promo, req.body);
     if (!promo.title) return res.status(400).json({ msg: 'Title is required' });
-    const areaError = await applyArea(req, promo);
-    if (areaError) return res.status(400).json({ msg: areaError });
 
     if (req.file || toBool(req.body.removeImage)) {
       if (promo.public_id) await deleteFromS3(promo.public_id);
@@ -133,7 +119,7 @@ router.put('/:id', canManage, upload.single('image'), async (req, res) => {
     }
 
     const updated = await promo.save();
-    notifySocket(req, updated);
+    notifySocket(req);
     res.json(updated);
   } catch (err) {
     console.error('Error updating partner promo:', err);

@@ -90,7 +90,7 @@ export default function MemberHome() {
     }
   };
 
-  // Partner promo cards of this area (admin: Banners > Partner Promo)
+  // Partner promo cards, same in every area (Super Admin: Partner Promo)
   const [partnerPromos, setPartnerPromos] = useState<PartnerPromo[] | null>(null);
   const fetchPartnerPromos = async () => {
     try {
