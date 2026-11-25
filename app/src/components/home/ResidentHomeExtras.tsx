@@ -63,7 +63,7 @@ function DefaultArtemisCard() {
       </View>
       <Text style={s.promoTitle}>Book hospital visits &{'\n'}save up to 25%</Text>
       <Text style={s.promoSub}>
-        Exclusive rates at Artemis Hospitals, Gurugram, and other partners for SLERWA residents and their families.
+        Exclusive rates at Artemis Hospitals, Gurugram, and other partners for residents and their families.
       </Text>
       <View style={s.promoChips}>
         {['Up to 25% off', 'Priority OPD slots', 'Family covered'].map(c => (
@@ -226,7 +226,7 @@ export function LocalBusinesses() {
             <View style={s.bizCircle} />
             <View style={s.verified}>
               <Ionicons name="checkmark" size={12} color="#0F172A" />
-              <Text style={s.verifiedText}>SLERWA verified</Text>
+              <Text style={s.verifiedText}>Verified</Text>
             </View>
             <View style={s.kmTag}><Text style={s.kmText}>{b.km}</Text></View>
             <Ionicons name={b.icon as any} size={46} color={b.fg} />
