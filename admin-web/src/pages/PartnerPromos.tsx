@@ -3,7 +3,7 @@ import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { io } from 'socket.io-client';
 import { Plus, Edit2, Trash2, X, Phone, Image as ImageIcon, MapPin, Check } from 'lucide-react';
-import { API_URL, socketAuth } from '../lib/area';
+import { API_URL, socketAuth, isPlatformSuperAdmin, getSelectedArea } from '../lib/area';
 import { confirmDialog } from '../components/ConfirmDialog';
 import '../index.css';
 
@@ -13,6 +13,7 @@ import '../index.css';
 
 interface Promo {
   _id: string;
+  area?: string;
   partnerName: string;
   title: string;
   description: string;
@@ -25,18 +26,31 @@ interface Promo {
 }
 
 type FormState = {
+  areaId: string;
   partnerName: string;
   title: string;
   description: string;
-  points: string;
+  points: string[];
   phone: string;
   buttonText: string;
   order: string;
   isActive: boolean;
 };
 
+const POINT_SLOTS = 3;
+const padPoints = (list: string[] = []) => [...list, '', '', ''].slice(0, Math.max(POINT_SLOTS, list.length));
+
 const EMPTY: FormState = {
-  partnerName: '', title: '', description: '', points: '', phone: '', buttonText: '', order: '0', isActive: true,
+  areaId: '', partnerName: '', title: '', description: '', points: padPoints(), phone: '', buttonText: '', order: '0', isActive: true,
+};
+
+// The original Artemis card, to fill the form in one click
+const ARTEMIS_TEMPLATE = {
+  partnerName: 'Artemis Hospitals',
+  title: 'Book hospital visits & save up to 25%',
+  description: 'Exclusive rates at Artemis Hospitals, Gurugram, and other partners for residents and their families.',
+  points: ['Up to 25% off', 'Priority OPD slots', 'Family covered'],
+  buttonText: 'Call to book',
 };
 
 const BASE = `${API_URL}/partner-promos`;
@@ -45,6 +59,8 @@ export default function PartnerPromos() {
   const [promos, setPromos] = useState<Promo[]>([]);
   const [loading, setLoading] = useState(true);
   const [areaName, setAreaName] = useState('');
+  const superAdmin = isPlatformSuperAdmin();
+  const [areas, setAreas] = useState<{ _id: string; name: string }[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Promo | null>(null);
   const [form, setForm] = useState<FormState>(EMPTY);
@@ -68,6 +84,11 @@ export default function PartnerPromos() {
   useEffect(() => {
     load();
     axios.get(`${API_URL}/areas/current`).then(r => setAreaName(r.data?.name || '')).catch(() => {});
+    if (superAdmin) {
+      axios.get(`${API_URL}/areas`)
+        .then(r => setAreas((Array.isArray(r.data) ? r.data : []).map((a: any) => ({ _id: a._id, name: a.name }))))
+        .catch(() => {});
+    }
     const socket = io(API_URL.replace('/api', ''), { ...socketAuth(), transports: ['websocket', 'polling'] });
     socket.on('partner_promos_changed', load);
     return () => { socket.disconnect(); };
@@ -77,7 +98,7 @@ export default function PartnerPromos() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ ...EMPTY, order: String(promos.length) });
+    setForm({ ...EMPTY, areaId: getSelectedArea() || '', order: String(promos.length) });
     setFile(null); setPreview(''); setRemoveImage(false);
     setOpen(true);
   };
@@ -85,10 +106,11 @@ export default function PartnerPromos() {
   const openEdit = (p: Promo) => {
     setEditing(p);
     setForm({
+      areaId: p.area || getSelectedArea() || '',
       partnerName: p.partnerName || '',
       title: p.title || '',
       description: p.description || '',
-      points: (p.points || []).join('\n'),
+      points: padPoints(p.points || []),
       phone: p.phone || '',
       buttonText: p.buttonText || '',
       order: String(p.order ?? 0),
@@ -111,7 +133,12 @@ export default function PartnerPromos() {
     if (fileRef.current) fileRef.current.value = '';
   };
 
+  const setPoint = (i: number, v: string) => setForm(f => ({ ...f, points: f.points.map((p, j) => (j === i ? v : p)) }));
+
+  const useArtemis = () => setForm(f => ({ ...f, ...ARTEMIS_TEMPLATE, points: padPoints(ARTEMIS_TEMPLATE.points) }));
+
   const save = async () => {
+    if (superAdmin && !form.areaId) { toast.error('Please select an area'); return; }
     if (!form.title.trim()) { toast.error('Title is required'); return; }
     const phone = form.phone.trim();
     if (phone && !/^[+\d][\d\s-]{5,}$/.test(phone)) { toast.error('Enter a valid phone number'); return; }
@@ -120,7 +147,8 @@ export default function PartnerPromos() {
     data.append('partnerName', form.partnerName);
     data.append('title', form.title);
     data.append('description', form.description);
-    data.append('points', JSON.stringify(form.points.split('\n').map(s => s.trim()).filter(Boolean)));
+    data.append('points', JSON.stringify(form.points.map(s => s.trim()).filter(Boolean)));
+    if (superAdmin && form.areaId) data.append('areaId', form.areaId);
     data.append('phone', phone);
     data.append('buttonText', form.buttonText);
     data.append('order', form.order || '0');
@@ -132,7 +160,9 @@ export default function PartnerPromos() {
     try {
       if (editing) await axios.put(`${BASE}/${editing._id}`, data);
       else await axios.post(BASE, data);
-      toast.success(editing ? 'Promo updated' : 'Promo added');
+      const savedArea = areas.find(a => a._id === form.areaId)?.name;
+      const otherArea = superAdmin && form.areaId && form.areaId !== getSelectedArea();
+      toast.success(`${editing ? 'Promo updated' : 'Promo added'}${otherArea && savedArea ? ` in ${savedArea}` : ''}`);
       setOpen(false);
       load();
     } catch (e: any) {
@@ -167,8 +197,6 @@ export default function PartnerPromos() {
       toast.error('Could not delete promo');
     }
   };
-
-  const pointList = form.points.split('\n').map(s => s.trim()).filter(Boolean);
 
   return (
     <div>
@@ -219,12 +247,26 @@ export default function PartnerPromos() {
             </div>
 
             <div className="modal-body">
-              {areaName && (
+              {!editing && (
+                <button type="button" className="btn btn-outline" onClick={useArtemis} style={{ marginBottom: 14 }}>
+                  Fill with Artemis Hospital template
+                </button>
+              )}
+
+              {superAdmin ? (
+                <div className="form-group">
+                  <label className="form-label">Area *</label>
+                  <select className="form-input" value={form.areaId} onChange={e => set('areaId', e.target.value)}>
+                    <option value="">Select area</option>
+                    {areas.map(a => <option key={a._id} value={a._id}>{a.name}</option>)}
+                  </select>
+                </div>
+              ) : areaName ? (
                 <div className="form-group">
                   <label className="form-label">Area</label>
                   <input className="form-input" value={areaName} disabled />
                 </div>
-              )}
+              ) : null}
 
               <div className="form-group">
                 <label className="form-label">Partner name</label>
@@ -242,9 +284,13 @@ export default function PartnerPromos() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Points (one per line, up to 6)</label>
-                <textarea className="form-input" rows={3} placeholder={'Up to 25% off\nPriority OPD slots\nFamily covered'} value={form.points} onChange={e => set('points', e.target.value)} />
-                {pointList.length > 6 && <small style={{ color: '#DC2626' }}>Only the first 6 points will be shown.</small>}
+                <label className="form-label">Points</label>
+                <div style={{ display: 'grid', gap: 8 }}>
+                  {form.points.map((pt, i) => (
+                    <input key={i} className="form-input" placeholder={ARTEMIS_TEMPLATE.points[i] ? `Point ${i + 1}, e.g. ${ARTEMIS_TEMPLATE.points[i]}` : `Point ${i + 1}`}
+                      value={pt} onChange={e => setPoint(i, e.target.value)} />
+                  ))}
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
