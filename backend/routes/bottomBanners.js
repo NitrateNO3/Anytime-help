@@ -4,6 +4,7 @@ const multer = require('multer');
 const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const BottomBanner = require('../models/BottomBanner');
 const bannerAdmin = require('../middleware/bannerAdmin');
+const requireAreaForPublic = require('../middleware/requireAreaForPublic');
 
 // Who may change these banners
 const canManage = bannerAdmin(['Banners', 'Announcements']);
@@ -37,7 +38,7 @@ const notifySocket = (req) => {
 // @route   GET /api/bottom-banners
 // @desc    Get bottom banners (by audience, active only for apps, or ?all=true for admin)
 // @access  Public
-router.get('/', async (req, res) => {
+router.get('/', requireAreaForPublic, async (req, res) => {
   try {
     const rawTarget = req.query.target || req.query.audience;
     const target = normalizeAudience(rawTarget);

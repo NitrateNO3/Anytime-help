@@ -15,7 +15,7 @@ import { socketAuth } from '../../utils/socketAuth';
 import Toast from 'react-native-toast-message';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 import {
-  PartnerPromoCard, PartnerHospitals, PartnerSpotlight, WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter,
+  WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter,
 } from '../../components/home/ResidentHomeExtras';
 import HomeHeader, { CompactHomeHeader } from '../../components/home/HomeHeader';
 import useImageRatio from '../../utils/useImageRatio';
@@ -700,9 +700,6 @@ export default function MemberHome() {
         </View>
 
         {/* New sections: static UI until their backend is ready */}
-        <PartnerPromoCard />
-        <PartnerHospitals />
-        <PartnerSpotlight />
         <WhyResidentsLove />
         <SponsoredAds />
         <LocalBusinesses />

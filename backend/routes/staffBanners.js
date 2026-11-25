@@ -5,6 +5,7 @@ const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const StaffBanner = require('../models/StaffBanner');
 const { cache, clearCachePrefix } = require('../middleware/cache');
 const bannerAdmin = require('../middleware/bannerAdmin');
+const requireAreaForPublic = require('../middleware/requireAreaForPublic');
 
 // Who may change these banners
 const canManage = bannerAdmin(['Banners', 'Staff Banner', 'Staff Banners']);
@@ -27,7 +28,7 @@ const normalizeAudience = (raw) => {
 // @route   GET /api/staff-banners
 // @desc    Get banners filtered by target audience ('Staff' | 'Resident' | 'Member')
 // @access  Public
-router.get('/', cache(60), async (req, res) => {
+router.get('/', requireAreaForPublic, cache(60), async (req, res) => {
   try {
     const target = normalizeAudience(req.query.target || req.query.audience);
     // Residents and Members share one banner pool

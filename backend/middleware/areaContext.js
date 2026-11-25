@@ -32,6 +32,7 @@ module.exports = function areaContext(req, res, next) {
       if (user) {
         store.area = user.role === 'SuperAdmin' ? headerArea : (user.area || NO_AREA);
         req.areaId = store.area;
+        req.areaUserRole = user.role;
       }
     } catch (_) {
       // Invalid token: leave unscoped; the auth middleware will reject it on

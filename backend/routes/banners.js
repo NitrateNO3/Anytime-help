@@ -5,6 +5,7 @@ const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 const Banner = require('../models/Banner');
 const { cache, clearCachePrefix } = require('../middleware/cache');
 const bannerAdmin = require('../middleware/bannerAdmin');
+const requireAreaForPublic = require('../middleware/requireAreaForPublic');
 
 // Who may change these banners
 const canManage = bannerAdmin(['Banners']);
@@ -16,7 +17,7 @@ const upload = multer({ storage });
 // @route   GET api/banners
 // @desc    Get all banners
 // @access  Public
-router.get('/', cache(300), async (req, res) => {
+router.get('/', requireAreaForPublic, cache(300), async (req, res) => {
   try {
     if (req.query.type === 'staff') {
       const StaffBanner = require('../models/StaffBanner');
@@ -32,7 +33,7 @@ router.get('/', cache(300), async (req, res) => {
   }
 });
 
-router.get('/staff', cache(120), async (req, res) => {
+router.get('/staff', requireAreaForPublic, cache(120), async (req, res) => {
   try {
     const StaffBanner = require('../models/StaffBanner');
     const query = req.query.all === 'true' ? {} : { isActive: true };

@@ -4,7 +4,7 @@
 // - your complaints (server search by title / ID / address)
 // - announcements
 // - residents (Member portal only)
-// - partner hospitals and local businesses shown on home
+// - local businesses shown on home
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, Linking, BackHandler, Keyboard,
@@ -16,7 +16,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
-import { HOSPITALS, BUSINESSES } from './ResidentHomeExtras';
+import { BUSINESSES } from './ResidentHomeExtras';
 
 const API_URL = 'https://api.anytimehelp.co.in/api';
 
@@ -48,7 +48,6 @@ const shortcutsFor = (p: Portal): Shortcut[] => {
 
 
 // Extra words people type for each kind of place
-const HOSPITAL_KEYS = 'doctor hospital clinic medical health treatment';
 const BUSINESS_KEYS: Record<string, string> = {
   Grocery: 'grocery kirana store shop vegetables ration',
   Pharmacy: 'pharmacy chemist medicine medical store dawai',
@@ -160,13 +159,12 @@ export default function HomeSearchScreen({ portal }: { portal: Portal }) {
       shortcuts: shortcuts.filter(s => matches(`${s.label} ${s.keys}`, q)),
       contacts: contacts.filter(c => matches(`${c.name} ${c.role || ''} ${c.designation || ''} ${c.phone || ''}`, q)).slice(0, 6),
       announcements: announcements.filter(a => matches(`${a.title} ${a.message}`, q)).slice(0, 5),
-      hospitals: HOSPITALS.filter(h => matches(`${h.name} ${h.tags} ${h.place} ${HOSPITAL_KEYS}`, q)),
       businesses: BUSINESSES.filter(b => matches(`${b.name} ${b.cat} ${b.meta} ${BUSINESS_KEYS[b.cat] || ''}`, q)),
     };
   }, [q, shortcuts, contacts, announcements]);
 
   const total = res
-    ? res.shortcuts.length + res.contacts.length + res.announcements.length + res.hospitals.length + res.businesses.length + complaints.length + residents.length
+    ? res.shortcuts.length + res.contacts.length + res.announcements.length + res.businesses.length + complaints.length + residents.length
     : 0;
 
   const go = (route: string) => {
@@ -291,14 +289,6 @@ export default function HomeSearchScreen({ portal }: { portal: Portal }) {
                     onPress={() => go(`/${portal}-announcements`)}
                     chevron
                   />
-                ))}
-              </Group>
-            )}
-
-            {res.hospitals.length > 0 && (
-              <Group title="Partner hospitals">
-                {res.hospitals.map(h => (
-                  <Row key={h.name} icon={h.icon} iconColor={h.fg} iconBg={h.bg} title={h.name} sub={`${h.tags} · ${h.place}`} onPress={comingSoon} badge={h.off} />
                 ))}
               </Group>
             )}
