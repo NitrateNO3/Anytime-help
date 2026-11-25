@@ -46,8 +46,45 @@ const callNumber = (phone: string) => {
   );
 };
 
-export function PartnerPromoCard({ promos }: { promos: PartnerPromo[] }) {
-  if (!promos || promos.length === 0) return null;
+// The original Artemis card, shown while an area has not added promos of its own
+function DefaultArtemisCard() {
+  return (
+    <View style={s.promo}>
+      <View style={s.promoRing} />
+      <View style={s.promoDot} />
+      <View style={s.promoBadge}>
+        <View style={s.promoBadgeIcon}>
+          <Ionicons name="add" size={14} color="#1D4ED8" />
+        </View>
+        <View>
+          <Text style={s.promoBadgeSmall}>IN PARTNERSHIP WITH</Text>
+          <Text style={s.promoBadgeBig}>ARTEMIS HOSPITALS</Text>
+        </View>
+      </View>
+      <Text style={s.promoTitle}>Book hospital visits &{'\n'}save up to 25%</Text>
+      <Text style={s.promoSub}>
+        Exclusive rates at Artemis Hospitals, Gurugram, and other partners for SLERWA residents and their families.
+      </Text>
+      <View style={s.promoChips}>
+        {['Up to 25% off', 'Priority OPD slots', 'Family covered'].map(c => (
+          <View key={c} style={s.promoChip}>
+            <Ionicons name="checkmark" size={13} color="#FFFFFF" />
+            <Text style={s.promoChipText}>{c}</Text>
+          </View>
+        ))}
+      </View>
+      <TouchableOpacity style={s.promoBtn} activeOpacity={0.85} onPress={comingSoon}>
+        <Ionicons name="calendar-outline" size={18} color="#1D4ED8" />
+        <Text style={s.promoBtnText}>Book at Artemis</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// promos === null: still loading (render nothing so the default never flashes)
+export function PartnerPromoCard({ promos }: { promos: PartnerPromo[] | null }) {
+  if (promos === null) return null;
+  if (promos.length === 0) return <DefaultArtemisCard />;
   return (
     <>
       {promos.map(p => (
@@ -239,6 +276,7 @@ const s = StyleSheet.create({
 
   promo: { backgroundColor: '#1D4ED8', borderRadius: 26, padding: 20, marginBottom: 26, overflow: 'hidden' },
   promoRing: { position: 'absolute', right: -60, top: -10, width: 220, height: 220, borderRadius: 110, borderWidth: 28, borderColor: 'rgba(255,255,255,0.06)' },
+  promoDot: { position: 'absolute', right: 70, top: 96, width: 12, height: 12, borderRadius: 6, backgroundColor: '#FFFFFF' },
   promoImage: { width: '100%', height: 150, borderRadius: 16, marginBottom: 14, backgroundColor: 'rgba(255,255,255,0.12)' },
   promoBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', maxWidth: '100%', backgroundColor: '#FFFFFF', borderRadius: 22, paddingVertical: 6, paddingLeft: 6, paddingRight: 14, gap: 8, marginBottom: 14 },
   promoBadgeIcon: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: '#1D4ED8', alignItems: 'center', justifyContent: 'center' },

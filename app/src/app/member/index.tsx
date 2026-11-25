@@ -91,13 +91,14 @@ export default function MemberHome() {
   };
 
   // Partner promo cards of this area (admin: Banners > Partner Promo)
-  const [partnerPromos, setPartnerPromos] = useState<PartnerPromo[]>([]);
+  const [partnerPromos, setPartnerPromos] = useState<PartnerPromo[] | null>(null);
   const fetchPartnerPromos = async () => {
     try {
       const res = await axios.get(`${API_URL}/partner-promos`);
       setPartnerPromos(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       console.log('Error fetching partner promos:', e);
+      setPartnerPromos(prev => prev ?? []);
     }
   };
 
