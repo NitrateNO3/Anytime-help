@@ -1,12 +1,13 @@
 import type { ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Image as ImageIcon, Sliders, LogIn } from 'lucide-react';
+import { Image as ImageIcon, Sliders, LogIn, Handshake } from 'lucide-react';
 import StaffBanners from './StaffBanners';
 import BottomBanners from './BottomBanners';
 import Banners from './Banners';
+import PartnerPromos from './PartnerPromos';
 import '../index.css';
 
-type Category = 'top' | 'bottom' | 'login';
+type Category = 'top' | 'bottom' | 'partner' | 'login';
 
 const CATEGORIES: { key: Category; label: string; hint: string; icon: ReactNode; perms: string[] }[] = [
   {
@@ -22,6 +23,13 @@ const CATEGORIES: { key: Category; label: string; hint: string; icon: ReactNode;
     hint: 'Featured updates slider lower on the home screen.',
     icon: <Sliders size={18} />,
     perms: ['Banners', 'Announcements'],
+  },
+  {
+    key: 'partner',
+    label: 'Partner Promo',
+    hint: 'Partner offer card (e.g. a hospital) on the resident and member home screen, with a call button.',
+    icon: <Handshake size={18} />,
+    perms: ['Banners'],
   },
   {
     key: 'login',
@@ -93,6 +101,7 @@ export default function BannersHub() {
       <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 20 }}>
         {active === 'top' && <StaffBanners embedded />}
         {active === 'bottom' && <BottomBanners embedded />}
+        {active === 'partner' && <PartnerPromos />}
         {active === 'login' && <Banners embedded />}
       </div>
     </div>

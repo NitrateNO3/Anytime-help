@@ -16,7 +16,7 @@ import Toast from 'react-native-toast-message';
 import { walkthroughable, CopilotStep, useCopilot } from 'react-native-copilot';
 import { isProfileBlockUpdateRequired } from '../../components/ForceBlockUpdateModal';
 import {
-  WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter,
+  PartnerPromoCard, WhyResidentsLove, SponsoredAds, LocalBusinesses, HomeFooter, type PartnerPromo,
 } from '../../components/home/ResidentHomeExtras';
 import HomeHeader, { CompactHomeHeader } from '../../components/home/HomeHeader';
 import useImageRatio from '../../utils/useImageRatio';
@@ -88,6 +88,17 @@ export default function ResidentHome() {
       }
     } catch (e) {
       console.log('Error fetching resident bottom banners:', e);
+    }
+  };
+
+  // Partner promo cards of this area (admin: Banners > Partner Promo)
+  const [partnerPromos, setPartnerPromos] = useState<PartnerPromo[]>([]);
+  const fetchPartnerPromos = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/partner-promos`);
+      setPartnerPromos(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
+      console.log('Error fetching partner promos:', e);
     }
   };
 
@@ -227,6 +238,7 @@ export default function ResidentHome() {
       fetchAnnouncementsData();
       fetchBanners();
       fetchBottomBanners();
+      fetchPartnerPromos();
       fetchStats();
 
       const socket = io(API_URL.replace('/api', ''), { ...socketAuth, transports: ['websocket', 'polling'] });
@@ -244,6 +256,9 @@ export default function ResidentHome() {
       });
       socket.on('bottom_banners_changed', () => {
         fetchBottomBanners();
+      });
+      socket.on('partner_promos_changed', () => {
+        fetchPartnerPromos();
       });
 
       let lastBackPress = 0;
@@ -276,6 +291,7 @@ export default function ResidentHome() {
     await Promise.all([
       fetchBanners(),
       fetchBottomBanners(),
+      fetchPartnerPromos(),
       fetchAnnouncementsData(),
       fetchStats()
     ]);
@@ -625,6 +641,7 @@ export default function ResidentHome() {
         </View>
 
         {/* New sections: static UI until their backend is ready */}
+        <PartnerPromoCard promos={partnerPromos} />
         <WhyResidentsLove />
         <SponsoredAds />
         <LocalBusinesses />

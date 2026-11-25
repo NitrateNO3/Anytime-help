@@ -1,7 +1,7 @@
 // Static (UI-only) Home sections: offers, sponsored ads and
 // local businesses. Data here is placeholder content until the backend exists.
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Toast from 'react-native-toast-message';
@@ -20,6 +20,72 @@ function SectionHead({ title, right, eyebrow }: { title: string; right?: string;
       </View>
       {!!right && <Text style={s.headRight}>{right}</Text>}
     </View>
+  );
+}
+
+/* ------------------------------ Partner promo ------------------------------ */
+
+// Partner offer cards (e.g. a partner hospital). Each area adds its own from
+// the admin panel (Banners > Partner Promo); the home screen fetches them.
+export type PartnerPromo = {
+  _id: string;
+  partnerName?: string;
+  title: string;
+  description?: string;
+  points?: string[];
+  phone?: string;
+  buttonText?: string;
+  url?: string;
+};
+
+const callNumber = (phone: string) => {
+  const tel = phone.replace(/[^\d+]/g, '');
+  if (!tel) return;
+  Linking.openURL(`tel:${tel}`).catch(() =>
+    Toast.show({ type: 'error', text1: 'Could not start the call', text2: phone, position: 'bottom' })
+  );
+};
+
+export function PartnerPromoCard({ promos }: { promos: PartnerPromo[] }) {
+  if (!promos || promos.length === 0) return null;
+  return (
+    <>
+      {promos.map(p => (
+        <View key={p._id} style={s.promo}>
+          <View style={s.promoRing} />
+          {!!p.url && <Image source={{ uri: p.url }} style={s.promoImage} resizeMode="cover" />}
+          {!!p.partnerName && (
+            <View style={s.promoBadge}>
+              <View style={s.promoBadgeIcon}>
+                <Ionicons name="add" size={14} color="#1D4ED8" />
+              </View>
+              <View style={{ flexShrink: 1 }}>
+                <Text style={s.promoBadgeSmall}>IN PARTNERSHIP WITH</Text>
+                <Text style={s.promoBadgeBig} numberOfLines={1}>{p.partnerName.toUpperCase()}</Text>
+              </View>
+            </View>
+          )}
+          <Text style={s.promoTitle}>{p.title}</Text>
+          {!!p.description && <Text style={s.promoSub}>{p.description}</Text>}
+          {!!p.points?.length && (
+            <View style={s.promoChips}>
+              {p.points.map(c => (
+                <View key={c} style={s.promoChip}>
+                  <Ionicons name="checkmark" size={13} color="#FFFFFF" />
+                  <Text style={s.promoChipText}>{c}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          {!!p.phone && (
+            <TouchableOpacity style={s.promoBtn} activeOpacity={0.85} onPress={() => callNumber(p.phone!)}>
+              <Ionicons name="call-outline" size={18} color="#1D4ED8" />
+              <Text style={s.promoBtnText}>{p.buttonText || 'Call to book'}</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ))}
+    </>
   );
 }
 
@@ -170,6 +236,21 @@ const s = StyleSheet.create({
 
   rating: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: '#16A34A', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3 },
   ratingText: { color: '#FFFFFF', fontSize: 12, fontWeight: '800' },
+
+  promo: { backgroundColor: '#1D4ED8', borderRadius: 26, padding: 20, marginBottom: 26, overflow: 'hidden' },
+  promoRing: { position: 'absolute', right: -60, top: -10, width: 220, height: 220, borderRadius: 110, borderWidth: 28, borderColor: 'rgba(255,255,255,0.06)' },
+  promoImage: { width: '100%', height: 150, borderRadius: 16, marginBottom: 14, backgroundColor: 'rgba(255,255,255,0.12)' },
+  promoBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', maxWidth: '100%', backgroundColor: '#FFFFFF', borderRadius: 22, paddingVertical: 6, paddingLeft: 6, paddingRight: 14, gap: 8, marginBottom: 14 },
+  promoBadgeIcon: { width: 24, height: 24, borderRadius: 7, borderWidth: 1.5, borderColor: '#1D4ED8', alignItems: 'center', justifyContent: 'center' },
+  promoBadgeSmall: { fontSize: 9, fontWeight: '700', color: '#475569', letterSpacing: 0.6 },
+  promoBadgeBig: { fontSize: 14, fontWeight: '900', color: '#0F172A', letterSpacing: 0.3 },
+  promoTitle: { color: '#FFFFFF', fontSize: 25, fontWeight: '900', lineHeight: 31, letterSpacing: -0.5 },
+  promoSub: { color: '#DBEAFE', fontSize: 13.5, lineHeight: 20, marginTop: 8 },
+  promoChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 },
+  promoChip: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.16)', borderRadius: 14, paddingHorizontal: 10, paddingVertical: 6 },
+  promoChipText: { color: '#FFFFFF', fontSize: 12.5, fontWeight: '700' },
+  promoBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: '#FFFFFF', borderRadius: 16, height: 52, marginTop: 18 },
+  promoBtnText: { color: '#1D4ED8', fontSize: 16, fontWeight: '800' },
 
   perkGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
   perk: { width: '48.3%', borderRadius: 20, padding: 14, minHeight: 138 },
