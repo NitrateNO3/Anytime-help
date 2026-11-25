@@ -694,8 +694,6 @@ router.post('/', auth, async (req, res) => {
 
       userQuery.expoPushToken = { $exists: true, $ne: '' };
 
-      const User = require('../models/User');
-      
       // Increment the unread_notifications for all matching users
       await User.updateMany(userQuery, { $inc: { unread_notifications: 1 } });
 
