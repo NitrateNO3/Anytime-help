@@ -1,234 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { Tabs, useRouter, usePathname } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { View, Text, StyleSheet, Platform, AppState } from 'react-native';
+import React, { useState, useEffect, useRef, type ComponentRef } from 'react';
+import { Tabs } from 'expo-router';
+import { View, StyleSheet, AppState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurTargetView } from 'expo-blur';
 import { useTranslation } from 'react-i18next';
-import { TouchableOpacity } from 'react-native';
-import { walkthroughable, CopilotStep } from 'react-native-copilot';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import { socketAuth } from '../../utils/socketAuth';
-import { useChatUnread, refreshChatUnread, refreshChatUnreadSoon } from '../../utils/chatUnread';
+import { refreshChatUnread, refreshChatUnreadSoon } from '../../utils/chatUnread';
+import LiquidGlassTabBar from '../../components/LiquidGlassTabBar';
 import ForceBlockUpdateModal, { isProfileBlockUpdateRequired } from '../../components/ForceBlockUpdateModal';
 
 const API_URL = 'https://api.anytimehelp.co.in/api';
 const SOCKET_URL = 'https://api.anytimehelp.co.in';
 
-const WalkthroughableView = walkthroughable(View);
-
-interface TabDefinition {
-  name: string;
-  label: string;
-  activeIcon: any;
-  inactiveIcon: any;
-}
-
-const TABS: TabDefinition[] = [
-  {
-    name: 'index',
-    label: 'Home',
-    activeIcon: 'home',
-    inactiveIcon: 'home-outline',
-  },
-  {
-    name: 'chats',
-    label: 'Chat',
-    activeIcon: 'chatbubble-ellipses',
-    inactiveIcon: 'chatbubble-ellipses-outline',
-  },
-  {
-    name: 'community',
-    label: 'Community',
-    activeIcon: 'people',
-    inactiveIcon: 'people-outline',
-  },
-  {
-    name: 'settings',
-    label: 'Profile',
-    activeIcon: 'person',
-    inactiveIcon: 'person-outline',
-  },
-];
-
-function WhatsAppFloatingTabBar({ state, descriptors, insets }: any) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const chatUnread = useChatUnread();
-
-  const focusedRoute = state?.routes ? state.routes[state.index] : null;
-  const focusedDescriptor = descriptors && focusedRoute ? descriptors[focusedRoute.key] : null;
-  const focusedOptions = focusedDescriptor?.options;
-
-  if (focusedOptions?.tabBarStyle?.display === 'none') {
-    return null;
-  }
-
-  const currentTabName = focusedRoute?.name;
-
-  return (
-    <View 
-      style={[
-        tabBarStyles.floatingWrapper, 
-        { bottom: Platform.OS === 'ios' ? Math.max(insets?.bottom || 0, 16) : 20 }
-      ]} 
-      pointerEvents="box-none"
-    >
-      <View style={tabBarStyles.pillContainer}>
-        {TABS.map((tab) => {
-          const isFocused = tab.name === 'index'
-            ? (pathname === '/member' || pathname === '/member/' || pathname === '/member/index' || currentTabName === 'index')
-            : (pathname === `/member/${tab.name}` || pathname?.startsWith(`/member/${tab.name}/`) || currentTabName === tab.name);
-
-          const handlePress = () => {
-            if (tab.name === 'index') {
-              router.navigate('/member' as any);
-            } else {
-              router.navigate(`/member/${tab.name}` as any);
-            }
-          };
-
-          const tabButton = (
-            <TouchableOpacity
-              onPress={handlePress}
-              style={tabBarStyles.tabItem}
-              activeOpacity={0.7}
-            >
-              <View style={[tabBarStyles.iconPill, isFocused && tabBarStyles.iconPillActive]}>
-                <Ionicons
-                  name={isFocused ? tab.activeIcon : tab.inactiveIcon}
-                  size={22}
-                  color={isFocused ? '#2563EB' : '#64748B'}
-                />
-                {tab.name === 'chats' && chatUnread.total > 0 && (
-                  <View style={tabBarStyles.unreadDot}>
-                    <Text style={tabBarStyles.unreadDotText}>{chatUnread.total > 99 ? '99+' : chatUnread.total}</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={[tabBarStyles.tabLabel, isFocused && tabBarStyles.tabLabelActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-
-          if (tab.name === 'index') {
-            return (
-              <CopilotStep
-                key={tab.name}
-                text="यह आपका होम टैब है। यहाँ से आप वापस अपने डैशबोर्ड पर जा सकते हैं।"
-                order={6}
-                name="home_tab"
-              >
-                <WalkthroughableView style={{ flex: 1, height: '100%' }}>
-                  {tabButton}
-                </WalkthroughableView>
-              </CopilotStep>
-            );
-          }
-
-          if (tab.name === 'settings') {
-            return (
-              <CopilotStep
-                key={tab.name}
-                text="यहाँ से आप अपनी प्रोफ़ाइल और सेटिंग्स मैनेज कर सकते हैं।"
-                order={8}
-                name="profile_tab"
-              >
-                <WalkthroughableView style={{ flex: 1, height: '100%' }}>
-                  {tabButton}
-                </WalkthroughableView>
-              </CopilotStep>
-            );
-          }
-
-          return (
-            <View key={tab.name} style={{ flex: 1, height: '100%' }}>
-              {tabButton}
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-const tabBarStyles = StyleSheet.create({
-  unreadDot: {
-    position: 'absolute',
-    top: -5,
-    right: 4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 4,
-    backgroundColor: '#EF4444',
-    borderWidth: 2,
-    borderColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  unreadDotText: { color: '#FFFFFF', fontSize: 9.5, fontWeight: '800', includeFontPadding: false },
-  floatingWrapper: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    zIndex: 999,
-    elevation: 12,
-  },
-  pillContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    elevation: 10,
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-  },
-  tabItem: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '100%',
-    width: '100%',
-  },
-  iconPill: {
-    width: 52,
-    height: 28,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 2,
-  },
-  iconPillActive: {
-    backgroundColor: '#EFF6FF',
-  },
-  tabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    textAlign: 'center',
-  },
-  tabLabelActive: {
-    color: '#2563EB',
-    fontWeight: '700',
-  },
-});
-
 export default function MemberLayout() {
   const insets = useSafeAreaInsets();
+  const blurTargetRef = useRef<ComponentRef<typeof View>>(null);
   const { t } = useTranslation();
   
   const [userData, setUserData] = useState<any>(null);
@@ -301,9 +91,10 @@ export default function MemberLayout() {
 
   return (
     <View style={{ flex: 1 }}>
+      <BlurTargetView ref={blurTargetRef} style={{ flex: 1 }}>
       <Tabs
         id={undefined}
-        tabBar={(props) => <WhatsAppFloatingTabBar {...props} insets={insets} />}
+        tabBar={() => null}
         backBehavior="history"
         screenOptions={{
           headerShown: false,
@@ -331,6 +122,15 @@ export default function MemberLayout() {
         <Tabs.Screen name="complaint-details" options={{ tabBarStyle: { display: 'none' } }} />
         <Tabs.Screen name="chat-room" options={{ tabBarStyle: { display: 'none' } }} />
       </Tabs>
+      </BlurTargetView>
+
+      {/* Sibling of the blur target (not inside it) so Android can blur the screens behind it */}
+      <LiquidGlassTabBar
+        insets={insets}
+        basePath="/member"
+        blurTarget={blurTargetRef}
+        hiddenRoutes={['raise', 'edit-profile', 'complaint-details', 'chat-room']}
+      />
 
     <ForceBlockUpdateModal
       visible={showBlockModal}
