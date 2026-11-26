@@ -437,6 +437,7 @@ export default function MemberHome() {
           <HomeHeader
             user={user}
             portalLabel="MEMBER PORTAL"
+            offerFor="members"
             unreadCount={unreadCount}
             banners={banners}
             onBell={() => router.push('/member-announcements' as any)}

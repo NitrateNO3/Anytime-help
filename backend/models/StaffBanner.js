@@ -52,7 +52,31 @@ const StaffBannerSchema = new mongoose.Schema({
   expiresAt: {
     type: Date,
     default: null, // Optional expiry date/time
-  }
+  },
+  // Resident/Member banners only: when `enabled`, tapping the banner opens an
+  // "Offer details" page in the app built from these fields.
+  offer: {
+    enabled: { type: Boolean, default: false },
+    theme: { type: String, default: 'teal' },
+    tag: { type: String, default: '', trim: true },
+    title: { type: String, default: '', trim: true },
+    description: { type: String, default: '', trim: true },
+    partnerName: { type: String, default: '', trim: true },
+    partnerVerified: { type: Boolean, default: true },
+    distance: { type: String, default: '', trim: true },
+    rating: { type: Number, default: null },
+    ratingCount: { type: Number, default: null },
+    points: { type: [String], default: [] },
+    validText: { type: String, default: '', trim: true },
+    address: { type: String, default: '', trim: true },
+    mapLink: { type: String, default: '', trim: true },
+    phone: { type: String, default: '', trim: true },
+    terms: { type: [String], default: [] },
+    footerLabel: { type: String, default: '', trim: true },
+    ctaLabel: { type: String, default: '', trim: true },
+    ctaLink: { type: String, default: '', trim: true },
+    couponCode: { type: String, default: '', trim: true },
+  },
 }, { timestamps: true });
 
 StaffBannerSchema.plugin(require('./plugins/areaScope'));

@@ -38,6 +38,7 @@ interface BannerItem {
   subtitle?: string;
   ctaLabel?: string;
   icon?: string;
+  offer?: BannerOffer;
   createdAt: string;
   updatedAt: string;
 }
@@ -83,6 +84,164 @@ function CardPreview({ title, card, image }: { title: string; card: CardForm; im
   );
 }
 
+// ---- Offer details page (Residents & Members banners) ----
+// Tapping such a banner in the app opens an "Offer details" page built from these fields.
+interface BannerOffer {
+  enabled?: boolean; theme?: string; tag?: string; title?: string; description?: string;
+  partnerName?: string; partnerVerified?: boolean; distance?: string; rating?: number | null; ratingCount?: number | null;
+  points?: string[]; validText?: string; address?: string; mapLink?: string; phone?: string; terms?: string[];
+  footerLabel?: string; ctaLabel?: string; ctaLink?: string; couponCode?: string;
+}
+type OfferForm = {
+  enabled: boolean; theme: string; tag: string; title: string; description: string;
+  partnerName: string; partnerVerified: boolean; distance: string; rating: string; ratingCount: string;
+  points: string; validText: string; address: string; mapLink: string; phone: string; terms: string;
+  footerLabel: string; ctaLabel: string; ctaLink: string; couponCode: string;
+};
+const EMPTY_OFFER: OfferForm = {
+  enabled: false, theme: 'teal', tag: '', title: '', description: '',
+  partnerName: '', partnerVerified: true, distance: '', rating: '', ratingCount: '',
+  points: '', validText: '', address: '', mapLink: '', phone: '', terms: '',
+  footerLabel: 'Resident offer', ctaLabel: '', ctaLink: '', couponCode: '',
+};
+// Same keys and colours as the app (app/src/utils/offerBanner.ts)
+const OFFER_THEMES: { value: string; label: string; color: string }[] = [
+  { value: 'teal', label: 'Teal', color: '#0F766E' },
+  { value: 'green', label: 'Green', color: '#047857' },
+  { value: 'blue', label: 'Blue', color: '#1D4ED8' },
+  { value: 'purple', label: 'Purple', color: '#6D28D9' },
+  { value: 'orange', label: 'Orange', color: '#C2410C' },
+  { value: 'red', label: 'Red', color: '#B91C1C' },
+  { value: 'pink', label: 'Pink', color: '#BE185D' },
+  { value: 'amber', label: 'Amber', color: '#B45309' },
+];
+const offerToForm = (o?: BannerOffer): OfferForm => (o ? {
+  enabled: !!o.enabled,
+  theme: o.theme || 'teal',
+  tag: o.tag || '',
+  title: o.title || '',
+  description: o.description || '',
+  partnerName: o.partnerName || '',
+  partnerVerified: o.partnerVerified !== false,
+  distance: o.distance || '',
+  rating: o.rating != null ? String(o.rating) : '',
+  ratingCount: o.ratingCount != null ? String(o.ratingCount) : '',
+  points: (o.points || []).join('\n'),
+  validText: o.validText || '',
+  address: o.address || '',
+  mapLink: o.mapLink || '',
+  phone: o.phone || '',
+  terms: (o.terms || []).join('\n'),
+  footerLabel: o.footerLabel || '',
+  ctaLabel: o.ctaLabel || '',
+  ctaLink: o.ctaLink || '',
+  couponCode: o.couponCode || '',
+} : EMPTY_OFFER);
+const lines = (v: string) => v.split('\n').map(x => x.trim()).filter(Boolean);
+const offerPayload = (f: OfferForm) => JSON.stringify({
+  ...f,
+  points: lines(f.points),
+  terms: lines(f.terms),
+  rating: f.rating.trim() === '' ? null : Number(f.rating),
+  ratingCount: f.ratingCount.trim() === '' ? null : Number(f.ratingCount),
+});
+
+function OfferFields({ value, onChange }: { value: OfferForm; onChange: (v: OfferForm) => void }) {
+  const set = <K extends keyof OfferForm>(k: K, v: OfferForm[K]) => onChange({ ...value, [k]: v });
+  const label = (text: string, hint?: string) => (
+    <label className="form-label" style={{ fontWeight: 600, display: 'block', marginBottom: 4 }}>
+      {text}{hint && <span style={{ fontWeight: 400, color: '#94A3B8' }}> {hint}</span>}
+    </label>
+  );
+  const input = (k: keyof OfferForm, placeholder: string, extra: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
+    <input className="form-input" value={value[k] as string} onChange={(e) => set(k, e.target.value as any)} placeholder={placeholder} {...extra} />
+  );
+  const sectionTitle = (text: string) => (
+    <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.6, color: '#64748B', textTransform: 'uppercase', marginTop: 4 }}>{text}</div>
+  );
+  const row: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 };
+
+  return (
+    <div style={{ border: '1px solid #E2E8F0', borderRadius: 12, padding: 14, background: '#F8FAFC', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
+        <input type="checkbox" checked={value.enabled} onChange={(e) => set('enabled', e.target.checked)} style={{ marginTop: 3 }} />
+        <span>
+          <span style={{ fontWeight: 700, color: '#1E293B', fontSize: 14 }}>Open an offer details page on tap</span>
+          <span style={{ display: 'block', fontSize: 12, color: '#64748B' }}>
+            Residents and members see a full offer page (partner, benefits, location, terms, action button) when they tap this banner.
+          </span>
+        </span>
+      </label>
+
+      {value.enabled && (
+        <>
+          {sectionTitle('Offer')}
+          <div>
+            {label('Colour')}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {OFFER_THEMES.map((t) => (
+                <button key={t.value} type="button" title={t.label} onClick={() => set('theme', t.value)}
+                  style={{ width: 30, height: 30, borderRadius: 15, background: t.color, cursor: 'pointer', border: value.theme === t.value ? '3px solid #0F172A' : '2px solid #FFFFFF', boxShadow: '0 0 0 1px #CBD5E1' }} />
+              ))}
+            </div>
+          </div>
+          <div>{label('Tag', '(small pill)')}{input('tag', 'e.g. HappyDent · Sector 52', { maxLength: 40 })}</div>
+          <div>{label('Title *')}{input('title', 'e.g. Free dental check-up for residents', { maxLength: 90 })}</div>
+          <div>{label('Short description')}{input('description', 'e.g. Cleaning, X-ray and consultation · this month only', { maxLength: 200 })}</div>
+
+          {sectionTitle('Partner')}
+          <div style={row}>
+            <div>{label('Partner name')}{input('partnerName', 'e.g. HappyDent Dental Clinic', { maxLength: 60 })}</div>
+            <div>{label('Distance')}{input('distance', 'e.g. 1.8 km', { maxLength: 20 })}</div>
+          </div>
+          <div style={row}>
+            <div>{label('Rating', '(0 to 5)')}{input('rating', 'e.g. 4.7', { type: 'number', min: 0, max: 5, step: 0.1 })}</div>
+            <div>{label('Number of ratings')}{input('ratingCount', 'e.g. 320', { type: 'number', min: 0, step: 1 })}</div>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#334155', cursor: 'pointer' }}>
+            <input type="checkbox" checked={value.partnerVerified} onChange={(e) => set('partnerVerified', e.target.checked)} />
+            Show "Verified partner"
+          </label>
+
+          {sectionTitle('What you get')}
+          <div>
+            {label('Benefits', '(one per line)')}
+            <textarea className="form-input" rows={4} value={value.points} onChange={(e) => set('points', e.target.value)}
+              placeholder={'Free dental check-up and consultation\nFree cleaning and polishing\nDigital X-ray at 50% off if needed'} />
+          </div>
+          <div>{label('Validity', '(empty = uses the banner expiry date)')}{input('validText', 'e.g. Valid till 30 Nov 2026 / This Saturday and Sunday', { maxLength: 60 })}</div>
+
+          {sectionTitle('Location')}
+          <div>{label('Address')}{input('address', 'e.g. Artemis Hospital Road, Sector 52, Gurugram', { maxLength: 160 })}</div>
+          <div style={row}>
+            <div>{label('Phone')}{input('phone', 'e.g. +91 98765 43210', { maxLength: 20 })}</div>
+            <div>{label('Map link', '(optional)')}{input('mapLink', 'Google Maps link')}</div>
+          </div>
+
+          {sectionTitle('Terms')}
+          <div>
+            <textarea className="form-input" rows={3} value={value.terms} onChange={(e) => set('terms', e.target.value)}
+              placeholder={'Show your Anytime Help app at the clinic\nOne free check-up per person'} />
+          </div>
+
+          {sectionTitle('Bottom button')}
+          <div style={row}>
+            <div>{label('Small label')}{input('footerLabel', 'e.g. Resident offer', { maxLength: 40 })}</div>
+            <div>{label('Button text')}{input('ctaLabel', 'e.g. Book now / Get code', { maxLength: 24 })}</div>
+          </div>
+          <div style={row}>
+            <div>{label('Coupon code', '(optional)')}{input('couponCode', 'e.g. FRESH15', { maxLength: 30 })}</div>
+            <div>{label('Button link', '(optional)')}{input('ctaLink', 'https://... or tel:...')}</div>
+          </div>
+          <div style={{ fontSize: 12, color: '#64748B' }}>
+            The button shows the coupon code if one is set, otherwise opens the button link, otherwise calls the phone number.
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // Residents and Members share one banner pool, so 'Resident' stands for both
 const audienceLabel = (aud?: AudienceType) => (aud === 'Staff' ? 'Staff' : 'Residents & Members');
 
@@ -119,6 +278,8 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
 
   // Text card fields, shared by whichever modal is open
   const [cardForm, setCardForm] = useState<CardForm>(EMPTY_CARD);
+  // Offer details page fields, shared by whichever modal is open
+  const [offerForm, setOfferForm] = useState<OfferForm>(EMPTY_OFFER);
   const appendCardFields = (fd: FormData) => {
     fd.append('style', cardForm.style);
     fd.append('tag', cardForm.tag.trim());
@@ -178,6 +339,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
     setNewImageFile(null);
     setNewImagePreview(null);
     setCardForm(EMPTY_CARD);
+    setOfferForm(EMPTY_OFFER);
     setIsAddModalOpen(true);
   };
 
@@ -209,6 +371,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
       icon: banner.icon || 'sparkles-outline',
       link: banner.link || '',
     });
+    setOfferForm(offerToForm(banner.offer));
   };
 
   const handleCloseEditModal = () => {
@@ -231,6 +394,10 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
       toast.error('Please select an image for the banner');
       return;
     }
+    if (newAudience !== 'Staff' && offerForm.enabled && !offerForm.title.trim()) {
+      toast.error('Please enter a title for the offer details page');
+      return;
+    }
 
     setUploading(true);
     const loadingToast = toast.loading(`Uploading ${audienceLabel(newAudience)} banner...`);
@@ -240,7 +407,10 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
       if (newImageFile) formData.append('image', newImageFile);
       formData.append('title', newTitle.trim());
       formData.append('audience', newAudience);
-      if (newAudience !== 'Staff') appendCardFields(formData);
+      if (newAudience !== 'Staff') {
+        appendCardFields(formData);
+        formData.append('offer', offerPayload(offerForm));
+      }
       formData.append('isActive', String(newIsActive));
       formData.append('duration', String(newDuration || 4));
       if (newExpiresAt) {
@@ -279,6 +449,10 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
       toast.error('Image banners need an image');
       return;
     }
+    if (editAudience !== 'Staff' && offerForm.enabled && !offerForm.title.trim()) {
+      toast.error('Please enter a title for the offer details page');
+      return;
+    }
 
     setSavingEdit(true);
     const loadingToast = toast.loading('Updating banner...');
@@ -295,6 +469,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
       }
       if (editAudience !== 'Staff') {
         appendCardFields(formData);
+        formData.append('offer', offerPayload(offerForm));
         if (editRemoveImage && !editImageFile) formData.append('removeImage', 'true');
       } else {
         formData.append('style', 'image');
@@ -597,6 +772,11 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                         <Clock size={12} />
                         {banner.duration || 4}s slide
                       </span>
+                      {banner.audience !== 'Staff' && banner.offer?.enabled && (
+                        <span style={{ display: 'inline-flex', alignItems: 'center', fontSize: 11, fontWeight: 600, background: '#FEF3C7', color: '#92400E', padding: '3px 8px', borderRadius: 6 }}>
+                          Offer page
+                        </span>
+                      )}
                       {banner.expiresAt ? (
                         (() => {
                           const isExpired = new Date(banner.expiresAt).getTime() < Date.now();
@@ -681,7 +861,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
       {/* ===================== ADD BANNER MODAL ===================== */}
       {isAddModalOpen && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '480px' }}>
+          <div className="modal-content" style={{ maxWidth: newAudience !== 'Staff' && offerForm.enabled ? '640px' : '480px' }}>
             <div className="modal-header">
               <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Upload size={20} color="#2563EB" />
@@ -786,6 +966,8 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                   />
                 </div>
 
+                {newAudience !== 'Staff' && <OfferFields value={offerForm} onChange={setOfferForm} />}
+
               </div>
 
               <div className="modal-footer">
@@ -804,7 +986,7 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
       {/* ===================== MODIFY / EDIT BANNER MODAL ===================== */}
       {editingBanner && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: '480px' }}>
+          <div className="modal-content" style={{ maxWidth: editAudience !== 'Staff' && offerForm.enabled ? '640px' : '480px' }}>
             <div className="modal-header">
               <h2 className="modal-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Edit2 size={20} color="#2563EB" />
@@ -911,6 +1093,8 @@ export default function StaffBanners({ embedded = false }: { embedded?: boolean 
                     </div>
                   )}
                 </div>
+
+                {editAudience !== 'Staff' && <OfferFields value={offerForm} onChange={setOfferForm} />}
 
               </div>
 

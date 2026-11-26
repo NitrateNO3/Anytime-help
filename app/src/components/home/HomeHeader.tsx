@@ -8,6 +8,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { hasOfferPage, rememberOfferBanner, type BannerOffer } from '../../utils/offerBanner';
 
 const API_URL = 'https://api.anytimehelp.co.in/api';
 const HERO_TOP = '#0D3346';
@@ -30,6 +31,9 @@ interface Banner {
   _id?: string; url: string; title?: string; link?: string; duration?: number;
   // Text card banner (admin 'Text card' type)
   style?: 'image' | 'card'; tag?: string; subtitle?: string; ctaLabel?: string; icon?: string;
+  expiresAt?: string | null;
+  // Set in the admin panel: tapping opens the offer details page
+  offer?: BannerOffer;
 }
 
 const isCard = (b: Banner) => b.style === 'card' || !b.url;
@@ -52,11 +56,13 @@ interface HeaderProps {
   onAvatar: () => void;
   onBannerPress: (b: Banner) => void;
   onSearch: () => void;
+  // Who is viewing, shown on the offer details page
+  offerFor?: 'residents' | 'members';
   // Lets a screen wrap the avatar (e.g. in a tutorial step)
   wrapAvatar?: (node: React.ReactElement) => React.ReactElement;
 }
 
-export default function HomeHeader({ user, portalLabel, unreadCount, banners, onBell, onAvatar, onBannerPress, onSearch, wrapAvatar }: HeaderProps) {
+export default function HomeHeader({ user, portalLabel, unreadCount, banners, onBell, onAvatar, onBannerPress, onSearch, offerFor = 'residents', wrapAvatar }: HeaderProps) {
   const width = Dimensions.get('window').width;
   const [index, setIndex] = useState(0);
   const listRef = useRef<FlatList<Banner>>(null);
@@ -84,6 +90,11 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
   );
 
   const pressBanner = (b: Banner) => {
+    if (hasOfferPage(b)) {
+      rememberOfferBanner(b as any);
+      router.push({ pathname: '/offer-details', params: { id: b._id!, for: offerFor } } as any);
+      return;
+    }
     if (openBannerLink(b.link)) return;
     if (b.url) onBannerPress(b);
   };

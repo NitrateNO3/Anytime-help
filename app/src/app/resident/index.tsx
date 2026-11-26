@@ -399,6 +399,7 @@ export default function ResidentHome() {
           <HomeHeader
             user={user}
             portalLabel="RESIDENT PORTAL"
+            offerFor="residents"
             unreadCount={unreadCount}
             banners={banners}
             onBell={() => router.push('/resident-announcements' as any)}
