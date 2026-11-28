@@ -114,9 +114,11 @@ interface StoriesBarProps {
   // admin's permission; no heading)
   variant?: 'default' | 'staff';
   myInitials?: string;
+  // Own profile photo, shown in the "My status" circle instead of initials
+  myPhoto?: string | null;
 }
 
-export default function StoriesBar({ title = 'Status', style, variant = 'default', myInitials = '' }: StoriesBarProps) {
+export default function StoriesBar({ title = 'Status', style, variant = 'default', myInitials = '', myPhoto }: StoriesBarProps) {
   const { i18n } = useTranslation();
   // Start from the last fetched stories so the row never flashes a loader when a
   // screen is re-entered; fresh data is fetched silently in the background.
@@ -255,7 +257,11 @@ export default function StoriesBar({ title = 'Status', style, variant = 'default
               : Toast.show({ type: 'info', text1: 'No access', text2: 'Ask your RWA admin for this access' })}
           >
             <View style={styles.sMine}>
-              <Text style={styles.sMineText}>{myInitials || 'ME'}</Text>
+              {myPhoto ? (
+                <Image source={{ uri: myPhoto }} style={styles.sMinePhoto} />
+              ) : (
+                <Text style={styles.sMineText}>{myInitials || 'ME'}</Text>
+              )}
               <View style={[styles.sBadge, { backgroundColor: badge.bg }]}>
                 <Ionicons name={badge.icon} size={12} color="#FFFFFF" />
               </View>
@@ -1069,6 +1075,7 @@ const styles = StyleSheet.create({
   sItem: { width: 66, alignItems: 'center', gap: 6 },
   sMine: { width: 62, height: 62, borderRadius: 31, backgroundColor: '#EEF4FF', alignItems: 'center', justifyContent: 'center' },
   sMineText: { color: '#2F6FED', fontSize: 18, fontWeight: '800' },
+  sMinePhoto: { width: 62, height: 62, borderRadius: 31 },
   sBadge: { position: 'absolute', right: -2, bottom: -2, width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
   sRing: { width: 62, height: 62, borderRadius: 31, borderWidth: 2.5, padding: 3, alignItems: 'center', justifyContent: 'center' },
   sLabelRow: { flexDirection: 'row', alignItems: 'center', maxWidth: 66 },

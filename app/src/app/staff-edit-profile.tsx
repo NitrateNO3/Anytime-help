@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import ProfilePhotoPicker from '../components/ProfilePhotoPicker';
 import { useRouter, useFocusEffect } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
@@ -223,9 +224,15 @@ export default function StaffEditProfileScreen() {
           
           {/* Avatar & Role Badge */}
           <View style={styles.avatarContainer}>
-            <View style={styles.avatarBox}>
-              <Ionicons name="construct" size={38} color="#1D4ED8" />
-            </View>
+            <ProfilePhotoPicker
+              photoUrl={rawUserData?.profile_pic}
+              size={84}
+              name={name}
+              fallbackIcon="construct"
+              iconColor="#1D4ED8"
+              backgroundColor="#EFF6FF"
+              onChange={(url) => setRawUserData((u: any) => ({ ...(u || {}), profile_pic: url || undefined }))}
+            />
             <View style={styles.roleBadge}>
               <Ionicons name="shield-checkmark" size={13} color="#1D4ED8" style={{ marginRight: 4 }} />
               <Text style={styles.roleBadgeText}>

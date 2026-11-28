@@ -6,6 +6,7 @@ import {
   View, Text, StyleSheet, Image, TouchableOpacity, FlatList, Dimensions, Platform, StatusBar as RNStatusBar, Animated, Linking,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { hasOfferPage, rememberOfferBanner, type BannerOffer } from '../../utils/offerBanner';
@@ -85,7 +86,11 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
 
   const avatar = (
     <TouchableOpacity style={s.avatar} onPress={onAvatar} activeOpacity={0.8}>
-      <Text style={s.avatarText}>{initialsOf(user?.name)}</Text>
+      {user?.profile_pic ? (
+        <ExpoImage source={{ uri: user.profile_pic }} style={s.avatarImg} contentFit="cover" transition={150} cachePolicy="memory-disk" />
+      ) : (
+        <Text style={s.avatarText}>{initialsOf(user?.name)}</Text>
+      )}
     </TouchableOpacity>
   );
 
@@ -225,7 +230,11 @@ export function CompactHomeHeader({ user, opacity, visible, onAvatar, onSearch }
         <Text style={s.compactSearchText} numberOfLines={1}>Search 'doctor', 'grocery'…</Text>
       </TouchableOpacity>
       <TouchableOpacity style={s.compactAvatar} onPress={onAvatar} activeOpacity={0.8}>
-        <Text style={s.compactAvatarText}>{initialsOf(user?.name)}</Text>
+        {user?.profile_pic ? (
+          <ExpoImage source={{ uri: user.profile_pic }} style={s.avatarImg} contentFit="cover" transition={150} cachePolicy="memory-disk" />
+        ) : (
+          <Text style={s.compactAvatarText}>{initialsOf(user?.name)}</Text>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -243,7 +252,8 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', marginRight: 10,
   },
   bellDot: { position: 'absolute', top: 10, right: 12, width: 9, height: 9, borderRadius: 5, backgroundColor: '#F87171', borderWidth: 1.5, borderColor: HERO_TOP },
-  avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' },
+  avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  avatarImg: { width: '100%', height: '100%' },
   avatarText: { color: '#1D4ED8', fontSize: 16, fontWeight: '900' },
 
   search: {
@@ -289,6 +299,6 @@ const s = StyleSheet.create({
     backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 14,
   },
   compactSearchText: { flex: 1, color: '#64748B', fontSize: 14 },
-  compactAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1D4ED8', alignItems: 'center', justifyContent: 'center' },
+  compactAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#1D4ED8', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   compactAvatarText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
 });

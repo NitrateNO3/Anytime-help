@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ProfileAvatar from '../components/ProfileAvatar';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ScrollViewInstance } from 'react-native';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, StatusBar, ActivityIndicator, RefreshControl, Modal, TextInput, Platform, BackHandler, KeyboardAvoidingView, Keyboard, FlatList, Dimensions, Share } from 'react-native';
@@ -1319,7 +1320,7 @@ export default function StaffScreen() {
 
               <Text style={styles.storiesHead}>{t('staff.stories', { defaultValue: 'Stories' })}</Text>
               {/* Status row: "My status" (locked without the admin's story permission) + category statuses */}
-              <StoriesBar variant="staff" myInitials={myInitials} style={{ marginHorizontal: -18, paddingHorizontal: 18 }} />
+              <StoriesBar variant="staff" myInitials={myInitials} myPhoto={user?.profile_pic} style={{ marginHorizontal: -18, paddingHorizontal: 18 }} />
 
               {/* Staff chat: one chat for staff and residents; only permitted staff can send */}
               <Text style={styles.chatHead}>{t('staff.chats', { defaultValue: 'Chats' })}</Text>
@@ -1620,9 +1621,13 @@ export default function StaffScreen() {
 
               {/* Profile */}
               <View style={styles.profileRow}>
-                <View style={styles.profileAvatar}>
-                  <Text style={styles.profileAvatarText}>{myInitials || 'ME'}</Text>
-                </View>
+                <ProfileAvatar
+                  uri={user?.profile_pic}
+                  size={48}
+                  name={myName || 'Staff'}
+                  style={styles.profileAvatar}
+                  fallback={<Text style={styles.profileAvatarText}>{myInitials || 'ME'}</Text>}
+                />
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={styles.profileName} numberOfLines={1}>{myName || 'Staff'}</Text>
                   <Text style={styles.profileMeta} numberOfLines={1}>{deptChipLabel}{areaLabel ? ` · ${areaLabel}` : ''}</Text>

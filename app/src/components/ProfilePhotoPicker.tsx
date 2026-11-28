@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import Toast from 'react-native-toast-message';
 import { AppAlert } from './AppAlert';
+import ProfileAvatar from './ProfileAvatar';
 
 const API_URL = 'https://api.anytimehelp.co.in';
 
@@ -13,14 +13,23 @@ type Props = {
   photoUrl?: string | null;
   size?: number;
   iconColor?: string;
+  // Ionicons name shown when there is no photo
+  fallbackIcon?: keyof typeof Ionicons.glyphMap;
+  backgroundColor?: string;
+  // Name shown in the full-screen viewer header
+  name?: string;
   // Called with the new URL (or null when removed) after the server saved it
   onChange?: (url: string | null) => void;
 };
 
-// Round avatar with a camera badge. Tapping it lets the user take a photo,
-// pick one from the gallery, or remove the current one. The photo is uploaded
+// Round avatar with a camera badge. Tapping the photo opens it full screen
+// (WhatsApp style, with a pencil to change it); tapping the badge, or the avatar
+// when there is no photo, lets the user take a photo, pick one from the
+// gallery, or remove the current one. The photo is uploaded
 // to the backend and the cached userData in SecureStore is updated.
-export default function ProfilePhotoPicker({ photoUrl, size = 64, iconColor = '#0F172A', onChange }: Props) {
+export default function ProfilePhotoPicker({
+  photoUrl, size = 64, iconColor = '#0F172A', fallbackIcon = 'person', backgroundColor = '#EFF6FF', name, onChange,
+}: Props) {
   const [uploading, setUploading] = useState(false);
 
   const saveToStoredUser = async (url: string | null) => {
@@ -120,28 +129,35 @@ export default function ProfilePhotoPicker({ photoUrl, size = 64, iconColor = '#
   const badge = Math.max(20, Math.round(size * 0.36));
 
   return (
-    <TouchableOpacity onPress={openOptions} activeOpacity={0.8} style={{ width: size, height: size }}>
-      <View style={[styles.circle, { width: size, height: size, borderRadius: size / 2 }]}>
-        {photoUrl ? (
-          <Image source={{ uri: photoUrl }} style={{ width: size, height: size }} contentFit="cover" transition={150} />
-        ) : (
-          <Ionicons name="person" size={Math.round(size * 0.56)} color={iconColor} />
-        )}
+    <View style={{ width: size, height: size }}>
+      <ProfileAvatar
+        uri={photoUrl}
+        size={size}
+        name={name}
+        style={{ backgroundColor }}
+        fallback={<Ionicons name={fallbackIcon} size={Math.round(size * 0.5)} color={iconColor} />}
+        onPressEmpty={openOptions}
+        onEdit={openOptions}
+      >
         {uploading && (
           <View style={[StyleSheet.absoluteFill, styles.overlay]}>
             <ActivityIndicator color="#FFFFFF" />
           </View>
         )}
-      </View>
-      <View style={[styles.badge, { width: badge, height: badge, borderRadius: badge / 2 }]}>
+      </ProfileAvatar>
+      <TouchableOpacity
+        onPress={openOptions}
+        activeOpacity={0.8}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={[styles.badge, { width: badge, height: badge, borderRadius: badge / 2 }]}
+      >
         <Ionicons name="camera" size={Math.round(badge * 0.55)} color="#FFFFFF" />
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  circle: { backgroundColor: '#EFF6FF', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   overlay: { backgroundColor: 'rgba(15,23,42,0.45)', justifyContent: 'center', alignItems: 'center' },
   badge: {
     position: 'absolute', right: -2, bottom: -2, backgroundColor: '#2563EB',

@@ -121,6 +121,7 @@ export default function SettingsScreen() {
           <View style={{ marginRight: 16 }}>
             <ProfilePhotoPicker
               photoUrl={user?.profile_pic}
+              name={user?.name}
               iconColor="#1D4ED8"
               onChange={(url) => setUser((u: any) => (u ? { ...u, profile_pic: url || undefined } : u))}
             />

@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import ProfilePhotoPicker from '../../components/ProfilePhotoPicker';
 import { useRouter } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import axios from 'axios';
@@ -175,9 +176,15 @@ export default function MemberEditProfileScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <View style={styles.avatarContainer}>
-            <View style={styles.avatarBox}>
-              <Ionicons name="shield-checkmark" size={40} color="#2563EB" />
-            </View>
+            <ProfilePhotoPicker
+              photoUrl={rawUserData?.profile_pic}
+              size={80}
+              name={name}
+              fallbackIcon="shield-checkmark"
+              iconColor="#2563EB"
+              backgroundColor="#EFF6FF"
+              onChange={(url) => setRawUserData((u: any) => ({ ...(u || {}), profile_pic: url || undefined }))}
+            />
             {designation ? (
               <View style={styles.roleTag}>
                 <Text style={styles.roleTagText}>{designation}</Text>
