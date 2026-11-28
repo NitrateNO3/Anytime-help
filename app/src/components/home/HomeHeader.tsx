@@ -22,7 +22,10 @@ const LIP_H = 24;
 const DOTS_H = 26;
 const TOP_PAD = Platform.OS === 'android' ? (RNStatusBar.currentHeight || 24) + 8 : 48;
 // Height of the logo row + search bar that sit on top of the banner
-const TOP_PART = TOP_PAD + 56 + 18 + 52;
+const LOGO = 44;
+const SEARCH_H = 44;
+const SEARCH_GAP = 14;
+const TOP_PART = TOP_PAD + 46 + SEARCH_GAP + SEARCH_H;
 
 
 export const initialsOf = (name?: string, fallback = 'U') =>
@@ -107,7 +110,7 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
   const topBar = (
     <>
       <View style={s.topRow}>
-        <Image source={require('../../../assets/images/logo.png')} style={{ width: 56, height: 56 }} resizeMode="contain" />
+        <Image source={require('../../../assets/images/logo-home.png')} style={{ width: LOGO, height: LOGO }} resizeMode="contain" />
         <View style={{ flex: 1, marginLeft: 10 }}>
           <Text style={s.brand}>ANYTIME HELP</Text>
           <View style={s.portalPill}>
@@ -122,7 +125,7 @@ export default function HomeHeader({ user, portalLabel, unreadCount, banners, on
       </View>
 
       <TouchableOpacity style={s.search} activeOpacity={0.85} onPress={onSearch}>
-        <Ionicons name="search" size={20} color="rgba(255,255,255,0.7)" />
+        <Ionicons name="search" size={18} color="rgba(255,255,255,0.7)" />
         <Text style={s.searchText} numberOfLines={1}>Search 'doctor', 'grocery', 'salon'…</Text>
       </TouchableOpacity>
     </>
@@ -224,7 +227,7 @@ export function CompactHomeHeader({ user, opacity, visible, onAvatar, onSearch }
 }) {
   return (
     <Animated.View style={[s.compact, { opacity }]} pointerEvents={visible ? 'auto' : 'none'}>
-      <Image source={require('../../../assets/images/logo.png')} style={{ width: 36, height: 36 }} resizeMode="contain" />
+      <Image source={require('../../../assets/images/logo-home.png')} style={{ width: 32, height: 32 }} resizeMode="contain" />
       <TouchableOpacity style={s.compactSearch} activeOpacity={0.8} onPress={onSearch}>
         <Ionicons name="search" size={18} color="#475569" />
         <Text style={s.compactSearchText} numberOfLines={1}>Search 'doctor', 'grocery'…</Text>
@@ -244,9 +247,9 @@ const s = StyleSheet.create({
   hero: { paddingTop: TOP_PAD, overflow: 'hidden' },
   ring: { position: 'absolute', borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.07)' },
   topRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 },
-  brand: { color: '#FFFFFF', fontSize: 19, fontWeight: '900', letterSpacing: 0.6 },
-  portalPill: { alignSelf: 'flex-start', marginTop: 4, backgroundColor: '#FCD34D', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 3 },
-  portalText: { color: '#78350F', fontSize: 11.5, fontWeight: '900', letterSpacing: 1 },
+  brand: { color: '#FFFFFF', fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
+  portalPill: { alignSelf: 'flex-start', marginTop: 3, backgroundColor: '#FCD34D', borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
+  portalText: { color: '#78350F', fontSize: 9.5, fontWeight: '900', letterSpacing: 0.8 },
   bell: {
     width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(5,20,30,0.35)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)',
     alignItems: 'center', justifyContent: 'center', marginRight: 10,
@@ -257,10 +260,10 @@ const s = StyleSheet.create({
   avatarText: { color: '#1D4ED8', fontSize: 16, fontWeight: '900' },
 
   search: {
-    flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: 18, height: 52, borderRadius: 16,
-    backgroundColor: 'rgba(5,20,30,0.28)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 16, marginTop: SEARCH_GAP, height: SEARCH_H, borderRadius: SEARCH_H / 2,
+    backgroundColor: 'rgba(5,20,30,0.28)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 18,
   },
-  searchText: { flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: 15 },
+  searchText: { flex: 1, color: 'rgba(255,255,255,0.6)', fontSize: 14 },
 
   // Text card banner
   card: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingTop: TOP_PART + 4, paddingBottom: DOTS_H + LIP_H },
@@ -295,7 +298,7 @@ const s = StyleSheet.create({
     shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 6,
   },
   compactSearch: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderRadius: 22,
+    flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 40, borderRadius: 20,
     backgroundColor: '#F1F5F9', borderWidth: 1, borderColor: '#E2E8F0', paddingHorizontal: 14,
   },
   compactSearchText: { flex: 1, color: '#64748B', fontSize: 14 },
