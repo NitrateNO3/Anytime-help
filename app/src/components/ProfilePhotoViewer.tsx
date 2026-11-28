@@ -90,17 +90,25 @@ export default function ProfilePhotoViewer({ visible, uri, title, origin, onClos
     return { opacity: progress.value * dragFade };
   });
 
+  // The photo view is laid out ONCE at its final full-width size; the open/close
+  // animation only uses transforms (translate + scale), which run on the GPU.
+  // Animating width/height/left/top instead forces a relayout and an image
+  // re-decode on every frame, which is what made it stutter.
+  const startScale = o.size / target.size;
+  const startDx = o.x + o.size / 2 - W / 2;
+  const startDy = o.y + o.size / 2 - (target.y + target.size / 2);
+
   const photoStyle = useAnimatedStyle(() => {
     const p = progress.value;
-    const size = interpolate(p, [0, 1], [o.size, target.size]);
     const dragScale = interpolate(Math.abs(dragY.value), [0, 400], [1, 0.82], Extrapolation.CLAMP);
     return {
-      left: interpolate(p, [0, 1], [o.x, target.x]),
-      top: interpolate(p, [0, 1], [o.y, target.y]),
-      width: size,
-      height: size,
-      borderRadius: interpolate(p, [0, 1], [o.size / 2, 0]),
-      transform: [{ translateY: dragY.value }, { scale: dragScale }],
+      // Radius is in the full-size view's units, so W/2 is a perfect circle at any scale
+      borderRadius: interpolate(p, [0, 1], [target.size / 2, 0]),
+      transform: [
+        { translateX: startDx * (1 - p) },
+        { translateY: startDy * (1 - p) + dragY.value },
+        { scale: interpolate(p, [0, 1], [startScale, 1]) * dragScale },
+      ],
     };
   });
 
@@ -114,14 +122,16 @@ export default function ProfilePhotoViewer({ visible, uri, title, origin, onClos
   const topPad = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) + 6 : 50;
 
   return (
-    <Modal visible={visible} transparent animationType="none" statusBarTranslucent onRequestClose={() => close()}>
+    <Modal visible={visible} transparent animationType="none" statusBarTranslucent hardwareAccelerated onRequestClose={() => close()}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StatusBar barStyle="light-content" />
         <GestureDetector gesture={pan}>
           <View style={StyleSheet.absoluteFill} collapsable={false}>
             <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]} />
-            <Animated.View style={[styles.photo, photoStyle]}>
-              <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+            <Animated.View
+              style={[styles.photo, { top: target.y, width: target.size, height: target.size }, photoStyle]}
+            >
+              <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" priority="high" transition={0} />
             </Animated.View>
           </View>
         </GestureDetector>
@@ -146,7 +156,7 @@ export default function ProfilePhotoViewer({ visible, uri, title, origin, onClos
 
 const styles = StyleSheet.create({
   backdrop: { backgroundColor: '#000000' },
-  photo: { position: 'absolute', overflow: 'hidden', backgroundColor: '#111827' },
+  photo: { position: 'absolute', left: 0, overflow: 'hidden', backgroundColor: '#111827' },
   header: {
     position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 12, paddingBottom: 12, backgroundColor: 'rgba(0,0,0,0.35)',
