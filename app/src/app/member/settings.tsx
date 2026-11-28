@@ -13,6 +13,7 @@ import { socketAuth } from '../../utils/socketAuth';
 
 import { getNextLanguage, getLanguageDisplayName } from '../../utils/localization';
 import DeleteAccountModal from '../../components/DeleteAccountModal';
+import ProfilePhotoPicker from '../../components/ProfilePhotoPicker';
 
 const API_URL = 'https://api.anytimehelp.co.in';
 const RELATIONS = ['Spouse', 'Father', 'Mother', 'Son', 'Daughter', 'Brother', 'Sister', 'Other'];
@@ -314,8 +315,12 @@ export default function SettingsScreen() {
       
         {/* Profile Card */}
         <TouchableOpacity style={styles.profileCard} onPress={() => router.push('/member/edit-profile' as any)}>
-          <View style={styles.avatarBox}>
-            <Ionicons name="person" size={36} color="#0F172A" />
+          <View style={{ marginRight: 16 }}>
+            <ProfilePhotoPicker
+              photoUrl={user?.profile_pic}
+              iconColor="#0F172A"
+              onChange={(url) => setUser((u: any) => (u ? { ...u, profile_pic: url || undefined } : u))}
+            />
           </View>
           <View style={styles.profileInfo}>
             <Text style={styles.profileName}>{user?.name || 'Member'}</Text>

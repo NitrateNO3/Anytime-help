@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema({
   expoPushToken: { type: String, required: false },
   role: { type: String, enum: ['Resident', 'Staff', 'Admin', 'SubAdmin', 'Member', 'SuperAdmin'], default: 'Resident' },
   gender: { type: String, enum: ['Male', 'Female', 'Other'] },
+  profile_pic: { type: String, required: false }, // S3 URL of the user's profile photo
   assigned_category: { type: String, required: false }, // Legacy support
   assigned_categories: { type: [String], default: [] }, // New array for multiple categories
   phase: { type: String, required: false }, // For phase/entity-based routing

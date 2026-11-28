@@ -570,7 +570,9 @@ router.post('/', auth, async (req, res) => {
               phaseCond = {
                 $or: [
                   { phase: { $regex: /Sushant Lok 2/i } },
-                  { address: { $regex: /Sushant Lok 2/i } }
+                  { address: { $regex: /Sushant Lok 2/i } },
+                  // Same rule as the feed (GET): a user without a phase counts as Sushant Lok 2
+                  { phase: { $in: [null, ''] }, address: { $not: /Sushant Lok 3/i } }
                 ]
               };
             } else if (locPhase.toLowerCase().includes('sushant lok 3')) {
@@ -608,7 +610,14 @@ router.post('/', auth, async (req, res) => {
               const blockCond = {
                 $or: [
                   { block: { $in: normalizedBlocks } },
-                  { address: { $regex: new RegExp(blkRegexPatterns, 'i') } }
+                  { address: { $regex: new RegExp(blkRegexPatterns, 'i') } },
+                  // Same rule as the feed (GET): a user whose block is unknown (no block
+                  // field and none readable from the address) sees every block of the
+                  // phase, so they must get the push too.
+                  {
+                    block: { $in: [null, ''] },
+                    address: { $not: /\bBlock[\s:-]*[A-H]1?\b|\b[A-H]1?[\s-]+Block\b|\b[A-H]1?[- ]?\d+/i }
+                  }
                 ]
               };
 

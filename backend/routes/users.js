@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Area = require('../models/Area');
 const auth = require('../middleware/auth');
 const { runUnscoped } = require('../utils/areaContext');
+const { uploadToS3, deleteFromS3 } = require('../utils/s3Uploader');
 
 const checkAccess = (user, section) => {
   if (user.role === 'Admin') return true;
@@ -82,6 +83,68 @@ router.put('/me', auth, async (req, res) => {
     }
 
     res.json({ message: 'Profile updated successfully', user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// @route   PUT api/users/me/photo
+// @desc    Upload / replace the current user's profile photo
+// @body    { image: 'data:image/jpeg;base64,...' }
+// @access  Private
+router.put('/me/photo', auth, async (req, res) => {
+  try {
+    const { image } = req.body;
+    if (!image || typeof image !== 'string' || !image.startsWith('data:image')) {
+      return res.status(400).json({ message: 'A valid image is required' });
+    }
+    // Roughly 5 MB of base64
+    if (image.length > 7 * 1024 * 1024) {
+      return res.status(413).json({ message: 'Image is too large' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const result = await uploadToS3(image, 'profile-pics');
+    const oldPic = user.profile_pic;
+    user.profile_pic = result.secure_url;
+    await user.save();
+
+    if (oldPic) deleteFromS3(oldPic).catch(() => {});
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_updated', { userId: user._id, role: user.role, name: user.name });
+    }
+
+    res.json({ message: 'Profile photo updated', profile_pic: user.profile_pic });
+  } catch (error) {
+    console.error('Profile photo upload error:', error);
+    res.status(500).json({ message: 'Could not upload photo' });
+  }
+});
+
+// @route   DELETE api/users/me/photo
+// @desc    Remove the current user's profile photo
+// @access  Private
+router.delete('/me/photo', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const oldPic = user.profile_pic;
+    user.profile_pic = undefined;
+    await user.save();
+
+    if (oldPic) deleteFromS3(oldPic).catch(() => {});
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('user_updated', { userId: user._id, role: user.role, name: user.name });
+    }
+
+    res.json({ message: 'Profile photo removed' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
